@@ -1,0 +1,106 @@
+#!/bin/bash
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
+
+# Function to display usage
+usage() {
+    echo -e "${CYAN}Usage: $0 [down|stop|up|start|restart|rebuild]${RESET}"
+    echo
+    echo "Actions:"
+    echo "  down/stop   - Stop and remove containers"
+    echo "  up/start    - Start containers in detached mode"
+    echo "  restart     - Restart containers (down + up)"
+    echo "  rebuild     - Rebuild and restart containers (down + build + up)"
+    echo
+    echo "Example:"
+    echo "  $0 rebuild"
+    exit 1
+}
+
+# Check if action parameter is provided
+if [ $# -eq 0 ]; then
+    usage
+fi
+
+ACTION=$1
+
+case $ACTION in
+    down|stop)
+        echo -e "${YELLOW}Stopping and removing containers...${RESET}"
+        sudo docker compose down
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Containers stopped successfully${RESET}"
+        else
+            echo -e "${RED}✗ Failed to stop containers${RESET}"
+            exit 1
+        fi
+        ;;
+        
+    up|start)
+        echo -e "${YELLOW}Starting containers...${RESET}"
+        sudo docker compose up -d
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Containers started successfully${RESET}"
+            echo -e "${CYAN}Server running at: http://localhost:8050${RESET}"
+        else
+            echo -e "${RED}✗ Failed to start containers${RESET}"
+            exit 1
+        fi
+        ;;
+        
+    restart)
+        echo -e "${YELLOW}Restarting containers...${RESET}"
+        sudo docker compose down
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Containers stopped${RESET}"
+            sudo docker compose up -d
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}✓ Containers restarted successfully${RESET}"
+                echo -e "${CYAN}Server running at: http://localhost:8050${RESET}"
+            else
+                echo -e "${RED}✗ Failed to start containers${RESET}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}✗ Failed to stop containers${RESET}"
+            exit 1
+        fi
+        ;;
+        
+    rebuild)
+        echo -e "${YELLOW}Rebuilding and restarting containers...${RESET}"
+        sudo docker compose down
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Containers stopped${RESET}"
+            echo -e "${YELLOW}Building containers (no cache)...${RESET}"
+            sudo docker compose build --no-cache
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}✓ Containers built successfully${RESET}"
+                sudo docker compose up -d
+                if [ $? -eq 0 ]; then
+                    echo -e "${GREEN}✓ Containers started successfully${RESET}"
+                    echo -e "${CYAN}Server running at: http://localhost:8050${RESET}"
+                else
+                    echo -e "${RED}✗ Failed to start containers${RESET}"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}✗ Failed to build containers${RESET}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}✗ Failed to stop containers${RESET}"
+            exit 1
+        fi
+        ;;
+        
+    *)
+        echo -e "${RED}Invalid action: $ACTION${RESET}"
+        usage
+        ;;
+esac

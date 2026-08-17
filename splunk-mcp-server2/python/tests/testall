@@ -1,0 +1,225 @@
+#!/bin/bash
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$SCRIPT_DIR"
+
+# Function to check if server is running
+check_server() {
+    echo -n "Checking if server is running on port 8050... "
+    # Use timeout and check for SSE headers instead of waiting for response body
+    if timeout 2 curl -s -I http://localhost:8050/sse 2>/dev/null | grep -q "text/event-stream"; then
+        echo -e "${GREEN}✓ Server is running${RESET}"
+        return 0
+    else
+        echo -e "${RED}✗ Server not found${RESET}"
+        echo -e "${YELLOW}Please start the server first:${RESET}"
+        echo "  cd ../  # Go to python directory"
+        echo "  python server.py"
+        return 1
+    fi
+}
+
+# Function to display menu
+show_menu() {
+    clear
+    echo -e "${BOLD}${CYAN}═══════════════════════════════════════════════════════${RESET}"
+    echo -e "${BOLD}${CYAN}        Splunk MCP Server Test Suite - testall         ${RESET}"
+    echo -e "${BOLD}${CYAN}═══════════════════════════════════════════════════════${RESET}"
+    echo
+    echo -e "${BOLD}Available Tests:${RESET}"
+    echo -e "  ${GREEN}1${RESET}) Test SSE Transport     - Comprehensive SSE tests"
+    echo -e "  ${GREEN}2${RESET}) Test STDIO Transport   - Comprehensive STDIO tests"
+    echo -e "  ${GREEN}3${RESET}) Validate SPL           - Test SPL query validation"
+    echo -e "  ${GREEN}4${RESET}) Interactive SPL Search - Run interactive queries"
+    echo -e "  ${GREEN}5${RESET}) List Server Capabilities"
+    echo -e "  ${GREEN}6${RESET}) Code Samples          - Python & curl examples"
+    echo -e "  ${GREEN}7${RESET}) Quick Smoke Test      - Fast validation"
+    echo -e "  ${GREEN}8${RESET}) Run ALL Tests         - SSE + STDIO + Quick"
+    echo
+    echo -e "  ${RED}q${RESET}) Exit (or press ESC)"
+    echo
+    echo -e "${BOLD}${CYAN}═══════════════════════════════════════════════════════${RESET}"
+}
+
+# Function to press any key to continue
+press_any_key() {
+    echo
+    echo -e "${YELLOW}Press any key to return to menu (ESC to exit)...${RESET}"
+    # Ensure output is flushed before waiting for input
+    exec 1>&1
+    read -n 1 -s -r key
+    # Check if ESC was pressed (ESC = \033 or decimal 27)
+    if [[ $key == $'\033' ]]; then
+        echo -e "\n${GREEN}Goodbye!${RESET}"
+        exit 0
+    fi
+}
+
+# Function to run a test and show results
+run_test() {
+    local test_name=$1
+    local test_file=$2
+    
+    echo -e "\n${BOLD}${CYAN}Running $test_name...${RESET}"
+    echo -e "${CYAN}════════════════════════════════════════════════${RESET}\n"
+    
+    python "$test_file"
+    local exit_code=$?
+    
+    if [ $exit_code -eq 0 ]; then
+        echo -e "\n${GREEN}${BOLD}✅ $test_name completed successfully!${RESET}"
+    else
+        echo -e "\n${RED}${BOLD}❌ $test_name failed with exit code $exit_code${RESET}"
+    fi
+    
+    return $exit_code
+}
+
+# Main loop
+while true; do
+    show_menu
+    
+    echo -n "Select an option: "
+    read -n 1 -s -r choice
+    
+    # Check if ESC was pressed
+    if [[ $choice == $'\033' ]]; then
+        echo -e "\n${GREEN}Goodbye!${RESET}"
+        exit 0
+    fi
+    
+    # Echo the choice for visibility
+    echo "$choice"
+    
+    case $choice in
+        1)
+            if check_server; then
+                run_test "SSE Transport Test" "test_sse_transport.py"
+                press_any_key
+            else
+                press_any_key
+            fi
+            ;;
+            
+        2)
+            echo -e "\n${YELLOW}Note: STDIO transport will spawn its own server process${RESET}"
+            run_test "STDIO Transport Test" "test_stdio_transport.py"
+            press_any_key
+            ;;
+            
+        3)
+            if check_server; then
+                echo -e "\n${BOLD}${CYAN}Starting SPL Validation Test...${RESET}"
+                echo -e "${CYAN}════════════════════════════════════════════════${RESET}\n"
+                python validate_spl_test.py
+                # No press_any_key here since validate_spl_test.py handles its own exit
+            else
+                press_any_key
+            fi
+            ;;
+            
+        4)
+            if check_server; then
+                echo -e "\n${BOLD}${CYAN}Starting Interactive SPL Search...${RESET}"
+                echo -e "${CYAN}════════════════════════════════════════════════${RESET}\n"
+                python splunk_sse_search.py
+            else
+                press_any_key
+            fi
+            ;;
+            
+        5)
+            if check_server; then
+                run_test "List Server Capabilities" "list_capabilities.py"
+                press_any_key
+            else
+                press_any_key
+            fi
+            ;;
+            
+        6)
+            python code_samples.py
+            # No press_any_key here since code_samples.py handles its own menu
+            ;;
+            
+        7)
+            if check_server; then
+                run_test "Quick Smoke Test" "quick_test.py"
+                press_any_key
+            else
+                press_any_key
+            fi
+            ;;
+            
+        8)
+            echo -e "\n${BOLD}${CYAN}Running ALL Tests...${RESET}"
+            echo -e "${CYAN}════════════════════════════════════════════════${RESET}\n"
+            
+            total_passed=0
+            total_failed=0
+            
+            # Quick test first
+            if check_server; then
+                if run_test "Quick Smoke Test" "quick_test.py"; then
+                    ((total_passed++))
+                else
+                    ((total_failed++))
+                fi
+                echo
+            else
+                ((total_failed++))
+            fi
+            
+            # SSE test
+            if check_server; then
+                if run_test "SSE Transport Test" "test_sse_transport.py"; then
+                    ((total_passed++))
+                else
+                    ((total_failed++))
+                fi
+                echo
+            fi
+            
+            # STDIO test
+            if run_test "STDIO Transport Test" "test_stdio_transport.py"; then
+                ((total_passed++))
+            else
+                ((total_failed++))
+            fi
+            
+            # Summary
+            echo -e "\n${BOLD}${CYAN}════════════════════════════════════════════════${RESET}"
+            echo -e "${BOLD}Overall Test Summary:${RESET}"
+            echo -e "  Total test suites: $((total_passed + total_failed))"
+            echo -e "  ${GREEN}Passed: $total_passed${RESET}"
+            echo -e "  ${RED}Failed: $total_failed${RESET}"
+            
+            if [ $total_failed -eq 0 ]; then
+                echo -e "\n${GREEN}${BOLD}🎉 All tests passed!${RESET}"
+            else
+                echo -e "\n${YELLOW}${BOLD}⚠️  Some tests failed${RESET}"
+            fi
+            
+            press_any_key
+            ;;
+            
+        q|Q)
+            echo -e "\n${GREEN}Goodbye!${RESET}"
+            exit 0
+            ;;
+            
+        *)
+            echo -e "\n${RED}Invalid option. Please try again.${RESET}"
+            sleep 1
+            ;;
+    esac
+done

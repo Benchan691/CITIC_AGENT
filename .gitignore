@@ -1,0 +1,9 @@
+.env
+.data/
+.venv/
+.pytest_cache/
+.ua/
+__pycache__/
+*.egg-info/
+deep-agents-ui/node_modules/
+deep-agents-ui/.next/
