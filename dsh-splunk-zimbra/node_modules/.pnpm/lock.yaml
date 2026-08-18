@@ -1,0 +1,16 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@deepseek-ai/dsh-splunk-zimbra-scheduler':
+        specifier: link:../dsh-splunk-zimbra-scheduler
+        version: link:../dsh-splunk-zimbra-scheduler
+      dsh-splunk-zimbra-client:
+        specifier: link:../dsh-splunk-zimbra-client
+        version: link:../dsh-splunk-zimbra-client

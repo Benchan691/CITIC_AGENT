@@ -1,0 +1,225 @@
+.form button:focus-visible,
+.input:focus-visible {
+  outline: 2px solid var(--dsw-alias-border-l4);
+  outline-offset: 2px;
+}
+
+.loading {
+  padding: 24px;
+  color: var(--dsw-alias-label-secondary);
+  text-align: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.description,
+.status {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.status {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.section h3 {
+  margin: 0 0 2px;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.row label {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.input {
+  min-width: 0;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 9px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+
+.input::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 96px;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 9px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+
+.fieldLabel {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.rule {
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.run {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+}
+
+.run:last-child {
+  border-bottom: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.primaryButton,
+.secondaryButton,
+.deleteButton {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 15px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 0;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.primaryButton:hover {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+.secondaryButton,
+.deleteButton {
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
+.secondaryButton:hover,
+.deleteButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.deleteButton {
+  min-height: 28px;
+  border-radius: 14px;
+}
+
+.account {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.connectedAccount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.accountIdentity {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.accountMeta {
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.accountActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.testResult {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 30px;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.testOk {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.testFail {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+@media (max-width: 520px) {
+  .row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .row label {
+    grid-column: 1 / -1;
+  }
+}

@@ -1,0 +1,185 @@
+- id: system-prompt
+  config:
+    includeIdentity: false
+    persona: >-
+      You are Splunk + Zimbra Analyst, a single-operator security investigation agent. Use Splunk for guarded searches, saved-search review, detection validation, and detection backtesting. Use Zimbra messages and supported attachment text only as investigation evidence. Never claim an external change succeeded without the corresponding tool result. Email sending and Splunk detection changes require explicit operator approval. Keep findings concise, cite the searches and message identifiers that support them, distinguish evidence from inference, and state limitations or failed data access.
+
+- id: tools
+  config:
+    mode: native
+
+- id: approval
+  config:
+    policy: ask
+
+- id: compaction-basic
+  disabled: false
+- id: command-compact
+  disabled: false
+- id: tool-result-pruner
+  disabled: false
+
+- insert:
+    - id: time-context
+      name: '@deepseek-ai/dsh-time-context'
+
+- id: hmr
+  disabled: false
+- id: user-questions
+  disabled: false
+- id: jobs
+  disabled: true
+- id: session-telemetry-otel
+  disabled: true
+- id: subprocess
+  disabled: true
+- id: sandbox
+  disabled: true
+- id: sandbox-policy
+  disabled: true
+- id: bash-sandbox
+  disabled: true
+- id: pwsh-sandbox
+  disabled: true
+- id: permission
+  disabled: true
+- id: shell-env
+  disabled: true
+- id: tool-bash
+  disabled: true
+- id: tool-pwsh
+  disabled: true
+- id: tool-jobs
+  disabled: true
+- id: fs-observation-policy
+  disabled: true
+- id: fs-sandbox
+  disabled: true
+- id: tool-fs
+  disabled: true
+- id: tool-fs-search
+  disabled: true
+- id: agent-instructions
+  disabled: true
+- id: skill
+  disabled: true
+- id: skill-filesystem
+  disabled: true
+- id: skill-badge
+  disabled: true
+- id: tool-skill
+  disabled: true
+- id: command-feedback
+  disabled: true
+- id: goal
+  disabled: true
+- id: goal-round-driver
+  disabled: true
+- id: command-goal
+  disabled: true
+- id: plan-mode
+  disabled: true
+- id: subagent
+  disabled: false
+- id: subagent-spawn-in-process
+  disabled: true
+- id: subagent-fork-in-process
+  disabled: true
+- id: tool-subagent-control
+  disabled: true
+- id: tool-subagent-list-agents
+  disabled: true
+- id: tool-subagent
+  disabled: true
+- id: tool-subagent-fork
+  disabled: true
+- id: tool-subagent-report
+  disabled: true
+- id: workflow-worker-thread
+  disabled: true
+- id: tool-workflow
+  disabled: true
+- id: tool-todo
+  disabled: true
+- id: tool-goal
+  disabled: true
+- id: tool-ralph
+  disabled: true
+- id: tool-str-replace-editor
+  disabled: true
+- id: repeat-tool-reminder
+  disabled: true
+- id: code-runtime
+  disabled: true
+- id: message-feedback
+  disabled: true
+- id: directory-picker
+  disabled: false
+- id: plugin-inventory
+  disabled: false
+- id: cordis-host-runner
+  disabled: true
+- id: client-hmr
+  disabled: false
+- id: cordis-client-runner
+  disabled: true
+- id: ui-settings-plugin-inventory
+  disabled: false
+- id: ui-cordis
+  disabled: true
+- id: ui-workflow-run
+  disabled: true
+- id: ui-deliverables
+  disabled: true
+- id: ui-skill
+  disabled: true
+- id: ui-subagent
+  disabled: true
+- id: ui-jobs
+  disabled: true
+- id: ui-goal
+  disabled: true
+- id: ui-message-feedback
+  disabled: true
+- id: ui-permission
+  disabled: true
+- id: ui-agent-preset
+  disabled: true
+- id: ui-settings-plugins
+  disabled: false
+- id: ui-plan
+  disabled: true
+- id: ui-user-questions
+  disabled: true
+- id: ui-trajectory
+  disabled: true
+- id: agent-presets
+  disabled: true
+
+- insert:
+    - id: splunk-zimbra-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: splunk_zimbra
+        transport: stdio
+        command: uv
+        args: ['run', 'unified-mcp-server']
+        cwd: !!js "process.env.DSH_SPLUNK_ZIMBRA_SERVER ?? ((process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())) + '/dsh-splunk-zimbra/server')"
+        env:
+          MCP_SEVER_ROOT: !!js "process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())"
+          APP_POSTGRES_URI: !!js process.env.APP_POSTGRES_URI ?? ''
+          APP_SETTINGS_ENCRYPTION_KEY: !!js process.env.APP_SETTINGS_ENCRYPTION_KEY ?? ''
+        toolCallTimeoutMs: 120000
+        failOnStartupError: true
+    - id: splunk-zimbra-admin-host
+      name: dsh-splunk-zimbra/host
+      description: Host policy, tool allowlists, and admin RPC for the analyst product.
+    - id: splunk-zimbra-scheduler
+      name: dsh-splunk-zimbra/scheduler
+      description: Durable scheduled read-only Splunk and Zimbra investigation runs.
+      config:
+        workspaceRoot: !!js "process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())"
+        maxConcurrentRuns: 1
+        runTimeoutMs: 900000
+    - id: splunk-zimbra-admin-ui
+      name: dsh-splunk-zimbra-client

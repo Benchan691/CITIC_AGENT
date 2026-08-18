@@ -1,0 +1,29 @@
+{
+  "name": "dsh-splunk-zimbra",
+  "version": "0.1.0",
+  "description": "Splunk and Zimbra analyst product bundle for DeepSeek Harness.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "files": [
+    "cordis.patch.yml",
+    "host.js",
+    "scheduler.js"
+  ],
+  "exports": {
+    ".": "./package.json",
+    "./host": "./host.js",
+    "./scheduler": "./scheduler.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-splunk-zimbra-scheduler": "link:../dsh-splunk-zimbra-scheduler",
+    "dsh-splunk-zimbra-client": "link:../dsh-splunk-zimbra-client"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
