@@ -1,0 +1,41 @@
+"""MCP registrations for read-only Splunk Search tools."""
+
+from __future__ import annotations
+
+from typing import Any
+
+
+def register_tools(server, *, get_runtime, fresh_runtime, execute, success, failure, service_error) -> None:
+    @server.tool()
+    async def splunk_validate_query(ctx, query: str, earliest_time: str = "-24h", latest_time: str = "now") -> dict[str, Any]:
+        """Risk-score an SPL query locally without executing it."""
+        try:
+            data = (await fresh_runtime(ctx)).splunk_search.validate(query, earliest_time, latest_time)
+            return success("splunk", "validate_query", data)
+        except service_error as exc:
+            return failure("splunk", "validate_query", exc.code, exc.message, details=exc.details)
+
+    @server.tool()
+    async def splunk_search(ctx, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 100) -> dict[str, Any]:
+        """Execute a guarded Splunk oneshot search and return structured events."""
+        return await execute(ctx, "splunk", "search", lambda: get_runtime(ctx).splunk_search.search(query, earliest_time, latest_time, max_count))
+
+    @server.tool()
+    async def splunk_list_indexes(ctx) -> dict[str, Any]:
+        """List Splunk indexes available to the configured account."""
+        return await execute(ctx, "splunk", "list_indexes", lambda: get_runtime(ctx).splunk_search.list_indexes())
+
+    @server.tool()
+    async def splunk_list_saved_searches(ctx) -> dict[str, Any]:
+        """List saved Splunk searches without running them."""
+        return await execute(ctx, "splunk", "list_saved_searches", lambda: get_runtime(ctx).splunk_search.list_saved_searches())
+
+    @server.tool()
+    async def splunk_list_data_sources(ctx, index: str = "") -> dict[str, Any]:
+        """List index metadata to help scope a detection rule before authoring SPL."""
+        return await execute(ctx, "splunk", "list_data_sources", lambda: get_runtime(ctx).splunk_search.list_data_sources(index))
+
+    @server.tool()
+    async def splunk_run_saved_search(ctx, name: str) -> dict[str, Any]:
+        """Run a saved Splunk search with actions disabled."""
+        return await execute(ctx, "splunk", "run_saved_search", lambda: get_runtime(ctx).splunk_search.run_saved_search(name))

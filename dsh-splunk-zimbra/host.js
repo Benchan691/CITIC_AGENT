@@ -1,53 +1,14 @@
 import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS } from './policy.js'
 
 export const name = 'splunk-zimbra-host'
 export const inject = ['agents', 'connection', 'tools']
 
 const CHANNEL = '/splunk-zimbra-config'
 
-export const DOMAIN_TOOLS = new Set([
-  'mcp__splunk_zimbra__system_get_status',
-  'mcp__splunk_zimbra__splunk_validate_query',
-  'mcp__splunk_zimbra__splunk_search',
-  'mcp__splunk_zimbra__splunk_list_indexes',
-  'mcp__splunk_zimbra__splunk_list_saved_searches',
-  'mcp__splunk_zimbra__splunk_run_saved_search',
-  'mcp__splunk_zimbra__splunk_list_data_sources',
-  'mcp__splunk_zimbra__splunk_get_detection',
-  'mcp__splunk_zimbra__splunk_validate_detection',
-  'mcp__splunk_zimbra__splunk_backtest_detection',
-  'mcp__splunk_zimbra__splunk_create_detection_draft',
-  'mcp__splunk_zimbra__splunk_update_detection_draft',
-  'mcp__splunk_zimbra__splunk_enable_detection',
-  'mcp__splunk_zimbra__splunk_disable_detection',
-  'mcp__splunk_zimbra__zimbra_list_accounts',
-  'mcp__splunk_zimbra__zimbra_list_folders',
-  'mcp__splunk_zimbra__zimbra_search_emails',
-  'mcp__splunk_zimbra__zimbra_get_email',
-  'mcp__splunk_zimbra__zimbra_get_attachment_text',
-  'mcp__splunk_zimbra__zimbra_send_email',
-  'scheduled_task_create',
-  'scheduled_task_list',
-  'scheduled_task_pause',
-  'scheduled_task_resume',
-  'scheduled_task_delete',
-  'scheduled_task_run_now',
-])
-
-export const APPROVAL_TOOLS = new Set([
-  'mcp__splunk_zimbra__splunk_create_detection_draft',
-  'mcp__splunk_zimbra__splunk_update_detection_draft',
-  'mcp__splunk_zimbra__splunk_enable_detection',
-  'mcp__splunk_zimbra__splunk_disable_detection',
-  'mcp__splunk_zimbra__zimbra_send_email',
-  'scheduled_task_create',
-  'scheduled_task_pause',
-  'scheduled_task_resume',
-  'scheduled_task_delete',
-  'scheduled_task_run_now',
-])
+export { ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS }
 
 function bundleRoot() {
   return dirname(fileURLToPath(import.meta.url))

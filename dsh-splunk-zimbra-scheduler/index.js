@@ -6,6 +6,7 @@ import { createUserMessage } from '../deepseek-harness/packages/llm/llm/lib/inde
 import { SessionId } from '../deepseek-harness/packages/core/session/lib/index.js'
 import { defineDomain, domainTable } from '../deepseek-harness/packages/storage/storage-domain/lib/index.js'
 import { defineTool } from '../deepseek-harness/packages/core/tools/lib/index.js'
+import { READ_ONLY_DOMAIN_TOOLS } from '../dsh-splunk-zimbra/policy.js'
 
 export const name = 'splunk-zimbra-scheduler'
 export const inject = [
@@ -24,23 +25,7 @@ export const Config = s.object({
   runTimeoutMs: s.number().step(1).min(1_000).max(86_400_000).default(900_000),
 })
 
-export const READ_ONLY_DOMAIN_TOOLS = Object.freeze([
-  'mcp__splunk_zimbra__system_get_status',
-  'mcp__splunk_zimbra__splunk_validate_query',
-  'mcp__splunk_zimbra__splunk_search',
-  'mcp__splunk_zimbra__splunk_list_indexes',
-  'mcp__splunk_zimbra__splunk_list_saved_searches',
-  'mcp__splunk_zimbra__splunk_run_saved_search',
-  'mcp__splunk_zimbra__splunk_list_data_sources',
-  'mcp__splunk_zimbra__splunk_get_detection',
-  'mcp__splunk_zimbra__splunk_validate_detection',
-  'mcp__splunk_zimbra__splunk_backtest_detection',
-  'mcp__splunk_zimbra__zimbra_list_accounts',
-  'mcp__splunk_zimbra__zimbra_list_folders',
-  'mcp__splunk_zimbra__zimbra_search_emails',
-  'mcp__splunk_zimbra__zimbra_get_email',
-  'mcp__splunk_zimbra__zimbra_get_attachment_text',
-])
+export { READ_ONLY_DOMAIN_TOOLS }
 
 const CHANNEL = '/splunk-zimbra-schedules'
 const MAX_TIMER_DELAY_MS = 2_147_483_647

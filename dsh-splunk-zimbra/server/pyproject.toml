@@ -27,7 +27,18 @@ test = [
 unified-mcp-server = "unified_mcp_server.server:main"
 
 [tool.setuptools]
-packages = ["unified_mcp_server", "unified_mcp_server.splunk", "unified_mcp_server.zimbra"]
+packages = [
+    "unified_mcp_server",
+    "unified_mcp_server.splunk",
+    "unified_mcp_server.splunk.core",
+    "unified_mcp_server.splunk.search",
+    "unified_mcp_server.splunk.detection",
+    "unified_mcp_server.zimbra",
+    "unified_mcp_server.zimbra.core",
+    "unified_mcp_server.zimbra.mail",
+    "unified_mcp_server.workflow",
+    "unified_mcp_server.workflow.email_to_splunk",
+]
 
 [tool.pytest.ini_options]
 addopts = "-q"

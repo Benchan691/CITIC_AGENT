@@ -39,32 +39,32 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SplunkZimbraOverlay_module_css_default = {
-			"testResult": "hB6_Vq_testResult",
-			"testFail": "hB6_Vq_testFail",
-			"section": "hB6_Vq_section",
-			"fieldLabel": "hB6_Vq_fieldLabel",
-			"run": "hB6_Vq_run",
-			"accountIdentity": "hB6_Vq_accountIdentity",
 			"testOk": "hB6_Vq_testOk",
-			"status": "hB6_Vq_status",
 			"primaryButton": "hB6_Vq_primaryButton",
-			"deleteButton": "hB6_Vq_deleteButton",
-			"loading": "hB6_Vq_loading",
-			"account": "hB6_Vq_account",
-			"form": "hB6_Vq_form",
-			"secondaryButton": "hB6_Vq_secondaryButton",
-			"description": "hB6_Vq_description",
-			"row": "hB6_Vq_row",
+			"accountIdentity": "hB6_Vq_accountIdentity",
 			"textarea": "hB6_Vq_textarea",
-			"rule": "hB6_Vq_rule",
-			"input": "hB6_Vq_input",
+			"secondaryButton": "hB6_Vq_secondaryButton",
+			"section": "hB6_Vq_section",
 			"actions": "hB6_Vq_actions",
+			"form": "hB6_Vq_form",
+			"row": "hB6_Vq_row",
+			"rule": "hB6_Vq_rule",
 			"connectedAccount": "hB6_Vq_connectedAccount",
+			"accountActions": "hB6_Vq_accountActions",
+			"status": "hB6_Vq_status",
+			"fieldLabel": "hB6_Vq_fieldLabel",
+			"account": "hB6_Vq_account",
 			"accountMeta": "hB6_Vq_accountMeta",
-			"accountActions": "hB6_Vq_accountActions"
+			"run": "hB6_Vq_run",
+			"testResult": "hB6_Vq_testResult",
+			"loading": "hB6_Vq_loading",
+			"input": "hB6_Vq_input",
+			"testFail": "hB6_Vq_testFail",
+			"description": "hB6_Vq_description",
+			"deleteButton": "hB6_Vq_deleteButton"
 		};
 		//#endregion
-		//#region src/client/SplunkZimbraForm.ts
+		//#region src/client/settings-common.ts
 		const CHANNEL$1 = "/splunk-zimbra-config";
 		async function rpc$1(connection, name, payload = {}) {
 			const result = await connection.rpc.call(CHANNEL$1, name, payload);
@@ -103,64 +103,185 @@ window.__ModuleLoader__.load({
 				role: "status"
 			}, result.text);
 		}
-		function AccountEditor({ account, onSave }) {
-			const [draft, setDraft] = (0, react.useState)(account);
+		//#endregion
+		//#region src/client/SplunkSettings.ts
+		function SplunkSettings({ connection }) {
+			const [settings, setSettings] = (0, react.useState)(null);
+			const [status, setStatus] = (0, react.useState)("Loading...");
+			const [test, setTest] = (0, react.useState)(null);
+			const load = (0, react.useCallback)(async () => {
+				try {
+					setSettings(await rpc$1(connection, "get-settings"));
+					setStatus("");
+				} catch (error) {
+					setStatus(errorText(error));
+				}
+			}, [connection]);
 			(0, react.useEffect)(() => {
-				setDraft(account);
-			}, [account]);
+				load();
+			}, [load]);
+			const update = (key, value) => {
+				setSettings((current) => ({
+					...current,
+					splunk: {
+						...current.splunk,
+						[key]: value
+					}
+				}));
+			};
+			const save = async () => {
+				try {
+					setStatus("Saving...");
+					setSettings(await rpc$1(connection, "update-settings", settings ?? {}));
+					setStatus("Saved");
+				} catch (error) {
+					setStatus(errorText(error));
+				}
+			};
+			const remove = async (key) => {
+				try {
+					setStatus("Deleting...");
+					setSettings(await rpc$1(connection, "delete-setting", { key }));
+					setStatus("Deleted");
+				} catch (error) {
+					setStatus(errorText(error));
+				}
+			};
+			const testSplunk = async () => {
+				setTest({
+					kind: "pending",
+					text: "Testing…"
+				});
+				try {
+					const value = await rpc$1(connection, "test-splunk");
+					setTest({
+						kind: "ok",
+						text: `Splunk OK (${String(value.index_count ?? 0)} indexes)`
+					});
+				} catch (error) {
+					setTest({
+						kind: "fail",
+						text: errorText(error)
+					});
+				}
+			};
+			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
+			const splunk = settings.splunk;
+			return react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Splunk"), react.default.createElement(SettingRow, {
+				label: "URL",
+				value: String(splunk.url || ""),
+				onChange: (value) => update("url", value),
+				onDelete: () => {
+					remove("splunk.url");
+				}
+			}), react.default.createElement(SettingRow, {
+				label: "Username",
+				value: String(splunk.username || ""),
+				onChange: (value) => update("username", value),
+				onDelete: () => {
+					remove("splunk.username");
+				}
+			}), react.default.createElement(SettingRow, {
+				label: "Password",
+				value: "",
+				type: "password",
+				placeholder: splunk.has_password ? "Stored password is set" : "",
+				onChange: (value) => update("password", value),
+				onDelete: () => {
+					remove("splunk.password");
+				}
+			}), react.default.createElement(SettingRow, {
+				label: "Verify SSL",
+				value: String(splunk.verify_ssl ?? true),
+				onChange: (value) => update("verify_ssl", value === "true"),
+				onDelete: () => {
+					remove("splunk.verify_ssl");
+				}
+			}), react.default.createElement(SettingRow, {
+				label: "Max events",
+				value: String(splunk.max_events ?? ""),
+				onChange: (value) => update("max_events", Number(value || 0)),
+				onDelete: () => {
+					remove("splunk.max_events");
+				}
+			}), react.default.createElement(SettingRow, {
+				label: "Risk tolerance",
+				value: String(splunk.risk_tolerance ?? ""),
+				onChange: (value) => update("risk_tolerance", Number(value || 0)),
+				onDelete: () => {
+					remove("splunk.risk_tolerance");
+				}
+			}), react.default.createElement(SettingRow, {
+				label: "Allow drafts",
+				value: String(splunk.detection_write_enabled ?? false),
+				onChange: (value) => update("detection_write_enabled", value === "true"),
+				onDelete: () => {
+					remove("splunk.detection_write_enabled");
+				}
+			}), react.default.createElement(SettingRow, {
+				label: "Allow enable",
+				value: String(splunk.detection_enable_enabled ?? false),
+				onChange: (value) => update("detection_enable_enabled", value === "true"),
+				onDelete: () => {
+					remove("splunk.detection_enable_enabled");
+				}
+			}), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
+				className: SplunkZimbraOverlay_module_css_default.primaryButton,
+				type: "button",
+				onClick: () => {
+					save();
+				}
+			}, "Save settings"), react.default.createElement("button", {
+				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
+				type: "button",
+				onClick: () => {
+					testSplunk();
+				}
+			}, "Test Splunk"), react.default.createElement(TestStatus, { result: test })), status ? react.default.createElement("p", {
+				className: SplunkZimbraOverlay_module_css_default.status,
+				role: "status"
+			}, status) : null);
+		}
+		//#endregion
+		//#region src/client/ZimbraSettings.ts
+		function AccountEditor({ onSave }) {
+			const [draft, setDraft] = (0, react.useState)({
+				id: "",
+				label: "",
+				email: "",
+				password: ""
+			});
 			return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.account }, react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Label"), react.default.createElement(TextInput, {
-				value: draft.label || "",
+				value: draft.label,
 				onChange: (value) => setDraft({
 					...draft,
 					label: value
 				})
 			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Email"), react.default.createElement(TextInput, {
-				value: draft.email || "",
+				value: draft.email,
 				onChange: (value) => setDraft({
 					...draft,
 					email: value
 				})
 			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Password"), react.default.createElement(TextInput, {
-				value: draft.password || "",
+				value: draft.password,
+				type: "password",
 				onChange: (value) => setDraft({
 					...draft,
 					password: value
-				}),
-				type: "password"
+				})
 			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
 				className: SplunkZimbraOverlay_module_css_default.primaryButton,
 				type: "button",
 				onClick: () => onSave(draft)
 			}, "Add account")));
 		}
-		function ConnectedAccountRow({ account, testResult, onTest, onDelete }) {
-			const title = account.label || account.email || account.id;
-			const meta = account.email && account.email !== title ? account.email : "";
-			return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.connectedAccount }, react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.accountIdentity }, react.default.createElement("strong", null, title), meta ? react.default.createElement("span", { className: SplunkZimbraOverlay_module_css_default.accountMeta }, meta) : null), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.accountActions }, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => onTest(account.id)
-			}, "Test"), react.default.createElement(TestStatus, { result: testResult }), react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.deleteButton,
-				type: "button",
-				onClick: () => onDelete(account.id)
-			}, "Delete")));
-		}
-		function SplunkZimbraForm({ connection }) {
-			const [status, setStatus] = (0, react.useState)("Loading...");
+		function ZimbraSettings({ connection }) {
 			const [settings, setSettings] = (0, react.useState)(null);
 			const [accounts, setAccounts] = (0, react.useState)([]);
-			const [newAccountNonce, setNewAccountNonce] = (0, react.useState)(0);
-			const [splunkTest, setSplunkTest] = (0, react.useState)(null);
-			const [accountTests, setAccountTests] = (0, react.useState)({});
-			const blankAccount = (0, react.useMemo)(() => ({
-				id: "",
-				label: "",
-				email: "",
-				password: ""
-			}), [newAccountNonce]);
+			const [tests, setTests] = (0, react.useState)({});
+			const [status, setStatus] = (0, react.useState)("Loading...");
 			const load = (0, react.useCallback)(async () => {
-				setStatus("Loading...");
 				try {
 					const [nextSettings, nextAccounts] = await Promise.all([rpc$1(connection, "get-settings"), rpc$1(connection, "list-accounts")]);
 					setSettings(nextSettings);
@@ -173,16 +294,14 @@ window.__ModuleLoader__.load({
 			(0, react.useEffect)(() => {
 				load();
 			}, [load]);
-			const updateNested = (group, key, value) => {
-				setSettings((current) => ({
-					...current,
-					[group]: {
-						...current[group],
-						[key]: value
-					}
-				}));
-			};
-			const saveSettings = async () => {
+			const update = (key, value) => setSettings((current) => ({
+				...current,
+				zimbra: {
+					...current.zimbra,
+					[key]: value
+				}
+			}));
+			const save = async () => {
 				try {
 					setStatus("Saving...");
 					setSettings(await rpc$1(connection, "update-settings", settings ?? {}));
@@ -191,7 +310,7 @@ window.__ModuleLoader__.load({
 					setStatus(errorText(error));
 				}
 			};
-			const deleteSetting = async (key) => {
+			const remove = async (key) => {
 				try {
 					setStatus("Deleting...");
 					setSettings(await rpc$1(connection, "delete-setting", { key }));
@@ -204,7 +323,6 @@ window.__ModuleLoader__.load({
 				try {
 					setStatus("Saving account...");
 					await rpc$1(connection, "add-account", account);
-					setNewAccountNonce((value) => value + 1);
 					await load();
 				} catch (error) {
 					setStatus(errorText(error));
@@ -214,18 +332,13 @@ window.__ModuleLoader__.load({
 				try {
 					setStatus("Deleting account...");
 					await rpc$1(connection, "delete-account", { id });
-					setAccountTests((current) => {
-						const next = { ...current };
-						delete next[id];
-						return next;
-					});
 					await load();
 				} catch (error) {
 					setStatus(errorText(error));
 				}
 			};
 			const testAccount = async (id) => {
-				setAccountTests((current) => ({
+				setTests((current) => ({
 					...current,
 					[id]: {
 						kind: "pending",
@@ -234,7 +347,7 @@ window.__ModuleLoader__.load({
 				}));
 				try {
 					await rpc$1(connection, "test-account", { id });
-					setAccountTests((current) => ({
+					setTests((current) => ({
 						...current,
 						[id]: {
 							kind: "ok",
@@ -242,7 +355,7 @@ window.__ModuleLoader__.load({
 						}
 					}));
 				} catch (error) {
-					setAccountTests((current) => ({
+					setTests((current) => ({
 						...current,
 						[id]: {
 							kind: "fail",
@@ -251,163 +364,77 @@ window.__ModuleLoader__.load({
 					}));
 				}
 			};
-			const testSplunk = async () => {
-				setSplunkTest({
-					kind: "pending",
-					text: "Testing…"
-				});
-				try {
-					const value = await rpc$1(connection, "test-splunk");
-					setSplunkTest({
-						kind: "ok",
-						text: `Splunk OK (${String(value.index_count ?? 0)} indexes)`
-					});
-				} catch (error) {
-					setSplunkTest({
-						kind: "fail",
-						text: errorText(error)
-					});
-				}
-			};
-			if (settings == null) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
-			return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.form }, react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Splunk and Zimbra connections for the analyst agent."), status ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.status,
-				role: "status"
-			}, status) : null, react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Splunk"), react.default.createElement(SettingRow, {
-				label: "URL",
-				value: String(settings.splunk.url || ""),
-				onChange: (value) => updateNested("splunk", "url", value),
-				onDelete: () => {
-					deleteSetting("splunk.url");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Username",
-				value: String(settings.splunk.username || ""),
-				onChange: (value) => updateNested("splunk", "username", value),
-				onDelete: () => {
-					deleteSetting("splunk.username");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Password",
-				value: "",
-				type: "password",
-				placeholder: settings.splunk.has_password ? "Stored password is set" : "",
-				onChange: (value) => updateNested("splunk", "password", value),
-				onDelete: () => {
-					deleteSetting("splunk.password");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Verify SSL",
-				value: String(settings.splunk.verify_ssl ?? true),
-				onChange: (value) => updateNested("splunk", "verify_ssl", value === "true"),
-				onDelete: () => {
-					deleteSetting("splunk.verify_ssl");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Max events",
-				value: String(settings.splunk.max_events ?? ""),
-				onChange: (value) => updateNested("splunk", "max_events", Number(value || 0)),
-				onDelete: () => {
-					deleteSetting("splunk.max_events");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Risk tolerance",
-				value: String(settings.splunk.risk_tolerance ?? ""),
-				onChange: (value) => updateNested("splunk", "risk_tolerance", Number(value || 0)),
-				onDelete: () => {
-					deleteSetting("splunk.risk_tolerance");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Allow drafts",
-				value: String(settings.splunk.detection_write_enabled ?? false),
-				onChange: (value) => updateNested("splunk", "detection_write_enabled", value === "true"),
-				onDelete: () => {
-					deleteSetting("splunk.detection_write_enabled");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Allow enable",
-				value: String(settings.splunk.detection_enable_enabled ?? false),
-				onChange: (value) => updateNested("splunk", "detection_enable_enabled", value === "true"),
-				onDelete: () => {
-					deleteSetting("splunk.detection_enable_enabled");
-				}
-			}), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.primaryButton,
-				type: "button",
-				onClick: () => {
-					saveSettings();
-				}
-			}, "Save settings"), react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => {
-					testSplunk();
-				}
-			}, "Test Splunk"), react.default.createElement(TestStatus, { result: splunkTest }))), react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Zimbra"), react.default.createElement(SettingRow, {
+			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
+			const zimbra = settings.zimbra;
+			return react.default.createElement(react.default.Fragment, null, react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Zimbra"), react.default.createElement(SettingRow, {
 				label: "Host",
-				value: String(settings.zimbra.host || ""),
-				onChange: (value) => updateNested("zimbra", "host", value),
+				value: String(zimbra.host || ""),
+				onChange: (value) => update("host", value),
 				onDelete: () => {
-					deleteSetting("zimbra.host");
+					remove("zimbra.host");
 				}
 			}), react.default.createElement(SettingRow, {
 				label: "Verify SSL",
-				value: String(settings.zimbra.verify_ssl ?? true),
-				onChange: (value) => updateNested("zimbra", "verify_ssl", value === "true"),
+				value: String(zimbra.verify_ssl ?? true),
+				onChange: (value) => update("verify_ssl", value === "true"),
 				onDelete: () => {
-					deleteSetting("zimbra.verify_ssl");
+					remove("zimbra.verify_ssl");
 				}
 			}), react.default.createElement(SettingRow, {
 				label: "Timeout",
-				value: String(settings.zimbra.timeout ?? ""),
-				onChange: (value) => updateNested("zimbra", "timeout", Number(value || 0)),
+				value: String(zimbra.timeout ?? ""),
+				onChange: (value) => update("timeout", Number(value || 0)),
 				onDelete: () => {
-					deleteSetting("zimbra.timeout");
+					remove("zimbra.timeout");
 				}
 			}), react.default.createElement(SettingRow, {
 				label: "Allow send",
-				value: String(settings.zimbra.allow_send ?? false),
-				onChange: (value) => updateNested("zimbra", "allow_send", value === "true"),
+				value: String(zimbra.allow_send ?? false),
+				onChange: (value) => update("allow_send", value === "true"),
 				onDelete: () => {
-					deleteSetting("zimbra.allow_send");
+					remove("zimbra.allow_send");
 				}
 			}), react.default.createElement(SettingRow, {
 				label: "Attachment bytes",
-				value: String(settings.zimbra.max_attachment_bytes ?? ""),
-				onChange: (value) => updateNested("zimbra", "max_attachment_bytes", Number(value || 0)),
+				value: String(zimbra.max_attachment_bytes ?? ""),
+				onChange: (value) => update("max_attachment_bytes", Number(value || 0)),
 				onDelete: () => {
-					deleteSetting("zimbra.max_attachment_bytes");
+					remove("zimbra.max_attachment_bytes");
 				}
 			}), react.default.createElement(SettingRow, {
 				label: "Text characters",
-				value: String(settings.zimbra.max_attachment_text_chars ?? ""),
-				onChange: (value) => updateNested("zimbra", "max_attachment_text_chars", Number(value || 0)),
+				value: String(zimbra.max_attachment_text_chars ?? ""),
+				onChange: (value) => update("max_attachment_text_chars", Number(value || 0)),
 				onDelete: () => {
-					deleteSetting("zimbra.max_attachment_text_chars");
+					remove("zimbra.max_attachment_text_chars");
 				}
 			}), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
 				className: SplunkZimbraOverlay_module_css_default.primaryButton,
 				type: "button",
 				onClick: () => {
-					saveSettings();
+					save();
 				}
-			}, "Save settings"))), react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Accounts"), accounts.length === 0 ? react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "No connected accounts.") : null, accounts.map((account) => react.default.createElement(ConnectedAccountRow, {
-				key: account.id,
-				account,
-				testResult: accountTests[account.id] ?? null,
-				onTest: (id) => {
-					testAccount(id);
-				},
-				onDelete: (id) => {
-					deleteAccount(id);
+			}, "Save settings"))), react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Accounts"), accounts.length === 0 ? react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "No connected accounts.") : null, accounts.map((account) => react.default.createElement("div", {
+				className: SplunkZimbraOverlay_module_css_default.connectedAccount,
+				key: account.id
+			}, react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.accountIdentity }, react.default.createElement("strong", null, account.label || account.email || account.id), account.email && account.email !== account.label ? react.default.createElement("span", { className: SplunkZimbraOverlay_module_css_default.accountMeta }, account.email) : null), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.accountActions }, react.default.createElement("button", {
+				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
+				type: "button",
+				onClick: () => {
+					testAccount(account.id);
 				}
-			})), react.default.createElement(AccountEditor, {
-				key: `new-${newAccountNonce}`,
-				account: blankAccount,
-				onSave: (draft) => {
-					saveAccount(draft);
+			}, "Test"), react.default.createElement(TestStatus, { result: tests[account.id] ?? null }), react.default.createElement("button", {
+				className: SplunkZimbraOverlay_module_css_default.deleteButton,
+				type: "button",
+				onClick: () => {
+					deleteAccount(account.id);
 				}
-			})));
+			}, "Delete")))), react.default.createElement(AccountEditor, { onSave: (account) => {
+				saveAccount(account);
+			} })), status ? react.default.createElement("p", {
+				className: SplunkZimbraOverlay_module_css_default.status,
+				role: "status"
+			}, status) : null);
 		}
 		//#endregion
 		//#region src/client/ScheduledTasksForm.ts
@@ -423,7 +450,7 @@ window.__ModuleLoader__.load({
 		function readable(value) {
 			return value ? new Date(value).toLocaleString() : "—";
 		}
-		function ScheduledTasksForm({ connection, openSession }) {
+		function SchedulerSettings({ connection, openSession }) {
 			const [tasks, setTasks] = (0, react.useState)([]);
 			const [runs, setRuns] = (0, react.useState)([]);
 			const [schedulerSettings, setSchedulerSettings] = (0, react.useState)({
@@ -603,7 +630,7 @@ window.__ModuleLoader__.load({
 					name: "settings.section",
 					...SETTINGS_SECTIONS[0],
 					inject: () => ({ connection })
-				}, SplunkZimbraForm);
+				}, () => react.default.createElement(react.default.Fragment, null, react.default.createElement(SplunkSettings, { connection }), react.default.createElement(ZimbraSettings, { connection })));
 				const schedules = ctx.slots.register({
 					name: "settings.section",
 					...SETTINGS_SECTIONS[1],
@@ -613,7 +640,7 @@ window.__ModuleLoader__.load({
 							ctx.sessions.open(id);
 						}
 					})
-				}, ScheduledTasksForm);
+				}, SchedulerSettings);
 				return () => {
 					schedules();
 					connections();
@@ -621,6 +648,9 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
+		exports.SchedulerSettings = SchedulerSettings;
+		exports.SplunkSettings = SplunkSettings;
+		exports.ZimbraSettings = ZimbraSettings;
 		exports.apply = apply;
 		exports.inject = inject;
 		return module.exports;

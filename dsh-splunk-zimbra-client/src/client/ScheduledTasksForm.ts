@@ -39,7 +39,7 @@ function readable(value?: string | null): string {
   return value ? new Date(value).toLocaleString() : '—'
 }
 
-export function ScheduledTasksForm({ connection, openSession }: {
+export function SchedulerSettings({ connection, openSession }: {
   connection: ConnectionHandle
   openSession: (id: string) => void
 }) {
@@ -159,3 +159,5 @@ export function ScheduledTasksForm({ connection, openSession }: {
     ),
   )
 }
+
+export const ScheduledTasksForm = SchedulerSettings

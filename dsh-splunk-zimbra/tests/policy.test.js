@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { apply, APPROVAL_TOOLS, DOMAIN_TOOLS } from '../host.js'
+import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
@@ -23,6 +24,14 @@ test('interactive analyst policy exposes the exact product tool set', () => {
     'scheduled_task_run_now',
   ])
   for (const name of APPROVAL_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
+})
+
+test('SOC policy has disjoint read-only and action categories', () => {
+  assert.equal(READ_ONLY_TOOLS.length, 16)
+  assert.equal(ACTION_TOOLS.length, 10)
+  for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
+  for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
+  assert.equal(READ_ONLY_TOOLS.includes('scheduled_task_list'), true)
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { SETTINGS_SECTIONS } from '../src/client/sections.ts'
 
@@ -7,4 +8,15 @@ test('registers focused connection and scheduled-task settings sections', () => 
     { id: 'splunk-zimbra-connections', order: 30, label: 'Connections' },
     { id: 'splunk-zimbra-schedules', order: 40, label: 'Scheduled Tasks' },
   ])
+})
+
+test('exports independent SOC settings components', () => {
+  for (const [file, symbol] of [
+    ['SplunkSettings.ts', 'SplunkSettings'],
+    ['ZimbraSettings.ts', 'ZimbraSettings'],
+    ['ScheduledTasksForm.ts', 'SchedulerSettings'],
+  ]) {
+    const source = readFileSync(new URL(`../src/client/${file}`, import.meta.url), 'utf8')
+    assert.match(source, new RegExp(`export function ${symbol}`))
+  }
 })

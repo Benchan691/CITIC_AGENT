@@ -9,12 +9,14 @@
   "files": [
     "cordis.patch.yml",
     "host.js",
-    "scheduler.js"
+    "scheduler.js",
+    "policy.js"
   ],
   "exports": {
     ".": "./package.json",
     "./host": "./host.js",
     "./scheduler": "./scheduler.js",
+    "./policy": "./policy.js",
     "./package.json": "./package.json"
   },
   "dependencies": {
