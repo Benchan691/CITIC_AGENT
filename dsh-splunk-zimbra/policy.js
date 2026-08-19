@@ -1,6 +1,7 @@
 // Shared SOC tool policy categories.
 
 export const READ_ONLY_TOOLS = Object.freeze([
+  'skill',
   'mcp__splunk_zimbra__system_get_status',
   'mcp__splunk_zimbra__splunk_validate_query',
   'mcp__splunk_zimbra__splunk_search',

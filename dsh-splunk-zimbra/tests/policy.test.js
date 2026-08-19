@@ -10,7 +10,7 @@ import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 26)
+  assert.equal(DOMAIN_TOOLS.size, 27)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__splunk_zimbra__splunk_create_detection_draft',
     'mcp__splunk_zimbra__splunk_disable_detection',
@@ -27,15 +27,17 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 })
 
 test('SOC policy has disjoint read-only and action categories', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 16)
+  assert.equal(READ_ONLY_TOOLS.length, 17)
   assert.equal(ACTION_TOOLS.length, 10)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
+  assert.equal(READ_ONLY_TOOLS.includes('skill'), true)
+  assert.equal(ACTION_TOOLS.includes('skill'), false)
   assert.equal(READ_ONLY_TOOLS.includes('scheduled_task_list'), true)
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 15)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 16)
   for (const name of READ_ONLY_DOMAIN_TOOLS) {
     assert.equal(DOMAIN_TOOLS.has(name), true)
     assert.equal(APPROVAL_TOOLS.has(name), false)
@@ -53,6 +55,7 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
     connection: { rpc: { handle() {} } },
   })
   const preExecute = handlers.get('tools/pre-execute')
+  assert.deepEqual(await preExecute({ name: 'skill' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__splunk_zimbra__splunk_search' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.equal((await preExecute({ name: 'mcp__splunk_zimbra__zimbra_send_email' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'bash' }, () => ({ kind: 'delegate' }))).kind, 'deny')
@@ -81,7 +84,12 @@ test('assembled Web profile matches the focused enabled-plugin snapshot', () => 
     const enabled = blocks.filter(match => !/^  disabled: true$/m.test(match[2])).map(match => match[1])
     const expected = JSON.parse(readFileSync(`${productRoot}/tests/enabled-plugins.snapshot.json`, 'utf8'))
     assert.deepEqual(enabled, expected)
-    for (const removed of ['tool-bash', 'tool-pwsh', 'tool-fs', 'tool-fs-search', 'tool-workflow', 'tool-todo', 'tool-goal', 'tool-subagent']) {
+    for (const removed of [
+      'tool-bash', 'tool-pwsh', 'tool-fs', 'tool-fs-search', 'tool-str-replace-editor',
+      'tool-workflow', 'tool-todo', 'tool-goal', 'tool-subagent', 'tool-subagent-fork',
+      'tool-subagent-control', 'tool-subagent-list-agents', 'tool-subagent-report',
+      'tool-ralph', 'skill-badge', 'ui-skill',
+    ]) {
       assert.equal(enabled.includes(removed), false)
     }
   } finally {

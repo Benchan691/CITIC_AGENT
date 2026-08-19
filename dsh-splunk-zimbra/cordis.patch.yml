@@ -64,13 +64,16 @@
 - id: agent-instructions
   disabled: true
 - id: skill
-  disabled: true
+  disabled: false
 - id: skill-filesystem
-  disabled: true
+  disabled: false
+  config:
+    customSkillDirs:
+      - !!js "(process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())) + '/skills'"
 - id: skill-badge
   disabled: true
 - id: tool-skill
-  disabled: true
+  disabled: false
 - id: command-feedback
   disabled: true
 - id: goal
