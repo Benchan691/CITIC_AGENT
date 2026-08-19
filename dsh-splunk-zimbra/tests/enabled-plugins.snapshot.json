@@ -52,6 +52,7 @@
   "connection",
   "api-remotes",
   "client-runtime",
+  "cordis-client-runner",
   "ui-theme",
   "locale",
   "ui-layout",

@@ -41,23 +41,25 @@
   disabled: true
 - id: pwsh-sandbox
   disabled: true
-- id: permission
-  disabled: true
 - id: shell-env
   disabled: true
 - id: tool-bash
   disabled: true
 - id: tool-pwsh
   disabled: true
-- id: tool-jobs
-  disabled: true
 - id: fs-observation-policy
-  disabled: true
-- id: fs-sandbox
   disabled: true
 - id: tool-fs
   disabled: true
 - id: tool-fs-search
+  disabled: true
+- id: tool-str-replace-editor
+  disabled: true
+- id: fs-sandbox
+  disabled: true
+- id: permission
+  disabled: true
+- id: tool-jobs
   disabled: true
 - id: agent-instructions
   disabled: true
@@ -105,8 +107,6 @@
   disabled: true
 - id: tool-ralph
   disabled: true
-- id: tool-str-replace-editor
-  disabled: true
 - id: repeat-tool-reminder
   disabled: true
 - id: code-runtime
@@ -122,7 +122,7 @@
 - id: client-hmr
   disabled: false
 - id: cordis-client-runner
-  disabled: true
+  disabled: false
 - id: ui-settings-plugin-inventory
   disabled: false
 - id: ui-cordis

@@ -61,6 +61,7 @@ class Runtime:
         await self.splunk.close()
 
     async def refresh(self) -> None:
+
         if self.postgres is None:
             return
         updated = ServerSettings.from_store(self.postgres)
@@ -77,6 +78,7 @@ class Runtime:
 def create_server(settings: ServerSettings | None = None) -> FastMCP:
     postgres_store = PostgresStore.from_env()
     settings = settings or ServerSettings.from_store(postgres_store)
+
     file_account_store = AccountStore(
         settings.zimbra.accounts_file,
         settings.zimbra.key_file,

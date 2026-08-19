@@ -226,6 +226,7 @@ class SplunkService:
             self._client = None
 
     async def _connected_client(self) -> SplunkClient:
+
         if not self.settings.configured:
             raise ConfigurationError("Splunk", self.settings.missing)
         if self._client is not None:

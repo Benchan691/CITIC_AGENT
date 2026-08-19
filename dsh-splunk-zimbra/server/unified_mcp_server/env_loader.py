@@ -20,5 +20,5 @@ def workspace_root() -> Path:
 
 
 def load_server_env() -> None:
-    load_dotenv(server_root() / ".env")
-    load_dotenv(workspace_root() / ".env")
+    load_dotenv(server_root() / ".env", override=True)
+    load_dotenv(workspace_root() / ".env", override=True)

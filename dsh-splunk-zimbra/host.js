@@ -117,7 +117,7 @@ async function handleEndpoint(endpoint, payload) {
 export function apply(ctx) {
   ctx.on('agent/created', ({ agent }) => {
     if (!ctx.agents.roots().includes(agent)) return
-    agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS] })
+    try { agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS] }) } catch { /* scheduler tools register asynchronously; pre-execute enforces */ }
   })
   ctx.on('tools/pre-execute', (exec, next) => {
     if (!DOMAIN_TOOLS.has(exec.name)) {
