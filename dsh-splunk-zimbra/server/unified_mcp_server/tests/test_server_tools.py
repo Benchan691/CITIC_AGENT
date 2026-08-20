@@ -9,7 +9,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "ZIMBRA_ACCOUNTS_KEY_FILE": str(tmp_path / "accounts.key"),
     }))
 
-    assert {tool.name for tool in server._tool_manager.list_tools()} == {
+    tools = server._tool_manager.list_tools()
+    assert {tool.name for tool in tools} == {
         "system_get_status",
         "splunk_validate_query",
         "splunk_search",
@@ -31,3 +32,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "zimbra_get_attachment_text",
         "zimbra_send_email",
     }
+    for tool in tools:
+        assert "ctx" not in tool.parameters.get("properties", {})
+        assert "ctx" not in tool.parameters.get("required", [])
