@@ -81,6 +81,22 @@ def test_detection_write_flags_are_explicit_and_visible_without_secrets():
     assert status["splunk"]["detection_app"] == "enterprise_security"
 
 
+def test_zimbra_filter_gates_are_explicit_and_visible_without_secrets():
+    settings = ServerSettings.from_env(
+        {
+            "ZIMBRA_ALLOW_FILTER_WRITE": "true",
+            "ZIMBRA_ALLOW_FILTER_REDIRECT": "true",
+            "ZIMBRA_ALLOW_FILTER_DISCARD": "true",
+        }
+    )
+
+    status = settings.public_status()
+    assert settings.zimbra.allow_filter_write is True
+    assert status["zimbra"]["filter_write_enabled"] is True
+    assert status["zimbra"]["filter_redirect_enabled"] is True
+    assert status["zimbra"]["filter_discard_enabled"] is True
+
+
 @pytest.mark.parametrize(
     ("name", "value"),
     [("MCP_PORT", "0"), ("SPLUNK_RISK_TOLERANCE", "101"), ("ZIMBRA_VERIFY_SSL", "sometimes")],

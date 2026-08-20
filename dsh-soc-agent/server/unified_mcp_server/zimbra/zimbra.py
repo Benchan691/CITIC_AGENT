@@ -342,6 +342,43 @@ def zimbra_list_folders(host, token, *, verify_ssl=True, timeout=60):
     return folders
 
 
+def zimbra_get_filter_rules(host, token, *, verify_ssl=True, timeout=60):
+    """Return the complete incoming filter-rule elements from Zimbra."""
+    root = soap_request(
+        host,
+        '<GetFilterRulesRequest xmlns="urn:zimbraMail"/>',
+        token,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+    )
+    if _local_name(root.tag) != "GetFilterRulesResponse":
+        raise ValueError("Malformed Zimbra filter response")
+    container = next((elem for elem in root if _local_name(elem.tag).lower() == "filterrules"), None)
+    if container is None:
+        raise ValueError("Malformed Zimbra filter response")
+    rules = list(container)
+    if any(_local_name(elem.tag).lower() != "filterrule" for elem in rules):
+        raise ValueError("Malformed Zimbra filter response")
+    for rule in rules:
+        if not rule.get("name"):
+            raise ValueError("Malformed Zimbra filter response")
+        for child in rule:
+            if _local_name(child.tag).lower() not in {"filtertests", "filteractions"}:
+                raise ValueError("Malformed Zimbra filter response")
+    return rules
+
+
+def zimbra_modify_filter_rules(host, token, rules_xml, *, verify_ssl=True, timeout=60):
+    """Replace the complete incoming filter-rule set using typed XML from the filter service."""
+    soap_request(
+        host,
+        f'<ModifyFilterRulesRequest xmlns="urn:zimbraMail">{rules_xml}</ModifyFilterRulesRequest>',
+        token,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+    )
+
+
 def download_attachment(cfg, token, message_id, part, max_bytes=None):
     host = zimbra_host(cfg)
     account = urllib.parse.quote(zimbra_email(cfg), safe="")

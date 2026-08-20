@@ -31,6 +31,14 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "zimbra_get_email",
         "zimbra_get_attachment_text",
         "zimbra_send_email",
+        "zimbra_list_email_filters",
+        "zimbra_get_email_filter",
+        "zimbra_validate_email_filter",
+        "zimbra_preview_email_filter_update",
+        "zimbra_create_email_filter",
+        "zimbra_update_email_filter",
+        "zimbra_set_email_filter_enabled",
+        "zimbra_reorder_email_filter",
     }
     for tool in tools:
         assert "ctx" not in tool.parameters.get("properties", {})

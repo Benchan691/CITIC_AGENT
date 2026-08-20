@@ -23,6 +23,8 @@ from .splunk.detection.tools import register_tools as register_detection_tools
 from .zimbra_service import ZimbraService
 from .zimbra.mail.service import ZimbraMailService
 from .zimbra.mail.tools import register_tools as register_mail_tools
+from .zimbra.filters.service import ZimbraFilterService
+from .zimbra.filters.tools import register_tools as register_filter_tools
 
 load_server_env()
 logger = logging.getLogger(__name__)
@@ -38,6 +40,7 @@ class Runtime:
     settings: ServerSettings
     splunk: SplunkService
     zimbra: ZimbraService
+    zimbra_filters: ZimbraFilterService | None = None
     postgres: PostgresStore | None = None
     account_store: AccountStore | PostgresAccountStore | None = None
 
@@ -69,6 +72,7 @@ class Runtime:
             settings,
             SplunkService(settings.splunk),
             ZimbraMailService(settings.zimbra, accounts),
+            zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
             postgres=postgres,
             account_store=accounts,
         )
@@ -88,6 +92,7 @@ class Runtime:
             if self.account_store is None:
                 self.account_store = PostgresAccountStore(self.postgres)
             self.zimbra = ZimbraMailService(updated.zimbra, self.account_store)
+            self.zimbra_filters = ZimbraFilterService(updated.zimbra, self.account_store)
         self.settings = updated
 
 
@@ -185,6 +190,12 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         fresh_runtime=fresh_runtime,
         execute=execute,
         success=success,
+    )
+    register_filter_tools(
+        server,
+        get_runtime=runtime,
+        fresh_runtime=fresh_runtime,
+        execute=execute,
     )
 
     return server
