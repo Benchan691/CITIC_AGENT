@@ -38,17 +38,11 @@ class SplunkService:
     async def search(self, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 100) -> dict[str, Any]:
         return await self.search_service.search(query, earliest_time, latest_time, max_count)
 
-    async def list_indexes(self) -> dict[str, Any]:
-        return await self.search_service.list_indexes()
-
     async def test_connection(self) -> dict[str, Any]:
         return await self.search_service.test_connection()
 
     async def list_saved_searches(self, name: str = "", app: str = "") -> dict[str, Any]:
         return await self.search_service.list_saved_searches(name, app)
-
-    async def list_data_sources(self, index: str = "") -> dict[str, Any]:
-        return await self.search_service.list_data_sources(index)
 
     async def run_saved_search(self, name: str) -> dict[str, Any]:
         return await self.search_service.run_saved_search(name)

@@ -30,7 +30,6 @@ class FakeClient:
         self.connected = False
         self.closed = False
         self.search_args = None
-        self.metadata_args = []
 
     async def connect(self):
         self.connected = True
@@ -40,11 +39,6 @@ class FakeClient:
 
     async def search_oneshot(self, *args):
         self.search_args = args
-        if args[0].startswith("| metadata"):
-            self.metadata_args.append(args)
-            if "index=main" in args[0]:
-                return [{"sourcetype": "syslog"}, {"sourcetype": "linux_secure"}]
-            return [{"sourcetype": "windows"}]
         return [{"card": "4111-1111-1111-1111", "ssn": "123-45-6789"}]
 
     async def get_indexes(self):
@@ -117,7 +111,6 @@ async def test_search_reuses_client_caps_results_and_sanitizes():
     assert created[0].search_args[-1] == 2
     assert "4111-1111-1111-1111" not in str(result)
     assert "123-45-6789" not in str(result)
-    assert (await service.list_indexes())["count"] == 2
     assert len(created) == 1
     await service.close()
     assert created[0].closed is True
@@ -134,26 +127,6 @@ async def test_connection_checks_read_only_index_access():
 
 
 @pytest.mark.asyncio
-async def test_data_source_discovery_returns_bounded_sourcetypes_and_index_metadata():
-    service = SplunkService(settings(), FakeClient)
-
-    result = await service.list_data_sources("main")
-    client = service.core._client
-
-    assert result["count"] == 1
-    assert result["data_sources"] == [{
-        "index": "main",
-        "sourcetypes": ["linux_secure", "syslog"],
-        "event_count": 1234,
-        "latest_event_time": "1700000000",
-    }]
-    assert result["indexes"][0]["name"] == "main"
-    assert len(client.metadata_args) == 1
-    assert client.metadata_args[0][0] == "| metadata type=sourcetypes index=main | head 100"
-    assert client.metadata_args[0][-1] == 2
-    await service.close()
-
-
 @pytest.mark.asyncio
 async def test_saved_search_discovery_filters_partial_name_and_app():
     service = SplunkService(settings(), FakeClient)
@@ -183,7 +156,7 @@ async def test_saved_search_disables_actions_and_sanitizes_results():
 async def test_unconfigured_splunk_returns_configuration_error():
     service = SplunkService(settings(host="", token=""))
     with pytest.raises(ConfigurationError):
-        await service.list_indexes()
+        await service.test_connection()
 
 
 def test_high_risk_query_is_reported_before_execution():

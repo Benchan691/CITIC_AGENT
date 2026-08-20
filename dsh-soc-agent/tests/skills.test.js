@@ -81,7 +81,7 @@ test('Harness discovers and loads the repository SOC skills through the skill to
   }
 })
 
-test('SOC skills use consolidated data-source and filtered alert discovery', () => {
+test('SOC skills use evidence-based scope and filtered alert discovery', () => {
   const repoRoot = fileURLToPath(new URL('../..', import.meta.url))
   for (const name of [
     'splunk-investigation',
@@ -91,7 +91,9 @@ test('SOC skills use consolidated data-source and filtered alert discovery', () 
   ]) {
     const content = readFileSync(join(repoRoot, 'skills', name, 'SKILL.md'), 'utf8')
     assert.equal(content.includes('splunk_list_indexes'), false, name)
-    assert.match(content, /splunk_list_data_sources/)
+    assert.equal(content.includes('splunk_list_data_sources'), false, name)
+    assert.match(content, /existing detection SPL/)
+    assert.match(content, /carefully bounded exploratory search/)
     assert.match(content, /splunk_list_saved_searches\(name=/)
   }
   const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')

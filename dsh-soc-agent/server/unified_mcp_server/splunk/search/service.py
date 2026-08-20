@@ -44,13 +44,9 @@ class SplunkSearchService:
             "validation": validation,
         }
 
-    async def list_indexes(self) -> dict[str, Any]:
-        indexes = await self.core.request(lambda client: client.get_indexes())
-        return {"count": len(indexes), "indexes": indexes}
-
     async def test_connection(self) -> dict[str, Any]:
-        result = await self.list_indexes()
-        return {"connected": True, "index_count": result["count"]}
+        indexes = await self.core.request(lambda client: client.get_indexes())
+        return {"connected": True, "index_count": len(indexes)}
 
     async def list_saved_searches(self, name: str = "", app: str = "") -> dict[str, Any]:
         name = name.strip()
@@ -64,45 +60,6 @@ class SplunkSearchService:
         if app:
             searches = [item for item in searches if item.get("app", "") == app]
         return {"count": len(searches), "saved_searches": self.core.sanitize(searches)}
-
-    async def list_data_sources(self, index: str = "") -> dict[str, Any]:
-        result = await self.list_indexes()
-        indexes = result["indexes"]
-        requested_index = index.strip()
-        if requested_index:
-            indexes = [item for item in indexes if item.get("name") == requested_index]
-
-        data_sources = []
-        metadata_limit = min(100, self.core.settings.max_events)
-        for index_metadata in indexes:
-            index_name = str(index_metadata.get("name", "")).strip()
-            if not index_name:
-                continue
-            metadata = await self.search(
-                f"| metadata type=sourcetypes index={index_name} | head 100",
-                max_count=metadata_limit,
-            )
-            sourcetypes = sorted({
-                str(event.get("sourcetype", "")).strip()
-                for event in metadata["events"]
-                if str(event.get("sourcetype", "")).strip()
-            })
-            source = {
-                "index": index_name,
-                "sourcetypes": sourcetypes,
-            }
-            if index_metadata.get("totalEventCount") is not None:
-                source["event_count"] = index_metadata["totalEventCount"]
-            if index_metadata.get("maxTime"):
-                source["latest_event_time"] = index_metadata["maxTime"]
-            data_sources.append(source)
-
-        return {
-            "count": len(data_sources),
-            "data_sources": data_sources,
-            "indexes": indexes,
-            "guidance": "Choose an index and sourcetype from this metadata before writing a narrow SPL query.",
-        }
 
     async def list_lookups(self, app: str = "", name: str = "") -> dict[str, Any]:
         app = app.strip()

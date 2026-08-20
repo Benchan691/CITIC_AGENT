@@ -111,12 +111,15 @@ Use:
 
 for bounded supporting searches.
 
-## Data discovery
+## Scope for supporting searches
 
-Use when necessary:
+Determine scope from evidence in this order where applicable: existing detection SPL;
+known company or environment conventions; user-provided incident context; email
+evidence; previous Splunk search results; then pivots from returned events.
 
-- `splunk_list_data_sources`
-  - discover indexes and sourcetypes for bounded supporting searches.
+Never guess an index or sourcetype. If scope is uncertain, state that clearly
+and use a carefully bounded exploratory search only when justified.
+
 - `splunk_list_saved_searches(name="term", app="optional-app")`
   - discover an alert by partial name before using `splunk_get_detection` with its exact name.
 

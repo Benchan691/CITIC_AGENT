@@ -28,11 +28,6 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
         return await execute(ctx, "splunk", "list_saved_searches", lambda: get_runtime(ctx).splunk_search.list_saved_searches(name, app))
 
     @server.tool()
-    async def splunk_list_data_sources(ctx: Context, index: str = "") -> dict[str, Any]:
-        """Discover indexes and bounded sourcetype metadata for investigation."""
-        return await execute(ctx, "splunk", "list_data_sources", lambda: get_runtime(ctx).splunk_search.list_data_sources(index))
-
-    @server.tool()
     async def splunk_find_lookup(ctx: Context, name: str) -> dict[str, Any]:
         """Find a visible Splunk lookup-table file by exact name."""
         return await execute(ctx, "splunk", "find_lookup", lambda: get_runtime(ctx).splunk_search.find_lookup(name))

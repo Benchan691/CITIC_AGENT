@@ -15,7 +15,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_validate_query",
         "splunk_search",
         "splunk_list_saved_searches",
-        "splunk_list_data_sources",
         "splunk_find_lookup",
         "splunk_list_lookups",
         "splunk_get_detection",
@@ -40,6 +39,5 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     saved_searches = next(tool for tool in tools if tool.name == "splunk_list_saved_searches")
     assert set(saved_searches.parameters["properties"]) == {"name", "app"}
     assert saved_searches.parameters.get("required", []) == []
-    data_sources = next(tool for tool in tools if tool.name == "splunk_list_data_sources")
-    assert set(data_sources.parameters["properties"]) == {"index"}
-    assert data_sources.parameters.get("required", []) == []
+    assert "splunk_list_data_sources" not in {tool.name for tool in tools}
+    assert "splunk_list_indexes" not in {tool.name for tool in tools}

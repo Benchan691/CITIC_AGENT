@@ -26,10 +26,17 @@ This skill is for investigation.
 
 It does not modify Splunk configuration, detections, data, alerts, or other objects.
 
-Preferred discovery sequence:
+Determine Splunk scope from evidence, in this order where applicable:
 
-entity → `splunk_list_data_sources` → index+sourcetype
-→ `splunk_validate_query` → `splunk_search`
+1. existing detection SPL;
+2. known company or environment conventions;
+3. user-provided incident context;
+4. email evidence;
+5. previous Splunk search results;
+6. pivots from returned events.
+
+Never guess an index or sourcetype. If scope remains uncertain, state that
+uncertainty and use a carefully bounded exploratory search only when justified.
 
 # When to Use
 
@@ -122,12 +129,6 @@ Use before executing newly constructed queries.
 Execute a guarded bounded Splunk oneshot search.
 
 Use for focused investigation queries.
-
-## `splunk_list_data_sources`
-
-Discover indexes and bounded sourcetype metadata.
-
-Use this instead of combining separate index and data-source discovery.
 
 ## `splunk_list_saved_searches`
 
@@ -298,11 +299,15 @@ Be aware of:
 
 Do not silently assume an unknown timezone when it could materially affect the investigation.
 
-# 3. Discover Relevant Data Sources
+# 3. Determine Splunk Scope
 
-If the index or sourcetype is known, use it.
+Use the strongest available scope evidence in the order described above.
+Prefer explicit indexes and sourcetypes from the detection SPL, known
+environment conventions, incident context, email, prior results, or event
+pivots.
 
-If not, use `splunk_list_data_sources` to select an index and sourcetype.
+Do not guess an index or sourcetype, and do not treat environment-wide metadata
+as authoritative investigation scope.
 
 Identify likely telemetry such as:
 
@@ -323,7 +328,8 @@ Identify likely telemetry such as:
 
 Do not default to `index=*` merely because the correct index is unknown.
 
-Discover the data source first when practical.
+If no reliable scope is available, say so and perform only a bounded exploratory
+search when its purpose and limits are clear.
 
 # 4. Form the Initial Hypothesis
 

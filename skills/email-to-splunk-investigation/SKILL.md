@@ -24,10 +24,17 @@ Email content provides investigation leads.
 
 It does not automatically prove malicious activity.
 
-For Splunk discovery, use:
+Determine Splunk scope from evidence, in this order where applicable:
 
-entity → `splunk_list_data_sources` → index+sourcetype
-→ `splunk_validate_query` → `splunk_search`
+1. existing detection SPL;
+2. known company or environment conventions;
+3. user-provided incident context;
+4. email evidence;
+5. previous Splunk search results;
+6. pivots from returned events.
+
+Never guess an index or sourcetype. If scope remains uncertain, state that
+uncertainty and use a carefully bounded exploratory search only when justified.
 
 # When to use
 
@@ -104,9 +111,6 @@ Use only read-oriented Splunk Search tools in this workflow:
 
 - `splunk_search`
   - execute a guarded bounded Splunk search.
-
-- `splunk_list_data_sources`
-  - discover indexes and sourcetypes, then narrow SPL scope.
 
 - `splunk_list_saved_searches`
   - find a relevant saved search or alert with optional partial `name` and `app` filters.
@@ -348,9 +352,14 @@ Do not assume the email received time is identical to the event time.
 
 # 6. Determine Splunk Data Scope
 
-Before writing broad SPL, determine which data sources are likely relevant.
+Before writing broad SPL, determine which data sources are likely relevant from
+the evidence order above. Prefer explicit indexes and sourcetypes found in
+detection SPL, known conventions, incident context, email, prior results, or
+event pivots.
 
-When needed use `splunk_list_data_sources` to choose an index and sourcetype.
+Do not guess an index or sourcetype or treat environment-wide metadata as
+authoritative scope. If scope is uncertain, say so and use only a justified,
+carefully bounded exploratory search.
 
 Use `splunk_list_saved_searches(name="term", app="optional-app")` to discover
 an existing alert, then inspect the exact name with `splunk_get_detection`.
