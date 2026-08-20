@@ -39,29 +39,29 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SplunkZimbraOverlay_module_css_default = {
-			"testFail": "RBKUgW_testFail",
-			"section": "RBKUgW_section",
 			"fieldLabel": "RBKUgW_fieldLabel",
-			"accountMeta": "RBKUgW_accountMeta",
-			"testResult": "RBKUgW_testResult",
-			"accountActions": "RBKUgW_accountActions",
-			"testOk": "RBKUgW_testOk",
+			"connectedAccount": "RBKUgW_connectedAccount",
+			"primaryButton": "RBKUgW_primaryButton",
+			"run": "RBKUgW_run",
+			"accountIdentity": "RBKUgW_accountIdentity",
+			"account": "RBKUgW_account",
+			"secondaryButton": "RBKUgW_secondaryButton",
+			"rule": "RBKUgW_rule",
+			"section": "RBKUgW_section",
+			"row": "RBKUgW_row",
+			"textarea": "RBKUgW_textarea",
+			"testFail": "RBKUgW_testFail",
 			"description": "RBKUgW_description",
 			"form": "RBKUgW_form",
-			"input": "RBKUgW_input",
-			"row": "RBKUgW_row",
-			"secondaryButton": "RBKUgW_secondaryButton",
-			"loading": "RBKUgW_loading",
-			"primaryButton": "RBKUgW_primaryButton",
-			"connectedAccount": "RBKUgW_connectedAccount",
-			"accountIdentity": "RBKUgW_accountIdentity",
-			"rule": "RBKUgW_rule",
-			"status": "RBKUgW_status",
-			"textarea": "RBKUgW_textarea",
-			"run": "RBKUgW_run",
 			"deleteButton": "RBKUgW_deleteButton",
-			"account": "RBKUgW_account",
-			"actions": "RBKUgW_actions"
+			"input": "RBKUgW_input",
+			"accountMeta": "RBKUgW_accountMeta",
+			"actions": "RBKUgW_actions",
+			"loading": "RBKUgW_loading",
+			"status": "RBKUgW_status",
+			"accountActions": "RBKUgW_accountActions",
+			"testResult": "RBKUgW_testResult",
+			"testOk": "RBKUgW_testOk"
 		};
 		//#endregion
 		//#region src/client/settings-common.ts
