@@ -13,11 +13,14 @@ def check_collect_params(query: str, context: dict, base_risk: int) -> int:
 
 
 def check_outputlookup_params(query: str, context: dict, base_risk: int) -> int:
-    """Check for risky outputlookup parameters."""
-    if re.search(r'\|\s*outputlookup\b', context['query_lower']):
-        if 'override=true' in context['query_lower']:
-            return base_risk
+    """Treat every outputlookup command as a write operation."""
+    if has_blocked_write_operation(query):
+        return base_risk
     return 0
+
+
+def has_blocked_write_operation(query: str) -> bool:
+    return bool(re.search(r'\boutputlookup\b', query, re.IGNORECASE))
 
 
 def parse_time_to_hours(time_str: str) -> float:

@@ -1,1 +1,1 @@
-export * from '@deepseek-ai/dsh-splunk-zimbra-scheduler'
+export * from '@deepseek-ai/dsh-soc-agent-scheduler'

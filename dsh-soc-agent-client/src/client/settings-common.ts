@@ -6,7 +6,7 @@ export type Settings = Record<string, Record<string, unknown>>
 export type Account = Record<string, string>
 export type TestResult = { kind: 'pending' | 'ok' | 'fail'; text: string }
 
-export const CHANNEL = '/splunk-zimbra-config'
+export const CHANNEL = '/soc-agent-config'
 
 export async function rpc(connection: ConnectionHandle, name: string, payload: Record<string, unknown> = {}) {
   const result = await connection.rpc.call(CHANNEL, name, payload)

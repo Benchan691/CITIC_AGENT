@@ -245,6 +245,38 @@ class SplunkClient:
                                details={"error": e.response.text})
         except Exception as e:
             raise SplunkAPIError(f"Failed to get indexes: {str(e)}")
+
+    async def get_lookup_table_files(self, app: str = "", search: str = "") -> List[Dict[str, Any]]:
+        """List visible lookup-table knowledge objects without modifying them."""
+        self._ensure_connected()
+        params = {"output_mode": "json"}
+        if search.strip():
+            params["search"] = search.strip()
+
+        try:
+            response = await self._client.get("/services/data/lookup-table-files", params=params)
+            response.raise_for_status()
+            entries = response.json().get("entry", [])
+            if not app.strip():
+                return entries
+
+            requested_app = app.strip()
+            filtered = []
+            for entry in entries:
+                acl = entry.get("acl") if isinstance(entry.get("acl"), dict) else {}
+                content = entry.get("content") if isinstance(entry.get("content"), dict) else {}
+                entry_app = acl.get("app") or content.get("app") or ""
+                if entry_app == requested_app:
+                    filtered.append(entry)
+            return filtered
+        except httpx.HTTPStatusError as e:
+            raise SplunkAPIError(
+                "Failed to get lookup-table files",
+                status_code=e.response.status_code,
+                details={"error": e.response.text},
+            )
+        except Exception as e:
+            raise SplunkAPIError(f"Failed to get lookup-table files: {str(e)}")
             
     async def get_saved_searches(self) -> List[Dict[str, Any]]:
         """Get list of all saved searches.

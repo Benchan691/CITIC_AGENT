@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@deepseek-ai/dsh-splunk-zimbra-scheduler':
-        specifier: link:../dsh-splunk-zimbra-scheduler
-        version: link:../dsh-splunk-zimbra-scheduler
-      dsh-splunk-zimbra-client:
-        specifier: link:../dsh-splunk-zimbra-client
-        version: link:../dsh-splunk-zimbra-client
+      '@deepseek-ai/dsh-soc-agent-scheduler':
+        specifier: link:../dsh-soc-agent-scheduler
+        version: link:../dsh-soc-agent-scheduler
+      dsh-soc-agent-client:
+        specifier: link:../dsh-soc-agent-client
+        version: link:../dsh-soc-agent-client

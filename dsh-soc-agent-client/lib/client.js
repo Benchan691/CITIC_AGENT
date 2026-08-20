@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-	id: "dsh-splunk-zimbra-client",
+	id: "dsh-soc-agent-client",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;
@@ -28,44 +28,44 @@ window.__ModuleLoader__.load({
 		//#endregion
 		let react = require("react");
 		react = __toESM(react, 1);
-		//#region \0dsh-css:/Users/chankokpan/Documents/MCP_sever/dsh-splunk-zimbra-client/src/client/SplunkZimbraOverlay.module.css.mjs
-		const css = ".hB6_Vq_form button:focus-visible,.hB6_Vq_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}.hB6_Vq_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}.hB6_Vq_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}.hB6_Vq_description,.hB6_Vq_status{color:var(--dsw-alias-label-secondary);margin:0}.hB6_Vq_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}.hB6_Vq_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}.hB6_Vq_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}.hB6_Vq_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}.hB6_Vq_row label{color:var(--dsw-alias-label-secondary)}.hB6_Vq_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}.hB6_Vq_input::placeholder{color:var(--dsw-alias-label-tertiary)}.hB6_Vq_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}.hB6_Vq_fieldLabel{color:var(--dsw-alias-label-secondary)}.hB6_Vq_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}.hB6_Vq_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}.hB6_Vq_run:last-child{border-bottom:0}.hB6_Vq_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}.hB6_Vq_primaryButton,.hB6_Vq_secondaryButton,.hB6_Vq_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}.hB6_Vq_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}.hB6_Vq_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}.hB6_Vq_secondaryButton,.hB6_Vq_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}.hB6_Vq_secondaryButton:hover,.hB6_Vq_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}.hB6_Vq_deleteButton{border-radius:14px;min-height:28px}.hB6_Vq_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}.hB6_Vq_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}.hB6_Vq_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}.hB6_Vq_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}.hB6_Vq_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}.hB6_Vq_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}.hB6_Vq_testOk{color:var(--dsw-alias-state-success-primary)}.hB6_Vq_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){.hB6_Vq_row{grid-template-columns:1fr auto}.hB6_Vq_row label{grid-column:1/-1}}";
-		const tagId = "dsh-splunk-zimbra-client/SplunkZimbraOverlay.module.css";
+		//#region \0dsh-css:/Users/chankokpan/Documents/MCP_sever/dsh-soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
+		const css = ".RBKUgW_form button:focus-visible,.RBKUgW_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}.RBKUgW_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}.RBKUgW_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}.RBKUgW_description,.RBKUgW_status{color:var(--dsw-alias-label-secondary);margin:0}.RBKUgW_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}.RBKUgW_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}.RBKUgW_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}.RBKUgW_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}.RBKUgW_row label{color:var(--dsw-alias-label-secondary)}.RBKUgW_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}.RBKUgW_input::placeholder{color:var(--dsw-alias-label-tertiary)}.RBKUgW_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}.RBKUgW_fieldLabel{color:var(--dsw-alias-label-secondary)}.RBKUgW_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}.RBKUgW_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}.RBKUgW_run:last-child{border-bottom:0}.RBKUgW_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}.RBKUgW_primaryButton,.RBKUgW_secondaryButton,.RBKUgW_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}.RBKUgW_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}.RBKUgW_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}.RBKUgW_secondaryButton,.RBKUgW_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}.RBKUgW_secondaryButton:hover,.RBKUgW_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}.RBKUgW_deleteButton{border-radius:14px;min-height:28px}.RBKUgW_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}.RBKUgW_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}.RBKUgW_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}.RBKUgW_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}.RBKUgW_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}.RBKUgW_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}.RBKUgW_testOk{color:var(--dsw-alias-state-success-primary)}.RBKUgW_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){.RBKUgW_row{grid-template-columns:1fr auto}.RBKUgW_row label{grid-column:1/-1}}";
+		const tagId = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
-			tag.dataset.plugin = "dsh-splunk-zimbra-client";
+			tag.dataset.plugin = "dsh-soc-agent-client";
 			tag.dataset.pluginCss = tagId;
 			tag.textContent = css;
 			document.head.appendChild(tag);
 		}
 		var SplunkZimbraOverlay_module_css_default = {
-			"testOk": "hB6_Vq_testOk",
-			"primaryButton": "hB6_Vq_primaryButton",
-			"accountIdentity": "hB6_Vq_accountIdentity",
-			"textarea": "hB6_Vq_textarea",
-			"secondaryButton": "hB6_Vq_secondaryButton",
-			"section": "hB6_Vq_section",
-			"actions": "hB6_Vq_actions",
-			"form": "hB6_Vq_form",
-			"row": "hB6_Vq_row",
-			"rule": "hB6_Vq_rule",
-			"connectedAccount": "hB6_Vq_connectedAccount",
-			"accountActions": "hB6_Vq_accountActions",
-			"status": "hB6_Vq_status",
-			"fieldLabel": "hB6_Vq_fieldLabel",
-			"account": "hB6_Vq_account",
-			"accountMeta": "hB6_Vq_accountMeta",
-			"run": "hB6_Vq_run",
-			"testResult": "hB6_Vq_testResult",
-			"loading": "hB6_Vq_loading",
-			"input": "hB6_Vq_input",
-			"testFail": "hB6_Vq_testFail",
-			"description": "hB6_Vq_description",
-			"deleteButton": "hB6_Vq_deleteButton"
+			"testFail": "RBKUgW_testFail",
+			"section": "RBKUgW_section",
+			"fieldLabel": "RBKUgW_fieldLabel",
+			"accountMeta": "RBKUgW_accountMeta",
+			"testResult": "RBKUgW_testResult",
+			"accountActions": "RBKUgW_accountActions",
+			"testOk": "RBKUgW_testOk",
+			"description": "RBKUgW_description",
+			"form": "RBKUgW_form",
+			"input": "RBKUgW_input",
+			"row": "RBKUgW_row",
+			"secondaryButton": "RBKUgW_secondaryButton",
+			"loading": "RBKUgW_loading",
+			"primaryButton": "RBKUgW_primaryButton",
+			"connectedAccount": "RBKUgW_connectedAccount",
+			"accountIdentity": "RBKUgW_accountIdentity",
+			"rule": "RBKUgW_rule",
+			"status": "RBKUgW_status",
+			"textarea": "RBKUgW_textarea",
+			"run": "RBKUgW_run",
+			"deleteButton": "RBKUgW_deleteButton",
+			"account": "RBKUgW_account",
+			"actions": "RBKUgW_actions"
 		};
 		//#endregion
 		//#region src/client/settings-common.ts
-		const CHANNEL$1 = "/splunk-zimbra-config";
+		const CHANNEL$1 = "/soc-agent-config";
 		async function rpc$1(connection, name, payload = {}) {
 			const result = await connection.rpc.call(CHANNEL$1, name, payload);
 			if (!result?.ok) throw new Error(result?.error?.message || `Request failed: ${name}`);
@@ -438,7 +438,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region src/client/ScheduledTasksForm.ts
-		const CHANNEL = "/splunk-zimbra-schedules";
+		const CHANNEL = "/soc-agent-schedules";
 		async function rpc(connection, endpoint, payload = {}) {
 			const result = await connection.rpc.call(CHANNEL, endpoint, payload);
 			if (!result?.ok) throw new Error(result?.error?.message || `Request failed: ${endpoint}`);
@@ -612,11 +612,11 @@ window.__ModuleLoader__.load({
 		//#endregion
 		//#region src/client/sections.ts
 		const SETTINGS_SECTIONS = [{
-			id: "splunk-zimbra-connections",
+			id: "soc-agent-connections",
 			order: 30,
 			label: "Connections"
 		}, {
-			id: "splunk-zimbra-schedules",
+			id: "soc-agent-schedules",
 			order: 40,
 			label: "Scheduled Tasks"
 		}];

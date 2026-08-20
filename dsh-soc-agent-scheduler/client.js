@@ -1,4 +1,4 @@
-export const SCHEDULED_TASK_CHANNEL = '/splunk-zimbra-schedules'
+export const SCHEDULED_TASK_CHANNEL = '/soc-agent-schedules'
 
 export function createScheduledTaskClient(connection) {
   const call = async (endpoint, payload = {}) => {

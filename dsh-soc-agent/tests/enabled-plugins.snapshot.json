@@ -33,6 +33,8 @@
   "spill-policy",
   "session-checkpoint-policy",
   "tool-result-pruner",
+  "web",
+  "web-search-deepseek",
   "tools",
   "system-prompt",
   "agent-loop",
@@ -72,8 +74,8 @@
   "ui-model-selection",
   "ui-settings-plugins",
   "time-context",
-  "splunk-zimbra-mcp",
-  "splunk-zimbra-admin-host",
-  "splunk-zimbra-scheduler",
-  "splunk-zimbra-admin-ui"
+  "soc-agent-mcp",
+  "soc-agent-admin-host",
+  "soc-agent-scheduler",
+  "soc-agent-admin-ui"
 ]

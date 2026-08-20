@@ -6,9 +6,9 @@ import { createUserMessage } from '../deepseek-harness/packages/llm/llm/lib/inde
 import { SessionId } from '../deepseek-harness/packages/core/session/lib/index.js'
 import { defineDomain, domainTable } from '../deepseek-harness/packages/storage/storage-domain/lib/index.js'
 import { defineTool } from '../deepseek-harness/packages/core/tools/lib/index.js'
-import { READ_ONLY_DOMAIN_TOOLS } from '../dsh-splunk-zimbra/policy.js'
+import { READ_ONLY_DOMAIN_TOOLS } from '../dsh-soc-agent/policy.js'
 
-export const name = 'splunk-zimbra-scheduler'
+export const name = 'soc-agent-scheduler'
 export const inject = [
   'agents',
   'connection',
@@ -27,7 +27,7 @@ export const Config = s.object({
 
 export { READ_ONLY_DOMAIN_TOOLS }
 
-const CHANNEL = '/splunk-zimbra-schedules'
+const CHANNEL = '/soc-agent-schedules'
 const MAX_TIMER_DELAY_MS = 2_147_483_647
 const MAX_NAME_CHARS = 120
 const MAX_PROMPT_CHARS = 20_000
@@ -68,7 +68,7 @@ const schedulerSettingsSchema = z.object({
 }).strict()
 
 const schedulerDomain = defineDomain({
-  name: 'splunk_zimbra_scheduler',
+  name: 'soc_agent_scheduler',
   version: 1,
   tables: {
     tasks: domainTable(taskSchema),
@@ -461,7 +461,7 @@ export class SchedulerRuntime {
           `scheduled_for: ${run.scheduledFor}`,
           `investigation_prompt_json: ${JSON.stringify(task.prompt)}`,
         ].join('\n') }],
-        source: { kind: 'plugin', plugin: 'splunk-zimbra-scheduler' },
+        source: { kind: 'plugin', plugin: 'soc-agent-scheduler' },
       }))
       let timeoutTimer
       const timeout = new Promise((_, reject) => {
@@ -483,7 +483,7 @@ export class SchedulerRuntime {
       }
       const code = error instanceof SchedulerInputError ? error.code : 'run_failed'
       await this.runs.put(run.id, { ...run, state: 'failed', finishedAt: iso(), errorCode: code })
-      this.ctx.logger.warn(`splunk-zimbra-scheduler: run ${run.id} failed (${code})`)
+      this.ctx.logger.warn(`soc-agent-scheduler: run ${run.id} failed (${code})`)
     } finally {
       if (handle) await handle.dispose()
     }
@@ -576,5 +576,5 @@ export function apply(ctx, config) {
       disposeTools()
       await runtime.close()
     }
-  }, 'splunk-zimbra-scheduler.lifecycle()')
+  }, 'soc-agent-scheduler.lifecycle()')
 }

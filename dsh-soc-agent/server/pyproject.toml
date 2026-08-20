@@ -3,9 +3,9 @@ requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "splunk-zimbra-mcp"
+name = "soc-agent-mcp"
 version = "0.1.0"
-description = "Unified MCP server for Splunk and Zimbra"
+description = "SOC Agent MCP server for Splunk and Zimbra investigation"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

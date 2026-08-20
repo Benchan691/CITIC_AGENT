@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..core.service import SplunkCore
+from .lookup import normalize_lookups, rest_search_filter
 from unified_mcp_server.errors import ServiceError
 
 
@@ -65,6 +66,35 @@ class SplunkSearchService:
             "indexes": indexes,
             "guidance": "Confirm index permissions and sourcetypes with a narrow search before deployment.",
         }
+
+    async def list_lookups(self, app: str = "", name: str = "") -> dict[str, Any]:
+        app = app.strip()
+        name = name.strip()
+        entries = await self.core.request(
+            lambda client: client.get_lookup_table_files(app=app)
+        )
+        lookups = normalize_lookups(entries)
+        if app:
+            lookups = [lookup for lookup in lookups if lookup["app"] == app]
+        if name:
+            needle = name.casefold()
+            lookups = [lookup for lookup in lookups if needle in lookup["name"].casefold()]
+        return {"count": len(lookups), "lookups": lookups}
+
+    async def find_lookup(self, name: str) -> dict[str, Any]:
+        name = name.strip()
+        if not name:
+            raise ServiceError("invalid_input", "name cannot be empty")
+        entries = await self.core.request(
+            lambda client: client.get_lookup_table_files(search=rest_search_filter(name))
+        )
+        lookup = next(
+            (item for item in normalize_lookups(entries) if item["name"] == name),
+            None,
+        )
+        if lookup is None:
+            raise ServiceError("not_found", "The requested lookup-table file was not found.", details={"name": name})
+        return {"lookup": lookup}
 
     async def run_saved_search(self, name: str) -> dict[str, Any]:
         name = name.strip()

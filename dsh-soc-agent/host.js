@@ -3,10 +3,10 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS } from './policy.js'
 
-export const name = 'splunk-zimbra-host'
+export const name = 'soc-agent-host'
 export const inject = ['agents', 'connection', 'tools']
 
-const CHANNEL = '/splunk-zimbra-config'
+const CHANNEL = '/soc-agent-config'
 
 export { ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS }
 
@@ -15,7 +15,7 @@ function bundleRoot() {
 }
 
 function serverRoot() {
-  return process.env.DSH_SPLUNK_ZIMBRA_SERVER || join(bundleRoot(), 'server')
+  return process.env.DSH_SOC_AGENT_SERVER || join(bundleRoot(), 'server')
 }
 
 function workspaceRoot() {

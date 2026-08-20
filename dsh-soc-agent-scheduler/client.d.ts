@@ -1,6 +1,6 @@
 export declare const inject: readonly []
 export declare function apply(): void
-export declare const SCHEDULED_TASK_CHANNEL: '/splunk-zimbra-schedules'
+export declare const SCHEDULED_TASK_CHANNEL: '/soc-agent-schedules'
 export interface ScheduledTaskBrowserClient {
   list(): Promise<unknown>
   create(payload: Record<string, unknown>): Promise<unknown>

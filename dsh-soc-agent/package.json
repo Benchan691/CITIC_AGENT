@@ -1,7 +1,7 @@
 {
-  "name": "dsh-splunk-zimbra",
+  "name": "dsh-soc-agent",
   "version": "0.1.0",
-  "description": "Splunk and Zimbra analyst product bundle for DeepSeek Harness.",
+  "description": "SOC Agent product bundle with Splunk and Zimbra investigation features.",
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js"
@@ -20,8 +20,8 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-splunk-zimbra-scheduler": "link:../dsh-splunk-zimbra-scheduler",
-    "dsh-splunk-zimbra-client": "link:../dsh-splunk-zimbra-client"
+    "@deepseek-ai/dsh-soc-agent-scheduler": "link:../dsh-soc-agent-scheduler",
+    "dsh-soc-agent-client": "link:../dsh-soc-agent-client"
   },
   "dsh": {
     "bundle": {

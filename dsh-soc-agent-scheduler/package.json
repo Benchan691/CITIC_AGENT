@@ -1,7 +1,7 @@
 {
-  "name": "@deepseek-ai/dsh-splunk-zimbra-scheduler",
+  "name": "@deepseek-ai/dsh-soc-agent-scheduler",
   "version": "0.1.0",
-  "description": "Persistent read-only Splunk and Zimbra investigation scheduler for DeepSeek Harness",
+  "description": "Persistent read-only SOC Agent investigation scheduler for DeepSeek Harness",
   "type": "module",
   "main": "./index.js",
   "types": "./types.d.ts",

@@ -5,8 +5,8 @@ import { SETTINGS_SECTIONS } from '../src/client/sections.ts'
 
 test('registers focused connection and scheduled-task settings sections', () => {
   assert.deepEqual(SETTINGS_SECTIONS, [
-    { id: 'splunk-zimbra-connections', order: 30, label: 'Connections' },
-    { id: 'splunk-zimbra-schedules', order: 40, label: 'Scheduled Tasks' },
+    { id: 'soc-agent-connections', order: 30, label: 'Connections' },
+    { id: 'soc-agent-schedules', order: 40, label: 'Scheduled Tasks' },
   ])
 })
 

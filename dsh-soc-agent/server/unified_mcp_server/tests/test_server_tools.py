@@ -17,6 +17,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_list_indexes",
         "splunk_list_saved_searches",
         "splunk_list_data_sources",
+        "splunk_find_lookup",
+        "splunk_list_lookups",
         "splunk_get_detection",
         "splunk_validate_detection",
         "splunk_backtest_detection",

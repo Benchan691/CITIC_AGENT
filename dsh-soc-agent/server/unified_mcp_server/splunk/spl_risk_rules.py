@@ -43,8 +43,8 @@ SPL_RISK_RULES = [
     (check_collect_params, 25,
      "Uses 'collect' with risky parameters (+{score}). Consider using addtime=true and avoid override=true for safer data collection."),
     
-    (check_outputlookup_params, 20,
-     "Uses 'outputlookup' with override=true (+{score}). This will overwrite existing lookup. Consider append=true or create a new lookup file."),
+    (check_outputlookup_params, 100,
+     "Uses 'outputlookup', which writes a lookup-table file (+{score}). Read-only search cannot execute this operation."),
     
     (check_index_usage, (0, 20, 35),  # (no_risk, no_index_with_constraints, index_star_unconstrained)
      "Index usage issue detected (+{score}). Specify exact indexes or add source/sourcetype constraints for better performance."),

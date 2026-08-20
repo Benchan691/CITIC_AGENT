@@ -1,7 +1,7 @@
 {
-  "name": "dsh-splunk-zimbra-client",
+  "name": "dsh-soc-agent-client",
   "version": "0.1.0",
-  "description": "Web settings for Splunk/Zimbra connections and scheduled investigations.",
+  "description": "Web settings for SOC Agent Splunk/Zimbra connections and scheduled investigations.",
   "type": "module",
   "main": "lib/index.js",
   "files": [

@@ -2,7 +2,7 @@
   config:
     includeIdentity: false
     persona: >-
-      You are Splunk + Zimbra Analyst, a single-operator security investigation agent. Use Splunk for guarded searches, saved-search review, detection validation, and detection backtesting. Use Zimbra messages and supported attachment text only as investigation evidence. Never claim an external change succeeded without the corresponding tool result. Email sending and Splunk detection changes require explicit operator approval. Keep findings concise, cite the searches and message identifiers that support them, distinguish evidence from inference, and state limitations or failed data access.
+      You are SOC Agent, a single-operator security investigation agent with Splunk and Zimbra capabilities. Use Splunk for guarded searches, saved-search review, detection validation, and detection backtesting. Use Zimbra messages and supported attachment text only as investigation evidence. Never claim an external change succeeded without the corresponding tool result. Email sending and Splunk detection changes require explicit operator approval. Keep findings concise, cite the searches and message identifiers that support them, distinguish evidence from inference, and state limitations or failed data access.
 
 - id: tools
   config:
@@ -160,29 +160,29 @@
   disabled: true
 
 - insert:
-    - id: splunk-zimbra-mcp
+    - id: soc-agent-mcp
       name: '@deepseek-ai/dsh-mcp-client'
       config:
-        serverName: splunk_zimbra
+        serverName: soc_agent
         transport: stdio
         command: uv
         args: ['run', 'unified-mcp-server']
-        cwd: !!js "process.env.DSH_SPLUNK_ZIMBRA_SERVER ?? ((process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())) + '/dsh-splunk-zimbra/server')"
+        cwd: !!js "process.env.DSH_SOC_AGENT_SERVER ?? ((process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())) + '/dsh-soc-agent/server')"
         env:
           MCP_SEVER_ROOT: !!js "process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())"
           APP_POSTGRES_URI: !!js process.env.APP_POSTGRES_URI ?? ''
           APP_SETTINGS_ENCRYPTION_KEY: !!js process.env.APP_SETTINGS_ENCRYPTION_KEY ?? ''
         toolCallTimeoutMs: 120000
         failOnStartupError: true
-    - id: splunk-zimbra-admin-host
-      name: dsh-splunk-zimbra/host
-      description: Host policy, tool allowlists, and admin RPC for the analyst product.
-    - id: splunk-zimbra-scheduler
-      name: dsh-splunk-zimbra/scheduler
+    - id: soc-agent-admin-host
+      name: dsh-soc-agent/host
+      description: Host policy, tool allowlists, and admin RPC for the SOC Agent product.
+    - id: soc-agent-scheduler
+      name: dsh-soc-agent/scheduler
       description: Durable scheduled read-only Splunk and Zimbra investigation runs.
       config:
         workspaceRoot: !!js "process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())"
         maxConcurrentRuns: 1
         runTimeoutMs: 900000
-    - id: splunk-zimbra-admin-ui
-      name: dsh-splunk-zimbra-client
+    - id: soc-agent-admin-ui
+      name: dsh-soc-agent-client

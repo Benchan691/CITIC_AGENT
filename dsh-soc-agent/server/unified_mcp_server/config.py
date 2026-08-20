@@ -210,8 +210,8 @@ class ServerSettings:
             password=_value(env, "ZIMBRA_PASSWORD"),
         )
         return cls(
-            name=_value(env, "MCP_SERVER_NAME", "Splunk + Zimbra MCP"),
-            description=_value(env, "MCP_SERVER_DESCRIPTION", "Unified incident investigation tools for Splunk and Zimbra"),
+            name=_value(env, "MCP_SERVER_NAME", "SOC Agent MCP"),
+            description=_value(env, "MCP_SERVER_DESCRIPTION", "SOC Agent investigation tools for Splunk and Zimbra"),
             transport=transport,
             host=_value(env, "MCP_HOST", _value(env, "HOST", "127.0.0.1")),
             port=_integer(env, _preferred(env, "MCP_PORT", "PORT"), 8050, 1, 65535),

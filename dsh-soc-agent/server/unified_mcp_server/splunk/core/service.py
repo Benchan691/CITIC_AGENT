@@ -14,7 +14,7 @@ from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 
 from .client import SplunkAPIError, SplunkClient
-from .guardrails import sanitize_output, validate_spl_query
+from .guardrails import has_blocked_write_operation, sanitize_output, validate_spl_query
 
 
 class SplunkCore:
@@ -46,7 +46,10 @@ class SplunkCore:
             "risk_score": risk_score,
             "risk_message": risk_message,
             "risk_tolerance": self.settings.risk_tolerance,
-            "would_execute": risk_score <= self.settings.risk_tolerance,
+            "would_execute": (
+                risk_score <= self.settings.risk_tolerance
+                and not has_blocked_write_operation(query)
+            ),
         }
 
     def sanitize(self, value: Any) -> Any:

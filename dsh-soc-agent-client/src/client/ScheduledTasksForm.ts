@@ -23,7 +23,7 @@ type Run = {
 
 type SchedulerSettings = { maxConcurrentRuns: number; runTimeoutMs: number }
 
-const CHANNEL = '/splunk-zimbra-schedules'
+const CHANNEL = '/soc-agent-schedules'
 
 async function rpc(connection: ConnectionHandle, endpoint: string, payload: Record<string, unknown> = {}) {
   const result = await connection.rpc.call(CHANNEL, endpoint, payload)
