@@ -342,6 +342,35 @@ def zimbra_list_folders(host, token, *, verify_ssl=True, timeout=60):
     return folders
 
 
+def zimbra_create_folder(host, token, name, parent_id, *, verify_ssl=True, timeout=60):
+    """Create one mailbox folder and return safe normalized folder metadata."""
+    root = soap_request(
+        host,
+        (
+            '<CreateFolderRequest xmlns="urn:zimbraMail">'
+            f'<folder name="{html.escape(name)}" l="{html.escape(str(parent_id))}"/>'
+            "</CreateFolderRequest>"
+        ),
+        token,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+    )
+    response = next((elem for elem in root.iter() if _local_name(elem.tag) == "CreateFolderResponse"), None)
+    folder = next(
+        (elem for elem in response.iter() if _local_name(elem.tag) == "folder"),
+        None,
+    ) if response is not None else None
+    if folder is None or not folder.get("id"):
+        raise ValueError("Malformed Zimbra folder response")
+    return {
+        "id": folder.get("id", ""),
+        "name": folder.get("name", name),
+        "path": folder.get("absFolderPath", ""),
+        "parent_id": folder.get("l", str(parent_id)),
+        "view": folder.get("view", ""),
+    }
+
+
 def zimbra_get_filter_rules(host, token, *, verify_ssl=True, timeout=60):
     """Return the complete incoming filter-rule elements from Zimbra."""
     root = soap_request(
@@ -351,9 +380,10 @@ def zimbra_get_filter_rules(host, token, *, verify_ssl=True, timeout=60):
         verify_ssl=verify_ssl,
         timeout=timeout,
     )
-    if _local_name(root.tag) != "GetFilterRulesResponse":
+    response = next((elem for elem in root.iter() if _local_name(elem.tag) == "GetFilterRulesResponse"), None)
+    if response is None:
         raise ValueError("Malformed Zimbra filter response")
-    container = next((elem for elem in root if _local_name(elem.tag).lower() == "filterrules"), None)
+    container = next((elem for elem in response if _local_name(elem.tag).lower() == "filterrules"), None)
     if container is None:
         raise ValueError("Malformed Zimbra filter response")
     rules = list(container)

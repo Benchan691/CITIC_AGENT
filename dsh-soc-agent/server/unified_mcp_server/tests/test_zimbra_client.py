@@ -1,5 +1,7 @@
 import xml.etree.ElementTree as ET
 
+import pytest
+
 import unified_mcp_server.zimbra.zimbra as zimbra
 
 
@@ -48,3 +50,43 @@ def test_list_folders_normalizes_counts(monkeypatch):
         {"id": "2", "name": "Inbox", "path": "/Inbox", "parent_id": "1", "unread_count": 3, "message_count": 8}
     ]
 
+
+def test_create_folder_generates_soap_and_parses_envelope(monkeypatch):
+    captured = {}
+    response = ET.fromstring(
+        '''<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+          <soap:Body><CreateFolderResponse xmlns="urn:zimbraMail">
+            <folder id="42" name="Investigations" absFolderPath="/Investigations" l="1" view="message"/>
+          </CreateFolderResponse></soap:Body>
+        </soap:Envelope>'''
+    )
+
+    def fake_request(host, body, token, **options):
+        captured.update(host=host, body=body, token=token, options=options)
+        return response
+
+    monkeypatch.setattr(zimbra, "soap_request", fake_request)
+
+    folder = zimbra.zimbra_create_folder("mail.example.com", "token", "Investigations", "1")
+
+    assert folder == {
+        "id": "42",
+        "name": "Investigations",
+        "path": "/Investigations",
+        "parent_id": "1",
+        "view": "message",
+    }
+    assert "CreateFolderRequest" in captured["body"]
+    assert 'name="Investigations"' in captured["body"]
+    assert 'l="1"' in captured["body"]
+
+
+def test_create_folder_rejects_malformed_response(monkeypatch):
+    monkeypatch.setattr(
+        zimbra,
+        "soap_request",
+        lambda *args, **kwargs: ET.fromstring("<CreateFolderResponse xmlns=\"urn:zimbraMail\"/>")
+    )
+
+    with pytest.raises(ValueError, match="Malformed"):
+        zimbra.zimbra_create_folder("mail.example.com", "token", "Investigations", "1")

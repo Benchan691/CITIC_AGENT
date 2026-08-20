@@ -13,6 +13,7 @@ def test_defaults_are_secure_and_services_can_be_unconfigured():
     assert settings.splunk.sanitize_output is True
     assert settings.zimbra.verify_ssl is True
     assert settings.zimbra.allow_send is False
+    assert settings.zimbra.allow_folder_write is False
     assert settings.splunk.configured is False
     assert settings.zimbra.configured is False
     assert settings.splunk.detection_write_enabled is False
@@ -95,6 +96,13 @@ def test_zimbra_filter_gates_are_explicit_and_visible_without_secrets():
     assert status["zimbra"]["filter_write_enabled"] is True
     assert status["zimbra"]["filter_redirect_enabled"] is True
     assert status["zimbra"]["filter_discard_enabled"] is True
+
+
+def test_zimbra_folder_write_gate_is_explicit_and_visible_without_secrets():
+    settings = ServerSettings.from_env({"ZIMBRA_ALLOW_FOLDER_WRITE": "true"})
+
+    assert settings.zimbra.allow_folder_write is True
+    assert settings.public_status()["zimbra"]["folder_write_enabled"] is True
 
 
 @pytest.mark.parametrize(

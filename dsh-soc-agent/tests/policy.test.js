@@ -10,13 +10,18 @@ import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 27)
+  assert.equal(DOMAIN_TOOLS.size, 36)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__splunk_create_detection_draft',
     'mcp__soc_agent__splunk_disable_detection',
     'mcp__soc_agent__splunk_enable_detection',
     'mcp__soc_agent__splunk_update_detection_draft',
+    'mcp__soc_agent__zimbra_create_email_filter',
+    'mcp__soc_agent__zimbra_create_folder',
+    'mcp__soc_agent__zimbra_reorder_email_filter',
     'mcp__soc_agent__zimbra_send_email',
+    'mcp__soc_agent__zimbra_set_email_filter_enabled',
+    'mcp__soc_agent__zimbra_update_email_filter',
     'scheduled_task_create',
     'scheduled_task_delete',
     'scheduled_task_pause',
@@ -27,8 +32,8 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 })
 
 test('SOC policy has disjoint read-only and action categories', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 17)
-  assert.equal(ACTION_TOOLS.length, 10)
+  assert.equal(READ_ONLY_TOOLS.length, 21)
+  assert.equal(ACTION_TOOLS.length, 15)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
   assert.equal(READ_ONLY_TOOLS.includes('skill'), true)
@@ -43,7 +48,7 @@ test('SOC policy has disjoint read-only and action categories', () => {
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 16)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 20)
   for (const name of READ_ONLY_DOMAIN_TOOLS) {
     assert.equal(DOMAIN_TOOLS.has(name), true)
     assert.equal(APPROVAL_TOOLS.has(name), false)
@@ -68,6 +73,10 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_list_indexes' }, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_find_lookup' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_list_lookups' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_list_email_filters' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_preview_email_filter_update' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_create_folder' }, () => ({ kind: 'delegate' }))).kind, 'ask')
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_update_email_filter' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_send_email' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'bash' }, () => ({ kind: 'delegate' }))).kind, 'deny')
 })

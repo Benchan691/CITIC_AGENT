@@ -120,6 +120,7 @@ class ZimbraSettings:
     allow_filter_write: bool = False
     allow_filter_redirect: bool = False
     allow_filter_discard: bool = False
+    allow_folder_write: bool = False
 
     @property
     def configured(self) -> bool:
@@ -207,6 +208,7 @@ class ServerSettings:
             allow_filter_write=_boolean(env, "ZIMBRA_ALLOW_FILTER_WRITE", False),
             allow_filter_redirect=_boolean(env, "ZIMBRA_ALLOW_FILTER_REDIRECT", False),
             allow_filter_discard=_boolean(env, "ZIMBRA_ALLOW_FILTER_DISCARD", False),
+            allow_folder_write=_boolean(env, "ZIMBRA_ALLOW_FOLDER_WRITE", False),
             max_attachment_bytes=_integer(env, "ZIMBRA_MAX_ATTACHMENT_BYTES", 10_000_000, 1, 100_000_000),
             max_attachment_text_chars=_integer(env, "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS", 200_000, 1, 2_000_000),
             accounts_file=_storage_path(env, "ZIMBRA_ACCOUNTS_FILE", ".data/zimbra_accounts.enc"),
@@ -262,6 +264,7 @@ class ServerSettings:
                 "filter_write_enabled": self.zimbra.allow_filter_write,
                 "filter_redirect_enabled": self.zimbra.allow_filter_redirect,
                 "filter_discard_enabled": self.zimbra.allow_filter_discard,
+                "folder_write_enabled": self.zimbra.allow_folder_write,
                 "max_attachment_bytes": self.zimbra.max_attachment_bytes,
                 "max_attachment_text_chars": self.zimbra.max_attachment_text_chars,
             },

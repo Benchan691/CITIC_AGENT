@@ -27,6 +27,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_run_saved_search",
         "zimbra_list_accounts",
         "zimbra_list_folders",
+        "zimbra_create_folder",
         "zimbra_search_emails",
         "zimbra_get_email",
         "zimbra_get_attachment_text",

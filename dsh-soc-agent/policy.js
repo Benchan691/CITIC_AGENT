@@ -17,6 +17,10 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__zimbra_search_emails',
   'mcp__soc_agent__zimbra_get_email',
   'mcp__soc_agent__zimbra_get_attachment_text',
+  'mcp__soc_agent__zimbra_list_email_filters',
+  'mcp__soc_agent__zimbra_get_email_filter',
+  'mcp__soc_agent__zimbra_validate_email_filter',
+  'mcp__soc_agent__zimbra_preview_email_filter_update',
   'scheduled_task_list',
 ])
 
@@ -26,6 +30,11 @@ export const ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_enable_detection',
   'mcp__soc_agent__splunk_disable_detection',
   'mcp__soc_agent__zimbra_send_email',
+  'mcp__soc_agent__zimbra_create_email_filter',
+  'mcp__soc_agent__zimbra_update_email_filter',
+  'mcp__soc_agent__zimbra_set_email_filter_enabled',
+  'mcp__soc_agent__zimbra_reorder_email_filter',
+  'mcp__soc_agent__zimbra_create_folder',
   'scheduled_task_create',
   'scheduled_task_pause',
   'scheduled_task_resume',

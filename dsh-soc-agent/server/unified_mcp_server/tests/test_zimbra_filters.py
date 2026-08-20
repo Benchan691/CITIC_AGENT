@@ -105,6 +105,20 @@ def test_malformed_filter_response_is_rejected(monkeypatch):
         zimbra.zimbra_get_filter_rules("mail.example.com", "token")
 
 
+def test_filter_response_is_parsed_inside_soap_envelope(monkeypatch):
+    xml = f'''<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+      <soap:Body><GetFilterRulesResponse xmlns="urn:zimbraMail">
+        <filterRules>{ET.tostring(rule_xml(), encoding="unicode")}</filterRules>
+      </GetFilterRulesResponse></soap:Body>
+    </soap:Envelope>'''
+    monkeypatch.setattr(zimbra, "soap_request", lambda *args, **kwargs: ET.fromstring(xml))
+
+    rules = zimbra.zimbra_get_filter_rules("mail.example.com", "token")
+
+    assert len(rules) == 1
+    assert rules[0].get("name") == "Inbox alerts"
+
+
 @pytest.mark.asyncio
 async def test_validation_checks_supported_inputs_and_existing_folder(monkeypatch):
     fake_zimbra(monkeypatch)

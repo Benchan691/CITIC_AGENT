@@ -20,6 +20,11 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         return await execute(ctx, "zimbra", "list_folders", lambda: get_runtime(ctx).zimbra_mail.list_folders(account_id))
 
     @server.tool()
+    async def zimbra_create_folder(ctx: Context, name: str, parent_id: str = "1", account_id: str = "") -> dict[str, Any]:
+        """Create one direct child Zimbra folder when ZIMBRA_ALLOW_FOLDER_WRITE is enabled."""
+        return await execute(ctx, "zimbra", "create_folder", lambda: get_runtime(ctx).zimbra_mail.create_folder(name, parent_id, account_id))
+
+    @server.tool()
     async def zimbra_search_emails(ctx: Context, query: str, limit: int = 20, account_id: str = "") -> dict[str, Any]:
         """Search Zimbra using native query syntax and return message metadata."""
         return await execute(ctx, "zimbra", "search_emails", lambda: get_runtime(ctx).zimbra_mail.search_emails(query, limit, account_id))
