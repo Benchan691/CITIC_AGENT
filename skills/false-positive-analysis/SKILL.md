@@ -115,9 +115,10 @@ for bounded supporting searches.
 
 Use when necessary:
 
-- `splunk_list_indexes`
 - `splunk_list_data_sources`
-- `splunk_list_saved_searches`
+  - discover indexes and sourcetypes for bounded supporting searches.
+- `splunk_list_saved_searches(name="term", app="optional-app")`
+  - discover an alert by partial name before using `splunk_get_detection` with its exact name.
 
 ## Existing saved searches
 

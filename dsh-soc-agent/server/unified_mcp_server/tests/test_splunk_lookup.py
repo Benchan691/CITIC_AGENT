@@ -139,6 +139,49 @@ async def test_lookup_client_uses_read_only_rest_endpoint_and_filters():
     )
 
 
+@pytest.mark.asyncio
+async def test_saved_search_client_uses_read_only_name_filter():
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"entry": [
+                {
+                    "name": "0723 Suspicious Login",
+                    "content": {"search": "index=main error", "disabled": "0"},
+                    "acl": {"app": "search", "owner": "nobody"},
+                },
+            ]}
+
+    class HttpClient:
+        def __init__(self):
+            self.call = None
+
+        async def get(self, path, params):
+            self.call = (path, params)
+            return Response()
+
+    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
+    client._client = HttpClient()
+
+    result = await client.get_saved_searches(name="0723", app="search")
+
+    assert result[0]["name"] == "0723 Suspicious Login"
+    assert result[0]["app"] == "search"
+    assert result[0]["owner"] == "nobody"
+    assert client._client.call == (
+        "/services/saved/searches",
+        {"output_mode": "json", "search": "name=*0723*", "count": 0},
+    )
+
+    await client.get_saved_searches(app="search")
+    assert client._client.call == (
+        "/services/saved/searches",
+        {"output_mode": "json", "search": "app=search", "count": 0},
+    )
+
+
 def test_inputlookup_is_readable_and_outputlookup_is_blocked():
     core = SplunkCore(settings(risk_tolerance=100), FakeLookupClient)
 

@@ -44,8 +44,8 @@ class SplunkService:
     async def test_connection(self) -> dict[str, Any]:
         return await self.search_service.test_connection()
 
-    async def list_saved_searches(self) -> dict[str, Any]:
-        return await self.search_service.list_saved_searches()
+    async def list_saved_searches(self, name: str = "", app: str = "") -> dict[str, Any]:
+        return await self.search_service.list_saved_searches(name, app)
 
     async def list_data_sources(self, index: str = "") -> dict[str, Any]:
         return await self.search_service.list_data_sources(index)

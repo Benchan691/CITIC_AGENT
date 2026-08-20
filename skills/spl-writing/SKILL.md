@@ -26,6 +26,11 @@ This skill is for investigation.
 
 It does not modify Splunk configuration, detections, data, alerts, or other objects.
 
+Preferred discovery sequence:
+
+entity → `splunk_list_data_sources` → index+sourcetype
+→ `splunk_validate_query` → `splunk_search`
+
 # When to Use
 
 Use this skill when the user wants to:
@@ -118,21 +123,18 @@ Execute a guarded bounded Splunk oneshot search.
 
 Use for focused investigation queries.
 
-## `splunk_list_indexes`
-
-List indexes available to the configured Splunk account.
-
-Use when the relevant data location is unknown.
-
 ## `splunk_list_data_sources`
 
-Discover index metadata and available data sources.
+Discover indexes and bounded sourcetype metadata.
 
-Use to identify appropriate search scope before writing broad SPL.
+Use this instead of combining separate index and data-source discovery.
 
 ## `splunk_list_saved_searches`
 
-Inspect available saved searches without running them.
+Find saved searches or alerts without running them.
+
+Use `name="0723"` for case-insensitive partial-name discovery and `app="..."`
+when an app scope is known. Then use `splunk_get_detection` with the exact name.
 
 Use when an existing search may already answer the investigation question.
 
@@ -300,13 +302,7 @@ Do not silently assume an unknown timezone when it could materially affect the i
 
 If the index or sourcetype is known, use it.
 
-If not, use:
-
-`splunk_list_indexes`
-
-and when needed:
-
-`splunk_list_data_sources`
+If not, use `splunk_list_data_sources` to select an index and sourcetype.
 
 Identify likely telemetry such as:
 
@@ -772,9 +768,10 @@ Do not infer a baseline from too little data.
 
 Use:
 
-`splunk_list_saved_searches`
+`splunk_list_saved_searches(name="term", app="optional-app")`
 
-when the environment may already contain relevant investigative searches.
+when the environment may already contain a relevant search or alert. Follow
+discovery with `splunk_get_detection(exact_name)` when inspecting a detection.
 
 Use:
 

@@ -278,7 +278,7 @@ class SplunkClient:
         except Exception as e:
             raise SplunkAPIError(f"Failed to get lookup-table files: {str(e)}")
             
-    async def get_saved_searches(self) -> List[Dict[str, Any]]:
+    async def get_saved_searches(self, name: str = "", app: str = "") -> List[Dict[str, Any]]:
         """Get list of all saved searches.
         
         Returns:
@@ -286,8 +286,17 @@ class SplunkClient:
         """
         self._ensure_connected()
         
+        params = {"output_mode": "json"}
+        name = name.strip()
+        app = app.strip()
+        if name:
+            escaped = name.replace("\\", "\\\\").replace("*", "\\*")
+            params.update({"search": f"name=*{escaped}*", "count": 0})
+        elif app:
+            params.update({"search": f"app={app}", "count": 0})
+
         try:
-            response = await self._client.get("/services/saved/searches", params={"output_mode": "json"})
+            response = await self._client.get("/services/saved/searches", params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -295,6 +304,11 @@ class SplunkClient:
             
             for entry in data.get("entry", []):
                 content = entry.get("content", {})
+                if not isinstance(content, dict):
+                    content = {}
+                acl = entry.get("acl", {})
+                if not isinstance(acl, dict):
+                    acl = {}
                 saved_searches.append({
                     "name": entry.get("name", ""),
                     "search": content.get("search", ""),
@@ -304,8 +318,8 @@ class SplunkClient:
                     "next_scheduled_time": content.get("next_scheduled_time", ""),
                     "actions": content.get("actions", ""),
                     "disabled": self._flag(content.get("disabled", False)),
-                    "app": entry.get("acl", {}).get("app", ""),
-                    "owner": entry.get("acl", {}).get("owner", ""),
+                    "app": acl.get("app") or content.get("app", ""),
+                    "owner": acl.get("owner") or content.get("owner", ""),
                 })
             
             return saved_searches

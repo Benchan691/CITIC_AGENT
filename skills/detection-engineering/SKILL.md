@@ -112,6 +112,10 @@ Use:
 
 `splunk_get_detection`
 
+If the exact saved-search name is unknown, first use
+`splunk_list_saved_searches(name="term", app="optional-app")`, then call
+`splunk_get_detection` with the exact discovered name.
+
 Review its:
 
 - current SPL;

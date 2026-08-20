@@ -5,7 +5,6 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__system_get_status',
   'mcp__soc_agent__splunk_validate_query',
   'mcp__soc_agent__splunk_search',
-  'mcp__soc_agent__splunk_list_indexes',
   'mcp__soc_agent__splunk_list_saved_searches',
   'mcp__soc_agent__splunk_run_saved_search',
   'mcp__soc_agent__splunk_list_data_sources',

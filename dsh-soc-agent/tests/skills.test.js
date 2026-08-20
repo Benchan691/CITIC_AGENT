@@ -80,3 +80,20 @@ test('Harness discovers and loads the repository SOC skills through the skill to
     rmSync(isolatedHome, { recursive: true, force: true })
   }
 })
+
+test('SOC skills use consolidated data-source and filtered alert discovery', () => {
+  const repoRoot = fileURLToPath(new URL('../..', import.meta.url))
+  for (const name of [
+    'splunk-investigation',
+    'spl-writing',
+    'email-to-splunk-investigation',
+    'false-positive-analysis',
+  ]) {
+    const content = readFileSync(join(repoRoot, 'skills', name, 'SKILL.md'), 'utf8')
+    assert.equal(content.includes('splunk_list_indexes'), false, name)
+    assert.match(content, /splunk_list_data_sources/)
+    assert.match(content, /splunk_list_saved_searches\(name=/)
+  }
+  const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')
+  assert.match(detection, /splunk_list_saved_searches\(name=/)
+})

@@ -24,6 +24,11 @@ Email content provides investigation leads.
 
 It does not automatically prove malicious activity.
 
+For Splunk discovery, use:
+
+entity → `splunk_list_data_sources` → index+sourcetype
+→ `splunk_validate_query` → `splunk_search`
+
 # When to use
 
 Use this skill when:
@@ -100,14 +105,11 @@ Use only read-oriented Splunk Search tools in this workflow:
 - `splunk_search`
   - execute a guarded bounded Splunk search.
 
-- `splunk_list_indexes`
-  - discover available indexes when data location is unknown.
-
 - `splunk_list_data_sources`
-  - identify relevant data sources and narrow SPL scope.
+  - discover indexes and sourcetypes, then narrow SPL scope.
 
 - `splunk_list_saved_searches`
-  - inspect available saved searches when one may already support the investigation.
+  - find a relevant saved search or alert with optional partial `name` and `app` filters.
 
 - `splunk_run_saved_search`
   - run an existing saved search with actions disabled when appropriate.
@@ -348,13 +350,10 @@ Do not assume the email received time is identical to the event time.
 
 Before writing broad SPL, determine which data sources are likely relevant.
 
-When needed use:
+When needed use `splunk_list_data_sources` to choose an index and sourcetype.
 
-`splunk_list_indexes`
-
-and:
-
-`splunk_list_data_sources`
+Use `splunk_list_saved_searches(name="term", app="optional-app")` to discover
+an existing alert, then inspect the exact name with `splunk_get_detection`.
 
 Possible telemetry categories include:
 

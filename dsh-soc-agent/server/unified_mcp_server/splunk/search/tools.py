@@ -23,18 +23,13 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
         return await execute(ctx, "splunk", "search", lambda: get_runtime(ctx).splunk_search.search(query, earliest_time, latest_time, max_count))
 
     @server.tool()
-    async def splunk_list_indexes(ctx: Context) -> dict[str, Any]:
-        """List Splunk indexes available to the configured account."""
-        return await execute(ctx, "splunk", "list_indexes", lambda: get_runtime(ctx).splunk_search.list_indexes())
-
-    @server.tool()
-    async def splunk_list_saved_searches(ctx: Context) -> dict[str, Any]:
-        """List saved Splunk searches without running them."""
-        return await execute(ctx, "splunk", "list_saved_searches", lambda: get_runtime(ctx).splunk_search.list_saved_searches())
+    async def splunk_list_saved_searches(ctx: Context, name: str = "", app: str = "") -> dict[str, Any]:
+        """Find read-only saved searches or alerts by optional partial name and app."""
+        return await execute(ctx, "splunk", "list_saved_searches", lambda: get_runtime(ctx).splunk_search.list_saved_searches(name, app))
 
     @server.tool()
     async def splunk_list_data_sources(ctx: Context, index: str = "") -> dict[str, Any]:
-        """List index metadata to help scope a detection rule before authoring SPL."""
+        """Discover indexes and bounded sourcetype metadata for investigation."""
         return await execute(ctx, "splunk", "list_data_sources", lambda: get_runtime(ctx).splunk_search.list_data_sources(index))
 
     @server.tool()
