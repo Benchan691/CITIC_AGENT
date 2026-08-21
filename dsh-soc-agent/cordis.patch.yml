@@ -1,8 +1,6 @@
-- id: system-prompt
-  config:
-    includeIdentity: false
-    persona: >-
-      You are SOC Agent, a single-operator security investigation agent with Splunk and Zimbra capabilities. Use Splunk for guarded searches, saved-search review, detection validation, and detection backtesting. Use Zimbra messages and supported attachment text only as investigation evidence. Never claim an external change succeeded without the corresponding tool result. Email sending and Splunk detection changes require explicit operator approval. Keep findings concise, cite the searches and message identifiers that support them, distinguish evidence from inference, and state limitations or failed data access.
+# SOC Agent product patch over dsh-base + dsh-web-app.
+# Keep coding tools off; keep fs provider on so agent-instructions can load
+# $DSH_HOME/AGENTS.md. Model-facing fs/shell tools stay disabled below.
 
 - id: tools
   config:
@@ -19,23 +17,31 @@
 - id: tool-result-pruner
   disabled: false
 
-- insert:
-    - id: time-context
-      name: '@deepseek-ai/dsh-time-context'
+# AGENTS.md / CLAUDE.md loading needs the fs provider (not model tools).
+- id: sandbox-policy
+  disabled: false
+- id: fs-sandbox
+  disabled: false
 
-- id: hmr
+# Preset roster owns persona + agent-instructions for standard sessions.
+- id: agent-presets
   disabled: false
-- id: user-questions
+
+- id: skill
   disabled: false
-- id: jobs
-  disabled: true
-- id: session-telemetry-otel
-  disabled: true
+- id: skill-filesystem
+  disabled: false
+  config:
+    customSkillDirs:
+      - !!js "(process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())) + '/skills'"
+- id: tool-skill
+  disabled: false
+
+# ── coding / autonomous tools (model-facing) ────────────────────────────────
+
 - id: subprocess
   disabled: true
 - id: sandbox
-  disabled: true
-- id: sandbox-policy
   disabled: true
 - id: bash-sandbox
   disabled: true
@@ -55,26 +61,13 @@
   disabled: true
 - id: tool-str-replace-editor
   disabled: true
-- id: fs-sandbox
-  disabled: true
 - id: permission
+  disabled: true
+- id: jobs
   disabled: true
 - id: tool-jobs
   disabled: true
-- id: agent-instructions
-  disabled: true
-- id: skill
-  disabled: false
-- id: skill-filesystem
-  disabled: false
-  config:
-    customSkillDirs:
-      - !!js "(process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())) + '/skills'"
-- id: skill-badge
-  disabled: true
-- id: tool-skill
-  disabled: false
-- id: command-feedback
+- id: plan-mode
   disabled: true
 - id: goal
   disabled: true
@@ -82,10 +75,18 @@
   disabled: true
 - id: command-goal
   disabled: true
-- id: plan-mode
+- id: tool-goal
   disabled: true
-- id: subagent
-  disabled: false
+- id: tool-todo
+  disabled: true
+- id: tool-ralph
+  disabled: true
+- id: code-runtime
+  disabled: true
+- id: workflow-worker-thread
+  disabled: true
+- id: tool-workflow
+  disabled: true
 - id: subagent-spawn-in-process
   disabled: true
 - id: subagent-fork-in-process
@@ -100,34 +101,38 @@
   disabled: true
 - id: tool-subagent-report
   disabled: true
-- id: workflow-worker-thread
-  disabled: true
-- id: tool-workflow
-  disabled: true
-- id: tool-todo
-  disabled: true
-- id: tool-goal
-  disabled: true
-- id: tool-ralph
-  disabled: true
 - id: repeat-tool-reminder
-  disabled: true
-- id: code-runtime
   disabled: true
 - id: message-feedback
   disabled: true
-- id: directory-picker
-  disabled: false
-- id: plugin-inventory
-  disabled: false
+- id: command-feedback
+  disabled: true
+- id: session-telemetry-otel
+  disabled: true
+- id: skill-badge
+  disabled: true
 - id: cordis-host-runner
   disabled: true
+
+# ── UI surface ──────────────────────────────────────────────────────────────
+
+- id: hmr
+  disabled: false
 - id: client-hmr
   disabled: false
 - id: cordis-client-runner
   disabled: false
+- id: user-questions
+  disabled: false
+- id: directory-picker
+  disabled: false
+- id: plugin-inventory
+  disabled: false
 - id: ui-settings-plugin-inventory
   disabled: false
+- id: ui-settings-plugins
+  disabled: false
+
 - id: ui-cordis
   disabled: true
 - id: ui-workflow-run
@@ -148,18 +153,18 @@
   disabled: true
 - id: ui-agent-preset
   disabled: true
-- id: ui-settings-plugins
-  disabled: false
 - id: ui-plan
   disabled: true
 - id: ui-user-questions
   disabled: true
 - id: ui-trajectory
   disabled: true
-- id: agent-presets
-  disabled: true
+
+# ── SOC product plugins ─────────────────────────────────────────────────────
 
 - insert:
+    - id: time-context
+      name: '@deepseek-ai/dsh-time-context'
     - id: soc-agent-mcp
       name: '@deepseek-ai/dsh-mcp-client'
       config:
