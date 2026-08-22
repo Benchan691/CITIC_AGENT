@@ -20,3 +20,12 @@ test('exports independent SOC settings components', () => {
     assert.match(source, new RegExp(`export function ${symbol}`))
   }
 })
+
+test('keeps Zimbra server configuration in .env and exposes accounts only', () => {
+  const source = readFileSync(new URL('../src/client/ZimbraSettings.ts', import.meta.url), 'utf8')
+  assert.match(source, /list-accounts/)
+  assert.match(source, /server \.env file/)
+  assert.doesNotMatch(source, /label: 'Host'/)
+  assert.doesNotMatch(source, /label: 'Allow send'/)
+  assert.doesNotMatch(source, /Save settings/)
+})

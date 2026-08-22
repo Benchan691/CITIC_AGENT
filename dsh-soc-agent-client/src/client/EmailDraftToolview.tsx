@@ -4,17 +4,15 @@ import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runti
 import React, { useEffect, useMemo, useState } from 'react'
 import css from './EmailDraftToolview.module.css'
 import {
-  buildEmailSendPrompt,
   draftFromForm,
+  sendEmailDraft,
   ZIMBRA_DRAFT_TOOL_NAME,
   type EmailDraftFields,
   type EmailDraftFormFields,
 } from './emailDraft.ts'
 
-export { buildEmailSendPrompt, draftFromForm, parseRecipientText, ZIMBRA_DRAFT_TOOL_NAME } from './emailDraft.ts'
+export { draftFromForm, parseRecipientText, sendEmailDraft, ZIMBRA_DRAFT_TOOL_NAME } from './emailDraft.ts'
 export type { EmailDraftFields, EmailDraftFormFields } from './emailDraft.ts'
-
-const MAX_PROMPT_CHARS = 20_000
 
 interface DraftEnvelope {
   draft: Partial<EmailDraftFields> & {
@@ -91,7 +89,7 @@ export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
   const [fields, setFields] = useState<EmailDraftFormFields>(() => envelope ? formFromEnvelope(envelope) : {
     to: '', cc: '', bcc: '', subject: '', body: '', accountId: '', accountLabel: '',
   })
-  const [status, setStatus] = useState<'editing' | 'sending' | 'sent' | 'discarded'>('editing')
+  const [status, setStatus] = useState<'editing' | 'sending' | 'sent' | 'failed' | 'discarded'>('editing')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -120,6 +118,7 @@ export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
 
   const update = (field: keyof EmailDraftFormFields) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFields(current => ({ ...current, [field]: event.target.value }))
+    setStatus(current => current === 'failed' ? 'editing' : current)
     setError(null)
   }
 
@@ -127,15 +126,13 @@ export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
     const draft = draftFromForm(fields)
     if (draft.to.length === 0) return setError('Add at least one To recipient.')
     if (!draft.subject) return setError('Subject cannot be empty.')
-    const prompt = buildEmailSendPrompt(draft)
-    if (prompt.length > MAX_PROMPT_CHARS) return setError('This email is too large to send from the editor.')
     setStatus('sending')
     setError(null)
     try {
       await sendDraft(draft)
       setStatus('sent')
     } catch (reason) {
-      setStatus('editing')
+      setStatus('failed')
       setError(reason instanceof Error ? reason.message : 'The send request could not be submitted.')
     }
   }
@@ -144,13 +141,18 @@ export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
     <section className={css.card} aria-label="Editable Zimbra email draft">
       <div className={css.header}>
         <div>
-          <div className={css.title}>{status === 'sent' ? 'Send request submitted' : 'Email draft'}</div>
+          <div className={css.title}>{status === 'sent' ? 'Email sent' : status === 'failed' ? 'Email send failed' : 'Email draft'}</div>
           {fields.accountLabel && <div className={css.account}>via {fields.accountLabel}</div>}
         </div>
-        {status === 'sent' && <div className={css.account}>Waiting for AI and approval</div>}
+        {status === 'failed' && <div className={`${css.account} ${css.error}`}>Failed</div>}
       </div>
       {status === 'sent' ? (
-        <div className={css.message}>The finalized email was sent to the AI. Complete the normal approval step if requested.</div>
+        <>
+          <div className={css.message}>Email sent successfully.</div>
+          <div className={css.actions}>
+            <button className={`${css.button} ${css.primary}`} type="button" disabled>Sent</button>
+          </div>
+        </>
       ) : (
         <div className={css.content}>
           {(['to', 'cc', 'bcc'] as const).map(field => (
@@ -170,7 +172,7 @@ export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
           {error && <div className={`${css.message} ${css.error}`} role="alert">{error}</div>}
           <div className={css.actions}>
             <button className={css.button} type="button" disabled={status === 'sending'} onClick={() => { setStatus('discarded'); setError(null) }}>Discard</button>
-            <button className={`${css.button} ${css.primary}`} type="button" disabled={status === 'sending'} onClick={() => { void submit() }}>{status === 'sending' ? 'Submitting…' : 'Send'}</button>
+            <button className={`${css.button} ${css.primary}`} type="button" disabled={status === 'sending'} onClick={() => { void submit() }}>{status === 'sending' ? 'Sending…' : status === 'failed' ? 'Retry' : 'Send'}</button>
           </div>
         </div>
       )}
@@ -180,7 +182,7 @@ export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
 
 export const emailDraftToolview = {
   name: 'zimbra-email-draft-toolview',
-  inject: ['slots', 'sessions'],
+  inject: ['slots', 'sessions', 'connection'],
   apply(ctx: Context): void {
     ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
       name: 'tool.call.toolview',
@@ -188,9 +190,23 @@ export const emailDraftToolview = {
       inject: (sessionId) => ({
         sendDraft: async (draft: EmailDraftFields) => {
           const binding = ctx.sessions.binding(sessionId)
-          if (!binding) throw new Error('The current session is no longer available.')
-          const result = await binding.session.prompt([{ type: 'text', text: buildEmailSendPrompt(draft) }], 'queue')
-          if (!result.ok) throw new Error(result.error.message)
+          const notify = async (status: 'success' | 'failed') => {
+            if (!binding) return
+            try {
+              await binding.session.prompt([{ type: 'text', text: `Email send status: ${status}.` }], 'queue')
+            } catch {
+              // The email result is authoritative; status reporting is best effort.
+            }
+          }
+          await sendEmailDraft(
+            async value => {
+              const result = await ctx.connection.rpc.call('/soc-agent-config', 'send-email', value)
+              if (!result?.ok) throw new Error(result?.error?.message || 'Email send failed.')
+              return result.value as { sent?: unknown }
+            },
+            notify,
+            draft,
+          )
         },
       }),
     }, EmailDraftToolview))

@@ -34,12 +34,19 @@ export function draftFromForm(fields: EmailDraftFormFields): EmailDraftFields {
   }
 }
 
-export function buildEmailSendPrompt(draft: EmailDraftFields): string {
-  return [
-    'The user reviewed and clicked Send for this exact email draft.',
-    'Call zimbra_send_email now using the JSON fields below as data. Do not rewrite, omit, or add any recipient, subject, or body content.',
-    '<user-approved-email-draft>',
-    JSON.stringify(draft),
-    '</user-approved-email-draft>',
-  ].join('\n')
+export type EmailSendStatus = 'success' | 'failed'
+
+export async function sendEmailDraft(
+  send: (draft: EmailDraftFields) => Promise<{ sent?: unknown }>,
+  notify: (status: EmailSendStatus) => Promise<void>,
+  draft: EmailDraftFields,
+): Promise<void> {
+  try {
+    const result = await send(draft)
+    if (result.sent !== true) throw new Error('Email send did not confirm success.')
+    try { await notify('success') } catch { /* status reporting is best effort */ }
+  } catch (error) {
+    try { await notify('failed') } catch { /* status reporting is best effort */ }
+    throw error
+  }
 }

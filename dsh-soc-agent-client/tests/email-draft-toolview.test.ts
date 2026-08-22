@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  buildEmailSendPrompt,
   draftFromForm,
   parseRecipientText,
+  sendEmailDraft,
   ZIMBRA_DRAFT_TOOL_NAME,
   type EmailDraftFormFields,
 } from '../src/client/emailDraft.ts'
@@ -33,12 +33,38 @@ test('normalizes editable recipient fields without duplicating addresses', () =>
   })
 })
 
-test('send prompt contains the exact finalized structured draft', () => {
+test('direct sender reports success without creating a send prompt', async () => {
   const draft = draftFromForm(form)
-  const prompt = buildEmailSendPrompt(draft)
-  assert.match(prompt, /Call zimbra_send_email now/)
-  assert.match(prompt, /Do not rewrite, omit, or add any recipient, subject, or body content/)
-  assert.ok(prompt.includes(`<user-approved-email-draft>\n${JSON.stringify(draft)}\n</user-approved-email-draft>`))
+  const calls: unknown[] = []
+  const statuses: string[] = []
+  await sendEmailDraft(
+    async value => { calls.push(value); return { sent: true } },
+    async status => { statuses.push(status) },
+    draft,
+  )
+  assert.deepEqual(calls, [draft])
+  assert.deepEqual(statuses, ['success'])
+})
+
+test('direct sender reports failure and rethrows the API error', async () => {
+  const statuses: string[] = []
+  await assert.rejects(
+    sendEmailDraft(
+      async () => { throw new Error('blocked') },
+      async status => { statuses.push(status) },
+      draftFromForm(form),
+    ),
+    /blocked/,
+  )
+  assert.deepEqual(statuses, ['failed'])
+})
+
+test('status notification failure does not turn a sent email into a failure', async () => {
+  await sendEmailDraft(
+    async () => ({ sent: true }),
+    async () => { throw new Error('session closed') },
+    draftFromForm(form),
+  )
 })
 
 test('uses the host-qualified wire tool name for keyed rendering', () => {

@@ -137,6 +137,19 @@ async def test_account(store: PostgresStore, account_id: str) -> dict[str, Any]:
     return {"ok": True, "account_id": account.id}
 
 
+async def send_email(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    settings = _settings(store)
+    service = ZimbraService(settings.zimbra, PostgresAccountStore(store))
+    return await service.send_email(
+        payload.get("to", []),
+        payload.get("subject", ""),
+        payload.get("body", ""),
+        payload.get("account_id", ""),
+        cc=payload.get("cc"),
+        bcc=payload.get("bcc"),
+    )
+
+
 def add_account(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
     account = store.add_account(
         label=str(payload.get("label", "")).strip(),
@@ -201,6 +214,8 @@ def main() -> None:
         result = delete_account(store, args.arg or "")
     elif command == "test-account":
         result = asyncio.run(test_account(store, args.arg or ""))
+    elif command == "send-email":
+        result = asyncio.run(send_email(store, payload))
     elif command == "test-splunk":
         result = asyncio.run(test_splunk(store))
     elif command == "migrate":

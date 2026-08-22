@@ -70,6 +70,7 @@ async function handleEndpoint(endpoint, payload) {
     case 'update-account': return ok(await runAdmin('update-account', payload?.id ?? '', payload))
     case 'delete-account': return ok(await runAdmin('delete-account', payload?.id ?? ''))
     case 'test-account': return ok(await runAdmin('test-account', payload?.id ?? ''))
+    case 'send-email': return ok(await runAdmin('send-email', undefined, payload))
     case 'test-splunk': return ok(await runAdmin('test-splunk'))
     case 'migrate': return ok(await runAdmin('migrate'))
     default: return err('unknown_endpoint', `Unknown endpoint: ${endpoint}`)

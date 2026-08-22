@@ -40,28 +40,28 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SplunkZimbraOverlay_module_css_default = {
-			"deleteButton": "RBKUgW_deleteButton",
-			"description": "RBKUgW_description",
-			"accountIdentity": "RBKUgW_accountIdentity",
-			"loading": "RBKUgW_loading",
+			"rule": "RBKUgW_rule",
 			"connectedAccount": "RBKUgW_connectedAccount",
-			"accountActions": "RBKUgW_accountActions",
+			"account": "RBKUgW_account",
+			"description": "RBKUgW_description",
 			"input": "RBKUgW_input",
+			"run": "RBKUgW_run",
 			"accountMeta": "RBKUgW_accountMeta",
 			"testResult": "RBKUgW_testResult",
-			"primaryButton": "RBKUgW_primaryButton",
 			"section": "RBKUgW_section",
-			"run": "RBKUgW_run",
+			"deleteButton": "RBKUgW_deleteButton",
 			"testFail": "RBKUgW_testFail",
 			"textarea": "RBKUgW_textarea",
-			"status": "RBKUgW_status",
+			"actions": "RBKUgW_actions",
 			"fieldLabel": "RBKUgW_fieldLabel",
 			"form": "RBKUgW_form",
-			"actions": "RBKUgW_actions",
-			"account": "RBKUgW_account",
+			"primaryButton": "RBKUgW_primaryButton",
 			"testOk": "RBKUgW_testOk",
+			"status": "RBKUgW_status",
+			"loading": "RBKUgW_loading",
 			"row": "RBKUgW_row",
-			"rule": "RBKUgW_rule",
+			"accountIdentity": "RBKUgW_accountIdentity",
+			"accountActions": "RBKUgW_accountActions",
 			"secondaryButton": "RBKUgW_secondaryButton"
 		};
 		//#endregion
@@ -278,15 +278,14 @@ window.__ModuleLoader__.load({
 			}, "Add account")));
 		}
 		function ZimbraSettings({ connection }) {
-			const [settings, setSettings] = (0, react.useState)(null);
 			const [accounts, setAccounts] = (0, react.useState)([]);
 			const [tests, setTests] = (0, react.useState)({});
+			const [loaded, setLoaded] = (0, react.useState)(false);
 			const [status, setStatus] = (0, react.useState)("Loading...");
 			const load = (0, react.useCallback)(async () => {
 				try {
-					const [nextSettings, nextAccounts] = await Promise.all([rpc$1(connection, "get-settings"), rpc$1(connection, "list-accounts")]);
-					setSettings(nextSettings);
-					setAccounts(nextAccounts.accounts || []);
+					setAccounts((await rpc$1(connection, "list-accounts")).accounts || []);
+					setLoaded(true);
 					setStatus("");
 				} catch (error) {
 					setStatus(errorText(error));
@@ -295,31 +294,6 @@ window.__ModuleLoader__.load({
 			(0, react.useEffect)(() => {
 				load();
 			}, [load]);
-			const update = (key, value) => setSettings((current) => ({
-				...current,
-				zimbra: {
-					...current.zimbra,
-					[key]: value
-				}
-			}));
-			const save = async () => {
-				try {
-					setStatus("Saving...");
-					setSettings(await rpc$1(connection, "update-settings", settings ?? {}));
-					setStatus("Saved");
-				} catch (error) {
-					setStatus(errorText(error));
-				}
-			};
-			const remove = async (key) => {
-				try {
-					setStatus("Deleting...");
-					setSettings(await rpc$1(connection, "delete-setting", { key }));
-					setStatus("Deleted");
-				} catch (error) {
-					setStatus(errorText(error));
-				}
-			};
 			const saveAccount = async (account) => {
 				try {
 					setStatus("Saving account...");
@@ -365,57 +339,8 @@ window.__ModuleLoader__.load({
 					}));
 				}
 			};
-			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
-			const zimbra = settings.zimbra;
-			return react.default.createElement(react.default.Fragment, null, react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Zimbra"), react.default.createElement(SettingRow, {
-				label: "Host",
-				value: String(zimbra.host || ""),
-				onChange: (value) => update("host", value),
-				onDelete: () => {
-					remove("zimbra.host");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Verify SSL",
-				value: String(zimbra.verify_ssl ?? true),
-				onChange: (value) => update("verify_ssl", value === "true"),
-				onDelete: () => {
-					remove("zimbra.verify_ssl");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Timeout",
-				value: String(zimbra.timeout ?? ""),
-				onChange: (value) => update("timeout", Number(value || 0)),
-				onDelete: () => {
-					remove("zimbra.timeout");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Allow send",
-				value: String(zimbra.allow_send ?? false),
-				onChange: (value) => update("allow_send", value === "true"),
-				onDelete: () => {
-					remove("zimbra.allow_send");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Attachment bytes",
-				value: String(zimbra.max_attachment_bytes ?? ""),
-				onChange: (value) => update("max_attachment_bytes", Number(value || 0)),
-				onDelete: () => {
-					remove("zimbra.max_attachment_bytes");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Text characters",
-				value: String(zimbra.max_attachment_text_chars ?? ""),
-				onChange: (value) => update("max_attachment_text_chars", Number(value || 0)),
-				onDelete: () => {
-					remove("zimbra.max_attachment_text_chars");
-				}
-			}), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.primaryButton,
-				type: "button",
-				onClick: () => {
-					save();
-				}
-			}, "Save settings"))), react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Accounts"), accounts.length === 0 ? react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "No connected accounts.") : null, accounts.map((account) => react.default.createElement("div", {
+			if (!loaded) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
+			return react.default.createElement(react.default.Fragment, null, react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Accounts"), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Zimbra server settings are configured in the server .env file."), accounts.length === 0 ? react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "No connected accounts.") : null, accounts.map((account) => react.default.createElement("div", {
 				className: SplunkZimbraOverlay_module_css_default.connectedAccount,
 				key: account.id
 			}, react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.accountIdentity }, react.default.createElement("strong", null, account.label || account.email || account.id), account.email && account.email !== account.label ? react.default.createElement("span", { className: SplunkZimbraOverlay_module_css_default.accountMeta }, account.email) : null), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.accountActions }, react.default.createElement("button", {
@@ -633,20 +558,20 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var EmailDraftToolview_module_css_default = {
-			"label": "i4uqOW_label",
-			"card": "i4uqOW_card",
-			"title": "i4uqOW_title",
-			"header": "i4uqOW_header",
-			"button": "i4uqOW_button",
-			"textarea": "i4uqOW_textarea",
-			"error": "i4uqOW_error",
-			"input": "i4uqOW_input",
-			"content": "i4uqOW_content",
-			"account": "i4uqOW_account",
 			"field": "i4uqOW_field",
+			"account": "i4uqOW_account",
+			"content": "i4uqOW_content",
+			"label": "i4uqOW_label",
+			"input": "i4uqOW_input",
+			"card": "i4uqOW_card",
 			"actions": "i4uqOW_actions",
+			"title": "i4uqOW_title",
+			"message": "i4uqOW_message",
+			"header": "i4uqOW_header",
+			"error": "i4uqOW_error",
+			"button": "i4uqOW_button",
 			"primary": "i4uqOW_primary",
-			"message": "i4uqOW_message"
+			"textarea": "i4uqOW_textarea"
 		};
 		//#endregion
 		//#region src/client/emailDraft.ts
@@ -664,18 +589,21 @@ window.__ModuleLoader__.load({
 				account_id: fields.accountId
 			};
 		}
-		function buildEmailSendPrompt(draft) {
-			return [
-				"The user reviewed and clicked Send for this exact email draft.",
-				"Call zimbra_send_email now using the JSON fields below as data. Do not rewrite, omit, or add any recipient, subject, or body content.",
-				"<user-approved-email-draft>",
-				JSON.stringify(draft),
-				"</user-approved-email-draft>"
-			].join("\n");
+		async function sendEmailDraft(send, notify, draft) {
+			try {
+				if ((await send(draft)).sent !== true) throw new Error("Email send did not confirm success.");
+				try {
+					await notify("success");
+				} catch {}
+			} catch (error) {
+				try {
+					await notify("failed");
+				} catch {}
+				throw error;
+			}
 		}
 		//#endregion
 		//#region src/client/EmailDraftToolview.tsx
-		const MAX_PROMPT_CHARS = 2e4;
 		function resultText(block) {
 			if (!("kind" in block)) return "";
 			return block.content.filter((item) => item.type === "text").map((item) => item.text).join("");
@@ -784,20 +712,20 @@ window.__ModuleLoader__.load({
 					...current,
 					[field]: event.target.value
 				}));
+				setStatus((current) => current === "failed" ? "editing" : current);
 				setError(null);
 			};
 			const submit = async () => {
 				const draft = draftFromForm(fields);
 				if (draft.to.length === 0) return setError("Add at least one To recipient.");
 				if (!draft.subject) return setError("Subject cannot be empty.");
-				if (buildEmailSendPrompt(draft).length > MAX_PROMPT_CHARS) return setError("This email is too large to send from the editor.");
 				setStatus("sending");
 				setError(null);
 				try {
 					await sendDraft(draft);
 					setStatus("sent");
 				} catch (reason) {
-					setStatus("editing");
+					setStatus("failed");
 					setError(reason instanceof Error ? reason.message : "The send request could not be submitted.");
 				}
 			};
@@ -808,18 +736,26 @@ window.__ModuleLoader__.load({
 					className: EmailDraftToolview_module_css_default.header,
 					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: EmailDraftToolview_module_css_default.title,
-						children: status === "sent" ? "Send request submitted" : "Email draft"
+						children: status === "sent" ? "Email sent" : status === "failed" ? "Email send failed" : "Email draft"
 					}), fields.accountLabel && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						className: EmailDraftToolview_module_css_default.account,
 						children: ["via ", fields.accountLabel]
-					})] }), status === "sent" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						className: EmailDraftToolview_module_css_default.account,
-						children: "Waiting for AI and approval"
+					})] }), status === "failed" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: `${EmailDraftToolview_module_css_default.account} ${EmailDraftToolview_module_css_default.error}`,
+						children: "Failed"
 					})]
-				}), status === "sent" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				}), status === "sent" ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					className: EmailDraftToolview_module_css_default.message,
-					children: "The finalized email was sent to the AI. Complete the normal approval step if requested."
-				}) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					children: "Email sent successfully."
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: EmailDraftToolview_module_css_default.actions,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						className: `${EmailDraftToolview_module_css_default.button} ${EmailDraftToolview_module_css_default.primary}`,
+						type: "button",
+						disabled: true,
+						children: "Sent"
+					})
+				})] }) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: EmailDraftToolview_module_css_default.content,
 					children: [
 						[
@@ -888,7 +824,7 @@ window.__ModuleLoader__.load({
 								onClick: () => {
 									submit();
 								},
-								children: status === "sending" ? "Submitting…" : "Send"
+								children: status === "sending" ? "Sending…" : status === "failed" ? "Retry" : "Send"
 							})]
 						})
 					]
@@ -897,19 +833,31 @@ window.__ModuleLoader__.load({
 		}
 		const emailDraftToolview = {
 			name: "zimbra-email-draft-toolview",
-			inject: ["slots", "sessions"],
+			inject: [
+				"slots",
+				"sessions",
+				"connection"
+			],
 			apply(ctx) {
 				ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
 					name: "tool.call.toolview",
 					key: ZIMBRA_DRAFT_TOOL_NAME,
 					inject: (sessionId) => ({ sendDraft: async (draft) => {
 						const binding = ctx.sessions.binding(sessionId);
-						if (!binding) throw new Error("The current session is no longer available.");
-						const result = await binding.session.prompt([{
-							type: "text",
-							text: buildEmailSendPrompt(draft)
-						}], "queue");
-						if (!result.ok) throw new Error(result.error.message);
+						const notify = async (status) => {
+							if (!binding) return;
+							try {
+								await binding.session.prompt([{
+									type: "text",
+									text: `Email send status: ${status}.`
+								}], "queue");
+							} catch {}
+						};
+						await sendEmailDraft(async (value) => {
+							const result = await ctx.connection.rpc.call("/soc-agent-config", "send-email", value);
+							if (!result?.ok) throw new Error(result?.error?.message || "Email send failed.");
+							return result.value;
+						}, notify, draft);
 					} })
 				}, EmailDraftToolview));
 			}
