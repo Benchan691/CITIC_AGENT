@@ -22,9 +22,9 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__zimbra_get_email_filter',
   'mcp__soc_agent__zimbra_validate_email_filter',
   'mcp__soc_agent__zimbra_preview_email_filter_update',
-  'mcp__soc_agent__email_list_subscriptions',
-  'mcp__soc_agent__email_get_subscription_schema',
-  'mcp__soc_agent__email_preview_subscription',
+  'mcp__soc_agent__list_subscriptions',
+  'mcp__soc_agent__get_subscription_schema',
+  'mcp__soc_agent__preview_subscription',
   'scheduled_task_list',
 ])
 
@@ -38,9 +38,9 @@ export const ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__zimbra_update_email_filter',
   'mcp__soc_agent__zimbra_set_email_filter_enabled',
   'mcp__soc_agent__zimbra_reorder_email_filter',
-  'mcp__soc_agent__email_create_subscription',
-  'mcp__soc_agent__email_update_subscription',
-  'mcp__soc_agent__email_delete_subscription',
+  'mcp__soc_agent__create_subscription',
+  'mcp__soc_agent__update_subscription',
+  'mcp__soc_agent__delete_subscription',
   'mcp__soc_agent__zimbra_create_folder',
   'scheduled_task_create',
   'scheduled_task_pause',
@@ -57,11 +57,10 @@ export const APPROVAL_TOOLS = new Set(ACTION_TOOLS)
 const SCHEDULED_EXCLUDED_READ_TOOLS = new Set([
   'scheduled_task_list',
   'mcp__soc_agent__zimbra_create_email_draft',
-  'mcp__soc_agent__email_list_subscriptions',
-  'mcp__soc_agent__email_get_subscription_schema',
-  'mcp__soc_agent__email_preview_subscription',
+  'mcp__soc_agent__list_subscriptions',
+  'mcp__soc_agent__get_subscription_schema',
+  'mcp__soc_agent__preview_subscription',
 ])
-
 export const READ_ONLY_DOMAIN_TOOLS = Object.freeze(
   READ_ONLY_TOOLS.filter(name => !SCHEDULED_EXCLUDED_READ_TOOLS.has(name)),
 )

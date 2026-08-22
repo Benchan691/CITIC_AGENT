@@ -36,6 +36,8 @@
       - !!js "(process.env.MCP_SEVER_ROOT ?? (process.cwd().endsWith('deepseek-harness') ? process.cwd().slice(0, -17) : process.cwd())) + '/skills'"
 - id: tool-skill
   disabled: false
+- id: ui-skill
+  disabled: false
 
 # ── coding / autonomous tools (model-facing) ────────────────────────────────
 
@@ -141,8 +143,6 @@
 - id: ui-workflow-run
   disabled: true
 - id: ui-deliverables
-  disabled: true
-- id: ui-skill
   disabled: true
 - id: ui-subagent
   disabled: true

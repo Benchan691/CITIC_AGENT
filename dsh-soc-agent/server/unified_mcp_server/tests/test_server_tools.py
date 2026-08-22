@@ -42,12 +42,12 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "zimbra_update_email_filter",
         "zimbra_set_email_filter_enabled",
         "zimbra_reorder_email_filter",
-        "email_list_subscriptions",
-        "email_get_subscription_schema",
-        "email_preview_subscription",
-        "email_create_subscription",
-        "email_update_subscription",
-        "email_delete_subscription",
+        "list_subscriptions",
+        "get_subscription_schema",
+        "preview_subscription",
+        "create_subscription",
+        "update_subscription",
+        "delete_subscription",
     }
     for tool in tools:
         assert "ctx" not in tool.parameters.get("properties", {})
@@ -59,9 +59,9 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert "splunk_list_data_sources" not in {tool.name for tool in tools}
     assert "splunk_list_indexes" not in {tool.name for tool in tools}
 
-    schema_tool = next(tool for tool in tools if tool.name == "email_get_subscription_schema")
+    schema_tool = next(tool for tool in tools if tool.name == "get_subscription_schema")
     assert schema_tool.parameters.get("required", []) == []
-    preview_tool = next(tool for tool in tools if tool.name == "email_preview_subscription")
+    preview_tool = next(tool for tool in tools if tool.name == "preview_subscription")
     assert set(preview_tool.parameters["properties"]) == {
         "mode", "email", "newsletter_profile", "report_profile",
     }

@@ -1,4 +1,4 @@
-"""MCP registrations for webserver email subscription tools."""
+"""MCP registrations for webserver notification subscription tools."""
 
 from __future__ import annotations
 
@@ -9,37 +9,37 @@ from mcp.server.fastmcp import Context
 
 def register_tools(server, *, get_runtime, execute) -> None:
     @server.tool()
-    async def email_list_subscriptions(ctx: Context) -> dict[str, Any]:
-        """List subscriptions managed by the authenticated email webserver."""
+    async def list_subscriptions(ctx: Context) -> dict[str, Any]:
+        """List webserver notification subscriptions (not Zimbra mailbox mail)."""
         return await execute(
             ctx,
-            "email",
+            "subscription",
             "list_subscriptions",
             lambda: get_runtime(ctx).email_subscriptions.list_subscriptions(),
         )
 
     @server.tool()
-    async def email_get_subscription_schema(ctx: Context) -> dict[str, Any]:
-        """Get live subscription filter fields, defaults, enums, and limits."""
+    async def get_subscription_schema(ctx: Context) -> dict[str, Any]:
+        """Get live webserver subscription filter fields, defaults, enums, and limits."""
         return await execute(
             ctx,
-            "email",
+            "subscription",
             "get_subscription_schema",
             lambda: get_runtime(ctx).email_subscriptions.get_subscription_schema(),
         )
 
     @server.tool()
-    async def email_preview_subscription(
+    async def preview_subscription(
         ctx: Context,
         mode: str = "create",
         email: str = "",
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Validate and normalize a proposed subscription without saving or notifying."""
+        """Validate and normalize a proposed webserver subscription without saving or notifying."""
         return await execute(
             ctx,
-            "email",
+            "subscription",
             "preview_subscription",
             lambda: get_runtime(ctx).email_subscriptions.preview_subscription(
                 mode, email, newsletter_profile, report_profile,
@@ -47,17 +47,17 @@ def register_tools(server, *, get_runtime, execute) -> None:
         )
 
     @server.tool()
-    async def email_create_subscription(
+    async def create_subscription(
         ctx: Context,
         email: str,
         team: str,
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create a webserver subscription; the webserver sends its notification email."""
+        """Create a webserver notification subscription; the webserver sends its notification."""
         return await execute(
             ctx,
-            "email",
+            "subscription",
             "create_subscription",
             lambda: get_runtime(ctx).email_subscriptions.create_subscription(
                 email, team, newsletter_profile, report_profile,
@@ -65,17 +65,17 @@ def register_tools(server, *, get_runtime, execute) -> None:
         )
 
     @server.tool()
-    async def email_update_subscription(
+    async def update_subscription(
         ctx: Context,
         email: str,
         team: str | None = None,
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Update a webserver subscription; the webserver sends its notification email."""
+        """Update a webserver notification subscription; the webserver sends its notification."""
         return await execute(
             ctx,
-            "email",
+            "subscription",
             "update_subscription",
             lambda: get_runtime(ctx).email_subscriptions.update_subscription(
                 email, team, newsletter_profile, report_profile,
@@ -83,11 +83,11 @@ def register_tools(server, *, get_runtime, execute) -> None:
         )
 
     @server.tool()
-    async def email_delete_subscription(ctx: Context, email: str) -> dict[str, Any]:
-        """Delete a webserver subscription; the webserver sends its cancellation email."""
+    async def delete_subscription(ctx: Context, email: str) -> dict[str, Any]:
+        """Delete a webserver notification subscription; the webserver sends its cancellation."""
         return await execute(
             ctx,
-            "email",
+            "subscription",
             "delete_subscription",
             lambda: get_runtime(ctx).email_subscriptions.delete_subscription(email),
         )

@@ -1,5 +1,5 @@
 ---
-name: splunk-investigation
+name: splunk-writing
 description: Investigate security questions through guarded, read-only Splunk searches. Use when the task requires discovering relevant Splunk data, investigating users, hosts, IPs, processes, authentication, network activity, alerts, incidents, or timelines, and producing evidence-based conclusions without modifying Splunk.
 ---
 
