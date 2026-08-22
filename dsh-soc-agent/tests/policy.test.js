@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { apply, APPROVAL_TOOLS, DOMAIN_TOOLS } from '../host.js'
+import { apply, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS } from '../host.js'
 import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 
@@ -55,6 +55,8 @@ test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__create_subscription'), true)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__update_subscription'), true)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__delete_subscription'), true)
+  assert.equal(DOMAIN_TOOLS.has('exit_plan_mode'), false)
+  assert.equal(CONTROL_TOOLS.has('exit_plan_mode'), true)
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {
@@ -83,6 +85,7 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   })
   const preExecute = handlers.get('tools/pre-execute')
   assert.deepEqual(await preExecute({ name: 'skill' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.deepEqual(await preExecute({ name: 'exit_plan_mode' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_search' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_list_indexes' }, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_find_lookup' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })

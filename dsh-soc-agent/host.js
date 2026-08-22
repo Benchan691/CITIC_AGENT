@@ -7,8 +7,9 @@ export const name = 'soc-agent-host'
 export const inject = ['agents', 'connection', 'tools']
 
 const CHANNEL = '/soc-agent-config'
+const CONTROL_TOOLS = new Set(['exit_plan_mode'])
 
-export { ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS }
+export { ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS }
 
 function bundleRoot() {
   return dirname(fileURLToPath(import.meta.url))
@@ -78,10 +79,10 @@ async function handleEndpoint(endpoint, payload) {
 export function apply(ctx) {
   ctx.on('agent/created', ({ agent }) => {
     if (!ctx.agents.roots().includes(agent)) return
-    try { agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS] }) } catch { /* scheduler tools register asynchronously; pre-execute enforces */ }
+    try { agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS, ...CONTROL_TOOLS] }) } catch { /* scheduler tools register asynchronously; pre-execute enforces */ }
   })
   ctx.on('tools/pre-execute', (exec, next) => {
-    if (!DOMAIN_TOOLS.has(exec.name)) {
+    if (!DOMAIN_TOOLS.has(exec.name) && !CONTROL_TOOLS.has(exec.name)) {
       return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only Splunk, Zimbra, and scheduled-investigation tools.' })
     }
     if (APPROVAL_TOOLS.has(exec.name)) {
