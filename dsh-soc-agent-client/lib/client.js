@@ -28,40 +28,41 @@ window.__ModuleLoader__.load({
 		//#endregion
 		let react = require("react");
 		react = __toESM(react, 1);
+		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region \0dsh-css:/Users/chankokpan/Documents/MCP_sever/dsh-soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
-		const css = ".RBKUgW_form button:focus-visible,.RBKUgW_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}.RBKUgW_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}.RBKUgW_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}.RBKUgW_description,.RBKUgW_status{color:var(--dsw-alias-label-secondary);margin:0}.RBKUgW_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}.RBKUgW_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}.RBKUgW_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}.RBKUgW_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}.RBKUgW_row label{color:var(--dsw-alias-label-secondary)}.RBKUgW_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}.RBKUgW_input::placeholder{color:var(--dsw-alias-label-tertiary)}.RBKUgW_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}.RBKUgW_fieldLabel{color:var(--dsw-alias-label-secondary)}.RBKUgW_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}.RBKUgW_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}.RBKUgW_run:last-child{border-bottom:0}.RBKUgW_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}.RBKUgW_primaryButton,.RBKUgW_secondaryButton,.RBKUgW_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}.RBKUgW_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}.RBKUgW_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}.RBKUgW_secondaryButton,.RBKUgW_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}.RBKUgW_secondaryButton:hover,.RBKUgW_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}.RBKUgW_deleteButton{border-radius:14px;min-height:28px}.RBKUgW_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}.RBKUgW_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}.RBKUgW_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}.RBKUgW_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}.RBKUgW_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}.RBKUgW_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}.RBKUgW_testOk{color:var(--dsw-alias-state-success-primary)}.RBKUgW_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){.RBKUgW_row{grid-template-columns:1fr auto}.RBKUgW_row label{grid-column:1/-1}}";
-		const tagId = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
+		const css$1 = ".RBKUgW_form button:focus-visible,.RBKUgW_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}.RBKUgW_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}.RBKUgW_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}.RBKUgW_description,.RBKUgW_status{color:var(--dsw-alias-label-secondary);margin:0}.RBKUgW_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}.RBKUgW_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}.RBKUgW_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}.RBKUgW_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}.RBKUgW_row label{color:var(--dsw-alias-label-secondary)}.RBKUgW_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}.RBKUgW_input::placeholder{color:var(--dsw-alias-label-tertiary)}.RBKUgW_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}.RBKUgW_fieldLabel{color:var(--dsw-alias-label-secondary)}.RBKUgW_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}.RBKUgW_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}.RBKUgW_run:last-child{border-bottom:0}.RBKUgW_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}.RBKUgW_primaryButton,.RBKUgW_secondaryButton,.RBKUgW_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}.RBKUgW_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}.RBKUgW_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}.RBKUgW_secondaryButton,.RBKUgW_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}.RBKUgW_secondaryButton:hover,.RBKUgW_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}.RBKUgW_deleteButton{border-radius:14px;min-height:28px}.RBKUgW_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}.RBKUgW_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}.RBKUgW_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}.RBKUgW_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}.RBKUgW_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}.RBKUgW_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}.RBKUgW_testOk{color:var(--dsw-alias-state-success-primary)}.RBKUgW_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){.RBKUgW_row{grid-template-columns:1fr auto}.RBKUgW_row label{grid-column:1/-1}}";
+		const tagId$1 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId;
-			tag.textContent = css;
+			tag.dataset.pluginCss = tagId$1;
+			tag.textContent = css$1;
 			document.head.appendChild(tag);
 		}
 		var SplunkZimbraOverlay_module_css_default = {
-			"fieldLabel": "RBKUgW_fieldLabel",
-			"connectedAccount": "RBKUgW_connectedAccount",
-			"primaryButton": "RBKUgW_primaryButton",
-			"run": "RBKUgW_run",
-			"accountIdentity": "RBKUgW_accountIdentity",
-			"account": "RBKUgW_account",
-			"secondaryButton": "RBKUgW_secondaryButton",
-			"rule": "RBKUgW_rule",
-			"section": "RBKUgW_section",
-			"row": "RBKUgW_row",
-			"textarea": "RBKUgW_textarea",
-			"testFail": "RBKUgW_testFail",
-			"description": "RBKUgW_description",
-			"form": "RBKUgW_form",
 			"deleteButton": "RBKUgW_deleteButton",
+			"description": "RBKUgW_description",
+			"accountIdentity": "RBKUgW_accountIdentity",
+			"loading": "RBKUgW_loading",
+			"connectedAccount": "RBKUgW_connectedAccount",
+			"accountActions": "RBKUgW_accountActions",
 			"input": "RBKUgW_input",
 			"accountMeta": "RBKUgW_accountMeta",
-			"actions": "RBKUgW_actions",
-			"loading": "RBKUgW_loading",
-			"status": "RBKUgW_status",
-			"accountActions": "RBKUgW_accountActions",
 			"testResult": "RBKUgW_testResult",
-			"testOk": "RBKUgW_testOk"
+			"primaryButton": "RBKUgW_primaryButton",
+			"section": "RBKUgW_section",
+			"run": "RBKUgW_run",
+			"testFail": "RBKUgW_testFail",
+			"textarea": "RBKUgW_textarea",
+			"status": "RBKUgW_status",
+			"fieldLabel": "RBKUgW_fieldLabel",
+			"form": "RBKUgW_form",
+			"actions": "RBKUgW_actions",
+			"account": "RBKUgW_account",
+			"testOk": "RBKUgW_testOk",
+			"row": "RBKUgW_row",
+			"rule": "RBKUgW_rule",
+			"secondaryButton": "RBKUgW_secondaryButton"
 		};
 		//#endregion
 		//#region src/client/settings-common.ts
@@ -621,10 +622,307 @@ window.__ModuleLoader__.load({
 			label: "Scheduled Tasks"
 		}];
 		//#endregion
+		//#region \0dsh-css:/Users/chankokpan/Documents/MCP_sever/dsh-soc-agent-client/src/client/EmailDraftToolview.module.css.mjs
+		const css = ".i4uqOW_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}.i4uqOW_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}.i4uqOW_title{font-weight:600}.i4uqOW_account{color:var(--dsw-alias-text-l2);font-size:12px}.i4uqOW_content{gap:9px;padding:12px;display:grid}.i4uqOW_field{gap:4px;display:grid}.i4uqOW_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}.i4uqOW_input,.i4uqOW_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}.i4uqOW_textarea{resize:vertical;min-height:180px;line-height:1.45}.i4uqOW_input:focus,.i4uqOW_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.i4uqOW_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}.i4uqOW_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}.i4uqOW_primary{background:var(--dsw-alias-primary,#2563eb);border-color:var(--dsw-alias-primary,#2563eb);color:var(--dsw-alias-on-primary,#fff)}.i4uqOW_button:disabled{cursor:wait;opacity:.6}.i4uqOW_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}.i4uqOW_error{color:var(--dsw-alias-danger,#b42318)}";
+		const tagId = "dsh-soc-agent-client/EmailDraftToolview.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "dsh-soc-agent-client";
+			tag.dataset.pluginCss = tagId;
+			tag.textContent = css;
+			document.head.appendChild(tag);
+		}
+		var EmailDraftToolview_module_css_default = {
+			"label": "i4uqOW_label",
+			"card": "i4uqOW_card",
+			"title": "i4uqOW_title",
+			"header": "i4uqOW_header",
+			"button": "i4uqOW_button",
+			"textarea": "i4uqOW_textarea",
+			"error": "i4uqOW_error",
+			"input": "i4uqOW_input",
+			"content": "i4uqOW_content",
+			"account": "i4uqOW_account",
+			"field": "i4uqOW_field",
+			"actions": "i4uqOW_actions",
+			"primary": "i4uqOW_primary",
+			"message": "i4uqOW_message"
+		};
+		//#endregion
+		//#region src/client/emailDraft.ts
+		const ZIMBRA_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_create_email_draft";
+		function parseRecipientText(value) {
+			return [...new Set(value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean))];
+		}
+		function draftFromForm(fields) {
+			return {
+				to: parseRecipientText(fields.to),
+				cc: parseRecipientText(fields.cc),
+				bcc: parseRecipientText(fields.bcc),
+				subject: fields.subject.trim(),
+				body: fields.body,
+				account_id: fields.accountId
+			};
+		}
+		function buildEmailSendPrompt(draft) {
+			return [
+				"The user reviewed and clicked Send for this exact email draft.",
+				"Call zimbra_send_email now using the JSON fields below as data. Do not rewrite, omit, or add any recipient, subject, or body content.",
+				"<user-approved-email-draft>",
+				JSON.stringify(draft),
+				"</user-approved-email-draft>"
+			].join("\n");
+		}
+		//#endregion
+		//#region src/client/EmailDraftToolview.tsx
+		const MAX_PROMPT_CHARS = 2e4;
+		function resultText(block) {
+			if (!("kind" in block)) return "";
+			return block.content.filter((item) => item.type === "text").map((item) => item.text).join("");
+		}
+		function parseEnvelope(block) {
+			const text = resultText(block);
+			if (!text) return null;
+			try {
+				const value = JSON.parse(text);
+				if (typeof value !== "object" || value === null) return null;
+				const record = value;
+				const data = record.data;
+				if (typeof data === "object" && data !== null && "draft" in data) return data;
+				if ("draft" in record) return record;
+				return {
+					draft: {},
+					error: record.error
+				};
+			} catch {
+				return null;
+			}
+		}
+		function listValue(value) {
+			if (Array.isArray(value)) return value.filter((item) => typeof item === "string");
+			if (typeof value === "string") return value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean);
+			return [];
+		}
+		function formFromEnvelope(envelope) {
+			const draft = envelope.draft || {};
+			const account = draft.account;
+			const accountLabel = [account?.label, account?.email].filter((value) => typeof value === "string" && value !== "").join(" · ");
+			return {
+				to: listValue(draft.to).join(", "),
+				cc: listValue(draft.cc).join(", "),
+				bcc: listValue(draft.bcc).join(", "),
+				subject: typeof draft.subject === "string" ? draft.subject : "",
+				body: typeof draft.body === "string" ? draft.body : "",
+				accountId: typeof draft.account_id === "string" ? draft.account_id : "",
+				accountLabel
+			};
+		}
+		function errorMessage(envelope) {
+			const error = envelope?.error;
+			if (typeof error === "object" && error !== null && "message" in error) {
+				const message = error.message;
+				if (typeof message === "string" && message) return message;
+			}
+			return typeof error === "string" && error ? error : null;
+		}
+		function EmailDraftToolview({ block, sendDraft }) {
+			const envelope = (0, react.useMemo)(() => parseEnvelope(block), [block]);
+			const sourceKey = (0, react.useMemo)(() => JSON.stringify(envelope?.draft ?? null), [envelope]);
+			const [fields, setFields] = (0, react.useState)(() => envelope ? formFromEnvelope(envelope) : {
+				to: "",
+				cc: "",
+				bcc: "",
+				subject: "",
+				body: "",
+				accountId: "",
+				accountLabel: ""
+			});
+			const [status, setStatus] = (0, react.useState)("editing");
+			const [error, setError] = (0, react.useState)(null);
+			(0, react.useEffect)(() => {
+				if (envelope?.draft) setFields(formFromEnvelope(envelope));
+			}, [sourceKey]);
+			if (!("kind" in block)) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: EmailDraftToolview_module_css_default.card,
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: EmailDraftToolview_module_css_default.message,
+					children: "Preparing email draft…"
+				})
+			});
+			const upstreamError = errorMessage(envelope);
+			if (upstreamError || block.isError) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: EmailDraftToolview_module_css_default.card,
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: `${EmailDraftToolview_module_css_default.message} ${EmailDraftToolview_module_css_default.error}`,
+					children: upstreamError || "Unable to create the email draft."
+				})
+			});
+			if (status === "discarded") return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: EmailDraftToolview_module_css_default.card,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: EmailDraftToolview_module_css_default.header,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: EmailDraftToolview_module_css_default.title,
+						children: "Email draft discarded"
+					})
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: EmailDraftToolview_module_css_default.actions,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						className: EmailDraftToolview_module_css_default.button,
+						type: "button",
+						onClick: () => {
+							setFields(envelope ? formFromEnvelope(envelope) : fields);
+							setStatus("editing");
+							setError(null);
+						},
+						children: "Reopen"
+					})
+				})]
+			});
+			const update = (field) => (event) => {
+				setFields((current) => ({
+					...current,
+					[field]: event.target.value
+				}));
+				setError(null);
+			};
+			const submit = async () => {
+				const draft = draftFromForm(fields);
+				if (draft.to.length === 0) return setError("Add at least one To recipient.");
+				if (!draft.subject) return setError("Subject cannot be empty.");
+				if (buildEmailSendPrompt(draft).length > MAX_PROMPT_CHARS) return setError("This email is too large to send from the editor.");
+				setStatus("sending");
+				setError(null);
+				try {
+					await sendDraft(draft);
+					setStatus("sent");
+				} catch (reason) {
+					setStatus("editing");
+					setError(reason instanceof Error ? reason.message : "The send request could not be submitted.");
+				}
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+				className: EmailDraftToolview_module_css_default.card,
+				"aria-label": "Editable Zimbra email draft",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: EmailDraftToolview_module_css_default.header,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: EmailDraftToolview_module_css_default.title,
+						children: status === "sent" ? "Send request submitted" : "Email draft"
+					}), fields.accountLabel && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: EmailDraftToolview_module_css_default.account,
+						children: ["via ", fields.accountLabel]
+					})] }), status === "sent" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: EmailDraftToolview_module_css_default.account,
+						children: "Waiting for AI and approval"
+					})]
+				}), status === "sent" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: EmailDraftToolview_module_css_default.message,
+					children: "The finalized email was sent to the AI. Complete the normal approval step if requested."
+				}) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: EmailDraftToolview_module_css_default.content,
+					children: [
+						[
+							"to",
+							"cc",
+							"bcc"
+						].map((field) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: EmailDraftToolview_module_css_default.field,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: EmailDraftToolview_module_css_default.label,
+								children: field === "to" ? "To" : field === "cc" ? "Cc" : "Bcc"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								className: EmailDraftToolview_module_css_default.input,
+								"aria-label": field,
+								value: fields[field],
+								onChange: update(field),
+								placeholder: "name@example.com"
+							})]
+						}, field)),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: EmailDraftToolview_module_css_default.field,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: EmailDraftToolview_module_css_default.label,
+								children: "Subject"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								className: EmailDraftToolview_module_css_default.input,
+								"aria-label": "Subject",
+								value: fields.subject,
+								onChange: update("subject"),
+								maxLength: 998
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: EmailDraftToolview_module_css_default.field,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: EmailDraftToolview_module_css_default.label,
+								children: "Body"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+								className: EmailDraftToolview_module_css_default.textarea,
+								"aria-label": "Body",
+								value: fields.body,
+								onChange: update("body"),
+								maxLength: 18e3
+							})]
+						}),
+						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: `${EmailDraftToolview_module_css_default.message} ${EmailDraftToolview_module_css_default.error}`,
+							role: "alert",
+							children: error
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: EmailDraftToolview_module_css_default.actions,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: EmailDraftToolview_module_css_default.button,
+								type: "button",
+								disabled: status === "sending",
+								onClick: () => {
+									setStatus("discarded");
+									setError(null);
+								},
+								children: "Discard"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: `${EmailDraftToolview_module_css_default.button} ${EmailDraftToolview_module_css_default.primary}`,
+								type: "button",
+								disabled: status === "sending",
+								onClick: () => {
+									submit();
+								},
+								children: status === "sending" ? "Submitting…" : "Send"
+							})]
+						})
+					]
+				})]
+			});
+		}
+		const emailDraftToolview = {
+			name: "zimbra-email-draft-toolview",
+			inject: ["slots", "sessions"],
+			apply(ctx) {
+				ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
+					name: "tool.call.toolview",
+					key: ZIMBRA_DRAFT_TOOL_NAME,
+					inject: (sessionId) => ({ sendDraft: async (draft) => {
+						const binding = ctx.sessions.binding(sessionId);
+						if (!binding) throw new Error("The current session is no longer available.");
+						const result = await binding.session.prompt([{
+							type: "text",
+							text: buildEmailSendPrompt(draft)
+						}], "queue");
+						if (!result.ok) throw new Error(result.error.message);
+					} })
+				}, EmailDraftToolview));
+			}
+		};
+		function installEmailDraftToolview(ctx) {
+			ctx.plugin(emailDraftToolview);
+		}
+		//#endregion
 		//#region src/client/index.ts
 		const inject = ["slots", "connection"];
 		function apply(ctx) {
 			const connection = ctx.get("connection");
+			installEmailDraftToolview(ctx);
 			ctx.slots.inject("settings.section", () => {
 				const connections = ctx.slots.register({
 					name: "settings.section",
@@ -648,6 +946,7 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
+		exports.EmailDraftToolview = EmailDraftToolview;
 		exports.SchedulerSettings = SchedulerSettings;
 		exports.SplunkSettings = SplunkSettings;
 		exports.ZimbraSettings = ZimbraSettings;

@@ -68,7 +68,7 @@
 - id: tool-jobs
   disabled: true
 - id: plan-mode
-  disabled: true
+  disabled: false
 - id: goal
   disabled: true
 - id: goal-round-driver
@@ -133,6 +133,9 @@
 - id: ui-settings-plugins
   disabled: false
 
+- id: ui-wallpaper
+  disabled: false
+
 - id: ui-cordis
   disabled: true
 - id: ui-workflow-run
@@ -154,9 +157,9 @@
 - id: ui-agent-preset
   disabled: true
 - id: ui-plan
-  disabled: true
+  disabled: false
 - id: ui-user-questions
-  disabled: true
+  disabled: false
 - id: ui-trajectory
   disabled: true
 

@@ -6,15 +6,18 @@ import { SplunkSettings } from './SplunkSettings.ts'
 import { ZimbraSettings } from './ZimbraSettings.ts'
 import { SchedulerSettings } from './ScheduledTasksForm.ts'
 import { SETTINGS_SECTIONS } from './sections.ts'
+import { installEmailDraftToolview } from './EmailDraftToolview.tsx'
 
 export const inject = ['slots', 'connection'] as const
 
 export { SplunkSettings } from './SplunkSettings.ts'
 export { ZimbraSettings } from './ZimbraSettings.ts'
 export { SchedulerSettings } from './ScheduledTasksForm.ts'
+export { EmailDraftToolview } from './EmailDraftToolview.tsx'
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle
+  installEmailDraftToolview(ctx)
   ctx.slots.inject('settings.section', () => {
     const connections = ctx.slots.register({
       name: 'settings.section',

@@ -15,6 +15,8 @@ from .account_store import AccountStore
 from .config import ServerSettings
 from .env_loader import load_server_env
 from .errors import ServiceError
+from .email.service import EmailSubscriptionService
+from .email.tools import register_tools as register_email_tools
 from .postgres_store import PostgresAccountStore, PostgresStore
 from .responses import failure, success
 from .splunk_service import SplunkService
@@ -40,6 +42,7 @@ class Runtime:
     settings: ServerSettings
     splunk: SplunkService
     zimbra: ZimbraService
+    email_subscriptions: EmailSubscriptionService
     zimbra_filters: ZimbraFilterService | None = None
     postgres: PostgresStore | None = None
     account_store: AccountStore | PostgresAccountStore | None = None
@@ -72,6 +75,7 @@ class Runtime:
             settings,
             SplunkService(settings.splunk),
             ZimbraMailService(settings.zimbra, accounts),
+            EmailSubscriptionService(settings.email_server),
             zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
             postgres=postgres,
             account_store=accounts,
@@ -79,6 +83,7 @@ class Runtime:
 
     async def close(self) -> None:
         await self.splunk.close()
+        await self.email_subscriptions.close()
 
     async def refresh(self) -> None:
 
@@ -93,6 +98,9 @@ class Runtime:
                 self.account_store = PostgresAccountStore(self.postgres)
             self.zimbra = ZimbraMailService(updated.zimbra, self.account_store)
             self.zimbra_filters = ZimbraFilterService(updated.zimbra, self.account_store)
+        if updated.email_server != self.settings.email_server:
+            await self.email_subscriptions.close()
+            self.email_subscriptions = EmailSubscriptionService(updated.email_server)
         self.settings = updated
 
 
@@ -195,6 +203,11 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         server,
         get_runtime=runtime,
         fresh_runtime=fresh_runtime,
+        execute=execute,
+    )
+    register_email_tools(
+        server,
+        get_runtime=runtime,
         execute=execute,
     )
 

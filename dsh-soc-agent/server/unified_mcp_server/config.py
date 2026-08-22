@@ -142,6 +142,29 @@ class ZimbraSettings:
 
 
 @dataclass(frozen=True)
+class EmailServerSettings:
+    url: str
+    username: str
+    password: str
+    timeout: int
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.url and self.username and self.password)
+
+    @property
+    def missing(self) -> list[str]:
+        missing = []
+        if not self.url:
+            missing.append("EMAIL_SERVER_URL")
+        if not self.username:
+            missing.append("EMAIL_SEVER_USER")
+        if not self.password:
+            missing.append("EMAIL_SEVER_PASSWORD")
+        return missing
+
+
+@dataclass(frozen=True)
 class ServerSettings:
     name: str
     description: str
@@ -151,6 +174,7 @@ class ServerSettings:
     log_level: str
     splunk: SplunkSettings
     zimbra: ZimbraSettings
+    email_server: EmailServerSettings
 
     @classmethod
     def from_env(cls, values: Mapping[str, str] | None = None) -> "ServerSettings":
@@ -217,6 +241,12 @@ class ServerSettings:
             email=_value(env, "ZIMBRA_EMAIL"),
             password=_value(env, "ZIMBRA_PASSWORD"),
         )
+        email_server = EmailServerSettings(
+            url=_value(env, "EMAIL_SERVER_URL", "http://100.114.50.103:9100").rstrip("/"),
+            username=_value(env, "EMAIL_SEVER_USER"),
+            password=_value(env, "EMAIL_SEVER_PASSWORD"),
+            timeout=_integer(env, "EMAIL_SERVER_TIMEOUT", 30, 1, 600),
+        )
         return cls(
             name=_value(env, "MCP_SERVER_NAME", "SOC Agent MCP"),
             description=_value(env, "MCP_SERVER_DESCRIPTION", "SOC Agent investigation tools for Splunk and Zimbra"),
@@ -226,6 +256,7 @@ class ServerSettings:
             log_level=_value(env, "LOG_LEVEL", "INFO").upper(),
             splunk=splunk,
             zimbra=zimbra,
+            email_server=email_server,
         )
 
     @classmethod
@@ -237,7 +268,11 @@ class ServerSettings:
         env = dict(environ if values is None else values)
         if store is None:
             return cls.from_env(env)
-        env.update(store.list_config())
+        # PostgreSQL supplies the persisted baseline, while explicit
+        # environment values remain the deployment override.
+        persisted = store.list_config()
+        persisted.update({key: value for key, value in env.items() if str(value).strip()})
+        env = persisted
         return cls.from_env(env)
 
     def public_status(self, account_count: int = 0) -> dict[str, object]:
@@ -267,5 +302,9 @@ class ServerSettings:
                 "folder_write_enabled": self.zimbra.allow_folder_write,
                 "max_attachment_bytes": self.zimbra.max_attachment_bytes,
                 "max_attachment_text_chars": self.zimbra.max_attachment_text_chars,
+            },
+            "email_server": {
+                "configured": self.email_server.configured,
+                "url": self.email_server.url,
             },
         }

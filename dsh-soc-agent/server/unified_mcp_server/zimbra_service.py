@@ -6,6 +6,7 @@ import asyncio
 import csv
 import io
 import json
+import re
 import zipfile
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
@@ -113,20 +114,97 @@ class ZimbraService:
         account = self._resolve_account(account_id)
         return await self._run(self._get_attachment_text, account, message_id, part)
 
-    async def send_email(self, to: list[str], subject: str, body: str, account_id: str = "") -> dict[str, Any]:
+    @staticmethod
+    def _recipients(value: list[str] | str | None, field: str) -> list[str]:
+        if isinstance(value, (list, tuple, set)):
+            values = value
+        else:
+            values = str(value or "").split(",")
+        recipients = []
+        seen = set()
+        for raw in values:
+            address = str(raw).strip()
+            if address and address not in seen:
+                if not re.fullmatch(r"[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+", address):
+                    raise ServiceError("invalid_input", f"Invalid {field} recipient.")
+                seen.add(address)
+                recipients.append(address)
+        if field == "to" and not recipients:
+            raise ServiceError("invalid_input", "At least one recipient is required.")
+        return recipients
+
+    def create_email_draft(
+        self,
+        to: list[str] | str,
+        subject: str,
+        body: str,
+        cc: list[str] | str | None = None,
+        bcc: list[str] | str | None = None,
+        account_id: str = "",
+    ) -> dict[str, Any]:
+        """Build a local draft without contacting or writing to Zimbra."""
+        recipients = self._recipients(to, "to")
+        carbon_copy = self._recipients(cc, "cc")
+        blind_carbon_copy = self._recipients(bcc, "bcc")
+        subject = str(subject or "").strip()
+        if not subject:
+            raise ServiceError("invalid_input", "subject cannot be empty")
+        account = self._resolve_account(account_id)
+        return {
+            "draft": {
+                "to": recipients,
+                "cc": carbon_copy,
+                "bcc": blind_carbon_copy,
+                "subject": subject,
+                "body": str(body or ""),
+                "account_id": account.id,
+                "account": account.agent_dict(),
+            },
+            "editable_fields": ["to", "cc", "bcc", "subject", "body"],
+            "send_tool": "zimbra_send_email",
+        }
+
+    async def send_email(
+        self,
+        to: list[str],
+        subject: str,
+        body: str,
+        account_id: str = "",
+        *,
+        cc: list[str] | str | None = None,
+        bcc: list[str] | str | None = None,
+    ) -> dict[str, Any]:
         if not self.settings.allow_send:
             raise ServiceError(
                 "operation_disabled",
                 "Zimbra sending is disabled. Set ZIMBRA_ALLOW_SEND=true to enable it.",
             )
-        recipients = [address.strip() for address in to if address.strip()]
-        if not recipients:
-            raise ServiceError("invalid_input", "At least one recipient is required.")
-        if not subject.strip():
+        recipients = self._recipients(to, "to")
+        carbon_copy = self._recipients(cc, "cc")
+        blind_carbon_copy = self._recipients(bcc, "bcc")
+        subject = str(subject or "").strip()
+        if not subject:
             raise ServiceError("invalid_input", "subject cannot be empty")
         account = self._resolve_account(account_id)
-        await self._run(zimbra_send_email, account, recipients, subject, body)
-        return {"sent": True, "account_id": account.id, "account": account.agent_dict(), "recipients": recipients, "subject": subject}
+        await self._run(
+            lambda: zimbra_send_email(
+                self._config(account),
+                recipients,
+                subject,
+                body,
+                cc=carbon_copy,
+                bcc=blind_carbon_copy,
+            ),
+        )
+        return {
+            "sent": True,
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "recipients": recipients,
+            "cc": carbon_copy,
+            "bcc": blind_carbon_copy,
+            "subject": subject,
+        }
 
     def _legacy_account(self) -> StoredAccount | None:
         if self.settings.email and self.settings.password:

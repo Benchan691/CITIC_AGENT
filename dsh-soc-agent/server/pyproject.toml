@@ -37,6 +37,7 @@ packages = [
     "unified_mcp_server.zimbra.core",
     "unified_mcp_server.zimbra.mail",
     "unified_mcp_server.zimbra.filters",
+    "unified_mcp_server.email",
     "unified_mcp_server.workflow",
     "unified_mcp_server.workflow.email_to_splunk",
 ]

@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-test('Harness patch enables only the filesystem skill layer', () => {
+test('Harness patch enables the filesystem skill and plan review layers', () => {
   const productRoot = fileURLToPath(new URL('..', import.meta.url))
   const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
   assert.match(patch, /- id: skill\n  disabled: false/)
@@ -14,6 +14,9 @@ test('Harness patch enables only the filesystem skill layer', () => {
   assert.match(patch, /- id: tool-skill\n  disabled: false/)
   assert.match(patch, /- id: skill-badge\n  disabled: true/)
   assert.match(patch, /- id: ui-skill\n  disabled: true/)
+  assert.match(patch, /- id: plan-mode\n  disabled: false/)
+  assert.match(patch, /- id: ui-plan\n  disabled: false/)
+  assert.match(patch, /- id: ui-user-questions\n  disabled: false/)
 })
 
 test('Harness discovers and loads the repository SOC skills through the skill tool', () => {

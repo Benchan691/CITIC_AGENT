@@ -48,6 +48,59 @@ async def test_send_is_disabled_by_default():
     assert error.value.code == "operation_disabled"
 
 
+def test_create_email_draft_is_local_and_structured(monkeypatch):
+    monkeypatch.setattr(module, "zimbra_login", lambda *args, **kwargs: pytest.fail("draft must not log in"))
+    draft = ZimbraService(settings()).create_email_draft(
+        ["to@example.com"],
+        "Subject",
+        "Body",
+        ["cc@example.com"],
+        "bcc@example.com",
+    )
+
+    assert draft["draft"]["to"] == ["to@example.com"]
+    assert draft["draft"]["cc"] == ["cc@example.com"]
+    assert draft["draft"]["bcc"] == ["bcc@example.com"]
+    assert draft["draft"]["account_id"] == "legacy"
+    assert draft["send_tool"] == "zimbra_send_email"
+
+
+def test_email_draft_rejects_missing_or_malformed_recipients():
+    service = ZimbraService(settings())
+
+    with pytest.raises(ServiceError, match="recipient"):
+        service.create_email_draft([], "Subject", "Body")
+    with pytest.raises(ServiceError, match="recipient"):
+        service.create_email_draft(["not-an-email"], "Subject", "Body")
+    with pytest.raises(ServiceError, match="recipient"):
+        service.create_email_draft(["to@example.com"], "Subject", "Body", cc=["bad"])
+
+
+@pytest.mark.asyncio
+async def test_send_forwards_copy_recipients(monkeypatch):
+    captured = {}
+
+    def fake_send(config, to, subject, body, **kwargs):
+        captured.update(config=config, to=to, subject=subject, body=body, **kwargs)
+
+    monkeypatch.setattr(module, "zimbra_send_email", fake_send)
+    service = ZimbraService(settings(allow_send=True))
+    result = await service.send_email(
+        ["to@example.com"],
+        "Subject",
+        "Body",
+        cc=["cc@example.com"],
+        bcc=["bcc@example.com"],
+    )
+
+    assert captured["to"] == ["to@example.com"]
+    assert captured["cc"] == ["cc@example.com"]
+    assert captured["bcc"] == ["bcc@example.com"]
+    assert captured["config"]["zimbra_email"] == "analyst@example.com"
+    assert captured["config"]["zimbra_password"] == "secret"
+    assert result["sent"] is True
+
+
 @pytest.mark.asyncio
 async def test_unconfigured_zimbra_reports_missing_environment():
     with pytest.raises(ConfigurationError):

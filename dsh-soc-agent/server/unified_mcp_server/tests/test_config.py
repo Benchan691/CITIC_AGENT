@@ -20,6 +20,74 @@ def test_defaults_are_secure_and_services_can_be_unconfigured():
     assert settings.splunk.detection_enable_enabled is False
     assert settings.zimbra.max_attachment_bytes == 10_000_000
     assert settings.zimbra.max_attachment_text_chars == 200_000
+    assert settings.email_server.url == "http://100.114.50.103:9100"
+    assert settings.email_server.configured is False
+
+
+def test_environment_overrides_persisted_configuration():
+    class Store:
+        def list_config(self):
+            return {
+                "ZIMBRA_HOST": "stored.example.com",
+                "ZIMBRA_ALLOW_SEND": "false",
+            }
+
+    settings = ServerSettings.from_store(
+        Store(),
+        {
+            "ZIMBRA_HOST": "env.example.com",
+            "ZIMBRA_ALLOW_SEND": "true",
+        },
+    )
+
+    assert settings.zimbra.host == "env.example.com"
+    assert settings.zimbra.allow_send is True
+
+
+def test_global_zimbra_environment_settings_load_as_connection_defaults():
+    settings = ServerSettings.from_env(
+        {
+            "ZIMBRA_HOST": "https://zmailbox.citictel-cpc.com/",
+            "ZIMBRA_VERIFY_SSL": "false",
+            "ZIMBRA_TIMEOUT": "60",
+            "ZIMBRA_MAX_ATTACHMENT_BYTES": "10000000",
+            "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS": "200000",
+            "ZIMBRA_ALLOW_SEND": "true",
+        }
+    )
+
+    assert settings.zimbra.host == "https://zmailbox.citictel-cpc.com/"
+    assert settings.zimbra.verify_ssl is False
+    assert settings.zimbra.timeout == 60
+    assert settings.zimbra.max_attachment_bytes == 10_000_000
+    assert settings.zimbra.max_attachment_text_chars == 200_000
+    assert settings.public_status(account_count=2)["zimbra"] == {
+        "configured": True,
+        "host": "https://zmailbox.citictel-cpc.com/",
+        "account_count": 2,
+        "verify_ssl": False,
+        "send_enabled": True,
+        "filter_write_enabled": False,
+        "filter_redirect_enabled": False,
+        "filter_discard_enabled": False,
+        "folder_write_enabled": False,
+        "max_attachment_bytes": 10_000_000,
+        "max_attachment_text_chars": 200_000,
+    }
+
+
+def test_persisted_configuration_remains_a_fallback_for_unset_environment_values():
+    class Store:
+        def list_config(self):
+            return {
+                "ZIMBRA_HOST": "stored.example.com",
+                "ZIMBRA_ALLOW_SEND": "true",
+            }
+
+    settings = ServerSettings.from_store(Store(), {})
+
+    assert settings.zimbra.host == "stored.example.com"
+    assert settings.zimbra.allow_send is True
 
 
 def test_status_redacts_credentials_and_does_not_include_mailbox_identity():
@@ -38,6 +106,22 @@ def test_status_redacts_credentials_and_does_not_include_mailbox_identity():
     assert "mail-secret" not in status
     assert "analyst@example.com" not in status
     assert "account_count" in status
+
+
+def test_email_server_credentials_load_without_exposing_password_in_status():
+    settings = ServerSettings.from_env(
+        {
+            "EMAIL_SERVER_URL": "http://email.example.com/",
+            "EMAIL_SEVER_USER": "operator",
+            "EMAIL_SEVER_PASSWORD": "email-secret",
+            "EMAIL_SERVER_TIMEOUT": "45",
+        }
+    )
+
+    assert settings.email_server.url == "http://email.example.com"
+    assert settings.email_server.timeout == 45
+    assert settings.email_server.configured is True
+    assert "email-secret" not in json.dumps(settings.public_status())
 
 
 def test_zimbra_email_and_password_load_from_environment():

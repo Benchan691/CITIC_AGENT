@@ -91,6 +91,36 @@ async def test_folder_creation_uses_selected_account_and_returns_safe_metadata(m
     assert "token" not in str(result)
 
 
+def test_multiple_accounts_require_selection_and_share_global_connection_settings(tmp_path):
+    store = AccountStore(str(tmp_path / "accounts.enc"), str(tmp_path / "accounts.key"))
+    first = store.add(label="One", email="one@example.com", username="one-user", password="one-secret")
+    second = store.add(label="Two", email="two@example.com", username="two-user", password="two-secret")
+    service = ZimbraMailService(
+        settings(
+            host="https://zmailbox.citictel-cpc.com/",
+            email="",
+            password="",
+            verify_ssl=False,
+            timeout=60,
+        ),
+        store,
+    )
+
+    with pytest.raises(ServiceError, match="account"):
+        service._resolve_account("")
+
+    config = service._config(service._resolve_account(second.id))
+    assert config == {
+        "zimbra_host": "https://zmailbox.citictel-cpc.com/",
+        "zimbra_email": "two@example.com",
+        "zimbra_username": "two-user",
+        "zimbra_password": "two-secret",
+        "verify_ssl": False,
+        "timeout": 60,
+    }
+    assert service._resolve_account(first.id).email == "one@example.com"
+
+
 @pytest.mark.asyncio
 async def test_malformed_create_folder_response_is_safe(monkeypatch):
     monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")

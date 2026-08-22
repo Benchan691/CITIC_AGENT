@@ -20,6 +20,51 @@ def test_search_query_escapes_input_and_caps_limit(monkeypatch):
     assert "&lt;x&gt;" in captured["body"]
 
 
+def test_send_email_generates_to_cc_and_bcc_recipients(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(zimbra, "zimbra_login", lambda cfg: "token")
+
+    def fake_request(host, body, token, **options):
+        captured.update(host=host, body=body, token=token, options=options)
+        return ET.fromstring('<SendMsgResponse xmlns="urn:zimbraMail"/>')
+
+    monkeypatch.setattr(zimbra, "soap_request", fake_request)
+    zimbra.zimbra_send_email(
+        {"zimbra_host": "mail.example.com", "zimbra_email": "a@example.com", "zimbra_password": "secret"},
+        ["to@example.com"],
+        "Subject",
+        "Body",
+        cc=["cc@example.com"],
+        bcc=["bcc@example.com"],
+    )
+
+    assert '<e t="t" a="to@example.com"/>' in captured["body"]
+    assert '<e t="c" a="cc@example.com"/>' in captured["body"]
+    assert '<e t="b" a="bcc@example.com"/>' in captured["body"]
+
+
+def test_send_email_accepts_account_configuration_mapping(monkeypatch):
+    monkeypatch.setattr(zimbra, "zimbra_login", lambda cfg: "token")
+    monkeypatch.setattr(
+        zimbra,
+        "soap_request",
+        lambda *args, **kwargs: ET.fromstring('<SendMsgResponse xmlns="urn:zimbraMail"/>'),
+    )
+
+    zimbra.zimbra_send_email(
+        {
+            "zimbra_host": "https://zmailbox.citictel-cpc.com/",
+            "zimbra_email": "account@example.com",
+            "zimbra_password": "secret",
+            "verify_ssl": False,
+            "timeout": 60,
+        },
+        ["to@example.com"],
+        "Subject",
+        "Body",
+    )
+
+
 def test_get_message_returns_body_metadata_and_attachments(monkeypatch):
     xml = """<GetMsgResponse xmlns="urn:zimbraMail">
       <m id="42" d="1700000000000" l="2" f="u" s="123">
