@@ -4,6 +4,7 @@ import {
   draftFromForm,
   parseRecipientText,
   ZIMBRA_DRAFT_TOOL_NAME,
+  ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME,
   type EmailDraftFormFields,
 } from '../src/client/emailDraft.ts'
 
@@ -34,4 +35,5 @@ test('normalizes editable recipient fields without duplicating addresses', () =>
 
 test('uses the host-qualified wire tool name for keyed rendering', () => {
   assert.equal(ZIMBRA_DRAFT_TOOL_NAME, 'mcp__soc_agent__zimbra_send_email')
+  assert.equal(ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME, 'mcp__soc_agent__zimbra_use_signature_on_email')
 })

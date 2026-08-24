@@ -28,12 +28,16 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_run_saved_search",
         "zimbra_list_accounts",
         "zimbra_list_folders",
+        "zimbra_list_signatures",
+        "zimbra_create_signature",
+        "zimbra_delete_signature",
         "zimbra_create_folder",
         "zimbra_search_emails",
         "zimbra_get_email",
         "zimbra_get_email_headers",
         "zimbra_get_attachment_text",
         "zimbra_send_email",
+        "zimbra_use_signature_on_email",
         "zimbra_move_email",
         "zimbra_list_email_filters",
         "zimbra_get_email_filter",
@@ -74,6 +78,19 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert set(draft_tool.parameters["properties"]) == {"to", "cc", "bcc", "subject", "body", "account_id"}
     assert set(draft_tool.parameters["required"]) == {"to", "subject", "body"}
     assert "zimbra_create_email_draft" not in {tool.name for tool in tools}
+    list_signatures_tool = next(tool for tool in tools if tool.name == "zimbra_list_signatures")
+    assert set(list_signatures_tool.parameters["properties"]) == {"account_id"}
+    create_signature_tool = next(tool for tool in tools if tool.name == "zimbra_create_signature")
+    assert set(create_signature_tool.parameters["properties"]) == {"name", "text", "html", "account_id"}
+    assert create_signature_tool.parameters["required"] == ["name"]
+    delete_signature_tool = next(tool for tool in tools if tool.name == "zimbra_delete_signature")
+    assert set(delete_signature_tool.parameters["properties"]) == {"signature_id", "account_id"}
+    assert delete_signature_tool.parameters["required"] == ["signature_id"]
+    use_signature_tool = next(tool for tool in tools if tool.name == "zimbra_use_signature_on_email")
+    assert set(use_signature_tool.parameters["properties"]) == {
+        "to", "cc", "bcc", "subject", "body", "signature_id", "body_format", "placement", "account_id",
+    }
+    assert set(use_signature_tool.parameters["required"]) == {"to", "subject", "body", "signature_id"}
     get_email_tool = next(tool for tool in tools if tool.name == "zimbra_get_email")
     assert set(get_email_tool.parameters["properties"]) == {
         "message_id", "account_id", "max_body_chars",

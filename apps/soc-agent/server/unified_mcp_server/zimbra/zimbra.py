@@ -116,6 +116,80 @@ def zimbra_login(cfg):
     return token
 
 
+def _signature(elem):
+    values = {"text": "", "html": ""}
+    for content in elem:
+        if _local_name(content.tag) != "content":
+            continue
+        kind = content.get("type", "")
+        if kind == "text/plain":
+            values["text"] = "".join(content.itertext())
+        elif kind == "text/html":
+            values["html"] = "".join(content.itertext())
+    return {
+        "id": elem.get("id", ""),
+        "name": elem.get("name", ""),
+        **values,
+    }
+
+
+def zimbra_list_signatures(host, token, *, verify_ssl=True, timeout=60):
+    root = soap_request(
+        host,
+        '<GetSignaturesRequest xmlns="urn:zimbraAccount"/>',
+        token,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+    )
+    response = next((elem for elem in root.iter() if _local_name(elem.tag) == "GetSignaturesResponse"), None)
+    if response is None:
+        raise ValueError("Malformed Zimbra signature response")
+    signatures = []
+    for elem in response:
+        if _local_name(elem.tag) != "signature" or not elem.get("id") or not elem.get("name"):
+            raise ValueError("Malformed Zimbra signature response")
+        signatures.append(_signature(elem))
+    return signatures
+
+
+def zimbra_create_signature(host, token, name, text=None, html_content=None, *, verify_ssl=True, timeout=60):
+    contents = []
+    if text is not None:
+        contents.append(f'<content type="text/plain">{html.escape(text)}</content>')
+    if html_content is not None:
+        contents.append(f'<content type="text/html">{html.escape(html_content)}</content>')
+    root = soap_request(
+        host,
+        (
+            '<CreateSignatureRequest xmlns="urn:zimbraAccount">'
+            f'<signature name="{html.escape(name)}">{"".join(contents)}</signature>'
+            '</CreateSignatureRequest>'
+        ),
+        token,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+    )
+    response = next((elem for elem in root.iter() if _local_name(elem.tag) == "CreateSignatureResponse"), None)
+    signature = next((elem for elem in (response if response is not None else ()) if _local_name(elem.tag) == "signature"), None)
+    if signature is None or not signature.get("id") or not signature.get("name"):
+        raise ValueError("Malformed Zimbra signature response")
+    return {"id": signature.get("id", ""), "name": signature.get("name", "")}
+
+
+def zimbra_delete_signature(host, token, signature_id, *, verify_ssl=True, timeout=60):
+    soap_request(
+        host,
+        (
+            '<DeleteSignatureRequest xmlns="urn:zimbraAccount">'
+            f'<signature id="{html.escape(signature_id)}"/>'
+            '</DeleteSignatureRequest>'
+        ),
+        token,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+    )
+
+
 def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=True, timeout=60):
     soap_request(
         host,

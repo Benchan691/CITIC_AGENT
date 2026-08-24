@@ -20,7 +20,10 @@ from unified_mcp_server.zimbra import (
     download_attachment,
     zimbra_get_message,
     zimbra_get_message_headers,
+    zimbra_create_signature,
+    zimbra_delete_signature,
     zimbra_list_folders,
+    zimbra_list_signatures,
     zimbra_login,
     zimbra_move_message,
     zimbra_search_messages,
@@ -98,6 +101,93 @@ class ZimbraService:
         account = self._resolve_account(account_id)
         folders = await self._run(self._list_folders, account)
         return {"account_id": account.id, "account": account.agent_dict(), **folders}
+
+    async def list_signatures(self, account_id: str = "") -> dict[str, Any]:
+        account = self._resolve_account(account_id)
+        signatures = await self._run(self._list_signatures, account)
+        return {
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "count": len(signatures),
+            "signatures": signatures,
+        }
+
+    async def create_signature(
+        self,
+        name: str,
+        text: str | None = None,
+        html: str | None = None,
+        account_id: str = "",
+    ) -> dict[str, Any]:
+        if not self.settings.allow_signature_write:
+            raise ServiceError(
+                "operation_disabled",
+                "Zimbra signature writes are disabled. Set ZIMBRA_ALLOW_SIGNATURE_WRITE=true after review.",
+            )
+        name = str(name or "").strip()
+        text = None if text is None else str(text)
+        html = None if html is None else str(html)
+        if not name:
+            raise ServiceError("invalid_input", "name cannot be empty")
+        if text is None and html is None:
+            raise ServiceError("invalid_input", "text or html is required")
+        if text == "" and html == "":
+            raise ServiceError("invalid_input", "text or html cannot both be empty")
+        account = self._resolve_account(account_id)
+        signature = await self._run(self._create_signature, account, name, text, html)
+        return {"account_id": account.id, "account": account.agent_dict(), "signature": signature}
+
+    async def delete_signature(self, signature_id: str, account_id: str = "") -> dict[str, Any]:
+        if not self.settings.allow_signature_write:
+            raise ServiceError(
+                "operation_disabled",
+                "Zimbra signature writes are disabled. Set ZIMBRA_ALLOW_SIGNATURE_WRITE=true after review.",
+            )
+        signature_id = str(signature_id or "").strip()
+        if not signature_id:
+            raise ServiceError("invalid_input", "signature_id cannot be empty")
+        account = self._resolve_account(account_id)
+        deleted = await self._run(self._delete_signature, account, signature_id)
+        return {"account_id": account.id, "account": account.agent_dict(), "deleted": deleted}
+
+    async def use_signature_on_email(
+        self,
+        to: list[str] | str,
+        subject: str,
+        body: str,
+        signature_id: str,
+        body_format: str = "text",
+        placement: str = "below",
+        cc: list[str] | str | None = None,
+        bcc: list[str] | str | None = None,
+        account_id: str = "",
+    ) -> dict[str, Any]:
+        body_format = str(body_format or "").strip().lower()
+        placement = str(placement or "").strip().lower()
+        signature_id = str(signature_id or "").strip()
+        if body_format not in {"text", "html"}:
+            raise ServiceError("invalid_input", "body_format must be text or html")
+        if placement not in {"above", "below"}:
+            raise ServiceError("invalid_input", "placement must be above or below")
+        if not signature_id:
+            raise ServiceError("invalid_input", "signature_id cannot be empty")
+        account = self._resolve_account(account_id)
+        signatures = await self._run(self._list_signatures, account)
+        signature = next((item for item in signatures if item["id"] == signature_id), None)
+        if signature is None:
+            raise ServiceError("not_found", "The selected Zimbra signature was not found.")
+        value = signature[body_format]
+        if not value:
+            raise ServiceError("invalid_input", f"The selected signature has no {body_format} content.")
+        body = str(body or "")
+        separator = "<br><br>" if body_format == "html" else "\n\n"
+        combined = f"{value}{separator}{body}" if placement == "above" and body else (
+            f"{body}{separator}{value}" if body else value
+        )
+        draft = self.create_email_draft(to, subject, combined, cc, bcc, account.id)
+        draft["draft"]["body_format"] = body_format
+        draft["draft"]["signature"] = {"id": signature["id"], "name": signature["name"]}
+        return draft
 
     async def search_emails(
         self,
@@ -293,6 +383,48 @@ class ZimbraService:
         token = zimbra_login(self._config(account))
         folders = zimbra_list_folders(self.settings.host, token, verify_ssl=self.settings.verify_ssl, timeout=self.settings.timeout)
         return {"count": len(folders), "folders": folders}
+
+    def _list_signatures(self, account: StoredAccount) -> list[dict[str, Any]]:
+        token = zimbra_login(self._config(account))
+        return zimbra_list_signatures(
+            self.settings.host,
+            token,
+            verify_ssl=self.settings.verify_ssl,
+            timeout=self.settings.timeout,
+        )
+
+    def _create_signature(
+        self,
+        account: StoredAccount,
+        name: str,
+        text: str | None,
+        html: str | None,
+    ) -> dict[str, Any]:
+        token = zimbra_login(self._config(account))
+        options = {"verify_ssl": self.settings.verify_ssl, "timeout": self.settings.timeout}
+        existing = zimbra_list_signatures(self.settings.host, token, **options)
+        if any(str(item.get("name", "")).casefold() == name.casefold() for item in existing):
+            raise ServiceError("already_exists", "A Zimbra signature with that name already exists.")
+        created = zimbra_create_signature(self.settings.host, token, name, text, html, **options)
+        verified = next(
+            (item for item in zimbra_list_signatures(self.settings.host, token, **options) if item["id"] == created["id"]),
+            None,
+        )
+        if verified is None:
+            raise ServiceError("signature_verification_failed", "Zimbra did not confirm the created signature.")
+        return verified
+
+    def _delete_signature(self, account: StoredAccount, signature_id: str) -> dict[str, Any]:
+        token = zimbra_login(self._config(account))
+        options = {"verify_ssl": self.settings.verify_ssl, "timeout": self.settings.timeout}
+        existing = zimbra_list_signatures(self.settings.host, token, **options)
+        signature = next((item for item in existing if item["id"] == signature_id), None)
+        if signature is None:
+            raise ServiceError("not_found", "The selected Zimbra signature was not found.")
+        zimbra_delete_signature(self.settings.host, token, signature_id, **options)
+        if any(item["id"] == signature_id for item in zimbra_list_signatures(self.settings.host, token, **options)):
+            raise ServiceError("signature_verification_failed", "Zimbra still reports the deleted signature.")
+        return signature
 
     def _search_emails(self, account: StoredAccount, query: str, limit: int, offset: int) -> list[dict[str, Any]]:
         token = zimbra_login(self._config(account))

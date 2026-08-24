@@ -37,7 +37,7 @@ async def test_search_returns_metadata_but_body_requires_get(monkeypatch):
         "zimbra_get_message",
         lambda *args, **kwargs: {"id": "42", "subject": "Alert", "body": "sensitive details"},
     )
-    service = ZimbraService(settings())
+    service = ZimbraService(settings(allow_move=False))
 
     search = await service.search_emails("subject:Alert", offset=40)
     message = await service.get_email("42")
@@ -90,7 +90,7 @@ async def test_get_email_headers_returns_bounded_untrusted_evidence(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_move_email_is_gated_validated_and_verified(monkeypatch):
-    service = ZimbraService(settings())
+    service = ZimbraService(settings(allow_move=False))
     with pytest.raises(ServiceError) as disabled:
         await service.move_email("42", "99")
     assert disabled.value.code == "operation_disabled"
@@ -123,6 +123,87 @@ async def test_move_email_is_gated_validated_and_verified(monkeypatch):
         "folder_id": "2",
         "account_id": "legacy",
     }
+
+
+@pytest.mark.asyncio
+async def test_signature_list_create_and_delete_are_verified(monkeypatch):
+    existing = [{"id": "1", "name": "Existing", "text": "old", "html": ""}]
+    created_signature = {"id": "2", "name": "Work", "text": "new", "html": "<b>new</b>"}
+    state = {"created": False, "deleted": False}
+    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
+    def list_signatures(*args, **kwargs):
+        values = list(existing)
+        if state["created"] and not state["deleted"]:
+            values.append(created_signature)
+        return values
+    monkeypatch.setattr(module, "zimbra_list_signatures", list_signatures)
+    monkeypatch.setattr(
+        module,
+        "zimbra_create_signature",
+        lambda *args, **kwargs: state.update(created=True) or {"id": "2", "name": "Work"},
+    )
+    monkeypatch.setattr(module, "zimbra_delete_signature", lambda *args, **kwargs: state.update(deleted=True))
+    service = ZimbraService(settings(allow_signature_write=True))
+
+    listed = await service.list_signatures()
+    assert listed["count"] == 1
+    assert listed["signatures"][0]["name"] == "Existing"
+
+    created = await service.create_signature("Work", "new", "<b>new</b>")
+    assert created["signature"]["id"] == "2"
+
+    deleted = await service.delete_signature("2")
+    assert deleted["deleted"]["name"] == "Work"
+
+
+@pytest.mark.asyncio
+async def test_signature_writes_are_disabled_before_network_access(monkeypatch):
+    monkeypatch.setattr(module, "zimbra_login", lambda *args, **kwargs: pytest.fail("login should not be called"))
+    service = ZimbraService(settings(allow_signature_write=False))
+
+    with pytest.raises(ServiceError) as error:
+        await service.create_signature("Work", "text")
+    assert error.value.code == "operation_disabled"
+
+    with pytest.raises(ServiceError) as error:
+        await service.delete_signature("1")
+    assert error.value.code == "operation_disabled"
+
+
+def test_signature_create_requires_content_and_rejects_duplicate(monkeypatch):
+    service = ZimbraService(settings(allow_signature_write=True))
+
+    with pytest.raises(ServiceError, match="text or html"):
+        import asyncio
+        asyncio.run(service.create_signature("Work"))
+
+    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
+    monkeypatch.setattr(
+        module,
+        "zimbra_list_signatures",
+        lambda *args, **kwargs: [{"id": "1", "name": "Work", "text": "old", "html": ""}],
+    )
+    monkeypatch.setattr(module, "zimbra_create_signature", lambda *args, **kwargs: pytest.fail("duplicate must not be created"))
+    with pytest.raises(ServiceError, match="already exists"):
+        import asyncio
+        asyncio.run(service.create_signature("work", "new"))
+
+
+@pytest.mark.asyncio
+async def test_use_signature_on_email_returns_local_draft_with_selected_format(monkeypatch):
+    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
+    monkeypatch.setattr(
+        module,
+        "zimbra_list_signatures",
+        lambda *args, **kwargs: [{"id": "1", "name": "Work", "text": "-- Ben", "html": "<b>-- Ben</b>"}],
+    )
+    draft = await ZimbraService(settings()).use_signature_on_email(
+        ["to@example.com"], "Subject", "Body", "1", body_format="html", placement="above"
+    )
+
+    assert draft["draft"]["body"] == "<b>-- Ben</b><br><br>Body"
+    assert draft["draft"]["body_format"] == "html"
+    assert draft["draft"]["signature"] == {"id": "1", "name": "Work"}
 
 
 def test_create_email_draft_is_local_and_structured(monkeypatch):

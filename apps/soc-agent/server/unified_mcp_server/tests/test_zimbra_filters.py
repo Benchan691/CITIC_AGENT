@@ -152,7 +152,7 @@ def test_filter_response_is_parsed_inside_soap_envelope(monkeypatch):
 @pytest.mark.asyncio
 async def test_validation_checks_supported_inputs_and_existing_folder(monkeypatch):
     fake_zimbra(monkeypatch)
-    service = ZimbraFilterService(settings())
+    service = ZimbraFilterService(settings(allow_filter_write=False))
 
     result = await service.validate_email_filter(valid_payload(actions=[{"type": "file_into", "folder": "/Missing"}]))
 
@@ -163,7 +163,7 @@ async def test_validation_checks_supported_inputs_and_existing_folder(monkeypatc
 @pytest.mark.asyncio
 async def test_preview_reports_changed_fields_position_fingerprint_and_gate_state(monkeypatch):
     fake_zimbra(monkeypatch)
-    service = ZimbraFilterService(settings())
+    service = ZimbraFilterService(settings(allow_filter_write=False))
 
     result = await service.preview_email_filter_update("Inbox alerts", {"enabled": False, "order": 1})
 
@@ -180,7 +180,7 @@ async def test_preview_reports_changed_fields_position_fingerprint_and_gate_stat
 @pytest.mark.asyncio
 async def test_writes_are_disabled_but_validation_works(monkeypatch):
     fake_zimbra(monkeypatch)
-    service = ZimbraFilterService(settings())
+    service = ZimbraFilterService(settings(allow_filter_write=False))
 
     validation = await service.validate_email_filter(valid_payload(name="New rule"))
     assert validation["valid"] is True
@@ -193,7 +193,9 @@ async def test_writes_are_disabled_but_validation_works(monkeypatch):
 @pytest.mark.asyncio
 async def test_redirect_and_discard_require_separate_gates(monkeypatch):
     fake_zimbra(monkeypatch)
-    service = ZimbraFilterService(settings())
+    service = ZimbraFilterService(
+        settings(allow_filter_write=False, allow_filter_redirect=False, allow_filter_discard=False)
+    )
 
     redirect = await service.validate_email_filter(valid_payload(name="Redirect", actions=[{"type": "redirect", "address": "ops@example.com"}]))
     discard = await service.validate_email_filter(valid_payload(name="Discard", actions=[{"type": "discard"}]))

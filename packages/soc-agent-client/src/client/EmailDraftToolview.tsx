@@ -3,9 +3,19 @@ import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
 import React, { useEffect, useMemo, useState } from 'react'
 import css from './EmailDraftToolview.module.css'
-import { ZIMBRA_DRAFT_TOOL_NAME, type EmailDraftFields, type EmailDraftFormFields } from './emailDraft.ts'
+import {
+  ZIMBRA_DRAFT_TOOL_NAME,
+  ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME,
+  type EmailDraftFields,
+  type EmailDraftFormFields,
+} from './emailDraft.ts'
 
-export { draftFromForm, parseRecipientText, ZIMBRA_DRAFT_TOOL_NAME } from './emailDraft.ts'
+export {
+  draftFromForm,
+  parseRecipientText,
+  ZIMBRA_DRAFT_TOOL_NAME,
+  ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME,
+} from './emailDraft.ts'
 export type { EmailDraftFields, EmailDraftFormFields } from './emailDraft.ts'
 
 interface DraftEnvelope {
@@ -144,10 +154,12 @@ export const emailDraftToolview = {
   name: 'zimbra-email-draft-toolview',
   inject: ['slots'],
   apply(ctx: Context): void {
-    ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
-      name: 'tool.call.toolview',
-      key: ZIMBRA_DRAFT_TOOL_NAME,
-    }, EmailDraftToolview))
+    for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) {
+      ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+        name: 'tool.call.toolview',
+        key,
+      }, EmailDraftToolview))
+    }
   },
 }
 

@@ -20,6 +20,37 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         return await execute(ctx, "zimbra", "list_folders", lambda: get_runtime(ctx).zimbra_mail.list_folders(account_id))
 
     @server.tool()
+    async def zimbra_list_signatures(ctx: Context, account_id: str = "") -> dict[str, Any]:
+        """List Zimbra signatures with plain-text and HTML content."""
+        return await execute(ctx, "zimbra", "list_signatures", lambda: get_runtime(ctx).zimbra_mail.list_signatures(account_id))
+
+    @server.tool()
+    async def zimbra_create_signature(
+        ctx: Context,
+        name: str,
+        text: str | None = None,
+        html: str | None = None,
+        account_id: str = "",
+    ) -> dict[str, Any]:
+        """Create a Zimbra signature; requires ZIMBRA_ALLOW_SIGNATURE_WRITE and approval."""
+        return await execute(
+            ctx,
+            "zimbra",
+            "create_signature",
+            lambda: get_runtime(ctx).zimbra_mail.create_signature(name, text, html, account_id),
+        )
+
+    @server.tool()
+    async def zimbra_delete_signature(ctx: Context, signature_id: str, account_id: str = "") -> dict[str, Any]:
+        """Delete one Zimbra signature by ID; requires ZIMBRA_ALLOW_SIGNATURE_WRITE and approval."""
+        return await execute(
+            ctx,
+            "zimbra",
+            "delete_signature",
+            lambda: get_runtime(ctx).zimbra_mail.delete_signature(signature_id, account_id),
+        )
+
+    @server.tool()
     async def zimbra_create_folder(ctx: Context, name: str, parent_id: str = "1", account_id: str = "") -> dict[str, Any]:
         """Create one direct child Zimbra folder when ZIMBRA_ALLOW_FOLDER_WRITE is enabled."""
         return await execute(ctx, "zimbra", "create_folder", lambda: get_runtime(ctx).zimbra_mail.create_folder(name, parent_id, account_id))
@@ -65,6 +96,29 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
             "zimbra",
             "create_email_draft",
             create_draft,
+        )
+
+    @server.tool()
+    async def zimbra_use_signature_on_email(
+        ctx: Context,
+        to: list[str],
+        subject: str,
+        body: str,
+        signature_id: str,
+        body_format: str = "text",
+        placement: str = "below",
+        cc: list[str] | None = None,
+        bcc: list[str] | None = None,
+        account_id: str = "",
+    ) -> dict[str, Any]:
+        """Create a local editable draft with a selected Zimbra signature; it never sends."""
+        return await execute(
+            ctx,
+            "zimbra",
+            "use_signature_on_email",
+            lambda: get_runtime(ctx).zimbra_mail.use_signature_on_email(
+                to, subject, body, signature_id, body_format, placement, cc, bcc, account_id,
+            ),
         )
 
     @server.tool()

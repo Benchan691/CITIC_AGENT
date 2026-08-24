@@ -20,7 +20,12 @@ def test_defaults_are_secure_and_services_can_be_unconfigured():
     assert settings.splunk.verify_ssl is True
     assert settings.splunk.sanitize_output is True
     assert settings.zimbra.verify_ssl is True
-    assert settings.zimbra.allow_folder_write is False
+    assert settings.zimbra.allow_filter_write is True
+    assert settings.zimbra.allow_filter_redirect is True
+    assert settings.zimbra.allow_filter_discard is True
+    assert settings.zimbra.allow_folder_write is True
+    assert settings.zimbra.allow_move is True
+    assert settings.zimbra.allow_signature_write is True
     assert settings.splunk.configured is False
     assert settings.zimbra.configured is False
     assert settings.splunk.detection_write_enabled is False
@@ -69,11 +74,12 @@ def test_global_zimbra_environment_settings_load_as_connection_defaults():
         "host": "https://zmailbox.citictel-cpc.com/",
         "account_count": 2,
         "verify_ssl": False,
-        "filter_write_enabled": False,
-        "filter_redirect_enabled": False,
-        "filter_discard_enabled": False,
-        "folder_write_enabled": False,
-        "move_enabled": False,
+        "filter_write_enabled": True,
+        "filter_redirect_enabled": True,
+        "filter_discard_enabled": True,
+        "folder_write_enabled": True,
+        "move_enabled": True,
+        "signature_write_enabled": True,
         "max_attachment_bytes": 10_000_000,
         "max_attachment_text_chars": 200_000,
     }
@@ -195,6 +201,13 @@ def test_zimbra_move_gate_is_explicit_and_visible_without_secrets():
 
     assert settings.zimbra.allow_move is True
     assert settings.public_status()["zimbra"]["move_enabled"] is True
+
+
+def test_zimbra_signature_write_gate_is_explicit_and_visible_without_secrets():
+    settings = ServerSettings.from_env({"ZIMBRA_ALLOW_SIGNATURE_WRITE": "true"})
+
+    assert settings.zimbra.allow_signature_write is True
+    assert settings.public_status()["zimbra"]["signature_write_enabled"] is True
 
 
 @pytest.mark.parametrize(

@@ -108,11 +108,12 @@ class ZimbraSettings:
     explicit_key: str = ""
     email: str = ""
     password: str = ""
-    allow_filter_write: bool = False
-    allow_filter_redirect: bool = False
-    allow_filter_discard: bool = False
-    allow_folder_write: bool = False
-    allow_move: bool = False
+    allow_filter_write: bool = True
+    allow_filter_redirect: bool = True
+    allow_filter_discard: bool = True
+    allow_folder_write: bool = True
+    allow_move: bool = True
+    allow_signature_write: bool = True
 
     @property
     def configured(self) -> bool:
@@ -220,11 +221,12 @@ class ServerSettings:
             host=_value(env, "ZIMBRA_HOST"),
             verify_ssl=_boolean(env, "ZIMBRA_VERIFY_SSL", True),
             timeout=_integer(env, "ZIMBRA_TIMEOUT", 60, 1, 600),
-            allow_filter_write=_boolean(env, "ZIMBRA_ALLOW_FILTER_WRITE", False),
-            allow_filter_redirect=_boolean(env, "ZIMBRA_ALLOW_FILTER_REDIRECT", False),
-            allow_filter_discard=_boolean(env, "ZIMBRA_ALLOW_FILTER_DISCARD", False),
-            allow_folder_write=_boolean(env, "ZIMBRA_ALLOW_FOLDER_WRITE", False),
-            allow_move=_boolean(env, "ZIMBRA_ALLOW_MOVE", False),
+            allow_filter_write=_boolean(env, "ZIMBRA_ALLOW_FILTER_WRITE", True),
+            allow_filter_redirect=_boolean(env, "ZIMBRA_ALLOW_FILTER_REDIRECT", True),
+            allow_filter_discard=_boolean(env, "ZIMBRA_ALLOW_FILTER_DISCARD", True),
+            allow_folder_write=_boolean(env, "ZIMBRA_ALLOW_FOLDER_WRITE", True),
+            allow_move=_boolean(env, "ZIMBRA_ALLOW_MOVE", True),
+            allow_signature_write=_boolean(env, "ZIMBRA_ALLOW_SIGNATURE_WRITE", True),
             max_attachment_bytes=_integer(env, "ZIMBRA_MAX_ATTACHMENT_BYTES", 10_000_000, 1, 100_000_000),
             max_attachment_text_chars=_integer(env, "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS", 200_000, 1, 2_000_000),
             accounts_file=_storage_path(env, "ZIMBRA_ACCOUNTS_FILE", ".data/zimbra_accounts.enc"),
@@ -292,6 +294,7 @@ class ServerSettings:
                 "filter_discard_enabled": self.zimbra.allow_filter_discard,
                 "folder_write_enabled": self.zimbra.allow_folder_write,
                 "move_enabled": self.zimbra.allow_move,
+                "signature_write_enabled": self.zimbra.allow_signature_write,
                 "max_attachment_bytes": self.zimbra.max_attachment_bytes,
                 "max_attachment_text_chars": self.zimbra.max_attachment_text_chars,
             },

@@ -1,4 +1,5 @@
 export const ZIMBRA_DRAFT_TOOL_NAME = 'mcp__soc_agent__zimbra_send_email'
+export const ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME = 'mcp__soc_agent__zimbra_use_signature_on_email'
 
 export interface EmailDraftFields {
   to: string[]

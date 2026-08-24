@@ -672,6 +672,7 @@ window.__ModuleLoader__.load({
 		//#endregion
 		//#region src/client/emailDraft.ts
 		const ZIMBRA_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_send_email";
+		const ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_use_signature_on_email";
 		//#endregion
 		//#region src/client/EmailDraftToolview.tsx
 		function resultText(block) {
@@ -858,9 +859,9 @@ window.__ModuleLoader__.load({
 			name: "zimbra-email-draft-toolview",
 			inject: ["slots"],
 			apply(ctx) {
-				ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
+				for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
 					name: "tool.call.toolview",
-					key: ZIMBRA_DRAFT_TOOL_NAME
+					key
 				}, EmailDraftToolview));
 			}
 		};
