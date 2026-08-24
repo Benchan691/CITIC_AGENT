@@ -16,3 +16,33 @@ The repository is organized by ownership:
 
 See [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) for commands and
 dependency boundaries.
+
+## Update the server deployment
+
+The active deployment at `~/CITIC_AGENT/current` is a Git checkout. To update
+the code on the server:
+
+```bash
+cd ~/CITIC_AGENT/current
+git pull --ff-only
+
+cd vendor/deepseek-harness
+pnpm install --frozen-lockfile
+pnpm run build
+
+cd ../../packages/soc-agent-scheduler
+pnpm install --frozen-lockfile
+```
+
+Restart the web app in its tmux session
+
+The server intentionally listens only on `127.0.0.1`. Access it from another
+device through an SSH tunnel:
+
+```bash
+ssh -L 3080:127.0.0.1:3080 usr@ip
+```
+
+Runtime configuration and data (`.env`, `.data`, PostgreSQL, and `~/.dsh`) are
+outside Git. Keep secrets out of commits and preserve those files when
+updating the code.
