@@ -166,7 +166,7 @@ When a user requests a reply or outbound email:
 2. Create a structured Zimbra email draft.
 3. Let the user review and edit To, Cc, Bcc, subject, and body in the email window.
 4. Send only after the user clicks Send.
-5. Follow the normal Zimbra approval and `ZIMBRA_ALLOW_SEND` controls.
+5. Keep the draft local and editable; this agent does not send email.
 6. Report the actual send result.
 
 The draft is browser/session-local and is not saved to Zimbra. The Send button submits the finalized fields back to the agent; it does not bypass approval or silently send directly.
