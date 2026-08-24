@@ -1,0 +1,406 @@
+"""Async Zimbra service with server-side account selection."""
+
+from __future__ import annotations
+
+import asyncio
+import csv
+import io
+import json
+import re
+import zipfile
+import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
+from pathlib import PurePath
+from typing import Any
+
+from pypdf import PdfReader
+
+from unified_mcp_server.zimbra import (
+    download_attachment,
+    zimbra_get_message,
+    zimbra_list_folders,
+    zimbra_login,
+    zimbra_search_messages,
+    zimbra_send_email,
+)
+
+from .account_store import AccountStore, StoredAccount
+from .config import ZimbraSettings
+from .errors import ConfigurationError, ServiceError
+
+
+def _upstream_error(exc: Exception) -> ServiceError:
+    """Convert upstream failures to useful messages without returning raw responses."""
+    text = str(exc).lower()
+    if any(marker in text for marker in ("login failed", "authentication", "auth failed", "auth token")):
+        return ServiceError(
+            "zimbra_auth_error",
+            "Zimbra authentication failed. Check the email, optional login username, and password.",
+            details={"exception_type": type(exc).__name__},
+        )
+    if any(marker in text for marker in ("certificate", "ssl", "tls")):
+        return ServiceError(
+            "zimbra_tls_error",
+            "Zimbra TLS validation failed. Check the server certificate or ZIMBRA_VERIFY_SSL.",
+            details={"exception_type": type(exc).__name__},
+        )
+    if any(marker in text for marker in ("connection", "timed out", "timeout", "name or service", "refused")):
+        return ServiceError(
+            "zimbra_connection_error",
+            "Could not connect to Zimbra. Check ZIMBRA_HOST and network access.",
+            retryable=True,
+            details={"exception_type": type(exc).__name__},
+        )
+    return ServiceError(
+        "zimbra_api_error",
+        "Zimbra request failed. Check ZIMBRA_HOST, TLS settings, and account credentials.",
+        retryable=True,
+        details={"exception_type": type(exc).__name__},
+    )
+
+
+class ZimbraService:
+    def __init__(self, settings: ZimbraSettings, accounts: AccountStore | None = None) -> None:
+        self.settings = settings
+        self.accounts = accounts or AccountStore(settings.accounts_file, settings.key_file, settings.explicit_key)
+
+    def account_count(self) -> int:
+        return self.accounts.count() + (1 if self._legacy_account() else 0)
+
+    def list_accounts(self) -> list[dict[str, Any]]:
+        accounts = self.accounts.list_agent()
+        legacy = self._legacy_account()
+        if legacy:
+            accounts.append(legacy.agent_dict())
+        return accounts
+
+    async def test_account(self, account: StoredAccount) -> None:
+        await self._run_login(account)
+
+    async def list_folders(self, account_id: str = "") -> dict[str, Any]:
+        account = self._resolve_account(account_id)
+        folders = await self._run(self._list_folders, account)
+        return {"account_id": account.id, "account": account.agent_dict(), **folders}
+
+    async def search_emails(self, query: str, limit: int = 20, account_id: str = "") -> dict[str, Any]:
+        query = query.strip()
+        if not query:
+            raise ServiceError("invalid_input", "query cannot be empty")
+        limit = min(max(1, int(limit)), 100)
+        account = self._resolve_account(account_id)
+        messages = await self._run(self._search_emails, account, query, limit)
+        return {"account_id": account.id, "account": account.agent_dict(), "query": query, "count": len(messages), "messages": messages}
+
+    async def get_email(
+        self,
+        message_id: str,
+        account_id: str = "",
+        max_body_chars: int = 20_000,
+    ) -> dict[str, Any]:
+        message_id = message_id.strip()
+        if not message_id:
+            raise ServiceError("invalid_input", "message_id cannot be empty")
+        max_body_chars = min(max(1, int(max_body_chars)), 100_000)
+        account = self._resolve_account(account_id)
+        message = await self._run(self._get_email, account, message_id)
+        if message is None:
+            raise ServiceError("not_found", "Zimbra message was not found.")
+        body = str(message.get("body", ""))
+        message["body_characters"] = len(body)
+        message["body_truncated"] = len(body) > max_body_chars
+        if message["body_truncated"]:
+            message["body"] = body[:max_body_chars]
+        message["account_id"] = account.id
+        message["account"] = account.agent_dict()
+        return message
+
+    async def get_attachment_text(self, message_id: str, part: str, account_id: str = "") -> dict[str, Any]:
+        message_id = message_id.strip()
+        part = part.strip()
+        if not message_id or not part:
+            raise ServiceError("invalid_input", "message_id and part cannot be empty")
+        account = self._resolve_account(account_id)
+        return await self._run(self._get_attachment_text, account, message_id, part)
+
+    @staticmethod
+    def _recipients(value: list[str] | str | None, field: str) -> list[str]:
+        if isinstance(value, (list, tuple, set)):
+            values = value
+        else:
+            values = str(value or "").split(",")
+        recipients = []
+        seen = set()
+        for raw in values:
+            address = str(raw).strip()
+            if address and address not in seen:
+                if not re.fullmatch(r"[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+", address):
+                    raise ServiceError("invalid_input", f"Invalid {field} recipient.")
+                seen.add(address)
+                recipients.append(address)
+        if field == "to" and not recipients:
+            raise ServiceError("invalid_input", "At least one recipient is required.")
+        return recipients
+
+    def create_email_draft(
+        self,
+        to: list[str] | str,
+        subject: str,
+        body: str,
+        cc: list[str] | str | None = None,
+        bcc: list[str] | str | None = None,
+        account_id: str = "",
+    ) -> dict[str, Any]:
+        """Build a local draft without contacting or writing to Zimbra."""
+        recipients = self._recipients(to, "to")
+        carbon_copy = self._recipients(cc, "cc")
+        blind_carbon_copy = self._recipients(bcc, "bcc")
+        subject = str(subject or "").strip()
+        if not subject:
+            raise ServiceError("invalid_input", "subject cannot be empty")
+        account = self._resolve_account(account_id)
+        return {
+            "draft": {
+                "to": recipients,
+                "cc": carbon_copy,
+                "bcc": blind_carbon_copy,
+                "subject": subject,
+                "body": str(body or ""),
+                "account_id": account.id,
+                "account": account.agent_dict(),
+            },
+            "editable_fields": ["to", "cc", "bcc", "subject", "body"],
+            "send_tool": "zimbra_send_email",
+        }
+
+    async def send_email(
+        self,
+        to: list[str],
+        subject: str,
+        body: str,
+        account_id: str = "",
+        *,
+        cc: list[str] | str | None = None,
+        bcc: list[str] | str | None = None,
+    ) -> dict[str, Any]:
+        if not self.settings.allow_send:
+            raise ServiceError(
+                "operation_disabled",
+                "Zimbra sending is disabled. Set ZIMBRA_ALLOW_SEND=true to enable it.",
+            )
+        recipients = self._recipients(to, "to")
+        carbon_copy = self._recipients(cc, "cc")
+        blind_carbon_copy = self._recipients(bcc, "bcc")
+        subject = str(subject or "").strip()
+        if not subject:
+            raise ServiceError("invalid_input", "subject cannot be empty")
+        account = self._resolve_account(account_id)
+        await self._run(
+            lambda: zimbra_send_email(
+                self._config(account),
+                recipients,
+                subject,
+                body,
+                cc=carbon_copy,
+                bcc=blind_carbon_copy,
+            ),
+        )
+        return {
+            "sent": True,
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "recipients": recipients,
+            "cc": carbon_copy,
+            "bcc": blind_carbon_copy,
+            "subject": subject,
+        }
+
+    def _legacy_account(self) -> StoredAccount | None:
+        if self.settings.email and self.settings.password:
+            return StoredAccount("legacy", "Legacy account", self.settings.email, "", self.settings.password)
+        return None
+
+    def _resolve_account(self, account_id: str) -> StoredAccount:
+        if not self.settings.host:
+            raise ConfigurationError("Zimbra", ["ZIMBRA_HOST"])
+        account_id = account_id.strip()
+        if account_id:
+            account = self.accounts.get(account_id)
+            if account is None and account_id == "legacy":
+                account = self._legacy_account()
+            if account is None:
+                raise ServiceError("account_not_found", "The selected email account was not found.")
+            return account
+        legacy = self._legacy_account()
+        if legacy:
+            return legacy
+        if self.accounts.count() == 1:
+            return self.accounts.list()[0]
+        raise ServiceError("account_required", "Select an email account before using Zimbra tools.")
+
+    def _config(self, account: StoredAccount) -> dict[str, object]:
+        return self.settings.client_config(email=account.email, username=account.username, password=account.password)
+
+    async def _run_login(self, account: StoredAccount) -> None:
+        if not self.settings.host:
+            raise ConfigurationError("Zimbra", ["ZIMBRA_HOST"])
+        try:
+            await asyncio.to_thread(zimbra_login, self._config(account))
+        except Exception as exc:
+            raise _upstream_error(exc) from exc
+
+    def _list_folders(self, account: StoredAccount) -> dict[str, Any]:
+        token = zimbra_login(self._config(account))
+        folders = zimbra_list_folders(self.settings.host, token, verify_ssl=self.settings.verify_ssl, timeout=self.settings.timeout)
+        return {"count": len(folders), "folders": folders}
+
+    def _search_emails(self, account: StoredAccount, query: str, limit: int) -> list[dict[str, Any]]:
+        token = zimbra_login(self._config(account))
+        return zimbra_search_messages(
+            self.settings.host,
+            token,
+            query,
+            limit,
+            verify_ssl=self.settings.verify_ssl,
+            timeout=self.settings.timeout,
+        )
+
+    def _get_email(self, account: StoredAccount, message_id: str) -> dict[str, Any] | None:
+        token = zimbra_login(self._config(account))
+        return zimbra_get_message(self.settings.host, token, message_id, verify_ssl=self.settings.verify_ssl, timeout=self.settings.timeout)
+
+    def _get_attachment_text(self, account: StoredAccount, message_id: str, part: str) -> dict[str, Any]:
+        token = zimbra_login(self._config(account))
+        message = zimbra_get_message(
+            self.settings.host,
+            token,
+            message_id,
+            verify_ssl=self.settings.verify_ssl,
+            timeout=self.settings.timeout,
+        )
+        if message is None:
+            raise ServiceError("not_found", "Zimbra message was not found.")
+        attachment = next((item for item in message.get("attachments", []) if str(item.get("part", "")) == part), None)
+        if attachment is None:
+            raise ServiceError("attachment_not_found", "The selected Zimbra attachment was not found.")
+        if int(attachment.get("size", 0) or 0) > self.settings.max_attachment_bytes:
+            raise ServiceError("attachment_too_large", "The attachment exceeds the configured byte limit.")
+        try:
+            data = download_attachment(
+                self._config(account), token, message_id, part, self.settings.max_attachment_bytes
+            )
+        except ValueError as exc:
+            if str(exc) == "attachment_too_large":
+                raise ServiceError("attachment_too_large", "The attachment exceeds the configured byte limit.") from exc
+            raise
+        filename = str(attachment.get("filename", ""))
+        content_type = str(attachment.get("content_type", "")).split(";", 1)[0].lower()
+        text = _extract_attachment_text(data, filename, content_type)
+        if len(text) > self.settings.max_attachment_text_chars:
+            raise ServiceError("attachment_text_too_large", "Extracted attachment text exceeds the configured character limit.")
+        return {
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "message_id": message_id,
+            "part": part,
+            "filename": filename,
+            "content_type": content_type,
+            "bytes": len(data),
+            "characters": len(text),
+            "text": text,
+        }
+
+    async def _run(self, function, *args):
+        try:
+            return await asyncio.to_thread(function, *args)
+        except ServiceError:
+            raise
+        except (ValueError, TypeError) as exc:
+            raise ServiceError("invalid_input", str(exc)) from exc
+        except Exception as exc:
+            raise _upstream_error(exc) from exc
+
+
+class _HTMLText(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        if data.strip():
+            self.parts.append(data.strip())
+
+
+def _decoded_text(data: bytes) -> str:
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ServiceError("attachment_malformed", "The attachment is not valid UTF-8 text.") from exc
+
+
+def _docx_text(data: bytes) -> str:
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            if any(info.flag_bits & 0x1 for info in archive.infolist()):
+                raise ServiceError("attachment_encrypted", "Encrypted DOCX attachments are not supported.")
+            document = ET.fromstring(archive.read("word/document.xml"))
+    except ServiceError:
+        raise
+    except (zipfile.BadZipFile, KeyError, ET.ParseError) as exc:
+        raise ServiceError("attachment_malformed", "The DOCX attachment could not be parsed.") from exc
+    except RuntimeError as exc:
+        if "encrypted" in str(exc).lower():
+            raise ServiceError("attachment_encrypted", "Encrypted DOCX attachments are not supported.") from exc
+        raise ServiceError("attachment_malformed", "The DOCX attachment could not be parsed.") from exc
+    paragraphs = []
+    for paragraph in document.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p"):
+        text = "".join(node.text or "" for node in paragraph.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t"))
+        if text:
+            paragraphs.append(text)
+    return "\n".join(paragraphs)
+
+
+def _pdf_text(data: bytes) -> str:
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        if reader.is_encrypted:
+            raise ServiceError("attachment_encrypted", "Encrypted PDF attachments are not supported.")
+        return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+    except ServiceError:
+        raise
+    except Exception as exc:
+        raise ServiceError("attachment_malformed", "The PDF attachment could not be parsed.") from exc
+
+
+def _extract_attachment_text(data: bytes, filename: str, content_type: str) -> str:
+    suffix = PurePath(filename).suffix.lower()
+    if content_type == "application/pdf" or suffix == ".pdf":
+        return _pdf_text(data)
+    if content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or suffix == ".docx":
+        return _docx_text(data)
+    text_types = {".txt", ".csv", ".json", ".xml", ".html", ".htm", ".log"}
+    if content_type.startswith("text/") or content_type in {"application/json", "application/xml"} or suffix in text_types:
+        text = _decoded_text(data)
+        if content_type == "text/html" or suffix in {".html", ".htm"}:
+            parser = _HTMLText()
+            try:
+                parser.feed(text)
+            except Exception as exc:
+                raise ServiceError("attachment_malformed", "The HTML attachment could not be parsed.") from exc
+            return "\n".join(parser.parts)
+        if content_type == "application/json" or suffix == ".json":
+            try:
+                json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ServiceError("attachment_malformed", "The JSON attachment could not be parsed.") from exc
+        if content_type == "text/csv" or suffix == ".csv":
+            try:
+                list(csv.reader(io.StringIO(text)))
+            except csv.Error as exc:
+                raise ServiceError("attachment_malformed", "The CSV attachment could not be parsed.") from exc
+        if content_type in {"application/xml", "text/xml"} or suffix == ".xml":
+            try:
+                ET.fromstring(text)
+            except ET.ParseError as exc:
+                raise ServiceError("attachment_malformed", "The XML attachment could not be parsed.") from exc
+        return text
+    raise ServiceError("attachment_unsupported", "This attachment type cannot be converted to text.")

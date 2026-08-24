@@ -1,0 +1,257 @@
+/* Wallpaper settings card. */
+
+.card {
+  list-style: none;
+  margin: 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+  transition: border-color .16s, background .16s;
+}
+
+.card:hover {
+  border-color: var(--dsw-alias-label-dimmed);
+}
+
+.cardOpen {
+  background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-label-dimmed);
+}
+
+.header {
+  width: 100%;
+  appearance: none;
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header:focus-visible,
+.select:focus-visible,
+.button:focus-visible,
+.buttonPrimary:focus-visible,
+.range:focus-visible,
+.cropStage:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+
+.head {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chevron {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform .16s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.body {
+  margin: 0 16px;
+  padding: 14px 0 16px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.description {
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+  line-height: 1.4;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editorGrid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 1fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.tuning {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.value {
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary));
+  font-variant-numeric: tabular-nums;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.select,
+.file,
+.button,
+.buttonPrimary,
+.range {
+  font: inherit;
+  font-size: 13px;
+}
+
+.select,
+.button,
+.buttonPrimary {
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-layer-3);
+  border-color: transparent;
+}
+
+.button:disabled,
+.buttonPrimary:disabled,
+.select:disabled,
+.range:disabled,
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.preview {
+  position: relative;
+  width: 100%;
+  min-height: 120px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-base);
+  border: 1px solid var(--dsw-alias-border-l2);
+  isolation: isolate;
+}
+
+.previewImage,
+.previewScrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.previewImage {
+  background-repeat: no-repeat;
+}
+
+.previewScrim {
+  background: var(--dsw-alias-bg-base);
+}
+
+.previewEmpty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.cropStage {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-base);
+  touch-action: none;
+  cursor: grab;
+  max-width: 100%;
+}
+
+.cropStage:active {
+  cursor: grabbing;
+}
+
+.cropImage {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hint,
+.status,
+.error {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dsw-alias-label-secondary);
+  margin: 0;
+}
+
+.error {
+  color: var(--dsw-alias-label-error);
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.range {
+  width: 100%;
+  accent-color: var(--dsw-alias-brand-primary);
+}
+
+@media (max-width: 520px) {
+  .editorGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .controls > .button,
+  .controls > .buttonPrimary {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

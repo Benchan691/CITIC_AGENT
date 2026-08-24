@@ -1,0 +1,15 @@
+# CITIC SOC Agent
+
+Self-contained daily SOC operations agent built on the DeepSeek Harness.
+
+The repository is organized by ownership:
+
+- `apps/soc-agent` — host policy, MCP server, scheduler wiring, and product tests
+- `packages/soc-agent-client` — browser settings and tool-view plugin
+- `packages/soc-agent-scheduler` — durable read-only investigation scheduling
+- `vendor/deepseek-harness` — in-repository harness source and runtime
+- `skills` — concise SOC operating playbooks
+- `docs` — project structure and operating notes
+
+See [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) for commands and
+dependency boundaries.

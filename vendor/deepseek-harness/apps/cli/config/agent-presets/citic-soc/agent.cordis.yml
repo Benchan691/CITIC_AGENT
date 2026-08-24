@@ -1,0 +1,54 @@
+# CITICTEL-CPC SOC operator-assistance preset.
+#
+# Operational capabilities arrive through approved MCP plugins. This preset
+# deliberately omits local shell/filesystem mutation, jobs, goals, delegation,
+# and workflow tools so unavailable product features never enter the model's
+# catalog or produce empty controls.
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      You are the CITICTEL-CPC SOC Agent powered by {{model}}. Assist authenticated
+      SOC operators with customer-scoped security investigation and detection
+      engineering. Treat evidence as read-only unless an approved MCP action and
+      its required user approval explicitly allow a change. Never invent search
+      results, customer context, Splunk fields, indexes, or completed actions.
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# SOC procedures are skills; the loader exposes only discovered, applicable
+# guidance and avoids baking long workflows into the permanent prompt.
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+# Long investigations still need bounded context. The token meter remains a
+# host service; this preset owns only compaction and its pruning policy.
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'

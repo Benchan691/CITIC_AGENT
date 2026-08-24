@@ -1,0 +1,83 @@
+/** `settings.wallpaper` namespace dictionaries. */
+
+/** Simplified Chinese dictionary (the key-set source of truth). */
+export const zh = {
+  'card.title': '界面背景',
+  'card.description': '为壳层、侧栏和对话区上传背景图，并调节透明度与遮罩以便阅读。',
+  'expand': '展开',
+  'collapse': '收起',
+  'surface.label': '区域',
+  'surface.shell': '整体壳层',
+  'surface.sidebar': '侧栏',
+  'surface.conversation': '对话区',
+  'enabled': '启用背景',
+  'opacity': '图片透明度',
+  'scrim': '底色遮罩',
+  'scrim.hint': '提高遮罩可让文字更清晰。',
+  'fit': '填充方式',
+  'fit.cover': '裁剪填充',
+  'fit.contain': '完整显示',
+  'fit.fill': '拉伸',
+  'position.x': '水平位置',
+  'position.y': '垂直位置',
+  'upload': '上传图片',
+  'upload.direct': '直接使用原图',
+  'clear': '清除',
+  'preview': '预览',
+  'crop.hint': '拖动平移，滚轮缩放。可裁剪后上传，或直接使用原图。',
+  'crop.stage': '背景图裁剪区',
+  'crop.zoom': '缩放',
+  'crop.confirm': '裁剪并上传',
+  'crop.cancel': '取消',
+  'busy': '处理中…',
+  'error.upload': '上传失败，请重试（图片需小于 5MB）。',
+  'error.type': '仅支持 PNG、JPEG、WebP。',
+  'error.size': '图片必须小于 5MB。',
+  'error.save': '无法保存背景设置，请重试。',
+  'readOnly': '远程会话无法写入背景设置。',
+  'percent': '{value}%',
+} satisfies Record<string, string>
+
+/** The settings.wallpaper namespace key union. */
+export type WallpaperKey = keyof typeof zh
+
+/** English dictionary, checked complete against the zh key set. */
+export const en = {
+  'card.title': 'UI backgrounds',
+  'card.description': 'Upload backgrounds for the shell, sidebar, and conversation; tune opacity and scrim for readability.',
+  'expand': 'Expand',
+  'collapse': 'Collapse',
+  'surface.label': 'Surface',
+  'surface.shell': 'App shell',
+  'surface.sidebar': 'Sidebar',
+  'surface.conversation': 'Conversation',
+  'enabled': 'Enable background',
+  'opacity': 'Image opacity',
+  'scrim': 'Color scrim',
+  'scrim.hint': 'Increase the scrim to keep text readable.',
+  'fit': 'Fit',
+  'fit.cover': 'Cover',
+  'fit.contain': 'Contain',
+  'fit.fill': 'Stretch',
+  'position.x': 'Horizontal position',
+  'position.y': 'Vertical position',
+  'upload': 'Upload image',
+  'upload.direct': 'Use original',
+  'clear': 'Clear',
+  'preview': 'Preview',
+  'crop.hint': 'Drag to pan, scroll to zoom. Crop before upload, or use the original image.',
+  'crop.stage': 'Wallpaper crop area',
+  'crop.zoom': 'Zoom',
+  'crop.confirm': 'Crop & upload',
+  'crop.cancel': 'Cancel',
+  'busy': 'Working…',
+  'error.upload': 'Upload failed. Try again (max 5MB).',
+  'error.type': 'Only PNG, JPEG, and WebP are supported.',
+  'error.size': 'The image must be smaller than 5MB.',
+  'error.save': 'Could not save the wallpaper setting. Try again.',
+  'readOnly': 'Remote sessions cannot write wallpaper settings.',
+  'percent': '{value}%',
+} satisfies Record<WallpaperKey, string>
+
+/** Locale namespace owned by the wallpaper settings card. */
+export const SETTINGS_NS = 'settings.wallpaper'

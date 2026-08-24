@@ -1,0 +1,16 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@deepseek-ai/dsh-soc-agent-scheduler':
+        specifier: link:../../packages/soc-agent-scheduler
+        version: link:../../packages/soc-agent-scheduler
+      dsh-soc-agent-client:
+        specifier: link:../../packages/soc-agent-client
+        version: link:../../packages/soc-agent-client
