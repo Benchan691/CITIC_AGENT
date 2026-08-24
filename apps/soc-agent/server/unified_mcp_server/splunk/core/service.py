@@ -7,6 +7,7 @@ capabilities compose it independently.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Callable, Coroutine
 from typing import Any
 
@@ -14,10 +15,12 @@ from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 
 from .client import SplunkAPIError, SplunkClient
-from .guardrails import has_blocked_write_operation, sanitize_output, validate_spl_query
+from .guardrails import blocked_spl_commands, sanitize_output, validate_spl_query
 
 
 class SplunkCore:
+    MAX_RESULT_CHARS = 20_000
+
     def __init__(
         self,
         settings: SplunkSettings,
@@ -39,6 +42,7 @@ class SplunkCore:
             raise ServiceError("invalid_input", "query cannot be empty")
         scored_query = f"{query} earliest={earliest_time} latest={latest_time}"
         risk_score, risk_message = validate_spl_query(scored_query, self.settings.safe_timerange)
+        blocked_commands = blocked_spl_commands(query)
         return {
             "query": query,
             "earliest_time": earliest_time,
@@ -46,14 +50,46 @@ class SplunkCore:
             "risk_score": risk_score,
             "risk_message": risk_message,
             "risk_tolerance": self.settings.risk_tolerance,
+            "blocked_commands": blocked_commands,
             "would_execute": (
                 risk_score <= self.settings.risk_tolerance
-                and not has_blocked_write_operation(query)
+                and not blocked_commands
             ),
         }
 
     def sanitize(self, value: Any) -> Any:
         return sanitize_output(value) if self.settings.sanitize_output else value
+
+    def bound_events(
+        self,
+        events: list[dict[str, Any]],
+        character_limit: int | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """Keep a complete leading event prefix within one JSON character budget."""
+        limit = character_limit or self.MAX_RESULT_CHARS
+        bounded: list[dict[str, Any]] = []
+        characters = 2  # JSON list brackets.
+        first_omitted_characters = 0
+        for event in events:
+            encoded = json.dumps(event, ensure_ascii=True, separators=(",", ":"))
+            additional = len(encoded) + (1 if bounded else 0)
+            if characters + additional > limit:
+                first_omitted_characters = len(encoded)
+                break
+            bounded.append(event)
+            characters += additional
+        truncated = len(bounded) < len(events)
+        metadata: dict[str, Any] = {
+            "received_count": len(events),
+            "returned_count": len(bounded),
+            "characters": characters,
+            "character_limit": limit,
+            "truncated": truncated,
+        }
+        if truncated:
+            metadata["first_omitted_event_characters"] = first_omitted_characters
+            metadata["hint"] = "Retry with fields limited to the evidence needed."
+        return bounded, metadata
 
     async def request(
         self,

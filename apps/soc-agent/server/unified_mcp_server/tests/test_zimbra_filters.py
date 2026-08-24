@@ -58,7 +58,7 @@ def test_parse_and_serialize_zimbra_filter_rules():
     parsed = EmailFilter.from_zimbra(rule_xml(), order=1)
 
     assert parsed.name == "Inbox alerts"
-    assert parsed.tests[0] == FilterTest("header", "contains", "alert", "Subject", False)
+    assert parsed.tests[0] == FilterTest("subject", "contains", "alert", "Subject", False)
     assert parsed.actions[0] == FilterAction("file_into", folder="/Inbox")
 
     xml = serialize_filter_rules([parsed])
@@ -84,6 +84,37 @@ def test_parse_canonical_zimbra_filter_elements():
     assert parsed.tests[1].value == "50K"
     assert parsed.actions[0].tag == "review"
     assert parsed.actions[1].address == "ops@example.com"
+
+
+@pytest.mark.parametrize(
+    ("test_type", "operator"),
+    [
+        *(('header', operator) for operator in ('is', 'contains', 'matches', 'exists', 'not_exists')),
+        *(('subject', operator) for operator in ('is', 'contains', 'matches', 'exists', 'not_exists')),
+        *(('body', operator) for operator in ('is', 'contains', 'matches')),
+        ('attachment', 'exists'), ('attachment', 'not_exists'),
+        ('size', 'over'), ('size', 'under'),
+        ('date', 'before'), ('date', 'after'),
+    ],
+)
+def test_supported_filter_tests_round_trip_semantically(test_type, operator):
+    test = {"type": test_type, "operator": operator}
+    if test_type == "header":
+        test["field"] = "X-SOC-Test"
+    if operator not in {"exists", "not_exists"}:
+        test["value"] = "10K" if test_type == "size" else "1700000000" if test_type == "date" else "alert"
+    rule = EmailFilter.from_payload({
+        **valid_payload(name="Round trip", tests=[test]),
+        "order": 1,
+    })
+
+    parsed = EmailFilter.from_zimbra(rule.to_zimbra(), order=1).tests[0]
+
+    assert (parsed.type, parsed.operator, parsed.value) == (
+        test_type, operator, test.get("value", ""),
+    )
+    if test_type == "header":
+        assert parsed.field == "X-SOC-Test"
 
 
 def test_modify_filter_rules_uses_the_expected_soap_request(monkeypatch):
@@ -192,6 +223,31 @@ async def test_concurrent_modification_is_rejected(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_write_is_blocked_when_an_existing_rule_cannot_round_trip(monkeypatch):
+    unsupported = ET.fromstring(
+        '<filterRule name="Unsupported" active="1"><filterTests condition="allof">'
+        '<addressTest header="From" value="sender@example.com"/></filterTests>'
+        '<filterActions><actionKeep/></filterActions></filterRule>'
+    )
+    fake_zimbra(monkeypatch, rules=[rule_xml(), unsupported])
+    monkeypatch.setattr(
+        filter_module,
+        "zimbra_modify_filter_rules",
+        lambda *args, **kwargs: pytest.fail("unsafe rules must never be rewritten"),
+    )
+    service = ZimbraFilterService(settings(allow_filter_write=True))
+    current = await service.list_email_filters()
+
+    with pytest.raises(ServiceError) as error:
+        await service.create_email_filter(
+            valid_payload(name="New rule"), current["fingerprint"]
+        )
+
+    assert error.value.code == "filter_round_trip_unsafe"
+    assert current["filters"][1]["round_trip_safe"] is False
+
+
+@pytest.mark.asyncio
 async def test_enable_disable_and_ordering_use_complete_ordered_set(monkeypatch):
     rules = [rule_xml("First"), rule_xml("Second", active="0")]
     fake_zimbra(monkeypatch, rules=rules)
@@ -212,6 +268,30 @@ async def test_enable_disable_and_ordering_use_complete_ordered_set(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_dangerous_filter_can_be_disabled_without_dangerous_action_gate(monkeypatch):
+    redirect = ET.fromstring(
+        '<filterRule name="Redirect" active="1"><filterTests condition="allof">'
+        '<headerTest header="Subject" stringComparison="contains" value="alert"/></filterTests>'
+        '<filterActions><actionRedirect a="external@example.com"/></filterActions></filterRule>'
+    )
+    fake_zimbra(monkeypatch, rules=[redirect])
+    service = ZimbraFilterService(settings(allow_filter_write=True, allow_filter_redirect=False))
+    current = [EmailFilter.from_zimbra(redirect, order=1)]
+
+    async def fake_write(account, proposed, expected):
+        assert proposed[0].enabled is False
+        return service._fingerprint(proposed)
+
+    monkeypatch.setattr(service, "_write_rules", fake_write)
+
+    result = await service.set_email_filter_enabled(
+        "Redirect", False, service._fingerprint(current)
+    )
+
+    assert result["filter"]["enabled"] is False
+
+
+@pytest.mark.asyncio
 async def test_multi_account_selection_uses_selected_credentials(monkeypatch, tmp_path):
     captured = []
     store = AccountStore(str(tmp_path / "accounts.enc"), str(tmp_path / "accounts.key"))
@@ -221,8 +301,70 @@ async def test_multi_account_selection_uses_selected_credentials(monkeypatch, tm
     monkeypatch.setattr(filter_module, "zimbra_get_filter_rules", lambda *args, **kwargs: [rule_xml()])
     service = ZimbraFilterService(settings(email="", password=""), store)
 
-    await service.list_email_filters(second.id)
+    result = await service.list_email_filters(second.id)
 
     assert captured[0]["zimbra_email"] == "two@example.com"
     assert captured[0]["zimbra_username"] == "two-user"
     assert captured[0]["zimbra_password"] == "two-secret"
+    assert result["details_included"] is False
+    assert result["filters"] == [{
+        "name": "Inbox alerts", "enabled": True, "order": 1,
+        "round_trip_safe": True,
+    }]
+
+
+@pytest.mark.asyncio
+async def test_filter_listing_includes_full_rules_only_when_requested(monkeypatch):
+    fake_zimbra(monkeypatch)
+    service = ZimbraFilterService(settings())
+
+    result = await service.list_email_filters(include_details=True)
+
+    assert result["details_included"] is True
+    assert result["filters"][0]["tests"][0]["field"] == "Subject"
+
+
+@pytest.mark.asyncio
+async def test_filter_operation_reuses_one_token_per_consistency_phase(monkeypatch):
+    rules = [rule_xml()]
+    logins = []
+    filter_tokens = []
+    folder_tokens = []
+    write_tokens = []
+
+    def login(_config):
+        token = f"token-{len(logins) + 1}"
+        logins.append(token)
+        return token
+
+    monkeypatch.setattr(filter_module, "zimbra_login", login)
+    monkeypatch.setattr(
+        filter_module,
+        "zimbra_get_filter_rules",
+        lambda _host, token, **_options: filter_tokens.append(token) or rules,
+    )
+    monkeypatch.setattr(
+        filter_module,
+        "zimbra_list_folders",
+        lambda _host, token, **_options: folder_tokens.append(token)
+        or [{"id": "2", "name": "Inbox", "path": "/Inbox"}],
+    )
+    monkeypatch.setattr(
+        filter_module,
+        "zimbra_modify_filter_rules",
+        lambda _host, token, _xml, **_options: write_tokens.append(token),
+    )
+    service = ZimbraFilterService(settings(allow_filter_write=True))
+    fingerprint = service._fingerprint(
+        [EmailFilter.from_zimbra(rules[0], order=1)]
+    )
+
+    await service.create_email_filter(
+        valid_payload(name="Second rule"),
+        fingerprint,
+    )
+
+    assert logins == ["token-1"]
+    assert filter_tokens == ["token-1", "token-1"]
+    assert folder_tokens == ["token-1"]
+    assert write_tokens == ["token-1"]

@@ -1,10 +1,11 @@
 import pytest
+import httpx
 
 from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.splunk.core.service import SplunkCore
 from unified_mcp_server.splunk.search.service import SplunkSearchService
-from unified_mcp_server.splunk.splunk_client import SplunkClient
+from unified_mcp_server.splunk.splunk_client import SplunkAPIError, SplunkClient
 
 
 def settings(**overrides):
@@ -140,6 +141,19 @@ async def test_lookup_client_uses_read_only_rest_endpoint_and_filters():
 
 
 @pytest.mark.asyncio
+async def test_index_connection_failure_has_actionable_message():
+    class HttpClient:
+        async def get(self, _path, params=None):
+            raise httpx.ConnectError("All connection attempts failed")
+
+    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
+    client._client = HttpClient()
+
+    with pytest.raises(SplunkAPIError, match="Could not reach Splunk at the configured URL"):
+        await client.get_indexes()
+
+
+@pytest.mark.asyncio
 async def test_saved_search_client_uses_read_only_name_filter():
     class Response:
         def raise_for_status(self):
@@ -194,3 +208,82 @@ def test_inputlookup_is_readable_and_outputlookup_is_blocked():
     assert output_validation["would_execute"] is False
     assert output_validation_without_pipe["risk_score"] == 100
     assert output_validation_without_pipe["would_execute"] is False
+
+
+@pytest.mark.asyncio
+async def test_saved_search_stops_polling_on_failed_job_state():
+    class Response:
+        text = "{}"
+
+        def __init__(self, payload):
+            self.payload = payload
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self.payload
+
+    class HttpClient:
+        async def post(self, path, data, params=None):
+            return Response({"sid": "job-1"})
+
+        async def get(self, path, params):
+            return Response({"entry": [{"content": {"dispatchState": "FAILED"}}]})
+
+    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
+    client._client = HttpClient()
+
+    with pytest.raises(Exception, match="terminal state FAILED"):
+        await client.run_saved_search("Failed search")
+
+
+@pytest.mark.asyncio
+async def test_saved_search_timeout_cancels_the_remote_job():
+    class Response:
+        text = "{}"
+
+        def __init__(self, payload=None):
+            self.payload = payload or {}
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self.payload
+
+    class HttpClient:
+        def __init__(self):
+            self.posts = []
+
+        async def post(self, path, data, params=None):
+            self.posts.append((path, data, params))
+            return Response({"sid": "job-2"})
+
+        async def get(self, path, params):
+            return Response({"entry": [{"content": {"dispatchState": "RUNNING"}}]})
+
+    client = SplunkClient({
+        "splunk_host": "splunk.example.com", "splunk_port": 8089, "job_timeout": 0,
+    })
+    client._client = HttpClient()
+
+    with pytest.raises(Exception, match="timed out"):
+        await client.run_saved_search("Slow search")
+
+    assert client._client.posts[-1] == (
+        "/services/search/jobs/job-2/control",
+        {"action": "cancel"},
+        {"output_mode": "json"},
+    )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    ["{broken", '{"messages":[{"type":"ERROR","text":"failed"}]}', '{"results":["not-an-object"]}'],
+)
+def test_splunk_result_parser_rejects_malformed_or_message_only_payloads(payload):
+    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
+
+    with pytest.raises(SplunkAPIError):
+        client._parse_response(payload)

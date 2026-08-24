@@ -25,9 +25,9 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         return await execute(ctx, "zimbra", "create_folder", lambda: get_runtime(ctx).zimbra_mail.create_folder(name, parent_id, account_id))
 
     @server.tool()
-    async def zimbra_search_emails(ctx: Context, query: str, limit: int = 20, account_id: str = "") -> dict[str, Any]:
-        """Search Zimbra using native query syntax and return message metadata."""
-        return await execute(ctx, "zimbra", "search_emails", lambda: get_runtime(ctx).zimbra_mail.search_emails(query, limit, account_id))
+    async def zimbra_search_emails(ctx: Context, query: str, limit: int = 20, account_id: str = "", offset: int = 0) -> dict[str, Any]:
+        """Search one page of Zimbra message metadata using native query syntax."""
+        return await execute(ctx, "zimbra", "search_emails", lambda: get_runtime(ctx).zimbra_mail.search_emails(query, limit, account_id, offset))
 
     @server.tool()
     async def zimbra_get_email(ctx: Context, message_id: str, account_id: str = "", max_body_chars: int = 20_000) -> dict[str, Any]:
@@ -35,9 +35,14 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         return await execute(ctx, "zimbra", "get_email", lambda: get_runtime(ctx).zimbra_mail.get_email(message_id, account_id, max_body_chars))
 
     @server.tool()
-    async def zimbra_get_attachment_text(ctx: Context, message_id: str, part: str, account_id: str = "") -> dict[str, Any]:
-        """Download one bounded Zimbra attachment and extract supported evidence text."""
-        return await execute(ctx, "zimbra", "get_attachment_text", lambda: get_runtime(ctx).zimbra_mail.get_attachment_text(message_id, part, account_id))
+    async def zimbra_get_email_headers(ctx: Context, message_id: str, account_id: str = "", names: list[str] | None = None) -> dict[str, Any]:
+        """Retrieve selected untrusted authentication and routing headers without the body."""
+        return await execute(ctx, "zimbra", "get_email_headers", lambda: get_runtime(ctx).zimbra_mail.get_email_headers(message_id, account_id, names))
+
+    @server.tool()
+    async def zimbra_get_attachment_text(ctx: Context, message_id: str, part: str, account_id: str = "", max_chars: int = 20_000) -> dict[str, Any]:
+        """Download one bounded Zimbra attachment and return bounded evidence text."""
+        return await execute(ctx, "zimbra", "get_attachment_text", lambda: get_runtime(ctx).zimbra_mail.get_attachment_text(message_id, part, account_id, max_chars))
 
     @server.tool()
     async def zimbra_create_email_draft(
@@ -81,3 +86,8 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
                 to, subject, body, account_id, cc=cc, bcc=bcc,
             ),
         )
+
+    @server.tool()
+    async def zimbra_move_email(ctx: Context, message_id: str, folder_id: str, account_id: str = "") -> dict[str, Any]:
+        """Move one message to a validated folder and verify it; requires ZIMBRA_ALLOW_MOVE."""
+        return await execute(ctx, "zimbra", "move_email", lambda: get_runtime(ctx).zimbra_mail.move_email(message_id, folder_id, account_id))

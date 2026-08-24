@@ -5,7 +5,8 @@ import css from './SplunkZimbraOverlay.module.css'
 type Task = {
   id: string
   name: string
-  prompt: string
+  promptCharacters: number
+  promptSha256: string
   rule: { kind: 'once'; at: string } | { kind: 'cron'; expression: string; timeZone: string }
   status: 'active' | 'paused' | 'completed'
   nextRunAt: string | null
@@ -117,7 +118,7 @@ export function SchedulerSettings({ connection, openSession }: {
       React.createElement('label', { className: css.fieldLabel }, 'Name'),
       React.createElement('input', { className: css.input, value: name, maxLength: 120, onChange: (event: React.ChangeEvent<HTMLInputElement>) => setName(event.target.value) }),
       React.createElement('label', { className: css.fieldLabel }, 'Investigation prompt'),
-      React.createElement('textarea', { className: css.textarea, value: prompt, maxLength: 20000, rows: 5, onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => setPrompt(event.target.value) }),
+      React.createElement('textarea', { className: css.textarea, value: prompt, maxLength: 8000, rows: 5, onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => setPrompt(event.target.value) }),
       React.createElement('div', { className: css.row },
         React.createElement('label', null, 'Rule'),
         React.createElement('select', { className: css.input, value: kind, onChange: (event: React.ChangeEvent<HTMLSelectElement>) => setKind(event.target.value as 'once' | 'cron') },
@@ -144,7 +145,9 @@ export function SchedulerSettings({ connection, openSession }: {
           task.status === 'active' ? React.createElement('button', { className: css.secondaryButton, type: 'button', onClick: () => { void mutate('pause', { id: task.id }) } }, 'Pause') : null,
           task.status === 'paused' ? React.createElement('button', { className: css.secondaryButton, type: 'button', onClick: () => { void mutate('resume', { id: task.id }) } }, 'Resume') : null,
           React.createElement('button', { className: css.secondaryButton, type: 'button', onClick: () => { void mutate('run-now', { id: task.id }) } }, 'Run now'),
-          React.createElement('button', { className: css.deleteButton, type: 'button', onClick: () => { void mutate('delete', { id: task.id }) } }, 'Delete'),
+          React.createElement('button', { className: css.deleteButton, type: 'button', onClick: () => {
+            if (window.confirm(`Delete scheduled task “${task.name}”?`)) void mutate('delete', { id: task.id })
+          } }, 'Delete'),
         ),
       )),
     ),
@@ -159,5 +162,3 @@ export function SchedulerSettings({ connection, openSession }: {
     ),
   )
 }
-
-export const ScheduledTasksForm = SchedulerSettings

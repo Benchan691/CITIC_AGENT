@@ -45,8 +45,16 @@ class FakeClient:
     async def search_oneshot(self, *args):
         return [{"event": "match"}]
 
-    async def get_saved_search(self, name):
-        return {"name": name, "content": {"search": "index=main error"}, "acl": {}}
+    async def get_saved_search(self, name, app="", owner=""):
+        return {
+            "name": name,
+            "content": {
+                "search": "index=main error",
+                "disabled": "1",
+                "actions": "",
+            },
+            "acl": {"app": app, "owner": owner},
+        }
 
     async def create_saved_search(self, fields):
         return {"entry": [{"name": fields["name"]}]}
@@ -71,7 +79,7 @@ async def test_detection_service_backtests_and_writes_through_core():
     detection = SplunkDetectionService(core)
 
     result = await detection.backtest_detection({"name": "test", "spl": "index=main error"})
-    assert result["match_count"] == 1
+    assert result["sample_count"] == 1
     created = await detection.create_detection_draft({"name": "test", "spl": "index=main error"})
     assert created["enabled"] is False
     await core.close()

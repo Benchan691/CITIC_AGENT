@@ -21,14 +21,19 @@ class SplunkSearchService:
         query: str,
         earliest_time: str = "-24h",
         latest_time: str = "now",
-        max_count: int = 100,
+        max_count: int = 50,
         fields: list[str] | None = None,
     ) -> dict[str, Any]:
         validation = self.validate(query, earliest_time, latest_time)
         if not validation["would_execute"]:
+            reason = (
+                "The SPL query contains a command blocked by the safety policy."
+                if validation["blocked_commands"]
+                else "The SPL query exceeds the configured risk tolerance."
+            )
             raise ServiceError(
                 "query_blocked",
-                "The SPL query exceeds the configured risk tolerance.",
+                reason,
                 details=validation,
             )
         limit = min(max(1, int(max_count)), self.core.settings.max_events)
@@ -46,14 +51,19 @@ class SplunkSearchService:
                 {field: event[field] for field in selected_fields if field in event}
                 for event in events
             ]
+        events, event_budget = self.core.bound_events(events)
         return {
             "query": query,
             "earliest_time": earliest_time,
             "latest_time": latest_time,
             "event_count": len(events),
             "events": events,
+            "event_budget": event_budget,
             "fields": selected_fields,
-            "validation": validation,
+            "risk": {
+                "score": validation["risk_score"],
+                "tolerance": validation["risk_tolerance"],
+            },
         }
 
     async def test_connection(self) -> dict[str, Any]:
@@ -115,7 +125,7 @@ class SplunkSearchService:
     async def run_saved_search(
         self,
         name: str,
-        max_count: int = 100,
+        max_count: int = 50,
         app: str = "",
         owner: str = "",
     ) -> dict[str, Any]:
@@ -124,4 +134,9 @@ class SplunkSearchService:
             raise ServiceError("invalid_input", "name cannot be empty")
         limit = min(max(1, int(max_count)), self.core.settings.max_events)
         result = await self.core.request(lambda client: client.run_saved_search(name, False, limit, app.strip(), owner.strip()))
-        return self.core.sanitize(result)
+        result = self.core.sanitize(result)
+        events = result.get("events") if isinstance(result, dict) else None
+        if isinstance(events, list):
+            result["events"], result["event_budget"] = self.core.bound_events(events)
+            result["event_count"] = len(result["events"])
+        return result

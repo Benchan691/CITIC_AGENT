@@ -83,6 +83,54 @@ test('cron parser rejects six-field expressions', () => {
   )
 })
 
+test('cron rules reject unsafe high-frequency schedules', () => {
+  assert.throws(
+    () => normalizeRule({ cron: '*/5 * * * *', time_zone: 'UTC' }, 0),
+    error => error.code === 'cron_too_frequent',
+  )
+  assert.equal(
+    normalizeRule({ cron: '*/15 * * * *', time_zone: 'UTC' }, 0).nextRunAt,
+    '1970-01-01T00:15:00.000Z',
+  )
+})
+
+test('task results omit stored prompts and enforce active-task and prompt caps', async () => {
+  const { runtime } = runtimeWith()
+  await runtime.initialize()
+  const first = await runtime.create({
+    name: 'Review 1', prompt: 'sensitive objective', cron: '0 * * * *', time_zone: 'UTC',
+  })
+  assert.equal(first.prompt, undefined)
+  assert.equal(first.promptCharacters, 19)
+  assert.equal(first.promptSha256.length, 64)
+  assert.equal(runtime.list().tasks[0].prompt, undefined)
+  await assert.rejects(
+    runtime.create({ name: 'Too long', prompt: 'x'.repeat(8001), cron: '0 * * * *', time_zone: 'UTC' }),
+    error => error.code === 'invalid_prompt',
+  )
+  for (let index = 2; index <= 20; index += 1) {
+    await runtime.create({ name: `Review ${index}`, prompt: 'Review alerts', cron: '0 * * * *', time_zone: 'UTC' })
+  }
+  await assert.rejects(
+    runtime.create({ name: 'Review 21', prompt: 'Review alerts', cron: '0 * * * *', time_zone: 'UTC' }),
+    error => error.code === 'active_task_limit',
+  )
+  await runtime.close()
+})
+
+test('terminal run retention and list output are bounded', async () => {
+  const { runtime, tables } = runtimeWith()
+  await runtime.initialize()
+  const task = { id: 'task-1' }
+  for (let index = 0; index < 205; index += 1) {
+    await runtime.recordSkipped(task, new Date(index * 60_000).toISOString(), 'skipped_overlap')
+  }
+  assert.equal([...tables.runs.entries()].length, 200)
+  assert.equal(runtime.list().runs.length, 20)
+  assert.equal(runtime.list().runCount, 200)
+  await runtime.close()
+})
+
 test('pause, resume, and delete persist task state', async () => {
   const { runtime, tables } = runtimeWith()
   await runtime.initialize()

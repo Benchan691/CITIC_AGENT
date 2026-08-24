@@ -21,6 +21,83 @@ def _local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
+_TEST_ELEMENTS = {
+    "filtertest", "headertest", "headerexiststest", "sizetest",
+    "datetest", "bodytest", "attachmenttest",
+}
+_ACTION_ELEMENTS = {
+    "filteraction", "actionkeep", "actionfileinto", "actiontag",
+    "actionflag", "actionredirect", "actionstop", "actiondiscard",
+}
+_TEST_ATTRIBUTES = {
+    "filtertest": {"index", "name", "header", "stringComparison", "numberComparison", "dateComparison", "relationalComparison", "comparison", "value", "s", "d", "negative"},
+    "headertest": {"index", "header", "stringComparison", "value", "negative"},
+    "headerexiststest": {"index", "header", "negative"},
+    "sizetest": {"index", "numberComparison", "s", "negative"},
+    "datetest": {"index", "dateComparison", "d", "negative"},
+    "bodytest": {"index", "stringComparison", "value", "negative"},
+    "attachmenttest": {"index", "negative"},
+}
+_ACTION_ATTRIBUTES = {
+    "filteraction": {"index", "name", "folderPath", "folder", "tagName", "tag", "flagName", "flag", "a", "address"},
+    "actionkeep": {"index"},
+    "actionfileinto": {"index", "folderPath", "folder"},
+    "actiontag": {"index", "tagName", "tag"},
+    "actionflag": {"index", "flagName", "flag"},
+    "actionredirect": {"index", "a", "address"},
+    "actionstop": {"index"},
+    "actiondiscard": {"index"},
+}
+
+
+def _unsupported_zimbra_parts(element: ET.Element) -> tuple[str, ...]:
+    unsupported: list[str] = []
+    unknown_rule_attrs = set(element.attrib) - {"name", "active", "enabled"}
+    unsupported.extend(f"rule attribute {name}" for name in sorted(unknown_rule_attrs))
+    containers = {
+        name: [item for item in element if _local_name(item.tag).lower() == name]
+        for name in ("filtertests", "filteractions")
+    }
+    for name, items in containers.items():
+        if len(items) != 1:
+            unsupported.append(f"{name} container count {len(items)}")
+    known_containers = {item for items in containers.values() for item in items}
+    for item in element:
+        if item not in known_containers:
+            unsupported.append(f"rule element {_local_name(item.tag)}")
+    for container in containers["filtertests"]:
+        unsupported.extend(f"filterTests attribute {name}" for name in sorted(set(container.attrib) - {"condition"}))
+        for item in container:
+            name = _local_name(item.tag).lower()
+            if name not in _TEST_ELEMENTS:
+                unsupported.append(f"test element {_local_name(item.tag)}")
+                continue
+            unsupported.extend(
+                f"{_local_name(item.tag)} attribute {attr}"
+                for attr in sorted(set(item.attrib) - _TEST_ATTRIBUTES[name])
+            )
+            if name == "filtertest" and _text(item.get("name")).lower().replace("-", "_") not in {
+                "header", "header_exists", "subject", "body", "attachment", "size", "date",
+            }:
+                unsupported.append(f"filtertest type {_text(item.get('name')) or '<missing>'}")
+    for container in containers["filteractions"]:
+        unsupported.extend(f"filterActions attribute {name}" for name in sorted(container.attrib))
+        for item in container:
+            name = _local_name(item.tag).lower()
+            if name not in _ACTION_ELEMENTS:
+                unsupported.append(f"action element {_local_name(item.tag)}")
+                continue
+            unsupported.extend(
+                f"{_local_name(item.tag)} attribute {attr}"
+                for attr in sorted(set(item.attrib) - _ACTION_ATTRIBUTES[name])
+            )
+            if name == "filteraction" and _text(item.get("name")).lower().replace("-", "_") not in {
+                "keep", "fileinto", "file_into", "tag", "flag", "redirect", "forward", "stop", "discard",
+            }:
+                unsupported.append(f"filteraction type {_text(item.get('name')) or '<missing>'}")
+    return tuple(dict.fromkeys(unsupported))
+
+
 @dataclass(frozen=True)
 class FilterTest:
     type: str
@@ -76,12 +153,19 @@ class FilterTest:
             or element.get("comparison")
             or "contains"
         ).lower()
+        field = _text(element.get("header"))
+        if test_type == "header" and field.casefold() == "subject":
+            test_type = "subject"
+        negative = _bool(element.get("negative"))
+        if operator == "exists" and negative:
+            operator = "not_exists"
+            negative = False
         return cls(
             type=test_type,
             operator=operator,
             value=_text(element.get(mapped[1] if mapped and mapped[1] in {"s", "d", "value"} else "value")),
-            field=_text(element.get("header")),
-            negative=_bool(element.get("negative")),
+            field=field,
+            negative=negative,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -109,21 +193,23 @@ class FilterTest:
             ("subject", "matches"): "headerTest",
             ("subject", "begins"): "headerTest",
             ("subject", "ends"): "headerTest",
-            ("body", "exists"): "bodyTest",
             ("body", "contains"): "bodyTest",
             ("body", "is"): "bodyTest",
             ("body", "matches"): "bodyTest",
             ("attachment", "exists"): "attachmentTest",
+            ("attachment", "not_exists"): "attachmentTest",
             ("size", "over"): "sizeTest",
             ("size", "under"): "sizeTest",
             ("date", "before"): "dateTest",
             ("date", "after"): "dateTest",
         }
-        name = names.get((self.type, self.operator), self.type)
+        name = names.get((self.type, self.operator))
+        if name is None:
+            raise ValueError(f"unsupported filter test: {self.type}/{self.operator}")
         element = ET.Element(name, {"index": str(index)})
         if self.operator:
             if name in {"headerTest", "bodyTest"}:
-                element.set("stringComparison", self.operator) if name == "headerTest" else None
+                element.set("stringComparison", self.operator)
             elif name == "sizeTest":
                 element.set("numberComparison", self.operator)
             elif name == "dateTest":
@@ -138,7 +224,7 @@ class FilterTest:
             element.set("s", self.value)
         elif self.value and name == "dateTest":
             element.set("d", self.value)
-        if self.negative:
+        if self.negative or self.operator == "not_exists":
             element.set("negative", "1")
         return element
 
@@ -243,6 +329,8 @@ class EmailFilter:
     tests: tuple[FilterTest, ...]
     actions: tuple[FilterAction, ...]
     order: int = 1
+    round_trip_safe: bool = True
+    unsupported: tuple[str, ...] = ()
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any], *, default_order: int = 1) -> "EmailFilter":
@@ -283,20 +371,25 @@ class EmailFilter:
             tests=tests,
             actions=actions,
             order=order,
+            round_trip_safe=not (unsupported := _unsupported_zimbra_parts(element)),
+            unsupported=unsupported,
         )
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "enabled": self.enabled,
-            "active": self.enabled,
             "condition": self.condition,
             "tests": [test.to_dict() for test in self.tests],
             "actions": [action.to_dict() for action in self.actions],
             "order": self.order,
+            "round_trip_safe": self.round_trip_safe,
+            "unsupported": list(self.unsupported),
         }
 
     def to_zimbra(self) -> ET.Element:
+        if not self.round_trip_safe:
+            raise ValueError("unsupported existing filter syntax cannot be rewritten safely")
         element = ET.Element("filterRule", {"name": self.name, "active": "1" if self.enabled else "0"})
         tests = ET.SubElement(element, "filterTests", {"condition": self.condition})
         for index, test in enumerate(self.tests):

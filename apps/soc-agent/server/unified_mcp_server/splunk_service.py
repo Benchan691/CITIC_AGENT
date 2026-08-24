@@ -35,7 +35,7 @@ class SplunkService:
     def validate(self, query: str, earliest_time: str = "-24h", latest_time: str = "now") -> dict[str, Any]:
         return self.search_service.validate(query, earliest_time, latest_time)
 
-    async def search(self, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 100, fields: list[str] | None = None) -> dict[str, Any]:
+    async def search(self, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         return await self.search_service.search(query, earliest_time, latest_time, max_count, fields)
 
     async def test_connection(self) -> dict[str, Any]:
@@ -44,7 +44,7 @@ class SplunkService:
     async def list_saved_searches(self, name: str = "", app: str = "", limit: int = 50, include_spl: bool = False) -> dict[str, Any]:
         return await self.search_service.list_saved_searches(name, app, limit, include_spl)
 
-    async def run_saved_search(self, name: str, max_count: int = 100, app: str = "", owner: str = "") -> dict[str, Any]:
+    async def run_saved_search(self, name: str, max_count: int = 50, app: str = "", owner: str = "") -> dict[str, Any]:
         return await self.search_service.run_saved_search(name, max_count, app, owner)
 
     async def get_detection(self, name: str) -> dict[str, Any]:
@@ -53,17 +53,17 @@ class SplunkService:
     def validate_detection(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.detection_service.validate_detection(payload)
 
-    async def backtest_detection(self, payload: dict[str, Any], earliest_time: str = "-7d", latest_time: str = "now", max_count: int = 100) -> dict[str, Any]:
-        return await self.detection_service.backtest_detection(payload, earliest_time, latest_time, max_count)
+    async def backtest_detection(self, payload: dict[str, Any], earliest_time: str = "-7d", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
+        return await self.detection_service.backtest_detection(payload, earliest_time, latest_time, max_count, fields)
 
     async def create_detection_draft(self, payload: dict[str, Any]) -> dict[str, Any]:
         return await self.detection_service.create_detection_draft(payload)
 
-    async def update_detection_draft(self, name: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return await self.detection_service.update_detection_draft(name, payload)
+    async def update_detection_draft(self, name: str, payload: dict[str, Any], expected_fingerprint: str) -> dict[str, Any]:
+        return await self.detection_service.update_detection_draft(name, payload, expected_fingerprint)
 
-    async def set_detection_enabled(self, name: str, enabled: bool) -> dict[str, Any]:
-        return await self.detection_service.set_detection_enabled(name, enabled)
+    async def set_detection_enabled(self, name: str, enabled: bool, expected_fingerprint: str) -> dict[str, Any]:
+        return await self.detection_service.set_detection_enabled(name, enabled, expected_fingerprint)
 
     async def close(self) -> None:
         await self.core.close()

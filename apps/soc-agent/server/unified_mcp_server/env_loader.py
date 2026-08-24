@@ -13,10 +13,13 @@ def server_root() -> Path:
 
 
 def workspace_root() -> Path:
-    explicit = environ.get("MCP_SEVER_ROOT", "").strip()
+    explicit = (
+        environ.get("MCP_SERVER_ROOT", "").strip()
+        or environ.get("MCP_SEVER_ROOT", "").strip()
+    )
     if explicit:
         return Path(explicit)
-    return server_root().parent.parent
+    return server_root().parents[2]
 
 
 def load_server_env() -> None:

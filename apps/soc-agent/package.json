@@ -1,5 +1,6 @@
 {
   "name": "dsh-soc-agent",
+  "private": true,
   "version": "0.1.0",
   "description": "SOC Agent product bundle with Splunk and Zimbra investigation features.",
   "type": "module",

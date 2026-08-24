@@ -13,12 +13,21 @@ test('registers focused connection and scheduled-task settings sections', () => 
 test('exports independent SOC settings components', () => {
   for (const [file, symbol] of [
     ['SplunkSettings.ts', 'SplunkSettings'],
+    ['SubscriptionServerSettings.ts', 'SubscriptionServerSettings'],
     ['ZimbraSettings.ts', 'ZimbraSettings'],
     ['ScheduledTasksForm.ts', 'SchedulerSettings'],
   ]) {
     const source = readFileSync(new URL(`../src/client/${file}`, import.meta.url), 'utf8')
     assert.match(source, new RegExp(`export function ${symbol}`))
   }
+})
+
+test('subscription server connection test stays environment-configured and read-only', () => {
+  const source = readFileSync(new URL('../src/client/SubscriptionServerSettings.ts', import.meta.url), 'utf8')
+  assert.match(source, /test-subscription-server/)
+  assert.match(source, /Test subscription server/)
+  assert.match(source, /server \.env file/)
+  assert.doesNotMatch(source, /SUBSCRIPTION_SERVER_PASSWORD/)
 })
 
 test('keeps Zimbra server configuration in .env and exposes accounts only', () => {

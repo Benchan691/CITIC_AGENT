@@ -10,7 +10,7 @@ test('Harness patch enables the filesystem skill and plan review layers', () => 
   const productRoot = fileURLToPath(new URL('..', import.meta.url))
   const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
   assert.match(patch, /- id: skill\n  disabled: false/)
-  assert.match(patch, /- id: skill-filesystem\n  disabled: false[\s\S]*customSkillDirs:[\s\S]*MCP_SEVER_ROOT/)
+  assert.match(patch, /- id: skill-filesystem\n  disabled: false[\s\S]*customSkillDirs:[\s\S]*MCP_SERVER_ROOT/)
   assert.match(patch, /- id: tool-skill\n  disabled: false/)
   assert.match(patch, /- id: skill-badge\n  disabled: true/)
   assert.match(patch, /- id: ui-skill\n  disabled: false/)
@@ -55,6 +55,8 @@ test('Harness discovers and loads the repository SOC skills through the skill to
       'splunk-investigation',
       'detection-engineering',
       'false-positive-analysis',
+      'soc-shift-operations',
+      'zimbra-operations',
     ]
     const names = (await ctx.skills.list({ cwd: repoRoot })).map(skill => skill.name)
     for (const name of expected) assert.equal(names.includes(name), true, name)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import hashlib
 import io
 import json
 import re
@@ -18,8 +19,10 @@ from pypdf import PdfReader
 from unified_mcp_server.zimbra import (
     download_attachment,
     zimbra_get_message,
+    zimbra_get_message_headers,
     zimbra_list_folders,
     zimbra_login,
+    zimbra_move_message,
     zimbra_search_messages,
     zimbra_send_email,
 )
@@ -27,6 +30,21 @@ from unified_mcp_server.zimbra import (
 from .account_store import AccountStore, StoredAccount
 from .config import ZimbraSettings
 from .errors import ConfigurationError, ServiceError
+
+
+_MAX_DOCX_XML_BYTES = 8_000_000
+_MAX_PDF_PAGES = 100
+_HEADER_NAMES = {
+    name.casefold(): name for name in (
+        "Message-ID", "Reply-To", "Return-Path", "Received",
+        "Authentication-Results", "Received-SPF", "DKIM-Signature",
+        "ARC-Authentication-Results", "From", "To", "Date", "Subject",
+    )
+}
+_DEFAULT_HEADER_NAMES = (
+    "Message-ID", "Reply-To", "Return-Path", "Received",
+    "Authentication-Results", "Received-SPF", "DKIM-Signature",
+)
 
 
 def _upstream_error(exc: Exception) -> ServiceError:
@@ -82,14 +100,28 @@ class ZimbraService:
         folders = await self._run(self._list_folders, account)
         return {"account_id": account.id, "account": account.agent_dict(), **folders}
 
-    async def search_emails(self, query: str, limit: int = 20, account_id: str = "") -> dict[str, Any]:
+    async def search_emails(
+        self,
+        query: str,
+        limit: int = 20,
+        account_id: str = "",
+        offset: int = 0,
+    ) -> dict[str, Any]:
         query = query.strip()
         if not query:
             raise ServiceError("invalid_input", "query cannot be empty")
         limit = min(max(1, int(limit)), 100)
+        offset = min(max(0, int(offset)), 100_000)
         account = self._resolve_account(account_id)
-        messages = await self._run(self._search_emails, account, query, limit)
-        return {"account_id": account.id, "account": account.agent_dict(), "query": query, "count": len(messages), "messages": messages}
+        messages = await self._run(self._search_emails, account, query, limit, offset)
+        return {
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "query": query,
+            "offset": offset,
+            "count": len(messages),
+            "messages": messages,
+        }
 
     async def get_email(
         self,
@@ -114,13 +146,66 @@ class ZimbraService:
         message["account"] = account.agent_dict()
         return message
 
-    async def get_attachment_text(self, message_id: str, part: str, account_id: str = "") -> dict[str, Any]:
+    async def get_email_headers(
+        self,
+        message_id: str,
+        account_id: str = "",
+        names: list[str] | None = None,
+    ) -> dict[str, Any]:
+        message_id = message_id.strip()
+        if not message_id:
+            raise ServiceError("invalid_input", "message_id cannot be empty")
+        raw_names = names if names is not None else list(_DEFAULT_HEADER_NAMES)
+        requested = []
+        for raw_name in raw_names:
+            canonical = _HEADER_NAMES.get(str(raw_name).strip().casefold())
+            if canonical is None:
+                raise ServiceError("invalid_input", "names contains an unsupported email header")
+            if canonical not in requested:
+                requested.append(canonical)
+        if not requested or len(requested) > 12:
+            raise ServiceError("invalid_input", "names must contain between 1 and 12 supported headers")
+        account = self._resolve_account(account_id)
+        result = await self._run(self._get_email_headers, account, message_id, requested)
+        if result is None:
+            raise ServiceError("not_found", "Zimbra message was not found.")
+        return {
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            **result,
+            "untrusted_evidence": True,
+        }
+
+    async def move_email(self, message_id: str, folder_id: str, account_id: str = "") -> dict[str, Any]:
+        if not self.settings.allow_move:
+            raise ServiceError(
+                "operation_disabled",
+                "Zimbra message moves are disabled. Set ZIMBRA_ALLOW_MOVE=true after review.",
+            )
+        message_id = str(message_id or "").strip()
+        folder_id = str(folder_id or "").strip()
+        if not message_id:
+            raise ServiceError("invalid_input", "message_id cannot be empty")
+        if not folder_id.isdigit():
+            raise ServiceError("invalid_input", "folder_id must be a numeric Zimbra folder ID")
+        account = self._resolve_account(account_id)
+        result = await self._run(self._move_email, account, message_id, folder_id)
+        return {"account_id": account.id, "account": account.agent_dict(), **result}
+
+    async def get_attachment_text(
+        self,
+        message_id: str,
+        part: str,
+        account_id: str = "",
+        max_chars: int = 20_000,
+    ) -> dict[str, Any]:
         message_id = message_id.strip()
         part = part.strip()
         if not message_id or not part:
             raise ServiceError("invalid_input", "message_id and part cannot be empty")
+        max_chars = min(max(1, int(max_chars)), self.settings.max_attachment_text_chars)
         account = self._resolve_account(account_id)
-        return await self._run(self._get_attachment_text, account, message_id, part)
+        return await self._run(self._get_attachment_text, account, message_id, part, max_chars)
 
     @staticmethod
     def _recipients(value: list[str] | str | None, field: str) -> list[str]:
@@ -157,7 +242,7 @@ class ZimbraService:
         subject = str(subject or "").strip()
         if not subject:
             raise ServiceError("invalid_input", "subject cannot be empty")
-        account = self._resolve_account(account_id)
+        account = self._resolve_account(account_id, require_host=False)
         return {
             "draft": {
                 "to": recipients,
@@ -219,8 +304,8 @@ class ZimbraService:
             return StoredAccount("legacy", "Legacy account", self.settings.email, "", self.settings.password)
         return None
 
-    def _resolve_account(self, account_id: str) -> StoredAccount:
-        if not self.settings.host:
+    def _resolve_account(self, account_id: str, *, require_host: bool = True) -> StoredAccount:
+        if require_host and not self.settings.host:
             raise ConfigurationError("Zimbra", ["ZIMBRA_HOST"])
         account_id = account_id.strip()
         if account_id:
@@ -253,13 +338,14 @@ class ZimbraService:
         folders = zimbra_list_folders(self.settings.host, token, verify_ssl=self.settings.verify_ssl, timeout=self.settings.timeout)
         return {"count": len(folders), "folders": folders}
 
-    def _search_emails(self, account: StoredAccount, query: str, limit: int) -> list[dict[str, Any]]:
+    def _search_emails(self, account: StoredAccount, query: str, limit: int, offset: int) -> list[dict[str, Any]]:
         token = zimbra_login(self._config(account))
         return zimbra_search_messages(
             self.settings.host,
             token,
             query,
             limit,
+            offset,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
         )
@@ -268,7 +354,64 @@ class ZimbraService:
         token = zimbra_login(self._config(account))
         return zimbra_get_message(self.settings.host, token, message_id, verify_ssl=self.settings.verify_ssl, timeout=self.settings.timeout)
 
-    def _get_attachment_text(self, account: StoredAccount, message_id: str, part: str) -> dict[str, Any]:
+    def _get_email_headers(
+        self,
+        account: StoredAccount,
+        message_id: str,
+        names: list[str],
+    ) -> dict[str, Any] | None:
+        token = zimbra_login(self._config(account))
+        return zimbra_get_message_headers(
+            self.settings.host,
+            token,
+            message_id,
+            names,
+            verify_ssl=self.settings.verify_ssl,
+            timeout=self.settings.timeout,
+        )
+
+    def _move_email(self, account: StoredAccount, message_id: str, folder_id: str) -> dict[str, Any]:
+        token = zimbra_login(self._config(account))
+        options = {"verify_ssl": self.settings.verify_ssl, "timeout": self.settings.timeout}
+        folders = zimbra_list_folders(self.settings.host, token, **options)
+        destination = next((folder for folder in folders if str(folder.get("id", "")) == folder_id), None)
+        if destination is None:
+            raise ServiceError("folder_not_found", "The selected destination folder was not found.")
+        before = zimbra_get_message(self.settings.host, token, message_id, **options)
+        if before is None:
+            raise ServiceError("not_found", "Zimbra message was not found.")
+        original_folder_id = str(before.get("folder_id", ""))
+        if original_folder_id == folder_id:
+            return {
+                "moved": False,
+                "message_id": message_id,
+                "original_folder_id": original_folder_id,
+                "folder": destination,
+            }
+        zimbra_move_message(self.settings.host, token, message_id, folder_id, **options)
+        after = zimbra_get_message(self.settings.host, token, message_id, **options)
+        if after is None or str(after.get("folder_id", "")) != folder_id:
+            raise ServiceError("move_verification_failed", "Zimbra did not confirm the message in the destination folder.")
+        return {
+            "moved": True,
+            "message_id": message_id,
+            "original_folder_id": original_folder_id,
+            "folder": destination,
+            "rollback": {
+                "tool": "zimbra_move_email",
+                "message_id": message_id,
+                "folder_id": original_folder_id,
+                "account_id": account.id,
+            },
+        }
+
+    def _get_attachment_text(
+        self,
+        account: StoredAccount,
+        message_id: str,
+        part: str,
+        max_chars: int,
+    ) -> dict[str, Any]:
         token = zimbra_login(self._config(account))
         message = zimbra_get_message(
             self.settings.host,
@@ -295,8 +438,7 @@ class ZimbraService:
         filename = str(attachment.get("filename", ""))
         content_type = str(attachment.get("content_type", "")).split(";", 1)[0].lower()
         text = _extract_attachment_text(data, filename, content_type)
-        if len(text) > self.settings.max_attachment_text_chars:
-            raise ServiceError("attachment_text_too_large", "Extracted attachment text exceeds the configured character limit.")
+        characters = len(text)
         return {
             "account_id": account.id,
             "account": account.agent_dict(),
@@ -305,8 +447,10 @@ class ZimbraService:
             "filename": filename,
             "content_type": content_type,
             "bytes": len(data),
-            "characters": len(text),
-            "text": text,
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "characters": characters,
+            "text_truncated": characters > max_chars,
+            "text": text[:max_chars],
         }
 
     async def _run(self, function, *args):
@@ -342,7 +486,10 @@ def _docx_text(data: bytes) -> str:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             if any(info.flag_bits & 0x1 for info in archive.infolist()):
                 raise ServiceError("attachment_encrypted", "Encrypted DOCX attachments are not supported.")
-            document = ET.fromstring(archive.read("word/document.xml"))
+            document_info = archive.getinfo("word/document.xml")
+            if document_info.file_size > _MAX_DOCX_XML_BYTES:
+                raise ServiceError("attachment_too_complex", "The DOCX document exceeds the safe expansion limit.")
+            document = ET.fromstring(archive.read(document_info))
     except ServiceError:
         raise
     except (zipfile.BadZipFile, KeyError, ET.ParseError) as exc:
@@ -364,6 +511,8 @@ def _pdf_text(data: bytes) -> str:
         reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted:
             raise ServiceError("attachment_encrypted", "Encrypted PDF attachments are not supported.")
+        if len(reader.pages) > _MAX_PDF_PAGES:
+            raise ServiceError("attachment_too_complex", "The PDF exceeds the safe page limit.")
         return "\n\n".join(page.extract_text() or "" for page in reader.pages)
     except ServiceError:
         raise
@@ -394,7 +543,8 @@ def _extract_attachment_text(data: bytes, filename: str, content_type: str) -> s
                 raise ServiceError("attachment_malformed", "The JSON attachment could not be parsed.") from exc
         if content_type == "text/csv" or suffix == ".csv":
             try:
-                list(csv.reader(io.StringIO(text)))
+                for _ in csv.reader(io.StringIO(text)):
+                    pass
             except csv.Error as exc:
                 raise ServiceError("attachment_malformed", "The CSV attachment could not be parsed.") from exc
         if content_type in {"application/xml", "text/xml"} or suffix == ".xml":

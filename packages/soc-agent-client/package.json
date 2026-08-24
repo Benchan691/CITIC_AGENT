@@ -1,5 +1,6 @@
 {
   "name": "dsh-soc-agent-client",
+  "private": true,
   "version": "0.1.0",
   "description": "Web settings for SOC Agent Splunk/Zimbra connections and scheduled investigations.",
   "type": "module",
@@ -33,7 +34,6 @@
   "peerDependencies": {
     "@deepseek-ai/dsh-client-connection": "*",
     "@deepseek-ai/dsh-client-runtime": "*",
-    "@deepseek-ai/dsh-client-ui-layout": "*",
     "@deepseek-ai/dsh-client-ui-tool": "*",
     "@deepseek-ai/dsh-client-ui-settings": "*",
     "react": "^18.2.0"
@@ -41,7 +41,8 @@
   "devDependencies": {
     "@deepseek-ai/dsh-client-connection": "file:../../vendor/deepseek-harness/packages/client/connection",
     "@deepseek-ai/dsh-client-runtime": "file:../../vendor/deepseek-harness/packages/client/runtime",
-    "@deepseek-ai/dsh-client-ui-layout": "file:../../vendor/deepseek-harness/packages/client/ui-layout",
+    "@deepseek-ai/dsh-client-ui-conversation": "file:../../vendor/deepseek-harness/packages/client/ui-conversation",
+    "@deepseek-ai/dsh-client-ui-sidebar": "file:../../vendor/deepseek-harness/packages/client/ui-sidebar",
     "@deepseek-ai/dsh-client-ui-tool": "file:../../vendor/deepseek-harness/packages/client/ui-tool",
     "@deepseek-ai/dsh-client-ui-settings": "file:../../vendor/deepseek-harness/packages/client/ui-settings",
     "@types/node": "^24.13.3",

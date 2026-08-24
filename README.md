@@ -1,6 +1,9 @@
 # CITIC SOC Agent
 
-Self-contained daily SOC operations agent built on the DeepSeek Harness.
+Self-contained daily SOC operations agent built on DeepSeek Harness
+`dsh-v0.1.1-rc.2`. Application source, SOC packages, skills, and the pinned
+harness source all remain inside this repository; no sibling checkout or Git
+submodule is required.
 
 The repository is organized by ownership:
 

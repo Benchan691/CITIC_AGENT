@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { Cron } from 'croner'
 import s from '@deepseek-ai/schemastery'
 import { z } from 'zod'
@@ -30,7 +30,12 @@ export { READ_ONLY_DOMAIN_TOOLS }
 const CHANNEL = '/soc-agent-schedules'
 const MAX_TIMER_DELAY_MS = 2_147_483_647
 const MAX_NAME_CHARS = 120
-const MAX_PROMPT_CHARS = 20_000
+const MAX_PROMPT_CHARS = 8_000
+const MAX_TASKS = 50
+const MAX_ACTIVE_TASKS = 20
+const MAX_RECENT_RUNS = 20
+const MAX_STORED_RUNS = 200
+const MIN_CRON_INTERVAL_MS = 15 * 60_000
 
 const onceRuleSchema = z.object({
   kind: z.literal('once'),
@@ -87,6 +92,15 @@ function operationError(code, message) {
 
 function operationValue(value) {
   return { ok: true, value }
+}
+
+function taskSummary(task) {
+  const { prompt, ...summary } = task
+  return {
+    ...summary,
+    promptCharacters: prompt.length,
+    promptSha256: createHash('sha256').update(prompt).digest('hex'),
+  }
 }
 
 function textOutput(_args, value) {
@@ -207,6 +221,15 @@ function cronFor(rule) {
   }
 }
 
+function assertSafeCronCadence(cron, now) {
+  const first = cron.nextRun(new Date(now))
+  const second = first && cron.nextRun(new Date(first.getTime() + 1_000))
+  if (!first || !second || second.getTime() - first.getTime() < MIN_CRON_INTERVAL_MS) {
+    throw new SchedulerInputError('cron_too_frequent', 'cron must run no more often than every 15 minutes.')
+  }
+  return first
+}
+
 export function normalizeRule(input, now = Date.now()) {
   const hasOnce = input.at !== undefined
   const hasCron = input.cron !== undefined || input.time_zone !== undefined
@@ -220,8 +243,7 @@ export function normalizeRule(input, now = Date.now()) {
   }
   const timeZone = canonicalTimeZone(input.time_zone)
   const rule = { kind: 'cron', expression: String(input.cron).trim(), timeZone }
-  const next = cronFor(rule).nextRun(new Date(now))
-  if (!next) throw new SchedulerInputError('invalid_cron', 'cron has no future occurrence.')
+  const next = assertSafeCronCadence(cronFor(rule), now)
   return { rule, nextRunAt: next.toISOString() }
 }
 
@@ -264,11 +286,23 @@ export class SchedulerRuntime {
   }
 
   list() {
-    const tasks = [...this.tasks.entries()].map(([, task]) => task)
+    const allTasks = [...this.tasks.entries()].map(([, task]) => task)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    const runs = [...this.runs.entries()].map(([, run]) => run)
-      .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor)).slice(0, 100)
-    return { tasks, runs, settings: this.settings }
+    const allRuns = [...this.runs.entries()].map(([, run]) => run)
+      .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor))
+    return {
+      tasks: allTasks.slice(0, MAX_TASKS).map(taskSummary),
+      taskCount: allTasks.length,
+      runs: allRuns.slice(0, MAX_RECENT_RUNS),
+      runCount: allRuns.length,
+      settings: this.settings,
+    }
+  }
+
+  serialize(operation) {
+    const result = this.scanTail.then(operation)
+    this.scanTail = result.catch(() => {})
+    return result
   }
 
   async initialize() {
@@ -277,7 +311,11 @@ export class SchedulerRuntime {
     else await this.settingsTable.put('scheduler', this.settings)
   }
 
-  async updateSettings(input) {
+  updateSettings(input) {
+    return this.serialize(() => this.updateSettingsOnce(input))
+  }
+
+  async updateSettingsOnce(input) {
     const maxConcurrentRuns = Number(input.maxConcurrentRuns)
     const runTimeoutMs = Number(input.runTimeoutMs)
     if (!Number.isInteger(maxConcurrentRuns) || maxConcurrentRuns < 1 || maxConcurrentRuns > 8) {
@@ -292,7 +330,11 @@ export class SchedulerRuntime {
     return this.settings
   }
 
-  async create(input) {
+  create(input) {
+    return this.serialize(() => this.createOnce(input))
+  }
+
+  async createOnce(input) {
     const name = String(input.name ?? '').trim()
     const prompt = String(input.prompt ?? '').trim()
     if (!name || name.length > MAX_NAME_CHARS) {
@@ -301,6 +343,13 @@ export class SchedulerRuntime {
     if (!prompt || prompt.length > MAX_PROMPT_CHARS) {
       throw new SchedulerInputError('invalid_prompt', `prompt must contain 1-${MAX_PROMPT_CHARS} characters.`)
     }
+    const tasks = [...this.tasks.entries()].map(([, task]) => task)
+    if (tasks.length >= MAX_TASKS) {
+      throw new SchedulerInputError('task_limit', `At most ${MAX_TASKS} scheduled tasks may be stored.`)
+    }
+    if (tasks.filter(task => task.status === 'active').length >= MAX_ACTIVE_TASKS) {
+      throw new SchedulerInputError('active_task_limit', `At most ${MAX_ACTIVE_TASKS} scheduled tasks may be active.`)
+    }
     const normalized = normalizeRule(input)
     const now = iso()
     const task = {
@@ -308,13 +357,23 @@ export class SchedulerRuntime {
     }
     await this.tasks.put(task.id, task)
     this.arm()
-    return task
+    return taskSummary(task)
   }
 
-  async setStatus(id, status) {
+  setStatus(id, status) {
+    return this.serialize(() => this.setStatusOnce(id, status))
+  }
+
+  async setStatusOnce(id, status) {
     const task = this.tasks.get(String(id))
     if (!task) throw new SchedulerInputError('task_not_found', 'Scheduled task was not found.')
     if (task.status === 'completed') throw new SchedulerInputError('task_completed', 'A completed one-time task cannot be resumed.')
+    if (status === 'active' && task.status !== 'active') {
+      const activeCount = [...this.tasks.entries()].filter(([, item]) => item.status === 'active').length
+      if (activeCount >= MAX_ACTIVE_TASKS) {
+        throw new SchedulerInputError('active_task_limit', `At most ${MAX_ACTIVE_TASKS} scheduled tasks may be active.`)
+      }
+    }
     const now = Date.now()
     const nextRunAt = status === 'active'
       ? task.rule.kind === 'once' ? task.nextRunAt : nextAfter(task, now)
@@ -322,10 +381,14 @@ export class SchedulerRuntime {
     const updated = { ...task, status, nextRunAt, updatedAt: iso(now) }
     await this.tasks.put(task.id, updated)
     this.arm()
-    return updated
+    return taskSummary(updated)
   }
 
-  async delete(id) {
+  delete(id) {
+    return this.serialize(() => this.deleteOnce(id))
+  }
+
+  async deleteOnce(id) {
     const key = String(id)
     if (this.pendingTaskIds.has(key)) {
       throw new SchedulerInputError('task_running', 'A queued or running task cannot be deleted.')
@@ -335,7 +398,11 @@ export class SchedulerRuntime {
     return { id: key, deleted }
   }
 
-  async runNow(id) {
+  runNow(id) {
+    return this.serialize(() => this.runNowOnce(id))
+  }
+
+  async runNowOnce(id) {
     const task = this.tasks.get(String(id))
     if (!task) throw new SchedulerInputError('task_not_found', 'Scheduled task was not found.')
     if (this.pendingTaskIds.has(task.id)) {
@@ -353,7 +420,15 @@ export class SchedulerRuntime {
       startedAt: iso(), finishedAt: iso(), state,
     }
     await this.runs.put(run.id, run)
+    await this.pruneRuns()
     return run
+  }
+
+  async pruneRuns() {
+    const terminal = [...this.runs.entries()].map(([, run]) => run)
+      .filter(run => run.state !== 'queued' && run.state !== 'running')
+      .sort((a, b) => (b.finishedAt ?? b.scheduledFor).localeCompare(a.finishedAt ?? a.scheduledFor))
+    for (const run of terminal.slice(MAX_STORED_RUNS)) await this.runs.delete(run.id)
   }
 
   async queueRun(task, scheduledFor) {
@@ -365,8 +440,7 @@ export class SchedulerRuntime {
   }
 
   scan() {
-    this.scanTail = this.scanTail.then(() => this.scanOnce())
-    return this.scanTail
+    return this.serialize(() => this.scanOnce())
   }
 
   async scanOnce() {
@@ -388,9 +462,9 @@ export class SchedulerRuntime {
         lastRunAt: scheduledFor,
         updatedAt: iso(now),
       }
-      await this.tasks.put(task.id, updated)
       if (this.pendingTaskIds.has(task.id)) await this.recordSkipped(task, scheduledFor, 'skipped_overlap')
       else await this.queueRun(task, scheduledFor)
+      await this.tasks.put(task.id, updated)
     }
     this.pump()
     this.arm()
@@ -424,6 +498,7 @@ export class SchedulerRuntime {
       const task = this.tasks.get(run.taskId)
       if (task && !this.pendingTaskIds.has(task.id)) await this.queueRun(task, run.scheduledFor)
     }
+    await this.pruneRuns()
     this.pump()
   }
 
@@ -477,12 +552,14 @@ export class SchedulerRuntime {
         throw new SchedulerInputError('persistence_uncertain', 'The result session could not be confirmed durable.')
       }
       await this.runs.put(run.id, { ...run, state: 'completed', finishedAt: iso() })
+      await this.pruneRuns()
     } catch (error) {
       if (handle) {
         try { handle.agent.cancel() } catch {}
       }
       const code = error instanceof SchedulerInputError ? error.code : 'run_failed'
       await this.runs.put(run.id, { ...run, state: 'failed', finishedAt: iso(), errorCode: code })
+      await this.pruneRuns()
       this.ctx.logger.warn(`soc-agent-scheduler: run ${run.id} failed (${code})`)
     } finally {
       if (handle) await handle.dispose()

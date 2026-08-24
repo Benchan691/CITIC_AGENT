@@ -5,7 +5,7 @@ import pytest
 import unified_mcp_server.zimbra.zimbra as zimbra
 
 
-def test_search_query_escapes_input_and_caps_limit(monkeypatch):
+def test_search_messages_escapes_input_and_caps_limit(monkeypatch):
     captured = {}
 
     def fake_request(host, body, token, **options):
@@ -13,9 +13,9 @@ def test_search_query_escapes_input_and_caps_limit(monkeypatch):
         return ET.fromstring('<SearchResponse xmlns="urn:zimbraMail"><m id="42"/></SearchResponse>')
 
     monkeypatch.setattr(zimbra, "soap_request", fake_request)
-    ids = zimbra.zimbra_search_query("mail.example.com", "token", 'from:a@example.com <x>', 500)
+    messages = zimbra.zimbra_search_messages("mail.example.com", "token", 'from:a@example.com <x>', 500)
 
-    assert ids == ["42"]
+    assert messages[0]["id"] == "42"
     assert "limit=\"100\"" in captured["body"]
     assert "&lt;x&gt;" in captured["body"]
 
@@ -109,6 +109,35 @@ def test_get_message_returns_body_metadata_and_attachments(monkeypatch):
     assert message["body_type"] == "text/plain"
     assert message["attachments"][0]["filename"] == "report.pdf"
     assert message["date"].endswith("+00:00")
+
+
+def test_get_message_headers_requests_and_returns_only_selected_headers(monkeypatch):
+    captured = {}
+    xml = """<GetMsgResponse xmlns="urn:zimbraMail"><m id="42">
+      <header n="Message-ID">&lt;id@example.com&gt;</header>
+      <header n="Received">hop-one</header><header n="Received">hop-two</header>
+      <mp ct="text/plain"><content>must not be returned</content></mp>
+    </m></GetMsgResponse>"""
+
+    def fake_request(host, body, token, **options):
+        captured["body"] = body
+        return ET.fromstring(xml)
+
+    monkeypatch.setattr(zimbra, "soap_request", fake_request)
+
+    result = zimbra.zimbra_get_message_headers(
+        "mail.example.com", "token", "42", ["Message-ID", "Received"]
+    )
+
+    assert result == {
+        "message_id": "42",
+        "headers": {
+            "Message-ID": ["<id@example.com>"],
+            "Received": ["hop-one", "hop-two"],
+        },
+    }
+    assert 'max="0"' in captured["body"]
+    assert '<header n="Message-ID"/>' in captured["body"]
 
 
 def test_list_folders_normalizes_counts(monkeypatch):

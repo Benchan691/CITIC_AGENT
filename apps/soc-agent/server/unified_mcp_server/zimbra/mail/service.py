@@ -31,8 +31,8 @@ class ZimbraMailService(ZimbraService):
     def _legacy_account(self) -> StoredAccount | None:
         return self.core.legacy_account()
 
-    def _resolve_account(self, account_id: str = "") -> StoredAccount:
-        return self.core.resolve_account(account_id)
+    def _resolve_account(self, account_id: str = "", *, require_host: bool = True) -> StoredAccount:
+        return self.core.resolve_account(account_id, require_host=require_host)
 
     def _config(self, account: StoredAccount) -> dict[str, object]:
         return self.core.client_config(account)

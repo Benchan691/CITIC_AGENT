@@ -129,8 +129,15 @@ class EmailSubscriptionService:
         payload = await self._request("GET", "/api/subscriptions")
         return {"subscriptions": payload.get("data", [])}
 
+    async def test_connection(self) -> dict[str, Any]:
+        result = await self.list_subscriptions()
+        return {
+            "ok": True,
+            "url": self.settings.url,
+            "subscription_count": len(result["subscriptions"]),
+        }
+
     async def get_subscription_schema(self) -> dict[str, Any]:
-        """Return the live subscriber-facing configuration schema."""
         return await self._request("GET", "/api/subscriptions/schema")
 
     async def preview_subscription(

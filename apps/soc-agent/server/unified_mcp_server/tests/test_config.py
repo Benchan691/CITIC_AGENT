@@ -3,6 +3,14 @@ import json
 import pytest
 
 from unified_mcp_server.config import ServerSettings
+from unified_mcp_server.env_loader import server_root, workspace_root
+
+
+def test_workspace_root_fallback_matches_self_contained_repository(monkeypatch):
+    monkeypatch.delenv("MCP_SERVER_ROOT", raising=False)
+    monkeypatch.delenv("MCP_SEVER_ROOT", raising=False)
+
+    assert workspace_root() == server_root().parents[2]
 
 
 def test_defaults_are_secure_and_services_can_be_unconfigured():
@@ -71,6 +79,7 @@ def test_global_zimbra_environment_settings_load_as_connection_defaults():
         "filter_redirect_enabled": False,
         "filter_discard_enabled": False,
         "folder_write_enabled": False,
+        "move_enabled": False,
         "max_attachment_bytes": 10_000_000,
         "max_attachment_text_chars": 200_000,
     }
@@ -111,10 +120,10 @@ def test_status_redacts_credentials_and_does_not_include_mailbox_identity():
 def test_email_server_credentials_load_without_exposing_password_in_status():
     settings = ServerSettings.from_env(
         {
-            "EMAIL_SERVER_URL": "http://email.example.com/",
-            "EMAIL_SEVER_USER": "operator",
-            "EMAIL_SEVER_PASSWORD": "email-secret",
-            "EMAIL_SERVER_TIMEOUT": "45",
+            "SUBSCRIPTION_SERVER_URL": "http://email.example.com/",
+            "SUBSCRIPTION_SERVER_USER": "operator",
+            "SUBSCRIPTION_SERVER_PASSWORD": "email-secret",
+            "SUBSCRIPTION_SERVER_TIMEOUT": "45",
         }
     )
 
@@ -187,6 +196,13 @@ def test_zimbra_folder_write_gate_is_explicit_and_visible_without_secrets():
 
     assert settings.zimbra.allow_folder_write is True
     assert settings.public_status()["zimbra"]["folder_write_enabled"] is True
+
+
+def test_zimbra_move_gate_is_explicit_and_visible_without_secrets():
+    settings = ServerSettings.from_env({"ZIMBRA_ALLOW_MOVE": "true"})
+
+    assert settings.zimbra.allow_move is True
+    assert settings.public_status()["zimbra"]["move_enabled"] is True
 
 
 @pytest.mark.parametrize(

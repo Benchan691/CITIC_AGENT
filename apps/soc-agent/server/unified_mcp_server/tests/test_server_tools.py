@@ -31,9 +31,11 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "zimbra_create_folder",
         "zimbra_search_emails",
         "zimbra_get_email",
+        "zimbra_get_email_headers",
         "zimbra_get_attachment_text",
         "zimbra_create_email_draft",
         "zimbra_send_email",
+        "zimbra_move_email",
         "zimbra_list_email_filters",
         "zimbra_get_email_filter",
         "zimbra_validate_email_filter",
@@ -79,6 +81,30 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert set(get_email_tool.parameters["properties"]) == {
         "message_id", "account_id", "max_body_chars",
     }
+    header_tool = next(tool for tool in tools if tool.name == "zimbra_get_email_headers")
+    assert set(header_tool.parameters["properties"]) == {"message_id", "account_id", "names"}
+    move_tool = next(tool for tool in tools if tool.name == "zimbra_move_email")
+    assert set(move_tool.parameters["required"]) == {"message_id", "folder_id"}
+    search_email_tool = next(tool for tool in tools if tool.name == "zimbra_search_emails")
+    assert set(search_email_tool.parameters["properties"]) == {
+        "query", "limit", "account_id", "offset",
+    }
+    attachment_tool = next(tool for tool in tools if tool.name == "zimbra_get_attachment_text")
+    assert set(attachment_tool.parameters["properties"]) == {
+        "message_id", "part", "account_id", "max_chars",
+    }
+    filter_list_tool = next(tool for tool in tools if tool.name == "zimbra_list_email_filters")
+    assert set(filter_list_tool.parameters["properties"]) == {
+        "account_id", "include_details",
+    }
+    for name in (
+        "splunk_update_detection_draft", "splunk_enable_detection", "splunk_disable_detection",
+    ):
+        detection_write_tool = next(tool for tool in tools if tool.name == name)
+        assert "expected_fingerprint" in detection_write_tool.parameters["properties"]
+        assert "expected_fingerprint" in detection_write_tool.parameters["required"]
+    backtest_tool = next(tool for tool in tools if tool.name == "splunk_backtest_detection")
+    assert "fields" in backtest_tool.parameters["properties"]
 
 
 def test_draft_tool_action_is_awaitable(monkeypatch):

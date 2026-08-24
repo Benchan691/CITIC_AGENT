@@ -1,7 +1,5 @@
 import html
-import re
 import ssl
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -118,45 +116,6 @@ def zimbra_login(cfg):
     return token
 
 
-def upload_attachment(
-    host,
-    token,
-    filename,
-    data,
-    content_type="application/octet-stream",
-    *,
-    verify_ssl=True,
-    timeout=120,
-):
-    boundary = "----codex-zimbra-upload"
-    body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-        f"Content-Type: {content_type}\r\n\r\n"
-    ).encode("utf-8") + data + f"\r\n--{boundary}--\r\n".encode("utf-8")
-    request = urllib.request.Request(
-        _zimbra_url(host, "/service/upload?fmt=raw"),
-        data=body,
-        headers={
-            "Content-Type": f"multipart/form-data; boundary={boundary}",
-            "Cookie": f"ZM_AUTH_TOKEN={token}",
-        },
-    )
-    with urllib.request.urlopen(
-        request,
-        timeout=timeout,
-        context=_ssl_context(verify_ssl),
-    ) as response:
-        text = response.read().decode("utf-8", errors="replace")
-    match = re.search(r'["\']?aid["\']?\s*[:=]\s*["\']([^"\']+)["\']', text)
-    if match:
-        return match.group(1)
-    quoted = re.findall(r"'([^']+)'", text)
-    if len(quoted) >= 2:
-        return quoted[-1]
-    raise RuntimeError(f"Zimbra upload failed: attachment id not found in response {text[:300]}")
-
-
 def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=True, timeout=60):
     soap_request(
         host,
@@ -171,25 +130,11 @@ def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=True, 
     )
 
 
-def zimbra_send_email(cfg, to, subject, body, attachments=None, folder_id=None, *, cc=None, bcc=None):
+def zimbra_send_email(cfg, to, subject, body, *, cc=None, bcc=None):
     require_zimbra_config(cfg)
     host = zimbra_host(cfg)
     token = zimbra_login(cfg)
     options = _connection_options(cfg)
-    attach_ids = []
-    for item in attachments or []:
-        attach_ids.append(
-            upload_attachment(
-                host,
-                token,
-                item["filename"],
-                item["data"],
-                item.get("content_type", "application/octet-stream"),
-                **options,
-            )
-        )
-
-    attach_xml = "".join(f'<attach aid="{html.escape(aid)}"/>' for aid in attach_ids)
     subject_text = str(subject or "").strip()
     if isinstance(to, (list, tuple, set)):
         recipients = [str(addr).strip() for addr in to if str(addr).strip()]
@@ -218,27 +163,11 @@ def zimbra_send_email(cfg, to, subject, body, attachments=None, folder_id=None, 
     {bcc_xml}
     <su>{html.escape(subject_text)}</su>
     <mp ct="text/plain"><content>{html.escape(str(body or ""))}</content></mp>
-    {attach_xml}
   </m>
 </SendMsgRequest>""",
         token,
         **options,
     )
-
-    dest = str(folder_id or "").strip()
-    if not dest or dest == "2":
-        return
-
-    # Self-transfer mail lands in Inbox; move it into the configured receive folder.
-    for attempt in range(8):
-        for message_id in zimbra_search(host, token, "2", 20, **options):
-            message = zimbra_get_message(host, token, message_id, **options)
-            if message and (message.get("subject") or "").strip() == subject_text:
-                zimbra_move_message(host, token, message_id, dest, **options)
-                return
-        time.sleep(0.5 * (attempt + 1))
-    raise RuntimeError(f"Transfer sent but message not found in Inbox to move to folder {dest}")
-
 
 def _message_date(value):
     if not value:
@@ -286,33 +215,6 @@ def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl
             "fragment": fragment,
         })
     return messages
-
-
-def zimbra_search_query(host, token, query, limit=25, offset=0, *, verify_ssl=True, timeout=60):
-    """Compatibility helper returning only message IDs."""
-    return [
-        message["id"]
-        for message in zimbra_search_messages(
-            host,
-            token,
-            query,
-            limit,
-            offset,
-            verify_ssl=verify_ssl,
-            timeout=timeout,
-        )
-    ]
-
-
-def zimbra_search(host, token, folder_id, limit, *, verify_ssl=True, timeout=60):
-    return zimbra_search_query(
-        host,
-        token,
-        f"inid:{folder_id}",
-        limit,
-        verify_ssl=verify_ssl,
-        timeout=timeout,
-    )
 
 
 def zimbra_get_message(host, token, message_id, *, verify_ssl=True, timeout=60):
@@ -368,6 +270,35 @@ def zimbra_get_message(host, token, message_id, *, verify_ssl=True, timeout=60):
         "body_type": "text/plain" if plain_parts else ("text/html" if html_parts else ""),
         "attachments": attachments,
     }
+
+
+def zimbra_get_message_headers(host, token, message_id, names, *, verify_ssl=True, timeout=60):
+    """Retrieve selected raw message headers without returning the message body."""
+    requested = [str(name).strip() for name in names if str(name).strip()]
+    header_xml = "".join(f'<header n="{html.escape(name)}"/>' for name in requested)
+    root = soap_request(
+        host,
+        (
+            '<GetMsgRequest xmlns="urn:zimbraMail">'
+            f'<m id="{html.escape(message_id)}" html="0" needExp="0" max="0">{header_xml}</m>'
+            '</GetMsgRequest>'
+        ),
+        token,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+    )
+    msg = next((elem for elem in root.iter() if _local_name(elem.tag) == "m" and elem.get("id") == message_id), None)
+    if msg is None:
+        return None
+    headers = {name: [] for name in requested}
+    canonical = {name.casefold(): name for name in requested}
+    for element in msg.iter():
+        if _local_name(element.tag) != "header":
+            continue
+        name = canonical.get(str(element.get("n", "")).casefold())
+        if name:
+            headers[name].append(element.text or "")
+    return {"message_id": message_id, "headers": headers}
 
 
 def zimbra_list_folders(host, token, *, verify_ssl=True, timeout=60):
@@ -483,13 +414,3 @@ def download_attachment(cfg, token, message_id, part, max_bytes=None):
         if max_bytes is not None and len(data) > max_bytes:
             raise ValueError("attachment_too_large")
         return data
-
-
-def zimbra_delete_message(host, token, message_id, *, verify_ssl=True, timeout=60):
-    soap_request(
-        host,
-        f'<MsgActionRequest xmlns="urn:zimbraMail"><action id="{html.escape(message_id)}" op="delete"/></MsgActionRequest>',
-        token,
-        verify_ssl=verify_ssl,
-        timeout=timeout,
-    )

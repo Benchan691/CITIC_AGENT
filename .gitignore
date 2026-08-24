@@ -8,3 +8,5 @@ coverage/
 **/__pycache__/
 *.py[cod]
 *.egg-info/
+/.data/
+**/.state/

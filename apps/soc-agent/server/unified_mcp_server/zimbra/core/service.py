@@ -29,8 +29,8 @@ class ZimbraCore:
             return StoredAccount("legacy", "Legacy account", self.settings.email, "", self.settings.password)
         return None
 
-    def resolve_account(self, account_id: str = "") -> StoredAccount:
-        if not self.settings.host:
+    def resolve_account(self, account_id: str = "", *, require_host: bool = True) -> StoredAccount:
+        if require_host and not self.settings.host:
             raise ConfigurationError("Zimbra", ["ZIMBRA_HOST"])
         account_id = account_id.strip()
         if account_id:

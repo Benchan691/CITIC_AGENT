@@ -13,6 +13,7 @@ Coordinate the investigation; load a specialist skill only when its branch is re
 - Email-led correlation → `email-to-splunk-investigation`
 - Detection noise or benign-trigger question → `false-positive-analysis`
 - New or changed rule → `detection-engineering`
+- Mailbox, filter, folder, move, or send action → `zimbra-operations`
 
 Do not load every specialist skill up front.
 

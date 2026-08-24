@@ -9,9 +9,9 @@ from mcp.server.fastmcp import Context
 
 def register_tools(server, *, get_runtime, fresh_runtime, execute) -> None:
     @server.tool()
-    async def zimbra_list_email_filters(ctx: Context, account_id: str = "") -> dict[str, Any]:
-        """List structured incoming Zimbra filters and a concurrency fingerprint."""
-        return await execute(ctx, "zimbra", "list_email_filters", lambda: get_runtime(ctx).zimbra_filters.list_email_filters(account_id))
+    async def zimbra_list_email_filters(ctx: Context, account_id: str = "", include_details: bool = False) -> dict[str, Any]:
+        """List compact Zimbra filter summaries; include full rules only when needed."""
+        return await execute(ctx, "zimbra", "list_email_filters", lambda: get_runtime(ctx).zimbra_filters.list_email_filters(account_id, include_details))
 
     @server.tool()
     async def zimbra_get_email_filter(ctx: Context, name: str, account_id: str = "") -> dict[str, Any]:

@@ -33,7 +33,7 @@
   disabled: false
   config:
     customSkillDirs:
-      - !!js "(process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]) + '/skills'"
+      - !!js "(process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]) + '/skills'"
 - id: tool-skill
   disabled: false
 - id: ui-skill
@@ -175,9 +175,9 @@
         transport: stdio
         command: uv
         args: ['run', 'unified-mcp-server']
-        cwd: !!js "process.env.DSH_SOC_AGENT_SERVER ?? ((process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]) + '/apps/soc-agent/server')"
+        cwd: !!js "process.env.DSH_SOC_AGENT_SERVER ?? ((process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]) + '/apps/soc-agent/server')"
         env:
-          MCP_SEVER_ROOT: !!js "process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]"
+          MCP_SERVER_ROOT: !!js "process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]"
           APP_POSTGRES_URI: !!js process.env.APP_POSTGRES_URI ?? ''
           APP_SETTINGS_ENCRYPTION_KEY: !!js process.env.APP_SETTINGS_ENCRYPTION_KEY ?? ''
         toolCallTimeoutMs: 120000
@@ -189,7 +189,7 @@
       name: dsh-soc-agent/scheduler
       description: Durable scheduled read-only Splunk and Zimbra investigation runs.
       config:
-        workspaceRoot: !!js "process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]"
+        workspaceRoot: !!js "process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]"
         maxConcurrentRuns: 1
         runTimeoutMs: 900000
     - id: soc-agent-admin-ui

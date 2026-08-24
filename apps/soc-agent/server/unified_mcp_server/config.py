@@ -45,18 +45,10 @@ def _preferred(env: Mapping[str, str], primary: str, legacy: str) -> str:
 def _storage_path(env: Mapping[str, str], name: str, default: str) -> str:
     value = _value(env, name, default)
     if value.startswith(".data/"):
-        root = _value(env, "MCP_SEVER_ROOT")
+        root = _value(env, "MCP_SERVER_ROOT", _value(env, "MCP_SEVER_ROOT"))
         base = Path(root) if root else workspace_root()
         return str(base / value)
     return value
-
-
-def _masked_email(value: str) -> str:
-    if "@" not in value:
-        return "configured" if value else ""
-    local, domain = value.split("@", 1)
-    return f"{local[:1]}***@{domain}"
-
 
 
 @dataclass(frozen=True)
@@ -121,6 +113,7 @@ class ZimbraSettings:
     allow_filter_redirect: bool = False
     allow_filter_discard: bool = False
     allow_folder_write: bool = False
+    allow_move: bool = False
 
     @property
     def configured(self) -> bool:
@@ -156,11 +149,11 @@ class EmailServerSettings:
     def missing(self) -> list[str]:
         missing = []
         if not self.url:
-            missing.append("EMAIL_SERVER_URL")
+            missing.append("SUBSCRIPTION_SERVER_URL")
         if not self.username:
-            missing.append("EMAIL_SEVER_USER")
+            missing.append("SUBSCRIPTION_SERVER_USER")
         if not self.password:
-            missing.append("EMAIL_SEVER_PASSWORD")
+            missing.append("SUBSCRIPTION_SERVER_PASSWORD")
         return missing
 
 
@@ -233,6 +226,7 @@ class ServerSettings:
             allow_filter_redirect=_boolean(env, "ZIMBRA_ALLOW_FILTER_REDIRECT", False),
             allow_filter_discard=_boolean(env, "ZIMBRA_ALLOW_FILTER_DISCARD", False),
             allow_folder_write=_boolean(env, "ZIMBRA_ALLOW_FOLDER_WRITE", False),
+            allow_move=_boolean(env, "ZIMBRA_ALLOW_MOVE", False),
             max_attachment_bytes=_integer(env, "ZIMBRA_MAX_ATTACHMENT_BYTES", 10_000_000, 1, 100_000_000),
             max_attachment_text_chars=_integer(env, "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS", 200_000, 1, 2_000_000),
             accounts_file=_storage_path(env, "ZIMBRA_ACCOUNTS_FILE", ".data/zimbra_accounts.enc"),
@@ -242,10 +236,10 @@ class ServerSettings:
             password=_value(env, "ZIMBRA_PASSWORD"),
         )
         email_server = EmailServerSettings(
-            url=_value(env, "EMAIL_SERVER_URL", "http://100.114.50.103:9100").rstrip("/"),
-            username=_value(env, "EMAIL_SEVER_USER"),
-            password=_value(env, "EMAIL_SEVER_PASSWORD"),
-            timeout=_integer(env, "EMAIL_SERVER_TIMEOUT", 30, 1, 600),
+            url=_value(env, "SUBSCRIPTION_SERVER_URL", "http://100.114.50.103:9100").rstrip("/"),
+            username=_value(env, "SUBSCRIPTION_SERVER_USER"),
+            password=_value(env, "SUBSCRIPTION_SERVER_PASSWORD"),
+            timeout=_integer(env, "SUBSCRIPTION_SERVER_TIMEOUT", 30, 1, 600),
         )
         return cls(
             name=_value(env, "MCP_SERVER_NAME", "SOC Agent MCP"),
@@ -300,6 +294,7 @@ class ServerSettings:
                 "filter_redirect_enabled": self.zimbra.allow_filter_redirect,
                 "filter_discard_enabled": self.zimbra.allow_filter_discard,
                 "folder_write_enabled": self.zimbra.allow_folder_write,
+                "move_enabled": self.zimbra.allow_move,
                 "max_attachment_bytes": self.zimbra.max_attachment_bytes,
                 "max_attachment_text_chars": self.zimbra.max_attachment_text_chars,
             },

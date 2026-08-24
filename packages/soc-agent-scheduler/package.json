@@ -1,5 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-soc-agent-scheduler",
+  "private": true,
   "version": "0.1.0",
   "description": "Persistent read-only SOC Agent investigation scheduler for DeepSeek Harness",
   "type": "module",
@@ -10,13 +11,9 @@
       "types": "./types.d.ts",
       "default": "./index.js"
     },
-    "./client": {
-      "types": "./client.d.ts",
-      "default": "./client.js"
-    },
     "./package.json": "./package.json"
   },
-  "files": ["index.js", "client.js", "client.d.ts", "types.d.ts"],
+  "files": ["index.js", "types.d.ts"],
   "scripts": {
     "test": "node --test tests/*.test.js"
   },

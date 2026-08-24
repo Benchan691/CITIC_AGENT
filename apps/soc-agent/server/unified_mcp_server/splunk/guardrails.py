@@ -19,8 +19,19 @@ def check_outputlookup_params(query: str, context: dict, base_risk: int) -> int:
     return 0
 
 
+_BLOCKED_COMMAND_RE = re.compile(
+    r"(?:^|\|)\s*(delete|collect|mcollect|meventcollect|outputlookup|outputcsv|sendemail|script|external)\b",
+    re.IGNORECASE,
+)
+
+
+def blocked_spl_commands(query: str) -> list[str]:
+    """Return SPL commands that can mutate state or invoke external actions."""
+    return list(dict.fromkeys(match.group(1).lower() for match in _BLOCKED_COMMAND_RE.finditer(query)))
+
+
 def has_blocked_write_operation(query: str) -> bool:
-    return bool(re.search(r'\boutputlookup\b', query, re.IGNORECASE))
+    return bool(blocked_spl_commands(query))
 
 
 def parse_time_to_hours(time_str: str) -> float:

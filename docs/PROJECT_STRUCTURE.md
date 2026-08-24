@@ -29,15 +29,16 @@ The Python MCP server lives at:
 
 `apps/soc-agent/server/unified_mcp_server`
 
-Its domain boundaries are `splunk/`, `zimbra/`, and `email/`. Cross-domain
-coordination belongs in the agent workflow and skills, not in low-level clients.
+Its domain boundaries are `splunk/` and `zimbra/`. Cross-domain coordination
+belongs in the agent workflow and skills, not in low-level clients.
 
 ## Common commands
 
 ```sh
 # SOC MCP server
 cd apps/soc-agent/server
-uv run --python 3.12 --extra test python -m pytest
+uv sync --python 3.12 --extra test
+.venv/bin/python -m pytest
 
 # Product host and policy tests
 cd apps/soc-agent

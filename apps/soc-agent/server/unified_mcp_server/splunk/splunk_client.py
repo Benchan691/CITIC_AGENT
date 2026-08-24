@@ -6,7 +6,6 @@ import json
 from time import monotonic
 from typing import Optional, Dict, Any, List
 from urllib.parse import quote
-import xml.etree.ElementTree as ET
 
 
 class SplunkAPIError(Exception):
@@ -39,15 +38,6 @@ class SplunkClient:
             or f"https://{config['splunk_host']}:{config['splunk_port']}"
         )
         self._client: Optional[httpx.AsyncClient] = None
-        
-    async def __aenter__(self):
-        """Async context manager entry."""
-        await self.connect()
-        return self
-        
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
-        await self.disconnect()
         
     async def connect(self):
         """Create and configure the HTTP client."""
@@ -91,45 +81,40 @@ class SplunkClient:
             return f"/servicesNS/{quote(owner or 'nobody', safe='')}/{quote(app or 'search', safe='')}/saved/searches"
         return "/services/saved/searches"
             
-    def _parse_response(self, response_text: str, output_mode: str = "json") -> List[Dict[str, Any]]:
-        """Parse Splunk response based on output mode."""
-        if output_mode == "json":
-            try:
-                # Try to parse as a single JSON object first (oneshot format)
-                data = json.loads(response_text)
-                if "results" in data:
-                    return data["results"]
-                elif "result" in data:
-                    return [data["result"]]
-            except json.JSONDecodeError:
-                # Fall back to line-by-line parsing (export format)
-                events = []
-                for line in response_text.strip().split('\n'):
-                    if line.strip():
-                        try:
-                            data = json.loads(line)
-                            if "result" in data:
-                                events.append(data["result"])
-                            elif "results" in data:
-                                events.extend(data["results"])
-                        except json.JSONDecodeError:
-                            continue
+    def _parse_response(self, response_text: str) -> List[Dict[str, Any]]:
+        """Parse JSON results without converting malformed responses into false zeroes."""
+        def results(payload: Any) -> list[dict[str, Any]] | None:
+            if not isinstance(payload, dict):
+                raise SplunkAPIError("Splunk returned an unexpected JSON response.")
+            values = payload.get("results")
+            if values is None and "result" in payload:
+                values = [payload["result"]]
+            if values is None:
+                return None
+            if not isinstance(values, list) or any(not isinstance(item, dict) for item in values):
+                raise SplunkAPIError("Splunk returned malformed result records.")
+            return values
+
+        try:
+            payload = json.loads(response_text)
+        except json.JSONDecodeError:
+            events: list[dict[str, Any]] = []
+            for line in response_text.splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    values = results(json.loads(line))
+                except json.JSONDecodeError as exc:
+                    raise SplunkAPIError("Splunk returned malformed JSON results.") from exc
+                if values is not None:
+                    events.extend(values)
+            if events:
                 return events
-        else:
-            # Simple XML parsing for other formats
-            events = []
-            try:
-                root = ET.fromstring(response_text)
-                for result in root.findall(".//result"):
-                    event = {}
-                    for field in result.findall("field"):
-                        key = field.get("k")
-                        value = field.find("value/text").text if field.find("value/text") is not None else ""
-                        event[key] = value
-                    events.append(event)
-            except ET.ParseError:
-                pass
-            return events
+            raise SplunkAPIError("Splunk returned no recognizable result records.")
+        values = results(payload)
+        if values is None:
+            raise SplunkAPIError("Splunk returned no recognizable result records.")
+        return values
             
     async def search_oneshot(self, query: str, earliest_time: str = "-24h", 
                            latest_time: str = "now", max_count: int = 100) -> List[Dict[str, Any]]:
@@ -163,57 +148,14 @@ class SplunkClient:
         try:
             response = await self._client.post("/services/search/jobs/oneshot", data=params)
             response.raise_for_status()
-            return self._parse_response(response.text, "json")
+            return self._parse_response(response.text)
+        except SplunkAPIError:
+            raise
         except httpx.HTTPStatusError as e:
             raise SplunkAPIError(f"Search failed", status_code=e.response.status_code, 
                                details={"error": e.response.text})
         except Exception as e:
             raise SplunkAPIError(f"Search failed: {str(e)}")
-            
-    async def search_export(self, query: str, earliest_time: str = "-24h",
-                          latest_time: str = "now", max_count: int = 100) -> List[Dict[str, Any]]:
-        """Execute an export search that streams results.
-        
-        Args:
-            query: SPL search query
-            earliest_time: Start time for search
-            latest_time: End time for search
-            max_count: Maximum number of results
-            
-        Returns:
-            List of event dictionaries
-        """
-        self._ensure_connected()
-        
-        # Don't prepend "search" if query starts with a pipe (|)
-        if query.strip().startswith("|"):
-            search_query = query
-        else:
-            search_query = f"search {query}"
-            
-        params = {
-            "search": search_query,
-            "earliest_time": earliest_time,
-            "latest_time": latest_time,
-            "count": max_count,
-            "output_mode": "json",
-            "search_mode": "normal"
-        }
-        
-        try:
-            response = await self._client.post("/services/search/jobs/export", data=params)
-            response.raise_for_status()
-            events = self._parse_response(response.text, "json")
-            
-            # Limit results if needed
-            if max_count > 0:
-                return events[:max_count]
-            return events
-        except httpx.HTTPStatusError as e:
-            raise SplunkAPIError(f"Export search failed", status_code=e.response.status_code,
-                               details={"error": e.response.text})
-        except Exception as e:
-            raise SplunkAPIError(f"Export search failed: {str(e)}")
             
     async def get_indexes(self) -> List[Dict[str, Any]]:
         """Get list of all indexes with detailed information.
@@ -246,11 +188,26 @@ class SplunkClient:
                 })
             
             return indexes
+        except httpx.TimeoutException as e:
+            raise SplunkAPIError(
+                "Splunk did not respond before the timeout. Check network access or increase SPLUNK_REQUEST_TIMEOUT."
+            ) from e
+        except httpx.ConnectError as e:
+            raise SplunkAPIError(
+                "Could not reach Splunk at the configured URL. Check SPLUNK_URL, the port, network access, and that Splunk is running."
+            ) from e
         except httpx.HTTPStatusError as e:
-            raise SplunkAPIError(f"Failed to get indexes", status_code=e.response.status_code,
-                               details={"error": e.response.text})
+            raise SplunkAPIError(
+                f"Splunk rejected the index request (HTTP {e.response.status_code}). Check the credentials and index permissions.",
+                status_code=e.response.status_code,
+                details={"error": e.response.text},
+            ) from e
+        except httpx.RequestError as e:
+            raise SplunkAPIError(
+                f"The request to Splunk failed. Check the URL and network access: {str(e)}"
+            ) from e
         except Exception as e:
-            raise SplunkAPIError(f"Failed to get indexes: {str(e)}")
+            raise SplunkAPIError(f"Splunk returned an invalid index response: {str(e)}") from e
 
     async def get_lookup_table_files(self, app: str = "", search: str = "", count: int = 50) -> List[Dict[str, Any]]:
         """List visible lookup-table knowledge objects without modifying them."""
@@ -416,6 +373,18 @@ class SplunkClient:
             Dictionary with job info and results
         """
         self._ensure_connected()
+
+        async def cancel_job(job_url: str) -> None:
+            try:
+                response = await self._client.post(
+                    f"{job_url}/control",
+                    data={"action": "cancel"},
+                    params={"output_mode": "json"},
+                )
+                response.raise_for_status()
+            except Exception:
+                # Cancellation is best effort; preserve the original timeout/cancellation.
+                return
         
         try:
             # Dispatch the saved search
@@ -438,6 +407,7 @@ class SplunkClient:
             # Poll for completion
             job_url = f"/services/search/jobs/{quote(str(job_id), safe='')}"
             deadline = monotonic() + float(self.config.get("job_timeout", 120))
+            poll_delay = 0.5
             while True:
                 job_response = await self._client.get(job_url, params={"output_mode": "json"})
                 job_response.raise_for_status()
@@ -446,13 +416,21 @@ class SplunkClient:
                 entry = job_info.get("entry", [{}])[0]
                 content = entry.get("content", {})
                 
-                if content.get("dispatchState") == "DONE":
+                state = str(content.get("dispatchState", "")).upper()
+                if state == "DONE":
                     break
+                if state in {"FAILED", "PAUSED"}:
+                    raise SplunkAPIError(
+                        f"Saved search entered terminal state {state}",
+                        details={"job_id": job_id, "dispatch_state": state},
+                    )
 
                 if monotonic() >= deadline:
+                    await cancel_job(job_url)
                     raise SplunkAPIError("Saved search timed out", details={"job_id": job_id})
                     
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(poll_delay)
+                poll_delay = min(poll_delay * 2, 2.0)
             
             # Get results
             results_url = f"/services/search/jobs/{quote(str(job_id), safe='')}/results"
@@ -460,7 +438,7 @@ class SplunkClient:
             results_response = await self._client.get(results_url, params={"output_mode": "json", "count": limit})
             results_response.raise_for_status()
             
-            events = self._parse_response(results_response.text, "json")[:limit]
+            events = self._parse_response(results_response.text)[:limit]
             
             return {
                 "search_name": search_name,
@@ -479,6 +457,10 @@ class SplunkClient:
                     if content.get(key) is not None
                 },
             }
+        except asyncio.CancelledError:
+            if "job_url" in locals():
+                await cancel_job(job_url)
+            raise
         except SplunkAPIError:
             raise
         except httpx.HTTPStatusError as e:

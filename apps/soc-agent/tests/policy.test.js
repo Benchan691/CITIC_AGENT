@@ -10,7 +10,7 @@ import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 43)
+  assert.equal(DOMAIN_TOOLS.size, 45)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
@@ -21,6 +21,7 @@ test('interactive analyst policy exposes the exact product tool set', () => {
     'mcp__soc_agent__update_subscription',
     'mcp__soc_agent__zimbra_create_email_filter',
     'mcp__soc_agent__zimbra_create_folder',
+    'mcp__soc_agent__zimbra_move_email',
     'mcp__soc_agent__zimbra_reorder_email_filter',
     'mcp__soc_agent__zimbra_send_email',
     'mcp__soc_agent__zimbra_set_email_filter_enabled',
@@ -35,8 +36,8 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 })
 
 test('SOC policy has disjoint read-only and action categories', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 25)
-  assert.equal(ACTION_TOOLS.length, 18)
+  assert.equal(READ_ONLY_TOOLS.length, 26)
+  assert.equal(ACTION_TOOLS.length, 19)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
   assert.equal(READ_ONLY_TOOLS.includes('skill'), true)
@@ -62,20 +63,21 @@ test('SOC policy has disjoint read-only and action categories', () => {
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 20)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 21)
   for (const name of READ_ONLY_DOMAIN_TOOLS) {
     assert.equal(DOMAIN_TOOLS.has(name), true)
     assert.equal(APPROVAL_TOOLS.has(name), false)
     assert.equal(name.startsWith('scheduled_task_'), false)
   }
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_send_email'), false)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_move_email'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__splunk_list_indexes'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__splunk_list_data_sources'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.some(name => name.includes('create_detection')), false)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_create_email_draft'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__list_subscriptions'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__get_subscription_schema'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__preview_subscription'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_create_email_draft'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('ask_user_question'), false)
 })
 
@@ -104,6 +106,7 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_create_folder' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_update_email_filter' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_send_email' }, () => ({ kind: 'delegate' }))).kind, 'ask')
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_move_email' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__list_subscriptions' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__get_subscription_schema' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__preview_subscription' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
@@ -111,6 +114,34 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.equal((await preExecute({ name: 'mcp__soc_agent__update_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__delete_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'bash' }, () => ({ kind: 'delegate' }))).kind, 'deny')
+})
+
+test('host RPC failures use the shared result error contract', async () => {
+  let rpcHandler
+  apply({
+    on() {},
+    agents: { roots: () => [] },
+    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+  })
+
+  assert.deepEqual(await rpcHandler('missing-endpoint', {}), {
+    ok: false,
+    error: { code: 'bad-request', message: 'Unknown endpoint: missing-endpoint', details: { issues: [] } },
+  })
+
+  const previousServer = process.env.DSH_SOC_AGENT_SERVER
+  process.env.DSH_SOC_AGENT_SERVER = '/path/that/does/not/exist'
+  try {
+    const result = await rpcHandler('get-settings', {})
+    assert.equal(result.ok, false)
+    assert.equal(result.error.code, 'internal')
+    assert.deepEqual(result.error.details, {})
+    assert.match(result.error.message, /^Admin operation "get-settings" failed: /)
+    assert.equal(result.error.message.includes('Traceback'), false)
+  } finally {
+    if (previousServer === undefined) delete process.env.DSH_SOC_AGENT_SERVER
+    else process.env.DSH_SOC_AGENT_SERVER = previousServer
+  }
 })
 
 test('assembled Web profile matches the focused enabled-plugin snapshot', () => {

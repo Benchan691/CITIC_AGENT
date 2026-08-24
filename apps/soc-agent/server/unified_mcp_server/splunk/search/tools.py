@@ -18,7 +18,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
             return failure("splunk", "validate_query", exc.code, exc.message, details=exc.details)
 
     @server.tool()
-    async def splunk_search(ctx: Context, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 100, fields: list[str] | None = None) -> dict[str, Any]:
+    async def splunk_search(ctx: Context, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         """Execute a guarded Splunk search; select fields to reduce result size when possible."""
         return await execute(ctx, "splunk", "search", lambda: get_runtime(ctx).splunk_search.search(query, earliest_time, latest_time, max_count, fields))
 
@@ -38,6 +38,6 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
         return await execute(ctx, "splunk", "list_lookups", lambda: get_runtime(ctx).splunk_search.list_lookups(app, name, limit))
 
     @server.tool()
-    async def splunk_run_saved_search(ctx: Context, name: str, max_count: int = 100, app: str = "", owner: str = "") -> dict[str, Any]:
+    async def splunk_run_saved_search(ctx: Context, name: str, max_count: int = 50, app: str = "", owner: str = "") -> dict[str, Any]:
         """Run a scoped saved search with actions disabled and bounded results."""
         return await execute(ctx, "splunk", "run_saved_search", lambda: get_runtime(ctx).splunk_search.run_saved_search(name, max_count, app, owner))

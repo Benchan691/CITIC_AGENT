@@ -6,10 +6,12 @@ This workspace is a dedicated SOC operations agent. Prefer safe, evidence-based,
 
 For multi-source incident triage, load `soc-incident-triage`, then load only the specialist skill required by the current branch:
 
+- `soc-shift-operations` for bounded daily or shift screening and handoff;
 - `splunk-investigation` for read-only Splunk investigations;
 - `email-to-splunk-investigation` for Zimbra-led correlation;
 - `false-positive-analysis` for detection-noise assessment;
-- `detection-engineering` for controlled rule changes.
+- `detection-engineering` for controlled rule changes;
+- `zimbra-operations` for approved mailbox, folder, filter, or send actions.
 
 ## Operating rules
 

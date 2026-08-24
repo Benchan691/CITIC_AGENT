@@ -20,15 +20,28 @@ function serverRoot() {
 }
 
 function workspaceRoot() {
-  return process.env.MCP_SEVER_ROOT || dirname(bundleRoot())
+  return process.env.MCP_SERVER_ROOT || process.env.MCP_SEVER_ROOT || dirname(dirname(bundleRoot()))
 }
 
 function ok(value) {
   return { ok: true, value }
 }
 
-function err(code, message) {
-  return { ok: false, error: { code, message } }
+function badRequest(message) {
+  return { ok: false, error: { code: 'bad-request', message, details: { issues: [] } } }
+}
+
+function internalError(message) {
+  return { ok: false, error: { code: 'internal', message, details: {} } }
+}
+
+function adminFailureMessage(command, stderr, exitCode) {
+  const lines = String(stderr).split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+  const exception = [...lines].reverse().find(line => /^[\w.$]+(?:Error|Exception):\s*/.test(line))
+  const detail = (exception ?? lines.at(-1) ?? `process exited with code ${String(exitCode)}`)
+    .replace(/^[\w.$]+(?:Error|Exception):\s*/, '')
+  const label = command === 'test-splunk' ? 'Splunk connection test failed' : `Admin operation "${command}" failed`
+  return `${label}: ${detail}`
 }
 
 function runAdmin(command, arg, payload) {
@@ -37,16 +50,16 @@ function runAdmin(command, arg, payload) {
     if (arg !== undefined && arg !== '') args.push(arg)
     const child = spawn('uv', args, {
       cwd: serverRoot(),
-      env: { ...process.env, MCP_SEVER_ROOT: workspaceRoot() },
+      env: { ...process.env, MCP_SERVER_ROOT: workspaceRoot() },
     })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', chunk => { stdout += String(chunk) })
     child.stderr.on('data', chunk => { stderr += String(chunk) })
-    child.on('error', rejectPromise)
+    child.on('error', error => rejectPromise(new Error(adminFailureMessage(command, error.message, -1))))
     child.on('close', code => {
       if (code !== 0) {
-        rejectPromise(new Error(stderr.trim() || `admin cli exited with code ${String(code)}`))
+        rejectPromise(new Error(adminFailureMessage(command, stderr, code)))
         return
       }
       try {
@@ -72,8 +85,9 @@ async function handleEndpoint(endpoint, payload) {
     case 'test-account': return ok(await runAdmin('test-account', payload?.id ?? ''))
     case 'send-email': return ok(await runAdmin('send-email', undefined, payload))
     case 'test-splunk': return ok(await runAdmin('test-splunk'))
+    case 'test-subscription-server': return ok(await runAdmin('test-subscription-server'))
     case 'migrate': return ok(await runAdmin('migrate'))
-    default: return err('unknown_endpoint', `Unknown endpoint: ${endpoint}`)
+    default: return badRequest(`Unknown endpoint: ${endpoint}`)
   }
 }
 
@@ -84,10 +98,10 @@ export function apply(ctx) {
   })
   ctx.on('tools/pre-execute', (exec, next) => {
     if (!DOMAIN_TOOLS.has(exec.name) && !CONTROL_TOOLS.has(exec.name)) {
-      return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only Splunk, Zimbra, and scheduled-investigation tools.' })
+      return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only Splunk, Zimbra, subscription, and scheduled-investigation tools.' })
     }
     if (APPROVAL_TOOLS.has(exec.name)) {
-      return Promise.resolve({ kind: 'ask', reason: 'This action changes Splunk, sends email, or changes persistent scheduled tasks.' })
+      return Promise.resolve({ kind: 'ask', reason: 'This action changes a SOC system, sends email, or changes a persistent schedule.' })
     }
     return next()
   }, { global: true })
@@ -97,7 +111,7 @@ export function apply(ctx) {
       try {
         return await handleEndpoint(endpoint, payload ?? {})
       } catch (error) {
-        return err('admin_failed', error instanceof Error ? error.message : String(error))
+        return internalError(error instanceof Error ? error.message : String(error))
       }
     },
     { authority: 'loopback' },

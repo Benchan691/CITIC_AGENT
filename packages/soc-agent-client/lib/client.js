@@ -29,6 +29,54 @@ window.__ModuleLoader__.load({
 		let react = require("react");
 		react = __toESM(react, 1);
 		let react_jsx_runtime = require("react/jsx-runtime");
+		//#region src/client/CiticBrand.tsx
+		/** CITIC Telecom CPC's red emblem, adapted from the official logo artwork. */
+		function CiticBrandMark({ size, className }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
+				width: size,
+				height: size,
+				viewBox: "80 160 18 18",
+				className,
+				fill: "none",
+				"aria-hidden": "true",
+				focusable: "false",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					transform: "translate(-80.898923,-160.69617)",
+					fill: "#d70010",
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("g", {
+							transform: "matrix(0.35277777,0,0,-0.35277777,93.64196,167.46844)",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m 0,0 c 0,9.347 -7.577,16.93 -16.928,16.93 -9.349,0 -16.928,-7.583 -16.928,-16.93 0,-9.347 7.579,-16.925 16.928,-16.925 C -7.577,-16.925 0,-9.347 0,0 M -16.928,18.447 C -6.74,18.447 1.52,10.189 1.52,0 c 0,-10.187 -8.26,-18.442 -18.448,-18.442 -10.184,0 -18.444,8.255 -18.444,18.442 0,10.189 8.26,18.447 18.444,18.447" })
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("g", {
+							transform: "matrix(0.35277777,0,0,-0.35277777,89.825999,163.10352)",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m 0,0 c 0.714,0.405 1.001,1.258 -0.056,1.78 -1.496,0.743 -3.981,1.29 -6.055,1.29 -2.288,0 -4.61,-0.408 -6.247,-1.312 -0.89,-0.488 -0.825,-1.333 0.133,-1.78 1.008,-0.476 3.829,-1.892 3.829,-5.314 l 0.044,-22.315 c 0.732,-0.104 1.479,-0.165 2.241,-0.165 0.735,0 1.46,0.058 2.168,0.155 L -3.9,-5.336 c 0,3.422 3.063,4.862 3.9,5.336" })
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("g", {
+							transform: "matrix(0.35277777,0,0,-0.35277777,90.08078,163.61855)",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m 0,0 c -2.713,-0.619 -3.116,-3.182 -3.116,-3.949 v -21.926 c 1.087,0.267 2.132,0.629 3.116,1.11 z" })
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("g", {
+							transform: "matrix(0.35277777,0,0,-0.35277777,92.09496,168.53023)",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m 0,0 c 0,0 -0.472,-0.815 -0.915,0.316 -0.521,1.455 -0.547,3.843 0,5.344 C -0.482,6.76 0,5.976 0,5.976 0.795,3.964 2.833,4.103 2.833,4.103 H 2.86 C 2.51,9.12 -0.233,13.469 -4.232,16.029 l 0.003,-26.031 c 3.986,2.55 6.718,6.881 7.088,11.87 H 2.833 C 2.833,1.868 0.795,2.009 0,0" })
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("g", {
+							transform: "matrix(0.35277777,0,0,-0.35277777,83.73628,168.53023)",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m 0,0 c 0,0 -0.377,-0.854 -0.915,0.316 -0.538,1.409 -0.606,3.576 0,5.317 0.48,1.146 0.936,0.321 0.936,0.321 C 0.817,3.942 2.767,4.103 2.767,4.103 V 15.98 C -1.481,13.226 -4.288,8.447 -4.288,3.01 c 0,-5.436 2.807,-10.212 7.055,-12.963 V 1.868 C 2.767,1.868 0.795,2.009 0,0" })
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("g", {
+							transform: "matrix(0.35277777,0,0,-0.35277777,85.234031,163.61855)",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m 0,0 v -24.727 c 0.985,-0.49 2.028,-0.881 3.115,-1.158 0,0 -0.002,21.136 -0.002,21.936 C 3.113,-3.15 2.679,-0.568 0,0" })
+						})
+					]
+				})
+			});
+		}
+		/** Product name shown next to the CITIC mark in the expanded sidebar. */
+		function CiticBrandName() {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "CITICTEL-CPC AGENT" });
+		}
+		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
 		const css$1 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
 		const tagId$1 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
@@ -239,6 +287,54 @@ window.__ModuleLoader__.load({
 					testSplunk();
 				}
 			}, "Test Splunk"), react.default.createElement(TestStatus, { result: test })), status ? react.default.createElement("p", {
+				className: SplunkZimbraOverlay_module_css_default.status,
+				role: "status"
+			}, status) : null);
+		}
+		//#endregion
+		//#region src/client/SubscriptionServerSettings.ts
+		function SubscriptionServerSettings({ connection }) {
+			const [settings, setSettings] = (0, react.useState)(null);
+			const [status, setStatus] = (0, react.useState)("Loading...");
+			const [test, setTest] = (0, react.useState)(null);
+			const load = (0, react.useCallback)(async () => {
+				try {
+					setSettings(await rpc$1(connection, "get-settings"));
+					setStatus("");
+				} catch (error) {
+					setStatus(errorText(error));
+				}
+			}, [connection]);
+			(0, react.useEffect)(() => {
+				load();
+			}, [load]);
+			const testConnection = async () => {
+				setTest({
+					kind: "pending",
+					text: "Testing…"
+				});
+				try {
+					const value = await rpc$1(connection, "test-subscription-server");
+					setTest({
+						kind: "ok",
+						text: `Subscription server OK (${String(value.subscription_count ?? 0)} subscriptions)`
+					});
+				} catch (error) {
+					setTest({
+						kind: "fail",
+						text: errorText(error)
+					});
+				}
+			};
+			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
+			const server = settings.subscription_server ?? {};
+			return react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Subscription server"), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Configured through the server .env file. Credentials are never shown here."), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, `URL: ${String(server.url || "")}`), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, server.configured ? "Credentials configured" : "Credentials not configured"), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
+				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
+				type: "button",
+				onClick: () => {
+					testConnection();
+				}
+			}, "Test subscription server"), react.default.createElement(TestStatus, { result: test })), status ? react.default.createElement("p", {
 				className: SplunkZimbraOverlay_module_css_default.status,
 				role: "status"
 			}, status) : null);
@@ -471,7 +567,7 @@ window.__ModuleLoader__.load({
 			}), react.default.createElement("label", { className: SplunkZimbraOverlay_module_css_default.fieldLabel }, "Investigation prompt"), react.default.createElement("textarea", {
 				className: SplunkZimbraOverlay_module_css_default.textarea,
 				value: prompt,
-				maxLength: 2e4,
+				maxLength: 8e3,
 				rows: 5,
 				onChange: (event) => setPrompt(event.target.value)
 			}), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Rule"), react.default.createElement("select", {
@@ -524,7 +620,7 @@ window.__ModuleLoader__.load({
 				className: SplunkZimbraOverlay_module_css_default.deleteButton,
 				type: "button",
 				onClick: () => {
-					mutate("delete", { id: task.id });
+					if (window.confirm(`Delete scheduled task “${task.name}”?`)) mutate("delete", { id: task.id });
 				}
 			}, "Delete"))))), react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Recent runs"), runs.length === 0 ? react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "No runs yet.") : null, runs.map((run) => react.default.createElement("div", {
 				className: SplunkZimbraOverlay_module_css_default.run,
@@ -871,12 +967,26 @@ window.__ModuleLoader__.load({
 		function apply(ctx) {
 			const connection = ctx.get("connection");
 			installEmailDraftToolview(ctx);
+			ctx.slots.inject("sidebar.brand.mark", () => ctx.slots.inject("sidebar.brand.name", () => ctx.slots.inject("conversation.hero.brand.mark", function* () {
+				yield ctx.slots.register({
+					name: "sidebar.brand.mark",
+					priority: -1
+				}, CiticBrandMark);
+				yield ctx.slots.register({
+					name: "sidebar.brand.name",
+					priority: -1
+				}, CiticBrandName);
+				yield ctx.slots.register({
+					name: "conversation.hero.brand.mark",
+					priority: -1
+				}, CiticBrandMark);
+			})));
 			ctx.slots.inject("settings.section", () => {
 				const connections = ctx.slots.register({
 					name: "settings.section",
 					...SETTINGS_SECTIONS[0],
 					inject: () => ({ connection })
-				}, () => react.default.createElement(react.default.Fragment, null, react.default.createElement(SplunkSettings, { connection }), react.default.createElement(ZimbraSettings, { connection })));
+				}, () => react.default.createElement(react.default.Fragment, null, react.default.createElement(SplunkSettings, { connection }), react.default.createElement(ZimbraSettings, { connection }), react.default.createElement(SubscriptionServerSettings, { connection })));
 				const schedules = ctx.slots.register({
 					name: "settings.section",
 					...SETTINGS_SECTIONS[1],
@@ -897,6 +1007,7 @@ window.__ModuleLoader__.load({
 		exports.EmailDraftToolview = EmailDraftToolview;
 		exports.SchedulerSettings = SchedulerSettings;
 		exports.SplunkSettings = SplunkSettings;
+		exports.SubscriptionServerSettings = SubscriptionServerSettings;
 		exports.ZimbraSettings = ZimbraSettings;
 		exports.apply = apply;
 		exports.inject = inject;

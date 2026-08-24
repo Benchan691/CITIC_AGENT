@@ -10,7 +10,7 @@ from mcp.server.fastmcp import Context
 def register_tools(server, *, get_runtime, execute) -> None:
     @server.tool()
     async def list_subscriptions(ctx: Context) -> dict[str, Any]:
-        """List webserver notification subscriptions (not Zimbra mailbox mail)."""
+        """List webserver notification subscriptions."""
         return await execute(
             ctx,
             "subscription",
@@ -20,7 +20,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
 
     @server.tool()
     async def get_subscription_schema(ctx: Context) -> dict[str, Any]:
-        """Get live webserver subscription filter fields, defaults, enums, and limits."""
+        """Get live webserver subscription fields, defaults, enums, and limits."""
         return await execute(
             ctx,
             "subscription",
@@ -36,7 +36,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Validate and normalize a proposed webserver subscription without saving or notifying."""
+        """Validate a proposed subscription without saving or notifying."""
         return await execute(
             ctx,
             "subscription",
@@ -54,7 +54,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create a webserver notification subscription; the webserver sends its notification."""
+        """Create a webserver notification subscription."""
         return await execute(
             ctx,
             "subscription",
@@ -72,7 +72,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Update a webserver notification subscription; the webserver sends its notification."""
+        """Update a webserver notification subscription."""
         return await execute(
             ctx,
             "subscription",
@@ -84,7 +84,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
 
     @server.tool()
     async def delete_subscription(ctx: Context, email: str) -> dict[str, Any]:
-        """Delete a webserver notification subscription; the webserver sends its cancellation."""
+        """Delete a webserver notification subscription."""
         return await execute(
             ctx,
             "subscription",

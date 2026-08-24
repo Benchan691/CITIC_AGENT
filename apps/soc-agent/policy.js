@@ -16,6 +16,7 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__zimbra_list_folders',
   'mcp__soc_agent__zimbra_search_emails',
   'mcp__soc_agent__zimbra_get_email',
+  'mcp__soc_agent__zimbra_get_email_headers',
   'mcp__soc_agent__zimbra_get_attachment_text',
   'mcp__soc_agent__zimbra_create_email_draft',
   'mcp__soc_agent__zimbra_list_email_filters',
@@ -34,14 +35,15 @@ export const ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_enable_detection',
   'mcp__soc_agent__splunk_disable_detection',
   'mcp__soc_agent__zimbra_send_email',
+  'mcp__soc_agent__zimbra_move_email',
   'mcp__soc_agent__zimbra_create_email_filter',
   'mcp__soc_agent__zimbra_update_email_filter',
   'mcp__soc_agent__zimbra_set_email_filter_enabled',
   'mcp__soc_agent__zimbra_reorder_email_filter',
+  'mcp__soc_agent__zimbra_create_folder',
   'mcp__soc_agent__create_subscription',
   'mcp__soc_agent__update_subscription',
   'mcp__soc_agent__delete_subscription',
-  'mcp__soc_agent__zimbra_create_folder',
   'scheduled_task_create',
   'scheduled_task_pause',
   'scheduled_task_resume',
@@ -52,8 +54,8 @@ export const ACTION_TOOLS = Object.freeze([
 export const DOMAIN_TOOLS = new Set([...READ_ONLY_TOOLS, ...ACTION_TOOLS])
 export const APPROVAL_TOOLS = new Set(ACTION_TOOLS)
 
-// Scheduled investigations cannot access subscription administration data or
-// scheduler inspection/mutation tools.
+// Scheduled investigations cannot access scheduler inspection/mutation tools
+// or create browser-editable email drafts.
 const SCHEDULED_EXCLUDED_READ_TOOLS = new Set([
   'scheduled_task_list',
   'mcp__soc_agent__zimbra_create_email_draft',

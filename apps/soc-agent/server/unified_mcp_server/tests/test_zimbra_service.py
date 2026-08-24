@@ -8,6 +8,7 @@ from unified_mcp_server.config import ZimbraSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 from unified_mcp_server.account_store import AccountStore
 from unified_mcp_server.zimbra_service import ZimbraService, _upstream_error
+from unified_mcp_server.zimbra.mail.service import ZimbraMailService
 
 
 def settings(**overrides):
@@ -39,12 +40,14 @@ async def test_search_returns_metadata_but_body_requires_get(monkeypatch):
     )
     service = ZimbraService(settings())
 
-    search = await service.search_emails("subject:Alert")
+    search = await service.search_emails("subject:Alert", offset=40)
     message = await service.get_email("42")
 
     assert "body" not in search["messages"][0]
     assert "account" not in search["messages"][0]
     assert len(search_calls) == 1
+    assert search_calls[0][0][4] == 40
+    assert search["offset"] == 40
     assert message["body"] == "sensitive details"
     assert message["body_characters"] == 17
     assert message["body_truncated"] is False
@@ -64,6 +67,63 @@ async def test_get_email_bounds_body_for_agent_context(monkeypatch):
     assert message["body"] == "abcd"
     assert message["body_characters"] == 10
     assert message["body_truncated"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_email_headers_returns_bounded_untrusted_evidence(monkeypatch):
+    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
+    captured = {}
+
+    def fake_headers(host, token, message_id, names, **kwargs):
+        captured["names"] = names
+        return {"message_id": message_id, "headers": {name: [] for name in names}}
+
+    monkeypatch.setattr(module, "zimbra_get_message_headers", fake_headers)
+
+    result = await ZimbraService(settings()).get_email_headers(
+        "42", names=["message-id", "authentication-results"]
+    )
+
+    assert captured["names"] == ["Message-ID", "Authentication-Results"]
+    assert result["untrusted_evidence"] is True
+    assert "body" not in result
+
+
+@pytest.mark.asyncio
+async def test_move_email_is_gated_validated_and_verified(monkeypatch):
+    service = ZimbraService(settings())
+    with pytest.raises(ServiceError) as disabled:
+        await service.move_email("42", "99")
+    assert disabled.value.code == "operation_disabled"
+
+    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
+    monkeypatch.setattr(
+        module,
+        "zimbra_list_folders",
+        lambda *args, **kwargs: [{"id": "99", "name": "Quarantine", "path": "/Quarantine"}],
+    )
+    messages = iter([
+        {"id": "42", "folder_id": "2"},
+        {"id": "42", "folder_id": "99"},
+    ])
+    monkeypatch.setattr(module, "zimbra_get_message", lambda *args, **kwargs: next(messages))
+    moved = []
+    monkeypatch.setattr(
+        module, "zimbra_move_message",
+        lambda host, token, message_id, folder_id, **kwargs: moved.append((message_id, folder_id)),
+    )
+
+    result = await ZimbraService(settings(allow_move=True)).move_email("42", "99")
+
+    assert moved == [("42", "99")]
+    assert result["moved"] is True
+    assert result["original_folder_id"] == "2"
+    assert result["rollback"] == {
+        "tool": "zimbra_move_email",
+        "message_id": "42",
+        "folder_id": "2",
+        "account_id": "legacy",
+    }
 
 
 @pytest.mark.asyncio
@@ -88,6 +148,14 @@ def test_create_email_draft_is_local_and_structured(monkeypatch):
     assert draft["draft"]["bcc"] == ["bcc@example.com"]
     assert draft["draft"]["account_id"] == "legacy"
     assert draft["send_tool"] == "zimbra_send_email"
+
+
+def test_runtime_email_draft_does_not_require_a_zimbra_host():
+    draft = ZimbraMailService(settings(host="")).create_email_draft(
+        ["to@example.com"], "Subject", "Body"
+    )
+
+    assert draft["draft"]["account_id"] == "legacy"
 
 
 def test_email_draft_rejects_missing_or_malformed_recipients():
@@ -176,6 +244,7 @@ async def test_attachment_text_is_bounded_and_returns_evidence_metadata(monkeypa
     assert result["filename"] == "evidence.txt"
     assert result["text"] == "evidence"
     assert result["bytes"] == 8
+    assert result["sha256"] == "ee8250fb76e094b34b471f13a73dbbe51d1ae142e9df59d7c0d31ec20f0a0a8e"
 
 
 @pytest.mark.asyncio
@@ -252,7 +321,7 @@ async def test_encrypted_pdf_returns_stable_error(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_extracted_text_limit_returns_stable_error(monkeypatch):
+async def test_extracted_text_is_truncated_to_the_requested_limit(monkeypatch):
     monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
     monkeypatch.setattr(
         module,
@@ -264,6 +333,10 @@ async def test_extracted_text_limit_returns_stable_error(monkeypatch):
     )
     monkeypatch.setattr(module, "download_attachment", lambda *args, **kwargs: b"evidence")
 
-    with pytest.raises(ServiceError) as error:
-        await ZimbraService(settings(max_attachment_text_chars=4)).get_attachment_text("42", "2")
-    assert error.value.code == "attachment_text_too_large"
+    result = await ZimbraService(settings(max_attachment_text_chars=20)).get_attachment_text(
+        "42", "2", max_chars=4
+    )
+
+    assert result["text"] == "evid"
+    assert result["characters"] == 8
+    assert result["text_truncated"] is True

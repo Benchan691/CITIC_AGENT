@@ -34,10 +34,11 @@ Route email-led investigations to `email-to-splunk-investigation`, false-positiv
 4. Build a scoped query that answers one question. Avoid unbounded wildcards, joins, transactions, broad subsearches, and raw-field output unless necessary.
 5. Validate the query. Stop or revise if blocked.
 6. Search with a small `max_count` and explicit `fields`. Increase either only when evidence requires it.
-7. Pivot from returned evidence: entity → related event → surrounding activity → affected scope. Validate every new query.
-8. Build a UTC-normalized timeline while preserving source timestamps and timezone uncertainty.
-9. Classify as malicious, suspicious, likely benign, no supporting evidence, or inconclusive. Use calibrated confidence.
-10. Recommend the smallest next action and name missing evidence.
+7. If the event budget reports truncation, narrow `fields` or scope; do not treat omitted samples as zero matches.
+8. Pivot from returned evidence: entity → related event → surrounding activity → affected scope. Validate every new query.
+9. Build a UTC-normalized timeline while preserving source timestamps and timezone uncertainty.
+10. Classify as malicious, suspicious, likely benign, no supporting evidence, or inconclusive. Use calibrated confidence.
+11. Recommend the smallest next action and name missing evidence.
 
 Zero results mean only that the searched scope returned no evidence. They do not prove absence.
 

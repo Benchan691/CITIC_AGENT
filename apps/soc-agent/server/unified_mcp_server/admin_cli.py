@@ -11,6 +11,7 @@ from os import environ
 from typing import Any
 
 from .config import ServerSettings
+from .email.service import EmailSubscriptionService
 from .env_loader import load_server_env
 from .postgres_store import PostgresAccountStore, PostgresStore, dump_json
 from .splunk_service import SplunkService
@@ -72,6 +73,10 @@ def _public_settings(store: PostgresStore) -> dict[str, Any]:
             "max_attachment_text_chars": settings.zimbra.max_attachment_text_chars,
             "account_count": store.count_accounts(),
         },
+        "subscription_server": {
+            "url": settings.email_server.url,
+            "configured": settings.email_server.configured,
+        },
     }
 
 
@@ -122,6 +127,15 @@ async def test_splunk(store: PostgresStore) -> dict[str, Any]:
     try:
         result = await service.test_connection()
         return {"ok": True, "index_count": result["index_count"], "host": settings.splunk.host}
+    finally:
+        await service.close()
+
+
+async def test_subscription_server(store: PostgresStore) -> dict[str, Any]:
+    settings = _settings(store)
+    service = EmailSubscriptionService(settings.email_server)
+    try:
+        return await service.test_connection()
     finally:
         await service.close()
 
@@ -218,6 +232,8 @@ def main() -> None:
         result = asyncio.run(send_email(store, payload))
     elif command == "test-splunk":
         result = asyncio.run(test_splunk(store))
+    elif command == "test-subscription-server":
+        result = asyncio.run(test_subscription_server(store))
     elif command == "migrate":
         result = migrate(store)
     else:

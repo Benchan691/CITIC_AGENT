@@ -8,7 +8,8 @@ export type ScheduledTaskRunState = 'queued' | 'running' | 'completed' | 'failed
 export interface ScheduledTask {
   id: string
   name: string
-  prompt: string
+  promptCharacters: number
+  promptSha256: string
   rule: ScheduledTaskRule
   status: ScheduledTaskStatus
   createdAt: string

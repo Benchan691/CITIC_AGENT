@@ -210,7 +210,6 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         get_runtime=runtime,
         execute=execute,
     )
-
     return server
 
 
