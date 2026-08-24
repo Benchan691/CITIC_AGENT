@@ -33,7 +33,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "zimbra_get_email",
         "zimbra_get_email_headers",
         "zimbra_get_attachment_text",
-        "zimbra_create_email_draft",
         "zimbra_send_email",
         "zimbra_move_email",
         "zimbra_list_email_filters",
@@ -71,12 +70,10 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     }
     assert preview_tool.parameters.get("required", []) == []
 
-    draft_tool = next(tool for tool in tools if tool.name == "zimbra_create_email_draft")
+    draft_tool = next(tool for tool in tools if tool.name == "zimbra_send_email")
     assert set(draft_tool.parameters["properties"]) == {"to", "cc", "bcc", "subject", "body", "account_id"}
     assert set(draft_tool.parameters["required"]) == {"to", "subject", "body"}
-    send_tool = next(tool for tool in tools if tool.name == "zimbra_send_email")
-    assert set(send_tool.parameters["properties"]) == {"to", "cc", "bcc", "subject", "body", "account_id"}
-    assert set(send_tool.parameters["required"]) == {"to", "subject", "body"}
+    assert "zimbra_create_email_draft" not in {tool.name for tool in tools}
     get_email_tool = next(tool for tool in tools if tool.name == "zimbra_get_email")
     assert set(get_email_tool.parameters["properties"]) == {
         "message_id", "account_id", "max_body_chars",
@@ -146,7 +143,7 @@ def test_draft_tool_action_is_awaitable(monkeypatch):
 
     # The nested action is created by the registered tool, not by the service.
     # Calling the tool also proves a plain draft dict is never awaited directly.
-    tool = next(value for value in server.tools if value.__name__ == "zimbra_create_email_draft")
+    tool = next(value for value in server.tools if value.__name__ == "zimbra_send_email")
     result = asyncio.run(tool(None, ["to@example.com"], "Subject", "Body"))
     assert inspect.iscoroutinefunction(captured["action"])
     assert result["draft"]["to"] == ["to@example.com"]

@@ -312,7 +312,6 @@ class PostgresStore:
             "ZIMBRA_HOST",
             "ZIMBRA_VERIFY_SSL",
             "ZIMBRA_TIMEOUT",
-            "ZIMBRA_ALLOW_SEND",
             "ZIMBRA_MAX_ATTACHMENT_BYTES",
             "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS",
         ]

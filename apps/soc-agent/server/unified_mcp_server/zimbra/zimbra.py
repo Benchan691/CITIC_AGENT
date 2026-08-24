@@ -130,45 +130,6 @@ def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=True, 
     )
 
 
-def zimbra_send_email(cfg, to, subject, body, *, cc=None, bcc=None):
-    require_zimbra_config(cfg)
-    host = zimbra_host(cfg)
-    token = zimbra_login(cfg)
-    options = _connection_options(cfg)
-    subject_text = str(subject or "").strip()
-    if isinstance(to, (list, tuple, set)):
-        recipients = [str(addr).strip() for addr in to if str(addr).strip()]
-    else:
-        recipients = [part.strip() for part in str(to or "").split(",") if part.strip()]
-    if not recipients:
-        raise ValueError("Missing email recipient")
-    to_xml = "".join(f'<e t="t" a="{html.escape(addr)}"/>' for addr in recipients)
-    def recipient_xml(value, recipient_type):
-        if isinstance(value, (list, tuple, set)):
-            values = value
-        else:
-            values = str(value or "").split(",")
-        return "".join(
-            f'<e t="{recipient_type}" a="{html.escape(str(addr).strip())}"/>'
-            for addr in values if str(addr).strip()
-        )
-    cc_xml = recipient_xml(cc, "c")
-    bcc_xml = recipient_xml(bcc, "b")
-    soap_request(
-        host,
-        f"""<SendMsgRequest xmlns="urn:zimbraMail">
-  <m>
-    {to_xml}
-    {cc_xml}
-    {bcc_xml}
-    <su>{html.escape(subject_text)}</su>
-    <mp ct="text/plain"><content>{html.escape(str(body or ""))}</content></mp>
-  </m>
-</SendMsgRequest>""",
-        token,
-        **options,
-    )
-
 def _message_date(value):
     if not value:
         return ""

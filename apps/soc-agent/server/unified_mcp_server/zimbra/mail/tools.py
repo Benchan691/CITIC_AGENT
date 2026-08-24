@@ -45,7 +45,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         return await execute(ctx, "zimbra", "get_attachment_text", lambda: get_runtime(ctx).zimbra_mail.get_attachment_text(message_id, part, account_id, max_chars))
 
     @server.tool()
-    async def zimbra_create_email_draft(
+    async def zimbra_send_email(
         ctx: Context,
         to: list[str],
         subject: str,
@@ -65,26 +65,6 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
             "zimbra",
             "create_email_draft",
             create_draft,
-        )
-
-    @server.tool()
-    async def zimbra_send_email(
-        ctx: Context,
-        to: list[str],
-        subject: str,
-        body: str,
-        cc: list[str] | None = None,
-        bcc: list[str] | None = None,
-        account_id: str = "",
-    ) -> dict[str, Any]:
-        """Send a plain-text Zimbra email when ZIMBRA_ALLOW_SEND is explicitly enabled."""
-        return await execute(
-            ctx,
-            "zimbra",
-            "send_email",
-            lambda: get_runtime(ctx).zimbra_mail.send_email(
-                to, subject, body, account_id, cc=cc, bcc=bcc,
-            ),
         )
 
     @server.tool()

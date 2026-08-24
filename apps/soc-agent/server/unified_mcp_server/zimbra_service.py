@@ -24,7 +24,6 @@ from unified_mcp_server.zimbra import (
     zimbra_login,
     zimbra_move_message,
     zimbra_search_messages,
-    zimbra_send_email,
 )
 
 from .account_store import AccountStore, StoredAccount
@@ -254,49 +253,6 @@ class ZimbraService:
                 "account": account.agent_dict(),
             },
             "editable_fields": ["to", "cc", "bcc", "subject", "body"],
-            "send_tool": "zimbra_send_email",
-        }
-
-    async def send_email(
-        self,
-        to: list[str],
-        subject: str,
-        body: str,
-        account_id: str = "",
-        *,
-        cc: list[str] | str | None = None,
-        bcc: list[str] | str | None = None,
-    ) -> dict[str, Any]:
-        if not self.settings.allow_send:
-            raise ServiceError(
-                "operation_disabled",
-                "Zimbra sending is disabled. Set ZIMBRA_ALLOW_SEND=true to enable it.",
-            )
-        recipients = self._recipients(to, "to")
-        carbon_copy = self._recipients(cc, "cc")
-        blind_carbon_copy = self._recipients(bcc, "bcc")
-        subject = str(subject or "").strip()
-        if not subject:
-            raise ServiceError("invalid_input", "subject cannot be empty")
-        account = self._resolve_account(account_id)
-        await self._run(
-            lambda: zimbra_send_email(
-                self._config(account),
-                recipients,
-                subject,
-                body,
-                cc=carbon_copy,
-                bcc=blind_carbon_copy,
-            ),
-        )
-        return {
-            "sent": True,
-            "account_id": account.id,
-            "account": account.agent_dict(),
-            "recipients": recipients,
-            "cc": carbon_copy,
-            "bcc": blind_carbon_copy,
-            "subject": subject,
         }
 
     def _legacy_account(self) -> StoredAccount | None:

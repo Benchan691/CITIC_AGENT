@@ -31,7 +31,6 @@ CONFIG_KEYS = {
     "zimbra.host": ("ZIMBRA_HOST",),
     "zimbra.verify_ssl": ("ZIMBRA_VERIFY_SSL",),
     "zimbra.timeout": ("ZIMBRA_TIMEOUT",),
-    "zimbra.allow_send": ("ZIMBRA_ALLOW_SEND",),
     "zimbra.max_attachment_bytes": ("ZIMBRA_MAX_ATTACHMENT_BYTES",),
     "zimbra.max_attachment_text_chars": ("ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS",),
 }
@@ -68,7 +67,6 @@ def _public_settings(store: PostgresStore) -> dict[str, Any]:
             "configured": bool(settings.zimbra.host and store.count_accounts()),
             "verify_ssl": settings.zimbra.verify_ssl,
             "timeout": settings.zimbra.timeout,
-            "allow_send": settings.zimbra.allow_send,
             "max_attachment_bytes": settings.zimbra.max_attachment_bytes,
             "max_attachment_text_chars": settings.zimbra.max_attachment_text_chars,
             "account_count": store.count_accounts(),
@@ -151,19 +149,6 @@ async def test_account(store: PostgresStore, account_id: str) -> dict[str, Any]:
     return {"ok": True, "account_id": account.id}
 
 
-async def send_email(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
-    settings = _settings(store)
-    service = ZimbraService(settings.zimbra, PostgresAccountStore(store))
-    return await service.send_email(
-        payload.get("to", []),
-        payload.get("subject", ""),
-        payload.get("body", ""),
-        payload.get("account_id", ""),
-        cc=payload.get("cc"),
-        bcc=payload.get("bcc"),
-    )
-
-
 def add_account(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
     account = store.add_account(
         label=str(payload.get("label", "")).strip(),
@@ -228,8 +213,6 @@ def main() -> None:
         result = delete_account(store, args.arg or "")
     elif command == "test-account":
         result = asyncio.run(test_account(store, args.arg or ""))
-    elif command == "send-email":
-        result = asyncio.run(send_email(store, payload))
     elif command == "test-splunk":
         result = asyncio.run(test_splunk(store))
     elif command == "test-subscription-server":

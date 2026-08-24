@@ -18,7 +18,7 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__zimbra_get_email',
   'mcp__soc_agent__zimbra_get_email_headers',
   'mcp__soc_agent__zimbra_get_attachment_text',
-  'mcp__soc_agent__zimbra_create_email_draft',
+  'mcp__soc_agent__zimbra_send_email',
   'mcp__soc_agent__zimbra_list_email_filters',
   'mcp__soc_agent__zimbra_get_email_filter',
   'mcp__soc_agent__zimbra_validate_email_filter',
@@ -34,7 +34,6 @@ export const ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_update_detection_draft',
   'mcp__soc_agent__splunk_enable_detection',
   'mcp__soc_agent__splunk_disable_detection',
-  'mcp__soc_agent__zimbra_send_email',
   'mcp__soc_agent__zimbra_move_email',
   'mcp__soc_agent__zimbra_create_email_filter',
   'mcp__soc_agent__zimbra_update_email_filter',
@@ -58,7 +57,7 @@ export const APPROVAL_TOOLS = new Set(ACTION_TOOLS)
 // or create browser-editable email drafts.
 const SCHEDULED_EXCLUDED_READ_TOOLS = new Set([
   'scheduled_task_list',
-  'mcp__soc_agent__zimbra_create_email_draft',
+  'mcp__soc_agent__zimbra_send_email',
   'mcp__soc_agent__list_subscriptions',
   'mcp__soc_agent__get_subscription_schema',
   'mcp__soc_agent__preview_subscription',

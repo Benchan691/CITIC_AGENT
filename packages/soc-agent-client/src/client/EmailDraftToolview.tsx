@@ -3,15 +3,9 @@ import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
 import React, { useEffect, useMemo, useState } from 'react'
 import css from './EmailDraftToolview.module.css'
-import {
-  draftFromForm,
-  sendEmailDraft,
-  ZIMBRA_DRAFT_TOOL_NAME,
-  type EmailDraftFields,
-  type EmailDraftFormFields,
-} from './emailDraft.ts'
+import { ZIMBRA_DRAFT_TOOL_NAME, type EmailDraftFields, type EmailDraftFormFields } from './emailDraft.ts'
 
-export { draftFromForm, parseRecipientText, sendEmailDraft, ZIMBRA_DRAFT_TOOL_NAME } from './emailDraft.ts'
+export { draftFromForm, parseRecipientText, ZIMBRA_DRAFT_TOOL_NAME } from './emailDraft.ts'
 export type { EmailDraftFields, EmailDraftFormFields } from './emailDraft.ts'
 
 interface DraftEnvelope {
@@ -19,10 +13,6 @@ interface DraftEnvelope {
     account?: { label?: unknown; email?: unknown }
   }
   error?: unknown
-}
-
-interface EmailDraftProps extends ToolCallViewProps {
-  sendDraft: (draft: EmailDraftFields) => Promise<void>
 }
 
 function resultText(block: ToolCallBlock): string {
@@ -83,14 +73,13 @@ function errorMessage(envelope: DraftEnvelope | null): string | null {
   return typeof error === 'string' && error ? error : null
 }
 
-export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
+export function EmailDraftToolview({ block }: ToolCallViewProps) {
   const envelope = useMemo(() => parseEnvelope(block), [block])
   const sourceKey = useMemo(() => JSON.stringify(envelope?.draft ?? null), [envelope])
   const [fields, setFields] = useState<EmailDraftFormFields>(() => envelope ? formFromEnvelope(envelope) : {
     to: '', cc: '', bcc: '', subject: '', body: '', accountId: '', accountLabel: '',
   })
-  const [status, setStatus] = useState<'editing' | 'sending' | 'sent' | 'failed' | 'discarded'>('editing')
-  const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<'editing' | 'discarded'>('editing')
 
   useEffect(() => {
     if (envelope?.draft) setFields(formFromEnvelope(envelope))
@@ -110,7 +99,7 @@ export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
       <div className={css.card}>
         <div className={css.header}><span className={css.title}>Email draft discarded</span></div>
         <div className={css.actions}>
-          <button className={css.button} type="button" onClick={() => { setFields(envelope ? formFromEnvelope(envelope) : fields); setStatus('editing'); setError(null) }}>Reopen</button>
+          <button className={css.button} type="button" onClick={() => { setFields(envelope ? formFromEnvelope(envelope) : fields); setStatus('editing') }}>Reopen</button>
         </div>
       </div>
     )
@@ -118,43 +107,17 @@ export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
 
   const update = (field: keyof EmailDraftFormFields) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFields(current => ({ ...current, [field]: event.target.value }))
-    setStatus(current => current === 'failed' ? 'editing' : current)
-    setError(null)
-  }
-
-  const submit = async () => {
-    const draft = draftFromForm(fields)
-    if (draft.to.length === 0) return setError('Add at least one To recipient.')
-    if (!draft.subject) return setError('Subject cannot be empty.')
-    setStatus('sending')
-    setError(null)
-    try {
-      await sendDraft(draft)
-      setStatus('sent')
-    } catch (reason) {
-      setStatus('failed')
-      setError(reason instanceof Error ? reason.message : 'The send request could not be submitted.')
-    }
   }
 
   return (
     <section className={css.card} aria-label="Editable Zimbra email draft">
       <div className={css.header}>
         <div>
-          <div className={css.title}>{status === 'sent' ? 'Email sent' : status === 'failed' ? 'Email send failed' : 'Email draft'}</div>
+          <div className={css.title}>Email draft</div>
           {fields.accountLabel && <div className={css.account}>via {fields.accountLabel}</div>}
         </div>
-        {status === 'failed' && <div className={`${css.account} ${css.error}`}>Failed</div>}
       </div>
-      {status === 'sent' ? (
-        <>
-          <div className={css.message}>Email sent successfully.</div>
-          <div className={css.actions}>
-            <button className={`${css.button} ${css.primary}`} type="button" disabled>Sent</button>
-          </div>
-        </>
-      ) : (
-        <div className={css.content}>
+      <div className={css.content}>
           {(['to', 'cc', 'bcc'] as const).map(field => (
             <label className={css.field} key={field}>
               <span className={css.label}>{field === 'to' ? 'To' : field === 'cc' ? 'Cc' : 'Bcc'}</span>
@@ -169,46 +132,21 @@ export function EmailDraftToolview({ block, sendDraft }: EmailDraftProps) {
             <span className={css.label}>Body</span>
             <textarea className={css.textarea} aria-label="Body" value={fields.body} onChange={update('body')} maxLength={18_000} />
           </label>
-          {error && <div className={`${css.message} ${css.error}`} role="alert">{error}</div>}
           <div className={css.actions}>
-            <button className={css.button} type="button" disabled={status === 'sending'} onClick={() => { setStatus('discarded'); setError(null) }}>Discard</button>
-            <button className={`${css.button} ${css.primary}`} type="button" disabled={status === 'sending'} onClick={() => { void submit() }}>{status === 'sending' ? 'Sending…' : status === 'failed' ? 'Retry' : 'Send'}</button>
+            <button className={css.button} type="button" onClick={() => { setStatus('discarded') }}>Discard</button>
           </div>
-        </div>
-      )}
+      </div>
     </section>
   )
 }
 
 export const emailDraftToolview = {
   name: 'zimbra-email-draft-toolview',
-  inject: ['slots', 'sessions', 'connection'],
+  inject: ['slots'],
   apply(ctx: Context): void {
     ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
       name: 'tool.call.toolview',
       key: ZIMBRA_DRAFT_TOOL_NAME,
-      inject: (sessionId) => ({
-        sendDraft: async (draft: EmailDraftFields) => {
-          const binding = ctx.sessions.binding(sessionId)
-          const notify = async (status: 'success' | 'failed') => {
-            if (!binding) return
-            try {
-              await binding.session.prompt([{ type: 'text', text: `Email send status: ${status}.` }], 'queue')
-            } catch {
-              // The email result is authoritative; status reporting is best effort.
-            }
-          }
-          await sendEmailDraft(
-            async value => {
-              const result = await ctx.connection.rpc.call('/soc-agent-config', 'send-email', value)
-              if (!result?.ok) throw new Error(result?.error?.message || 'Email send failed.')
-              return result.value as { sent?: unknown }
-            },
-            notify,
-            draft,
-          )
-        },
-      }),
     }, EmailDraftToolview))
   },
 }

@@ -14,7 +14,6 @@ def settings(**overrides):
         "password": "secret",
         "verify_ssl": True,
         "timeout": 60,
-        "allow_send": False,
         "allow_folder_write": False,
     }
     values.update(overrides)

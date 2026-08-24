@@ -20,7 +20,6 @@ def test_defaults_are_secure_and_services_can_be_unconfigured():
     assert settings.splunk.verify_ssl is True
     assert settings.splunk.sanitize_output is True
     assert settings.zimbra.verify_ssl is True
-    assert settings.zimbra.allow_send is False
     assert settings.zimbra.allow_folder_write is False
     assert settings.splunk.configured is False
     assert settings.zimbra.configured is False
@@ -37,19 +36,16 @@ def test_environment_overrides_persisted_configuration():
         def list_config(self):
             return {
                 "ZIMBRA_HOST": "stored.example.com",
-                "ZIMBRA_ALLOW_SEND": "false",
             }
 
     settings = ServerSettings.from_store(
         Store(),
         {
             "ZIMBRA_HOST": "env.example.com",
-            "ZIMBRA_ALLOW_SEND": "true",
         },
     )
 
     assert settings.zimbra.host == "env.example.com"
-    assert settings.zimbra.allow_send is True
 
 
 def test_global_zimbra_environment_settings_load_as_connection_defaults():
@@ -60,7 +56,6 @@ def test_global_zimbra_environment_settings_load_as_connection_defaults():
             "ZIMBRA_TIMEOUT": "60",
             "ZIMBRA_MAX_ATTACHMENT_BYTES": "10000000",
             "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS": "200000",
-            "ZIMBRA_ALLOW_SEND": "true",
         }
     )
 
@@ -74,7 +69,6 @@ def test_global_zimbra_environment_settings_load_as_connection_defaults():
         "host": "https://zmailbox.citictel-cpc.com/",
         "account_count": 2,
         "verify_ssl": False,
-        "send_enabled": True,
         "filter_write_enabled": False,
         "filter_redirect_enabled": False,
         "filter_discard_enabled": False,
@@ -90,13 +84,11 @@ def test_persisted_configuration_remains_a_fallback_for_unset_environment_values
         def list_config(self):
             return {
                 "ZIMBRA_HOST": "stored.example.com",
-                "ZIMBRA_ALLOW_SEND": "true",
             }
 
     settings = ServerSettings.from_store(Store(), {})
 
     assert settings.zimbra.host == "stored.example.com"
-    assert settings.zimbra.allow_send is True
 
 
 def test_status_redacts_credentials_and_does_not_include_mailbox_identity():

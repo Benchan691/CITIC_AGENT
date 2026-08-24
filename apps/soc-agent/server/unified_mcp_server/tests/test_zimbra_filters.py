@@ -18,7 +18,6 @@ def settings(**overrides):
         "password": "secret",
         "verify_ssl": True,
         "timeout": 60,
-        "allow_send": False,
     }
     values.update(overrides)
     return ZimbraSettings(**values)

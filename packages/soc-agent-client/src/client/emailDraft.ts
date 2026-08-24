@@ -1,4 +1,4 @@
-export const ZIMBRA_DRAFT_TOOL_NAME = 'mcp__soc_agent__zimbra_create_email_draft'
+export const ZIMBRA_DRAFT_TOOL_NAME = 'mcp__soc_agent__zimbra_send_email'
 
 export interface EmailDraftFields {
   to: string[]
@@ -31,22 +31,5 @@ export function draftFromForm(fields: EmailDraftFormFields): EmailDraftFields {
     subject: fields.subject.trim(),
     body: fields.body,
     account_id: fields.accountId,
-  }
-}
-
-export type EmailSendStatus = 'success' | 'failed'
-
-export async function sendEmailDraft(
-  send: (draft: EmailDraftFields) => Promise<{ sent?: unknown }>,
-  notify: (status: EmailSendStatus) => Promise<void>,
-  draft: EmailDraftFields,
-): Promise<void> {
-  try {
-    const result = await send(draft)
-    if (result.sent !== true) throw new Error('Email send did not confirm success.')
-    try { await notify('success') } catch { /* status reporting is best effort */ }
-  } catch (error) {
-    try { await notify('failed') } catch { /* status reporting is best effort */ }
-    throw error
   }
 }

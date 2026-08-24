@@ -671,33 +671,7 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region src/client/emailDraft.ts
-		const ZIMBRA_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_create_email_draft";
-		function parseRecipientText(value) {
-			return [...new Set(value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean))];
-		}
-		function draftFromForm(fields) {
-			return {
-				to: parseRecipientText(fields.to),
-				cc: parseRecipientText(fields.cc),
-				bcc: parseRecipientText(fields.bcc),
-				subject: fields.subject.trim(),
-				body: fields.body,
-				account_id: fields.accountId
-			};
-		}
-		async function sendEmailDraft(send, notify, draft) {
-			try {
-				if ((await send(draft)).sent !== true) throw new Error("Email send did not confirm success.");
-				try {
-					await notify("success");
-				} catch {}
-			} catch (error) {
-				try {
-					await notify("failed");
-				} catch {}
-				throw error;
-			}
-		}
+		const ZIMBRA_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_send_email";
 		//#endregion
 		//#region src/client/EmailDraftToolview.tsx
 		function resultText(block) {
@@ -749,7 +723,7 @@ window.__ModuleLoader__.load({
 			}
 			return typeof error === "string" && error ? error : null;
 		}
-		function EmailDraftToolview({ block, sendDraft }) {
+		function EmailDraftToolview({ block }) {
 			const envelope = (0, react.useMemo)(() => parseEnvelope(block), [block]);
 			const sourceKey = (0, react.useMemo)(() => JSON.stringify(envelope?.draft ?? null), [envelope]);
 			const [fields, setFields] = (0, react.useState)(() => envelope ? formFromEnvelope(envelope) : {
@@ -762,7 +736,6 @@ window.__ModuleLoader__.load({
 				accountLabel: ""
 			});
 			const [status, setStatus] = (0, react.useState)("editing");
-			const [error, setError] = (0, react.useState)(null);
 			(0, react.useEffect)(() => {
 				if (envelope?.draft) setFields(formFromEnvelope(envelope));
 			}, [sourceKey]);
@@ -797,7 +770,6 @@ window.__ModuleLoader__.load({
 						onClick: () => {
 							setFields(envelope ? formFromEnvelope(envelope) : fields);
 							setStatus("editing");
-							setError(null);
 						},
 						children: "Reopen"
 					})
@@ -808,50 +780,20 @@ window.__ModuleLoader__.load({
 					...current,
 					[field]: event.target.value
 				}));
-				setStatus((current) => current === "failed" ? "editing" : current);
-				setError(null);
-			};
-			const submit = async () => {
-				const draft = draftFromForm(fields);
-				if (draft.to.length === 0) return setError("Add at least one To recipient.");
-				if (!draft.subject) return setError("Subject cannot be empty.");
-				setStatus("sending");
-				setError(null);
-				try {
-					await sendDraft(draft);
-					setStatus("sent");
-				} catch (reason) {
-					setStatus("failed");
-					setError(reason instanceof Error ? reason.message : "The send request could not be submitted.");
-				}
 			};
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
 				className: EmailDraftToolview_module_css_default.card,
 				"aria-label": "Editable Zimbra email draft",
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					className: EmailDraftToolview_module_css_default.header,
-					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: EmailDraftToolview_module_css_default.title,
-						children: status === "sent" ? "Email sent" : status === "failed" ? "Email send failed" : "Email draft"
+						children: "Email draft"
 					}), fields.accountLabel && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						className: EmailDraftToolview_module_css_default.account,
 						children: ["via ", fields.accountLabel]
-					})] }), status === "failed" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						className: `${EmailDraftToolview_module_css_default.account} ${EmailDraftToolview_module_css_default.error}`,
-						children: "Failed"
-					})]
-				}), status === "sent" ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-					className: EmailDraftToolview_module_css_default.message,
-					children: "Email sent successfully."
-				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-					className: EmailDraftToolview_module_css_default.actions,
-					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-						className: `${EmailDraftToolview_module_css_default.button} ${EmailDraftToolview_module_css_default.primary}`,
-						type: "button",
-						disabled: true,
-						children: "Sent"
-					})
-				})] }) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					})] })
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: EmailDraftToolview_module_css_default.content,
 					children: [
 						[
@@ -897,31 +839,16 @@ window.__ModuleLoader__.load({
 								maxLength: 18e3
 							})]
 						}),
-						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: `${EmailDraftToolview_module_css_default.message} ${EmailDraftToolview_module_css_default.error}`,
-							role: "alert",
-							children: error
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							className: EmailDraftToolview_module_css_default.actions,
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								className: EmailDraftToolview_module_css_default.button,
 								type: "button",
-								disabled: status === "sending",
 								onClick: () => {
 									setStatus("discarded");
-									setError(null);
 								},
 								children: "Discard"
-							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								className: `${EmailDraftToolview_module_css_default.button} ${EmailDraftToolview_module_css_default.primary}`,
-								type: "button",
-								disabled: status === "sending",
-								onClick: () => {
-									submit();
-								},
-								children: status === "sending" ? "Sending…" : status === "failed" ? "Retry" : "Send"
-							})]
+							})
 						})
 					]
 				})]
@@ -929,32 +856,11 @@ window.__ModuleLoader__.load({
 		}
 		const emailDraftToolview = {
 			name: "zimbra-email-draft-toolview",
-			inject: [
-				"slots",
-				"sessions",
-				"connection"
-			],
+			inject: ["slots"],
 			apply(ctx) {
 				ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
 					name: "tool.call.toolview",
-					key: ZIMBRA_DRAFT_TOOL_NAME,
-					inject: (sessionId) => ({ sendDraft: async (draft) => {
-						const binding = ctx.sessions.binding(sessionId);
-						const notify = async (status) => {
-							if (!binding) return;
-							try {
-								await binding.session.prompt([{
-									type: "text",
-									text: `Email send status: ${status}.`
-								}], "queue");
-							} catch {}
-						};
-						await sendEmailDraft(async (value) => {
-							const result = await ctx.connection.rpc.call("/soc-agent-config", "send-email", value);
-							if (!result?.ok) throw new Error(result?.error?.message || "Email send failed.");
-							return result.value;
-						}, notify, draft);
-					} })
+					key: ZIMBRA_DRAFT_TOOL_NAME
 				}, EmailDraftToolview));
 			}
 		};
