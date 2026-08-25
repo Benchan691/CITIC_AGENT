@@ -31,6 +31,7 @@ CONFIG_KEYS = {
     "zimbra.host": ("ZIMBRA_HOST",),
     "zimbra.verify_ssl": ("ZIMBRA_VERIFY_SSL",),
     "zimbra.timeout": ("ZIMBRA_TIMEOUT",),
+    "zimbra.allow_send": ("ZIMBRA_ALLOW_SEND",),
     "zimbra.max_attachment_bytes": ("ZIMBRA_MAX_ATTACHMENT_BYTES",),
     "zimbra.max_attachment_text_chars": ("ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS",),
 }
@@ -69,6 +70,7 @@ def _public_settings(store: PostgresStore) -> dict[str, Any]:
             "timeout": settings.zimbra.timeout,
             "max_attachment_bytes": settings.zimbra.max_attachment_bytes,
             "max_attachment_text_chars": settings.zimbra.max_attachment_text_chars,
+            "send_enabled": settings.zimbra.allow_send,
             "account_count": store.count_accounts(),
         },
         "subscription_server": {
@@ -149,6 +151,26 @@ async def test_account(store: PostgresStore, account_id: str) -> dict[str, Any]:
     return {"ok": True, "account_id": account.id}
 
 
+async def send_email(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    settings = _settings(store)
+    service = ZimbraService(settings.zimbra, PostgresAccountStore(store))
+    return await service.send_email(
+        payload.get("to", []),
+        payload.get("subject", ""),
+        payload.get("body", ""),
+        payload.get("account_id", ""),
+        cc=payload.get("cc"),
+        bcc=payload.get("bcc"),
+        body_format=payload.get("body_format", "text"),
+    )
+
+
+async def list_signatures(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    settings = _settings(store)
+    service = ZimbraService(settings.zimbra, PostgresAccountStore(store))
+    return await service.list_signatures(str(payload.get("account_id", "")))
+
+
 def add_account(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
     account = store.add_account(
         label=str(payload.get("label", "")).strip(),
@@ -213,6 +235,10 @@ def main() -> None:
         result = delete_account(store, args.arg or "")
     elif command == "test-account":
         result = asyncio.run(test_account(store, args.arg or ""))
+    elif command == "send-email":
+        result = asyncio.run(send_email(store, payload))
+    elif command == "list-signatures":
+        result = asyncio.run(list_signatures(store, payload))
     elif command == "test-splunk":
         result = asyncio.run(test_splunk(store))
     elif command == "test-subscription-server":

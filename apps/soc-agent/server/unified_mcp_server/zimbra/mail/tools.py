@@ -85,7 +85,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         bcc: list[str] | None = None,
         account_id: str = "",
     ) -> dict[str, Any]:
-        """Create a browser-editable local email draft; it never writes or sends through Zimbra."""
+        """Create a browser-editable local email draft; sending requires the draft's explicit Send button."""
         async def create_draft() -> dict[str, Any]:
             return get_runtime(ctx).zimbra_mail.create_email_draft(
                 to, subject, body, cc, bcc, account_id,

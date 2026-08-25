@@ -72,6 +72,15 @@
   padding-top: 3px;
 }
 
+.signaturePanel {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-surface-l2, transparent);
+}
+
 .button {
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 6px;

@@ -190,6 +190,53 @@ def zimbra_delete_signature(host, token, signature_id, *, verify_ssl=True, timeo
     )
 
 
+def zimbra_send_message(
+    host,
+    token,
+    recipients,
+    subject,
+    body,
+    *,
+    cc=None,
+    bcc=None,
+    body_format="text",
+    verify_ssl=True,
+    timeout=60,
+):
+    content_type = {"text": "text/plain", "html": "text/html"}.get(str(body_format).strip().lower())
+    if content_type is None:
+        raise ValueError("body_format must be text or html")
+
+    def addresses(values, address_type):
+        return "".join(
+            f'<e t="{address_type}" a="{html.escape(str(address))}"/>'
+            for address in values or ()
+        )
+
+    root = soap_request(
+        host,
+        (
+            '<SendMsgRequest xmlns="urn:zimbraMail"><m>'
+            f'{addresses(recipients, "t")}'
+            f'{addresses(cc, "c")}'
+            f'{addresses(bcc, "b")}'
+            f'<su>{html.escape(str(subject))}</su>'
+            f'<mp ct="{content_type}"><content>{html.escape(str(body))}</content></mp>'
+            '</m></SendMsgRequest>'
+        ),
+        token,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+    )
+    message = next(
+        (elem for elem in root.iter() if _local_name(elem.tag) == "m" and elem.get("id")),
+        None,
+    )
+    if message is None:
+        raise ValueError("Malformed Zimbra send response")
+    return {"message_id": message.get("id", "")}
+
+
 def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=True, timeout=60):
     soap_request(
         host,

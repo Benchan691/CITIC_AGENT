@@ -101,6 +101,7 @@ class ZimbraSettings:
     host: str
     verify_ssl: bool
     timeout: int
+    allow_send: bool = True
     max_attachment_bytes: int = 10_000_000
     max_attachment_text_chars: int = 200_000
     accounts_file: str = ".data/zimbra_accounts.enc"
@@ -221,6 +222,7 @@ class ServerSettings:
             host=_value(env, "ZIMBRA_HOST"),
             verify_ssl=_boolean(env, "ZIMBRA_VERIFY_SSL", True),
             timeout=_integer(env, "ZIMBRA_TIMEOUT", 60, 1, 600),
+            allow_send=_boolean(env, "ZIMBRA_ALLOW_SEND", True),
             allow_filter_write=_boolean(env, "ZIMBRA_ALLOW_FILTER_WRITE", True),
             allow_filter_redirect=_boolean(env, "ZIMBRA_ALLOW_FILTER_REDIRECT", True),
             allow_filter_discard=_boolean(env, "ZIMBRA_ALLOW_FILTER_DISCARD", True),
@@ -295,6 +297,7 @@ class ServerSettings:
                 "folder_write_enabled": self.zimbra.allow_folder_write,
                 "move_enabled": self.zimbra.allow_move,
                 "signature_write_enabled": self.zimbra.allow_signature_write,
+                "send_enabled": self.zimbra.allow_send,
                 "max_attachment_bytes": self.zimbra.max_attachment_bytes,
                 "max_attachment_text_chars": self.zimbra.max_attachment_text_chars,
             },

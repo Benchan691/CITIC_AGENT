@@ -27,6 +27,7 @@ from unified_mcp_server.zimbra import (
     zimbra_login,
     zimbra_move_message,
     zimbra_search_messages,
+    zimbra_send_message,
 )
 
 from .account_store import AccountStore, StoredAccount
@@ -345,6 +346,53 @@ class ZimbraService:
             "editable_fields": ["to", "cc", "bcc", "subject", "body"],
         }
 
+    async def send_email(
+        self,
+        to: list[str] | str,
+        subject: str,
+        body: str,
+        account_id: str = "",
+        *,
+        cc: list[str] | str | None = None,
+        bcc: list[str] | str | None = None,
+        body_format: str = "text",
+    ) -> dict[str, Any]:
+        if not self.settings.allow_send:
+            raise ServiceError(
+                "operation_disabled",
+                "Zimbra sending is disabled. Set ZIMBRA_ALLOW_SEND=true after review.",
+            )
+        body_format = str(body_format or "").strip().lower()
+        if body_format not in {"text", "html"}:
+            raise ServiceError("invalid_input", "body_format must be text or html")
+        recipients = self._recipients(to, "to")
+        carbon_copy = self._recipients(cc, "cc")
+        blind_carbon_copy = self._recipients(bcc, "bcc")
+        subject = str(subject or "").strip()
+        if not subject:
+            raise ServiceError("invalid_input", "subject cannot be empty")
+        account = self._resolve_account(account_id)
+        result = await self._run(
+            self._send_email,
+            account,
+            recipients,
+            subject,
+            str(body or ""),
+            carbon_copy,
+            blind_carbon_copy,
+            body_format,
+        )
+        return {
+            "sent": True,
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "recipients": recipients,
+            "cc": carbon_copy,
+            "bcc": blind_carbon_copy,
+            "subject": subject,
+            **result,
+        }
+
     def _legacy_account(self) -> StoredAccount | None:
         if self.settings.email and self.settings.password:
             return StoredAccount("legacy", "Legacy account", self.settings.email, "", self.settings.password)
@@ -425,6 +473,30 @@ class ZimbraService:
         if any(item["id"] == signature_id for item in zimbra_list_signatures(self.settings.host, token, **options)):
             raise ServiceError("signature_verification_failed", "Zimbra still reports the deleted signature.")
         return signature
+
+    def _send_email(
+        self,
+        account: StoredAccount,
+        recipients: list[str],
+        subject: str,
+        body: str,
+        cc: list[str],
+        bcc: list[str],
+        body_format: str,
+    ) -> dict[str, Any]:
+        token = zimbra_login(self._config(account))
+        return zimbra_send_message(
+            self.settings.host,
+            token,
+            recipients,
+            subject,
+            body,
+            cc=cc,
+            bcc=bcc,
+            body_format=body_format,
+            verify_ssl=self.settings.verify_ssl,
+            timeout=self.settings.timeout,
+        )
 
     def _search_emails(self, account: StoredAccount, query: str, limit: int, offset: int) -> list[dict[str, Any]]:
         token = zimbra_login(self._config(account))

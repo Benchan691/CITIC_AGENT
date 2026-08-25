@@ -26,6 +26,7 @@ def test_defaults_are_secure_and_services_can_be_unconfigured():
     assert settings.zimbra.allow_folder_write is True
     assert settings.zimbra.allow_move is True
     assert settings.zimbra.allow_signature_write is True
+    assert settings.zimbra.allow_send is True
     assert settings.splunk.configured is False
     assert settings.zimbra.configured is False
     assert settings.splunk.detection_write_enabled is False
@@ -80,6 +81,7 @@ def test_global_zimbra_environment_settings_load_as_connection_defaults():
         "folder_write_enabled": True,
         "move_enabled": True,
         "signature_write_enabled": True,
+        "send_enabled": True,
         "max_attachment_bytes": 10_000_000,
         "max_attachment_text_chars": 200_000,
     }
@@ -208,6 +210,13 @@ def test_zimbra_signature_write_gate_is_explicit_and_visible_without_secrets():
 
     assert settings.zimbra.allow_signature_write is True
     assert settings.public_status()["zimbra"]["signature_write_enabled"] is True
+
+
+def test_zimbra_send_gate_is_explicit_and_visible_without_secrets():
+    settings = ServerSettings.from_env({"ZIMBRA_ALLOW_SEND": "true"})
+
+    assert settings.zimbra.allow_send is True
+    assert settings.public_status()["zimbra"]["send_enabled"] is True
 
 
 @pytest.mark.parametrize(

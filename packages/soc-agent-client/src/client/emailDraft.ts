@@ -8,6 +8,7 @@ export interface EmailDraftFields {
   subject: string
   body: string
   account_id: string
+  body_format?: 'text' | 'html'
 }
 
 export interface EmailDraftFormFields {

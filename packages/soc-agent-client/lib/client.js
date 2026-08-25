@@ -644,7 +644,7 @@ window.__ModuleLoader__.load({
 		}];
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/EmailDraftToolview.module.css.mjs
-		const css = "._2F_7Mq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}._2F_7Mq_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}._2F_7Mq_title{font-weight:600}._2F_7Mq_account{color:var(--dsw-alias-text-l2);font-size:12px}._2F_7Mq_content{gap:9px;padding:12px;display:grid}._2F_7Mq_field{gap:4px;display:grid}._2F_7Mq_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}._2F_7Mq_input,._2F_7Mq_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}._2F_7Mq_textarea{resize:vertical;min-height:180px;line-height:1.45}._2F_7Mq_input:focus,._2F_7Mq_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}._2F_7Mq_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}._2F_7Mq_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}._2F_7Mq_primary{background:var(--dsw-alias-primary,#2563eb);border-color:var(--dsw-alias-primary,#2563eb);color:var(--dsw-alias-on-primary,#fff)}._2F_7Mq_button:disabled{cursor:wait;opacity:.6}._2F_7Mq_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}._2F_7Mq_error{color:var(--dsw-alias-danger,#b42318)}";
+		const css = "._2F_7Mq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}._2F_7Mq_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}._2F_7Mq_title{font-weight:600}._2F_7Mq_account{color:var(--dsw-alias-text-l2);font-size:12px}._2F_7Mq_content{gap:9px;padding:12px;display:grid}._2F_7Mq_field{gap:4px;display:grid}._2F_7Mq_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}._2F_7Mq_input,._2F_7Mq_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}._2F_7Mq_textarea{resize:vertical;min-height:180px;line-height:1.45}._2F_7Mq_input:focus,._2F_7Mq_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}._2F_7Mq_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}._2F_7Mq_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}._2F_7Mq_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}._2F_7Mq_primary{background:var(--dsw-alias-primary,#2563eb);border-color:var(--dsw-alias-primary,#2563eb);color:var(--dsw-alias-on-primary,#fff)}._2F_7Mq_button:disabled{cursor:wait;opacity:.6}._2F_7Mq_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}._2F_7Mq_error{color:var(--dsw-alias-danger,#b42318)}";
 		const tagId = "dsh-soc-agent-client/EmailDraftToolview.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -666,6 +666,7 @@ window.__ModuleLoader__.load({
 			"label": "_2F_7Mq_label",
 			"message": "_2F_7Mq_message",
 			"primary": "_2F_7Mq_primary",
+			"signaturePanel": "_2F_7Mq_signaturePanel",
 			"textarea": "_2F_7Mq_textarea",
 			"title": "_2F_7Mq_title"
 		};
@@ -673,6 +674,19 @@ window.__ModuleLoader__.load({
 		//#region src/client/emailDraft.ts
 		const ZIMBRA_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_send_email";
 		const ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_use_signature_on_email";
+		function parseRecipientText(value) {
+			return [...new Set(value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean))];
+		}
+		function draftFromForm(fields) {
+			return {
+				to: parseRecipientText(fields.to),
+				cc: parseRecipientText(fields.cc),
+				bcc: parseRecipientText(fields.bcc),
+				subject: fields.subject.trim(),
+				body: fields.body,
+				account_id: fields.accountId
+			};
+		}
 		//#endregion
 		//#region src/client/EmailDraftToolview.tsx
 		function resultText(block) {
@@ -724,7 +738,7 @@ window.__ModuleLoader__.load({
 			}
 			return typeof error === "string" && error ? error : null;
 		}
-		function EmailDraftToolview({ block }) {
+		function EmailDraftToolview({ block, connection }) {
 			const envelope = (0, react.useMemo)(() => parseEnvelope(block), [block]);
 			const sourceKey = (0, react.useMemo)(() => JSON.stringify(envelope?.draft ?? null), [envelope]);
 			const [fields, setFields] = (0, react.useState)(() => envelope ? formFromEnvelope(envelope) : {
@@ -737,8 +751,23 @@ window.__ModuleLoader__.load({
 				accountLabel: ""
 			});
 			const [status, setStatus] = (0, react.useState)("editing");
+			const [sendError, setSendError] = (0, react.useState)(null);
+			const [bodyFormat, setBodyFormat] = (0, react.useState)(envelope?.draft.body_format === "html" ? "html" : "text");
+			const [signaturePanel, setSignaturePanel] = (0, react.useState)(false);
+			const [signatures, setSignatures] = (0, react.useState)([]);
+			const [signatureId, setSignatureId] = (0, react.useState)("");
+			const [signatureFormat, setSignatureFormat] = (0, react.useState)("text");
+			const [signaturePlacement, setSignaturePlacement] = (0, react.useState)("below");
+			const [signatureStatus, setSignatureStatus] = (0, react.useState)(null);
 			(0, react.useEffect)(() => {
-				if (envelope?.draft) setFields(formFromEnvelope(envelope));
+				if (envelope?.draft) {
+					setFields(formFromEnvelope(envelope));
+					setStatus("editing");
+					setSendError(null);
+					setBodyFormat(envelope.draft.body_format === "html" ? "html" : "text");
+					setSignaturePanel(false);
+					setSignatureStatus(null);
+				}
 			}, [sourceKey]);
 			if (!("kind" in block)) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				className: EmailDraftToolview_module_css_default.card,
@@ -782,6 +811,67 @@ window.__ModuleLoader__.load({
 					[field]: event.target.value
 				}));
 			};
+			const submit = async () => {
+				const draft = draftFromForm(fields);
+				if (draft.to.length === 0) {
+					setSendError("Add at least one To recipient.");
+					return;
+				}
+				if (!draft.subject) {
+					setSendError("Subject cannot be empty.");
+					return;
+				}
+				if (typeof window !== "undefined" && !window.confirm("Send this email now?")) return;
+				setStatus("sending");
+				setSendError(null);
+				try {
+					if ((await rpc$1(connection, "send-email", {
+						...draft,
+						body_format: bodyFormat
+					}))?.sent !== true) throw new Error("Zimbra did not confirm that the email was sent.");
+					setStatus("sent");
+				} catch (error) {
+					setStatus("failed");
+					setSendError(error instanceof Error ? error.message : String(error));
+				}
+			};
+			const loadSignatures = async () => {
+				setSignaturePanel(true);
+				setSignatureStatus("Loading signatures…");
+				try {
+					const next = (await rpc$1(connection, "list-signatures", { account_id: fields.accountId })).signatures ?? [];
+					setSignatures(next);
+					setSignatureId((current) => current || next[0]?.id || "");
+					setSignatureStatus(next.length ? null : "No signatures are configured for this account.");
+				} catch (error) {
+					setSignatureStatus(error instanceof Error ? error.message : String(error));
+				}
+			};
+			const applySignature = () => {
+				const value = signatures.find((item) => item.id === signatureId)?.[signatureFormat];
+				if (!value) {
+					setSignatureStatus(`The selected signature has no ${signatureFormat} content.`);
+					return;
+				}
+				const separator = signatureFormat === "html" ? "<br><br>" : "\n\n";
+				setFields((current) => ({
+					...current,
+					body: signaturePlacement === "above" && current.body ? `${value}${separator}${current.body}` : current.body ? `${current.body}${separator}${value}` : value
+				}));
+				setBodyFormat(signatureFormat);
+				setSignaturePanel(false);
+				setSignatureStatus(null);
+			};
+			if (status === "sent") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: EmailDraftToolview_module_css_default.card,
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: EmailDraftToolview_module_css_default.header,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: EmailDraftToolview_module_css_default.title,
+						children: "Email sent successfully"
+					})
+				})
+			});
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
 				className: EmailDraftToolview_module_css_default.card,
 				"aria-label": "Editable Zimbra email draft",
@@ -840,16 +930,119 @@ window.__ModuleLoader__.load({
 								maxLength: 18e3
 							})]
 						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						sendError && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: `${EmailDraftToolview_module_css_default.message} ${EmailDraftToolview_module_css_default.error}`,
+							role: "alert",
+							children: sendError
+						}),
+						signaturePanel && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: EmailDraftToolview_module_css_default.signaturePanel,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: EmailDraftToolview_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: EmailDraftToolview_module_css_default.label,
+										children: "Signature"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("select", {
+										className: EmailDraftToolview_module_css_default.input,
+										"aria-label": "Signature",
+										value: signatureId,
+										onChange: (event) => setSignatureId(event.target.value),
+										children: signatures.map((signature) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+											value: signature.id,
+											children: signature.name
+										}, signature.id))
+									})]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: EmailDraftToolview_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: EmailDraftToolview_module_css_default.label,
+										children: "Format"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+										className: EmailDraftToolview_module_css_default.input,
+										"aria-label": "Signature format",
+										value: signatureFormat,
+										onChange: (event) => setSignatureFormat(event.target.value),
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+											value: "text",
+											children: "Plain text"
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+											value: "html",
+											children: "HTML"
+										})]
+									})]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: EmailDraftToolview_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: EmailDraftToolview_module_css_default.label,
+										children: "Placement"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+										className: EmailDraftToolview_module_css_default.input,
+										"aria-label": "Signature placement",
+										value: signaturePlacement,
+										onChange: (event) => setSignaturePlacement(event.target.value),
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+											value: "below",
+											children: "Below body"
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+											value: "above",
+											children: "Above body"
+										})]
+									})]
+								}),
+								signatureStatus && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									className: EmailDraftToolview_module_css_default.message,
+									role: "status",
+									children: signatureStatus
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: EmailDraftToolview_module_css_default.actions,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										className: EmailDraftToolview_module_css_default.button,
+										type: "button",
+										onClick: () => setSignaturePanel(false),
+										children: "Cancel"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										className: `${EmailDraftToolview_module_css_default.button} ${EmailDraftToolview_module_css_default.primary}`,
+										type: "button",
+										disabled: !signatureId || Boolean(signatureStatus),
+										onClick: applySignature,
+										children: "Apply signature"
+									})]
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 							className: EmailDraftToolview_module_css_default.actions,
-							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								className: EmailDraftToolview_module_css_default.button,
-								type: "button",
-								onClick: () => {
-									setStatus("discarded");
-								},
-								children: "Discard"
-							})
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: EmailDraftToolview_module_css_default.button,
+									type: "button",
+									disabled: status === "sending",
+									onClick: () => {
+										setStatus("discarded");
+									},
+									children: "Discard"
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: EmailDraftToolview_module_css_default.button,
+									type: "button",
+									disabled: status === "sending",
+									onClick: () => {
+										loadSignatures();
+									},
+									children: "Add signature"
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: EmailDraftToolview_module_css_default.button,
+									type: "button",
+									disabled: status === "sending",
+									onClick: submit,
+									children: status === "sending" ? "Sending…" : status === "failed" ? "Retry" : "Send"
+								})
+							]
 						})
 					]
 				})]
@@ -857,11 +1050,13 @@ window.__ModuleLoader__.load({
 		}
 		const emailDraftToolview = {
 			name: "zimbra-email-draft-toolview",
-			inject: ["slots"],
+			inject: ["slots", "connection"],
 			apply(ctx) {
+				const connection = ctx.get("connection");
 				for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
 					name: "tool.call.toolview",
-					key
+					key,
+					inject: () => ({ connection })
 				}, EmailDraftToolview));
 			}
 		};

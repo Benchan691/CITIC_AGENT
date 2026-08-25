@@ -5,6 +5,40 @@ import pytest
 import unified_mcp_server.zimbra.zimbra as zimbra
 
 
+def test_send_message_escapes_recipients_and_parses_message_id(monkeypatch):
+    captured = {}
+
+    def fake_request(host, body, token, **options):
+        captured.update(host=host, body=body, token=token, options=options)
+        return ET.fromstring('<SendMsgResponse xmlns="urn:zimbraMail"><m id="sent-7"/></SendMsgResponse>')
+
+    monkeypatch.setattr(zimbra, "soap_request", fake_request)
+
+    result = zimbra.zimbra_send_message(
+        "mail.example.com",
+        "token",
+        ["to@example.com"],
+        "Subject <one>",
+        "Body & details",
+        cc=["cc@example.com"],
+        bcc=["b@example.com"],
+        body_format="html",
+    )
+
+    assert result == {"message_id": "sent-7"}
+    assert '<e t="t" a="to@example.com"/>' in captured["body"]
+    assert '<e t="c" a="cc@example.com"/>' in captured["body"]
+    assert '<e t="b" a="b@example.com"/>' in captured["body"]
+    assert "Subject &lt;one&gt;" in captured["body"]
+    assert "Body &amp; details" in captured["body"]
+    assert 'ct="text/html"' in captured["body"]
+
+
+def test_send_message_rejects_unknown_body_format():
+    with pytest.raises(ValueError, match="body_format"):
+        zimbra.zimbra_send_message("mail.example.com", "token", ["to@example.com"], "Subject", "Body", body_format="markdown")
+
+
 def test_search_messages_escapes_input_and_caps_limit(monkeypatch):
     captured = {}
 

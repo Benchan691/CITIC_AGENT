@@ -242,6 +242,56 @@ def test_email_draft_rejects_missing_or_malformed_recipients():
 
 
 @pytest.mark.asyncio
+async def test_send_email_is_gated_validated_and_uses_selected_account(monkeypatch, tmp_path):
+    store = AccountStore(str(tmp_path / "accounts.enc"), str(tmp_path / "accounts.key"))
+    account = store.add(label="Primary", email="primary@example.com", username="primary", password="secret")
+    captured = {}
+    def fake_login(cfg):
+        captured["config"] = cfg
+        return "token"
+
+    monkeypatch.setattr(module, "zimbra_login", fake_login)
+    monkeypatch.setattr(
+        module,
+        "zimbra_send_message",
+        lambda host, token, recipients, subject, body, **kwargs: captured.update(
+            host=host, token=token, recipients=recipients, subject=subject, body=body, options=kwargs
+        ) or {"message_id": "sent-7"},
+    )
+
+    service = ZimbraService(settings(email="", password=""), store)
+    result = await service.send_email(
+        ["to@example.com"],
+        " Subject ",
+        "Body",
+        account.id,
+        cc="cc@example.com",
+        body_format="html",
+    )
+
+    assert result["sent"] is True
+    assert result["message_id"] == "sent-7"
+    assert captured["config"]["zimbra_email"] == "primary@example.com"
+    assert captured["options"] == {
+        "cc": ["cc@example.com"],
+        "bcc": [],
+        "body_format": "html",
+        "verify_ssl": True,
+        "timeout": 60,
+    }
+
+
+@pytest.mark.asyncio
+async def test_send_email_is_disabled_before_login(monkeypatch):
+    monkeypatch.setattr(module, "zimbra_login", lambda *args, **kwargs: pytest.fail("login should not be called"))
+    service = ZimbraService(settings(allow_send=False))
+
+    with pytest.raises(ServiceError) as error:
+        await service.send_email(["to@example.com"], "Subject", "Body")
+    assert error.value.code == "operation_disabled"
+
+
+@pytest.mark.asyncio
 async def test_unconfigured_zimbra_reports_missing_environment():
     with pytest.raises(ConfigurationError):
         await ZimbraService(settings(host="")).list_folders()
