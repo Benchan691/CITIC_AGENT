@@ -136,6 +136,21 @@ class ZimbraSettings:
 
 
 @dataclass(frozen=True)
+class MarkItDownSettings:
+    llm_enabled: bool = False
+    llm_api_key: str = ""
+    llm_base_url: str = ""
+    llm_model: str = ""
+    llm_timeout: int = 60
+
+    def __post_init__(self) -> None:
+        if self.llm_enabled and not self.llm_api_key:
+            raise ValueError("MARKITDOWN_LLM_API_KEY is required when MARKITDOWN_LLM_ENABLED is true")
+        if self.llm_enabled and not self.llm_model:
+            raise ValueError("MARKITDOWN_LLM_MODEL is required when MARKITDOWN_LLM_ENABLED is true")
+
+
+@dataclass(frozen=True)
 class EmailServerSettings:
     url: str
     username: str
@@ -168,6 +183,7 @@ class ServerSettings:
     log_level: str
     splunk: SplunkSettings
     zimbra: ZimbraSettings
+    markitdown: MarkItDownSettings
     email_server: EmailServerSettings
 
     @classmethod
@@ -237,6 +253,13 @@ class ServerSettings:
             email=_value(env, "ZIMBRA_EMAIL"),
             password=_value(env, "ZIMBRA_PASSWORD"),
         )
+        markitdown = MarkItDownSettings(
+            llm_enabled=_boolean(env, "MARKITDOWN_LLM_ENABLED", False),
+            llm_api_key=_value(env, "MARKITDOWN_LLM_API_KEY"),
+            llm_base_url=_value(env, "MARKITDOWN_LLM_BASE_URL"),
+            llm_model=_value(env, "MARKITDOWN_LLM_MODEL"),
+            llm_timeout=_integer(env, "MARKITDOWN_LLM_TIMEOUT", 60, 1, 600),
+        )
         email_server = EmailServerSettings(
             url=_value(env, "SUBSCRIPTION_SERVER_URL", "http://100.114.50.103:9100").rstrip("/"),
             username=_value(env, "SUBSCRIPTION_SERVER_USER"),
@@ -252,6 +275,7 @@ class ServerSettings:
             log_level=_value(env, "LOG_LEVEL", "INFO").upper(),
             splunk=splunk,
             zimbra=zimbra,
+            markitdown=markitdown,
             email_server=email_server,
         )
 
@@ -300,6 +324,12 @@ class ServerSettings:
                 "send_enabled": self.zimbra.allow_send,
                 "max_attachment_bytes": self.zimbra.max_attachment_bytes,
                 "max_attachment_text_chars": self.zimbra.max_attachment_text_chars,
+            },
+            "markitdown": {
+                "llm_enabled": self.markitdown.llm_enabled,
+                "llm_base_url": self.markitdown.llm_base_url,
+                "llm_model": self.markitdown.llm_model,
+                "llm_timeout": self.markitdown.llm_timeout,
             },
             "email_server": {
                 "configured": self.email_server.configured,

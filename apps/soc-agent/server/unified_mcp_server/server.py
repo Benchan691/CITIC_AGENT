@@ -74,7 +74,7 @@ class Runtime:
         return cls(
             settings,
             SplunkService(settings.splunk),
-            ZimbraMailService(settings.zimbra, accounts),
+            ZimbraMailService(settings.zimbra, accounts, settings.markitdown),
             EmailSubscriptionService(settings.email_server),
             zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
             postgres=postgres,
@@ -93,10 +93,10 @@ class Runtime:
         if updated.splunk != self.settings.splunk:
             await self.splunk.close()
             self.splunk = SplunkService(updated.splunk)
-        if updated.zimbra != self.settings.zimbra:
+        if updated.zimbra != self.settings.zimbra or updated.markitdown != self.settings.markitdown:
             if self.account_store is None:
                 self.account_store = PostgresAccountStore(self.postgres)
-            self.zimbra = ZimbraMailService(updated.zimbra, self.account_store)
+            self.zimbra = ZimbraMailService(updated.zimbra, self.account_store, updated.markitdown)
             self.zimbra_filters = ZimbraFilterService(updated.zimbra, self.account_store)
         if updated.email_server != self.settings.email_server:
             await self.email_subscriptions.close()

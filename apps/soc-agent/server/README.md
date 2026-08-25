@@ -16,7 +16,13 @@ Standalone MCP clients should set `cwd` to this directory and pass `MCP_SERVER_R
 Splunk event outputs keep complete events within a 20,000-character budget and
 report truncation explicitly; request selected `fields` when narrowing is
 needed. Zimbra supports bounded metadata/body pagination, header-only evidence,
-attachment hashes, and verified reversible message moves. The authenticated
-email webserver exposes subscription listing, preview, creation, updates, and
+MarkItDown-based attachment-to-Markdown conversion for PDF, Word, PowerPoint,
+Excel, images, ZIP, EPUB, CSV, JSON, XML, HTML, and text files; attachment
+hashes; and verified reversible message moves. The authenticated email
+webserver exposes subscription listing, preview, creation, updates, and
 deletion. Sends, moves, folders, filters, detection changes, and subscription
 mutations remain approval-gated by the host.
+
+Attachment conversion is local by default. Install `uv sync --extra test --extra
+markitdown-llm` and set the `MARKITDOWN_LLM_*` variables only when
+OpenAI-compatible OCR or image descriptions are explicitly required.

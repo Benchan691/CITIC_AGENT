@@ -29,6 +29,7 @@ window.__ModuleLoader__.load({
 		let react = require("react");
 		react = __toESM(react, 1);
 		let react_jsx_runtime = require("react/jsx-runtime");
+		let _deepseek_ai_dsh_client_runtime_client = require("@deepseek-ai/dsh-client-runtime/client");
 		//#region src/client/CiticBrand.tsx
 		/** CITIC Telecom CPC's red emblem, adapted from the official logo artwork. */
 		function CiticBrandMark({ size, className }) {
@@ -78,13 +79,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
-		const css$1 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
-		const tagId$1 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
+		const css$3 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
+		const tagId$3 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$3) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$1;
-			tag.textContent = css$1;
+			tag.dataset.pluginCss = tagId$3;
+			tag.textContent = css$3;
 			document.head.appendChild(tag);
 		}
 		var SplunkZimbraOverlay_module_css_default = {
@@ -114,9 +115,9 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region src/client/settings-common.ts
-		const CHANNEL$1 = "/soc-agent-config";
+		const CHANNEL$2 = "/soc-agent-config";
 		async function rpc$1(connection, name, payload = {}) {
-			const result = await connection.rpc.call(CHANNEL$1, name, payload);
+			const result = await connection.rpc.call(CHANNEL$2, name, payload);
 			if (!result?.ok) throw new Error(result?.error?.message || `Request failed: ${name}`);
 			return result.value;
 		}
@@ -460,9 +461,9 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region src/client/ScheduledTasksForm.ts
-		const CHANNEL = "/soc-agent-schedules";
+		const CHANNEL$1 = "/soc-agent-schedules";
 		async function rpc(connection, endpoint, payload = {}) {
-			const result = await connection.rpc.call(CHANNEL, endpoint, payload);
+			const result = await connection.rpc.call(CHANNEL$1, endpoint, payload);
 			if (!result?.ok) throw new Error(result?.error?.message || `Request failed: ${endpoint}`);
 			return result.value;
 		}
@@ -644,13 +645,13 @@ window.__ModuleLoader__.load({
 		}];
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/EmailDraftToolview.module.css.mjs
-		const css = "._2F_7Mq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}._2F_7Mq_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}._2F_7Mq_title{font-weight:600}._2F_7Mq_account{color:var(--dsw-alias-text-l2);font-size:12px}._2F_7Mq_content{gap:9px;padding:12px;display:grid}._2F_7Mq_field{gap:4px;display:grid}._2F_7Mq_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}._2F_7Mq_input,._2F_7Mq_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}._2F_7Mq_textarea{resize:vertical;min-height:180px;line-height:1.45}._2F_7Mq_input:focus,._2F_7Mq_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}._2F_7Mq_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}._2F_7Mq_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}._2F_7Mq_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}._2F_7Mq_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}._2F_7Mq_primary:hover{background:#1d4ed8;border-color:#1d4ed8}._2F_7Mq_danger{color:#fff;background:#dc2626;border-color:#dc2626}._2F_7Mq_danger:hover{background:#b91c1c;border-color:#b91c1c}._2F_7Mq_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}._2F_7Mq_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}._2F_7Mq_button:disabled{cursor:wait;opacity:.6}._2F_7Mq_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}._2F_7Mq_error{color:var(--dsw-alias-danger,#b42318)}";
-		const tagId = "dsh-soc-agent-client/EmailDraftToolview.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
+		const css$2 = "._2F_7Mq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}._2F_7Mq_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}._2F_7Mq_title{font-weight:600}._2F_7Mq_account{color:var(--dsw-alias-text-l2);font-size:12px}._2F_7Mq_content{gap:9px;padding:12px;display:grid}._2F_7Mq_field{gap:4px;display:grid}._2F_7Mq_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}._2F_7Mq_input,._2F_7Mq_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}._2F_7Mq_textarea{resize:vertical;min-height:180px;line-height:1.45}._2F_7Mq_input:focus,._2F_7Mq_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}._2F_7Mq_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}._2F_7Mq_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}._2F_7Mq_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}._2F_7Mq_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}._2F_7Mq_primary:hover{background:#1d4ed8;border-color:#1d4ed8}._2F_7Mq_danger{color:#fff;background:#dc2626;border-color:#dc2626}._2F_7Mq_danger:hover{background:#b91c1c;border-color:#b91c1c}._2F_7Mq_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}._2F_7Mq_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}._2F_7Mq_button:disabled{cursor:wait;opacity:.6}._2F_7Mq_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}._2F_7Mq_error{color:var(--dsw-alias-danger,#b42318)}";
+		const tagId$2 = "dsh-soc-agent-client/EmailDraftToolview.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$2) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId;
-			tag.textContent = css;
+			tag.dataset.pluginCss = tagId$2;
+			tag.textContent = css$2;
 			document.head.appendChild(tag);
 		}
 		var EmailDraftToolview_module_css_default = {
@@ -1066,10 +1067,551 @@ window.__ModuleLoader__.load({
 			ctx.plugin(emailDraftToolview);
 		}
 		//#endregion
+		//#region src/attachment-constants.ts
+		const MARKITDOWN_ATTACHMENTS_NAMESPACE = "soc-agent-markitdown-attachments";
+		const DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS = {
+			maxFiles: 5,
+			maxBytesPerFile: 1e7,
+			maxTotalBytes: 5e7,
+			maxCharsPerFile: 2e5,
+			maxTotalChars: 5e5
+		};
+		//#endregion
+		//#region src/client/markitdownAttachments.ts
+		const CHANNEL = "/soc-agent-config";
+		function bytesToBase64(bytes) {
+			let binary = "";
+			const chunk = 32768;
+			for (let offset = 0; offset < bytes.length; offset += chunk) binary += String.fromCharCode(...bytes.subarray(offset, offset + chunk));
+			return btoa(binary);
+		}
+		function settingsOf(scope) {
+			return {
+				...DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS,
+				...scope.getSnapshot().value ?? {}
+			};
+		}
+		var MarkItDownDocumentController = class {
+			connection;
+			settings;
+			drafts = /* @__PURE__ */ new Map();
+			aborts = /* @__PURE__ */ new Map();
+			listeners = /* @__PURE__ */ new Set();
+			version = 0;
+			constructor(connection, settings) {
+				this.connection = connection;
+				this.settings = settings;
+			}
+			subscribe = (listener) => {
+				this.listeners.add(listener);
+				return () => {
+					this.listeners.delete(listener);
+				};
+			};
+			getVersion = () => this.version;
+			create(sessionId, files) {
+				const limits = settingsOf(this.settings);
+				const sessionDrafts = this.drafts.get(sessionId) ?? /* @__PURE__ */ new Map();
+				if (files.length === 0) return [];
+				if (sessionDrafts.size + files.length > limits.maxFiles) throw new Error(`You can attach up to ${limits.maxFiles} files per message.`);
+				const totalBytes = [...sessionDrafts.values()].reduce((total, item) => total + item.file.size, 0);
+				if (files.some((file) => file.size > limits.maxBytesPerFile)) throw new Error("One attachment exceeds the configured per-file size limit.");
+				if (totalBytes + files.reduce((total, file) => total + file.size, 0) > limits.maxTotalBytes) throw new Error("The attachments exceed the configured total size limit.");
+				const created = files.map((file) => ({
+					kind: "document",
+					id: crypto.randomUUID(),
+					file,
+					status: "queued"
+				}));
+				for (const document of created) sessionDrafts.set(document.id, document);
+				this.drafts.set(sessionId, sessionDrafts);
+				this.changed();
+				return created;
+			}
+			list(sessionId, ids) {
+				const drafts = this.drafts.get(sessionId);
+				if (drafts === void 0) return [];
+				return ids.flatMap((id) => {
+					const document = drafts.get(id);
+					return document === void 0 ? [] : [document];
+				});
+			}
+			release(sessionId, id) {
+				this.aborts.get(id)?.abort();
+				this.aborts.delete(id);
+				const drafts = this.drafts.get(sessionId);
+				if (drafts?.delete(id)) this.changed();
+				if (drafts?.size === 0) this.drafts.delete(sessionId);
+			}
+			async convert(sessionId, ids, signal) {
+				const limits = settingsOf(this.settings);
+				const result = [];
+				let totalChars = 0;
+				for (const id of ids) {
+					if (signal.aborted) throw new Error("attachment_conversion_cancelled");
+					const document = this.drafts.get(sessionId)?.get(id);
+					if (document === void 0) continue;
+					this.setStatus(sessionId, id, "converting");
+					const localAbort = new AbortController();
+					const abort = () => {
+						localAbort.abort();
+					};
+					signal.addEventListener("abort", abort, { once: true });
+					this.aborts.set(id, localAbort);
+					try {
+						const bytes = new Uint8Array(await document.file.arrayBuffer());
+						const response = await this.connection.rpc.call(CHANNEL, "convert-attachment", {
+							filename: document.file.name,
+							content_type: document.file.type,
+							data: bytesToBase64(bytes),
+							limits: {
+								max_bytes: limits.maxBytesPerFile,
+								max_chars: limits.maxCharsPerFile
+							}
+						}, localAbort.signal);
+						if (!response?.ok) throw new Error(response?.error?.message || "The attachment conversion failed.");
+						const converted = response.value;
+						const markdown = typeof converted.text === "string" ? converted.text : "";
+						totalChars += markdown.length;
+						if (totalChars > limits.maxTotalChars) throw new Error("The attachments exceed the configured Markdown character limit.");
+						if (!this.drafts.get(sessionId)?.has(id)) continue;
+						this.setStatus(sessionId, id, "converted");
+						result.push({
+							id,
+							filename: typeof converted.filename === "string" ? converted.filename : document.file.name,
+							markdown
+						});
+					} catch (error) {
+						if (localAbort.signal.aborted || signal.aborted) {
+							if (!this.drafts.get(sessionId)?.has(id)) continue;
+							throw new Error("attachment_conversion_cancelled");
+						}
+						const message = error instanceof Error ? error.message : "The attachment conversion failed.";
+						this.setStatus(sessionId, id, "failed", message);
+						throw new Error(message);
+					} finally {
+						signal.removeEventListener("abort", abort);
+						if (this.aborts.get(id) === localAbort) this.aborts.delete(id);
+					}
+				}
+				return result;
+			}
+			setStatus(sessionId, id, status, error) {
+				const drafts = this.drafts.get(sessionId);
+				const current = drafts?.get(id);
+				if (current === void 0) return;
+				drafts?.set(id, {
+					...current,
+					status,
+					...error === void 0 ? {} : { error }
+				});
+				this.changed();
+			}
+			changed() {
+				this.version += 1;
+				for (const listener of this.listeners) listener();
+			}
+		};
+		//#endregion
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/MarkItDownDocuments.module.css.mjs
+		const css$1 = ".Lt34_a_rail{flex-wrap:wrap;gap:8px;padding:10px 12px 0;display:flex}.Lt34_a_item{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);min-width:0;max-width:min(100%,360px);color:var(--dsw-alias-label-primary);border-radius:8px;align-items:center;gap:7px;padding:6px 8px;font-size:13px;line-height:20px;display:inline-flex}.Lt34_a_icon{flex:none;font-size:14px;line-height:1}.Lt34_a_name{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}.Lt34_a_status{color:var(--dsw-alias-label-tertiary);white-space:nowrap;flex:none;font-size:12px}.Lt34_a_remove{width:20px;height:20px;color:var(--dsw-alias-label-tertiary);font:inherit;cursor:pointer;background:0 0;border:0;border-radius:50%;flex:none;padding:0;font-size:18px;line-height:18px}.Lt34_a_remove:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.Lt34_a_remove:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
+		const tagId$1 = "dsh-soc-agent-client/MarkItDownDocuments.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "dsh-soc-agent-client";
+			tag.dataset.pluginCss = tagId$1;
+			tag.textContent = css$1;
+			document.head.appendChild(tag);
+		}
+		var MarkItDownDocuments_module_css_default = {
+			"icon": "Lt34_a_icon",
+			"item": "Lt34_a_item",
+			"name": "Lt34_a_name",
+			"rail": "Lt34_a_rail",
+			"remove": "Lt34_a_remove",
+			"status": "Lt34_a_status"
+		};
+		//#endregion
+		//#region src/client/MarkItDownDocuments.tsx
+		function statusText(document, converting) {
+			if (document.status === "failed") return document.error ?? "Conversion failed";
+			if (converting || document.status === "converting") return "Converting…";
+			if (document.status === "converted") return "Ready";
+			return "Queued";
+		}
+		function MarkItDownDocuments(props) {
+			const { controller, sessionId } = props;
+			(0, react.useSyncExternalStore)(controller.subscribe, controller.getVersion, controller.getVersion);
+			const documents = controller.list(sessionId, props.documents.map((document) => document.id));
+			const pickerId = `soc-agent-file-picker-${sessionId}`;
+			if (documents.length === 0 && !props.canAcceptDocuments) return null;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: MarkItDownDocuments_module_css_default.rail,
+				"aria-label": "Attached files",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+					id: pickerId,
+					type: "file",
+					multiple: true,
+					hidden: true,
+					onChange: (event) => {
+						const files = [...event.currentTarget.files ?? []];
+						event.currentTarget.value = "";
+						if (files.length > 0 && props.canAcceptDocuments) props.onAddDocuments(files);
+					}
+				}), documents.map((document) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: MarkItDownDocuments_module_css_default.item,
+					title: document.error,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: MarkItDownDocuments_module_css_default.icon,
+							"aria-hidden": "true",
+							children: "📎"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: MarkItDownDocuments_module_css_default.name,
+							children: document.file.name
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: MarkItDownDocuments_module_css_default.status,
+							children: statusText(document, props.phase === "submitting")
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							className: MarkItDownDocuments_module_css_default.remove,
+							type: "button",
+							"aria-label": `Remove ${document.file.name}`,
+							onClick: () => props.onRemoveDocument(document.id),
+							children: "×"
+						})
+					]
+				}, document.id))]
+			});
+		}
+		function openMarkItDownPicker(sessionId) {
+			const input = document.getElementById(`soc-agent-file-picker-${sessionId}`);
+			if (input instanceof HTMLInputElement) input.click();
+		}
+		//#endregion
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/MarkItDownAttachmentSettings.module.css.mjs
+		const css = ".TdgZiW_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.TdgZiW_card:hover,.TdgZiW_cardOpen{border-color:var(--dsw-alias-label-dimmed)}.TdgZiW_cardOpen{background:var(--dsw-alias-bg-layer-2)}.TdgZiW_header{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.TdgZiW_header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.TdgZiW_headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.TdgZiW_name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.TdgZiW_description,.TdgZiW_hint,.TdgZiW_invalid{font-size:12px;line-height:1.5}.TdgZiW_description,.TdgZiW_hint{color:var(--dsw-alias-label-tertiary)}.TdgZiW_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s}.TdgZiW_chevronOpen{transform:rotate(180deg)}.TdgZiW_body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding-bottom:8px}.TdgZiW_field{flex-direction:column;gap:6px;padding:12px 0;display:flex}.TdgZiW_field+.TdgZiW_field{border-top:1px solid var(--dsw-alias-border-l2)}.TdgZiW_fieldHead{align-items:center;gap:8px;display:flex}.TdgZiW_fieldLabel{min-width:0;color:var(--dsw-alias-label-primary);flex:1;font-size:13px;font-weight:500;line-height:1.5}.TdgZiW_badges{align-items:center;gap:8px;display:inline-flex}.TdgZiW_badge{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);white-space:nowrap;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}.TdgZiW_reset{color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border:0;padding:0;font-size:12px;line-height:1.5}.TdgZiW_reset:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.TdgZiW_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);width:100%;height:34px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 12px;font-size:13px;line-height:1.5}.TdgZiW_input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}.TdgZiW_input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}.TdgZiW_inputInvalid{border-color:var(--dsw-alias-label-error)}.TdgZiW_hint,.TdgZiW_invalid,.TdgZiW_failed{margin:0}.TdgZiW_invalid,.TdgZiW_failed{color:var(--dsw-alias-label-error)}.TdgZiW_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px;display:flex}.TdgZiW_failed{flex:1;min-width:0;font-size:12px;line-height:1.5}.TdgZiW_discard,.TdgZiW_save{font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}.TdgZiW_discard{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:0 0}.TdgZiW_save{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.TdgZiW_discard:disabled,.TdgZiW_save:disabled{opacity:.4;cursor:default}.TdgZiW_discard:focus-visible,.TdgZiW_save:focus-visible,.TdgZiW_reset:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
+		const tagId = "dsh-soc-agent-client/MarkItDownAttachmentSettings.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "dsh-soc-agent-client";
+			tag.dataset.pluginCss = tagId;
+			tag.textContent = css;
+			document.head.appendChild(tag);
+		}
+		var MarkItDownAttachmentSettings_module_css_default = {
+			"badge": "TdgZiW_badge",
+			"badges": "TdgZiW_badges",
+			"body": "TdgZiW_body",
+			"card": "TdgZiW_card",
+			"cardOpen": "TdgZiW_cardOpen",
+			"chevron": "TdgZiW_chevron",
+			"chevronOpen": "TdgZiW_chevronOpen",
+			"description": "TdgZiW_description",
+			"discard": "TdgZiW_discard",
+			"failed": "TdgZiW_failed",
+			"field": "TdgZiW_field",
+			"fieldHead": "TdgZiW_fieldHead",
+			"fieldLabel": "TdgZiW_fieldLabel",
+			"footer": "TdgZiW_footer",
+			"headText": "TdgZiW_headText",
+			"header": "TdgZiW_header",
+			"hint": "TdgZiW_hint",
+			"input": "TdgZiW_input",
+			"inputInvalid": "TdgZiW_inputInvalid",
+			"invalid": "TdgZiW_invalid",
+			"name": "TdgZiW_name",
+			"reset": "TdgZiW_reset",
+			"save": "TdgZiW_save"
+		};
+		//#endregion
+		//#region src/client/MarkItDownAttachmentSettings.tsx
+		const FIELDS = [
+			"maxFiles",
+			"maxBytesPerFile",
+			"maxTotalBytes",
+			"maxCharsPerFile",
+			"maxTotalChars"
+		];
+		var AttachmentSettingsController = class {
+			scope;
+			drafts = /* @__PURE__ */ new Map();
+			cleared = /* @__PURE__ */ new Set();
+			store;
+			saving = false;
+			failed = false;
+			constructor(scope) {
+				this.scope = scope;
+				this.store = (0, _deepseek_ai_dsh_client_runtime_client.createSnapshotStore)(this.state());
+				scope.subscribe(() => this.publish());
+			}
+			inject() {
+				return {
+					hooks: { attachmentSettings: this.store },
+					edit: (field, text) => {
+						if (FIELDS.includes(field)) {
+							this.drafts.set(field, text);
+							this.cleared.delete(field);
+							this.failed = false;
+							this.publish();
+						}
+					},
+					resetField: (field) => {
+						this.drafts.delete(field);
+						this.cleared.add(field);
+						this.failed = false;
+						this.publish();
+					},
+					save: () => {
+						this.save();
+					},
+					discard: () => {
+						this.drafts.clear();
+						this.cleared.clear();
+						this.failed = false;
+						this.publish();
+					}
+				};
+			}
+			async save() {
+				if (this.saving || !this.state().writable || this.state().invalid) return;
+				this.saving = true;
+				this.publish();
+				try {
+					for (const field of FIELDS) if (this.cleared.has(field)) await this.scope.unset(field);
+					else if (this.drafts.has(field)) {
+						const value = Number(this.drafts.get(field));
+						if (!Number.isSafeInteger(value) || value < 1) throw new Error("invalid");
+						await this.scope.set(field, value);
+					}
+					this.drafts.clear();
+					this.cleared.clear();
+					this.failed = false;
+				} catch {
+					this.failed = true;
+				} finally {
+					this.saving = false;
+					this.publish();
+				}
+			}
+			state() {
+				const snapshot = this.scope.getSnapshot();
+				const value = snapshot.value ?? {};
+				const user = snapshot.user && typeof snapshot.user === "object" ? snapshot.user : {};
+				const field = (name) => {
+					const raw = value[name];
+					const text = this.drafts.get(name) ?? (this.cleared.has(name) ? "" : typeof raw === "number" ? String(raw) : "");
+					return {
+						text,
+						overridden: this.drafts.has(name) || this.cleared.has(name) || Object.prototype.hasOwnProperty.call(user, name),
+						invalid: text !== "" && (!Number.isSafeInteger(Number(text)) || Number(text) < 1)
+					};
+				};
+				const fields = Object.fromEntries(FIELDS.map((name) => [name, field(name)]));
+				return {
+					available: snapshot.status !== "unavailable",
+					writable: snapshot.writable,
+					dirty: this.drafts.size > 0 || this.cleared.size > 0,
+					invalid: FIELDS.some((name) => fields[name].invalid),
+					saving: this.saving,
+					failed: this.failed,
+					...fields
+				};
+			}
+			publish() {
+				this.store.set(this.state());
+			}
+		};
+		function Field({ id, label, hint, state, disabled, edit, reset }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: MarkItDownAttachmentSettings_module_css_default.field,
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: MarkItDownAttachmentSettings_module_css_default.fieldHead,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("label", {
+							className: MarkItDownAttachmentSettings_module_css_default.fieldLabel,
+							htmlFor: id,
+							children: label
+						}), state.overridden && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+							className: MarkItDownAttachmentSettings_module_css_default.badges,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: MarkItDownAttachmentSettings_module_css_default.badge,
+								children: "Overridden"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: MarkItDownAttachmentSettings_module_css_default.reset,
+								type: "button",
+								disabled,
+								onClick: reset,
+								children: "Reset"
+							})]
+						})]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+						className: state.invalid ? `${MarkItDownAttachmentSettings_module_css_default.input} ${MarkItDownAttachmentSettings_module_css_default.inputInvalid}` : MarkItDownAttachmentSettings_module_css_default.input,
+						id,
+						inputMode: "numeric",
+						value: state.text,
+						disabled,
+						"aria-invalid": state.invalid || void 0,
+						onChange: (event) => edit(event.target.value)
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: state.invalid ? MarkItDownAttachmentSettings_module_css_default.invalid : MarkItDownAttachmentSettings_module_css_default.hint,
+						children: state.invalid ? "Enter a positive whole number." : hint
+					})
+				]
+			});
+		}
+		function Chevron({ open }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
+				className: open ? `${MarkItDownAttachmentSettings_module_css_default.chevron} ${MarkItDownAttachmentSettings_module_css_default.chevronOpen}` : MarkItDownAttachmentSettings_module_css_default.chevron,
+				width: "14",
+				height: "14",
+				viewBox: "0 0 14 14",
+				fill: "none",
+				"aria-hidden": "true",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					d: "M11.8486 5.5L11.4238 5.92383L8.69727 8.65137C8.44157 8.90706 8.21562 9.13382 8.01172 9.29785C7.79912 9.46883 7.55595 9.61756 7.25 9.66602C7.08435 9.69222 6.91565 9.69222 6.75 9.66602C6.44405 9.61756 6.20088 9.46883 5.98828 9.29785C5.78438 9.13382 5.55843 8.90706 5.30273 8.65137L2.57617 5.92383L2.15137 5.5L3 4.65137L3.42383 5.07617L6.15137 7.80273C6.42595 8.07732 6.59876 8.24849 6.74023 8.3623C6.87291 8.46904 6.92272 8.47813 6.9375 8.48047C6.97895 8.48703 7.02105 8.48703 7.0625 8.48047C7.07728 8.47813 7.12709 8.46904 7.25977 8.3623C7.40124 8.24849 7.57405 8.07732 7.84863 7.80273L10.5762 5.07617L11 4.65137L11.8486 5.5Z",
+					fill: "currentColor"
+				})
+			});
+		}
+		function MarkItDownAttachmentSettingsCard(props) {
+			const state = props.useAttachmentSettings((value) => value);
+			const [open, setOpen] = (0, react.useState)(false);
+			if (!state.available) return null;
+			const disabled = !state.writable;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", {
+				className: `${MarkItDownAttachmentSettings_module_css_default.card}${open ? ` ${MarkItDownAttachmentSettings_module_css_default.cardOpen}` : ""}`,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+					className: MarkItDownAttachmentSettings_module_css_default.header,
+					type: "button",
+					"aria-expanded": open,
+					"aria-label": `${open ? "Collapse" : "Expand"} settings: MarkItDown attachments`,
+					onClick: () => setOpen((value) => !value),
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+						className: MarkItDownAttachmentSettings_module_css_default.headText,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: MarkItDownAttachmentSettings_module_css_default.name,
+							children: "MarkItDown attachments"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: MarkItDownAttachmentSettings_module_css_default.description,
+							children: "Upload files and send their readable text to the AI."
+						})]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Chevron, { open })]
+				}), open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: MarkItDownAttachmentSettings_module_css_default.body,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
+							id: "markitdown-max-files",
+							label: "Maximum files per message",
+							hint: "Default: 5",
+							state: state.maxFiles,
+							disabled,
+							edit: (value) => props.edit("maxFiles", value),
+							reset: () => props.resetField("maxFiles")
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
+							id: "markitdown-max-file-bytes",
+							label: "Maximum bytes per file",
+							hint: "Default: 10 MB",
+							state: state.maxBytesPerFile,
+							disabled,
+							edit: (value) => props.edit("maxBytesPerFile", value),
+							reset: () => props.resetField("maxBytesPerFile")
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
+							id: "markitdown-max-total-bytes",
+							label: "Maximum total upload bytes",
+							hint: "Default: 50 MB",
+							state: state.maxTotalBytes,
+							disabled,
+							edit: (value) => props.edit("maxTotalBytes", value),
+							reset: () => props.resetField("maxTotalBytes")
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
+							id: "markitdown-max-file-chars",
+							label: "Maximum Markdown characters per file",
+							hint: "Default: 200,000",
+							state: state.maxCharsPerFile,
+							disabled,
+							edit: (value) => props.edit("maxCharsPerFile", value),
+							reset: () => props.resetField("maxCharsPerFile")
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
+							id: "markitdown-max-total-chars",
+							label: "Maximum total Markdown characters",
+							hint: "Default: 500,000",
+							state: state.maxTotalChars,
+							disabled,
+							edit: (value) => props.edit("maxTotalChars", value),
+							reset: () => props.resetField("maxTotalChars")
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: MarkItDownAttachmentSettings_module_css_default.footer,
+							children: [
+								state.failed && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+									className: MarkItDownAttachmentSettings_module_css_default.failed,
+									role: "status",
+									children: "Could not save these limits."
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: MarkItDownAttachmentSettings_module_css_default.discard,
+									type: "button",
+									disabled: !state.dirty || state.saving,
+									onClick: props.discard,
+									children: "Discard"
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: MarkItDownAttachmentSettings_module_css_default.save,
+									type: "button",
+									disabled: !state.dirty || state.invalid || state.saving,
+									onClick: props.save,
+									children: state.saving ? "Saving…" : "Save"
+								})
+							]
+						})
+					]
+				})]
+			});
+		}
+		//#endregion
 		//#region src/client/index.ts
-		const inject = ["slots", "connection"];
+		const inject = [
+			"slots",
+			"connection",
+			"conversation",
+			"commandUi",
+			"settingsScope"
+		];
 		function apply(ctx) {
 			const connection = ctx.get("connection");
+			const documents = new MarkItDownDocumentController(connection, ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
+			const settings = new AttachmentSettingsController(ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
+			ctx.effect(() => ctx.conversation.registerDocumentProvider(documents), "soc-agent: MarkItDown document provider");
+			ctx.slots.inject("conversation.input.documents", () => ctx.slots.register({ name: "conversation.input.documents" }, (props) => react.default.createElement(MarkItDownDocuments, {
+				...props,
+				controller: documents
+			})));
+			ctx.effect(() => ctx.commandUi.register({
+				name: "attach-file",
+				description: "Attach file",
+				available: () => true,
+				ui: {
+					kind: "action",
+					options: async () => [],
+					onSelect: (_option, session) => {
+						openMarkItDownPicker(session.sessionId);
+					}
+				}
+			}), "soc-agent: MarkItDown file command");
+			ctx.slots.inject("settings.plugin.item", () => ctx.slots.register({
+				name: "settings.plugin.item",
+				key: MARKITDOWN_ATTACHMENTS_NAMESPACE,
+				inject: () => settings.inject()
+			}, MarkItDownAttachmentSettingsCard));
 			installEmailDraftToolview(ctx);
 			ctx.slots.inject("sidebar.brand.mark", () => ctx.slots.inject("sidebar.brand.name", () => ctx.slots.inject("conversation.hero.brand.mark", function* () {
 				yield ctx.slots.register({

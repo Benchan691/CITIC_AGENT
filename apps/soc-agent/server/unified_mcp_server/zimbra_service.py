@@ -3,18 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import csv
 import hashlib
-import io
-import json
 import re
-import zipfile
-import xml.etree.ElementTree as ET
-from html.parser import HTMLParser
 from pathlib import PurePath
 from typing import Any
 
-from pypdf import PdfReader
+from markitdown import MarkItDown, __version__ as markitdown_version
 
 from unified_mcp_server.zimbra import (
     download_attachment,
@@ -31,12 +25,17 @@ from unified_mcp_server.zimbra import (
 )
 
 from .account_store import AccountStore, StoredAccount
-from .config import ZimbraSettings
+from .attachment_converter import (
+    MAX_ARCHIVE_MEMBERS as _MAX_ARCHIVE_MEMBERS,
+    AttachmentConversionLimits,
+    AttachmentConverter,
+    _validate_archive_safety as _shared_validate_archive_safety,
+    create_markitdown,
+)
+from .config import MarkItDownSettings, ZimbraSettings
 from .errors import ConfigurationError, ServiceError
 
 
-_MAX_DOCX_XML_BYTES = 8_000_000
-_MAX_PDF_PAGES = 100
 _HEADER_NAMES = {
     name.casefold(): name for name in (
         "Message-ID", "Reply-To", "Return-Path", "Received",
@@ -81,9 +80,17 @@ def _upstream_error(exc: Exception) -> ServiceError:
 
 
 class ZimbraService:
-    def __init__(self, settings: ZimbraSettings, accounts: AccountStore | None = None) -> None:
+    def __init__(
+        self,
+        settings: ZimbraSettings,
+        accounts: AccountStore | None = None,
+        markitdown_settings: MarkItDownSettings | None = None,
+    ) -> None:
         self.settings = settings
         self.accounts = accounts or AccountStore(settings.accounts_file, settings.key_file, settings.explicit_key)
+        self.markitdown_settings = markitdown_settings or MarkItDownSettings()
+        self._markitdown = _create_markitdown(self.markitdown_settings)
+        self._attachment_converter = AttachmentConverter(self.markitdown_settings, self._markitdown)
 
     def account_count(self) -> int:
         return self.accounts.count() + (1 if self._legacy_account() else 0)
@@ -597,8 +604,9 @@ class ZimbraService:
             raise
         filename = str(attachment.get("filename", ""))
         content_type = str(attachment.get("content_type", "")).split(";", 1)[0].lower()
-        text = _extract_attachment_text(data, filename, content_type)
+        text, title = self._convert_attachment_text(data, filename, content_type)
         characters = len(text)
+        extension = PurePath(filename).suffix.lower()
         return {
             "account_id": account.id,
             "account": account.agent_dict(),
@@ -611,7 +619,29 @@ class ZimbraService:
             "characters": characters,
             "text_truncated": characters > max_chars,
             "text": text[:max_chars],
+            "title": title,
+            "format": {
+                "content_type": content_type,
+                "extension": extension,
+            },
+            "converter": {
+                "name": "markitdown",
+                "version": markitdown_version,
+            },
+            "llm_enabled": self.markitdown_settings.llm_enabled,
         }
+
+    def _convert_attachment_text(self, data: bytes, filename: str, content_type: str) -> tuple[str, str | None]:
+        result = self._attachment_converter.convert(
+            data,
+            filename,
+            content_type,
+            AttachmentConversionLimits(
+                max_bytes=self.settings.max_attachment_bytes,
+                max_chars=2_000_000,
+            ),
+        )
+        return result["text"], result["title"]
 
     async def _run(self, function, *args):
         try:
@@ -624,93 +654,11 @@ class ZimbraService:
             raise _upstream_error(exc) from exc
 
 
-class _HTMLText(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.parts: list[str] = []
-
-    def handle_data(self, data: str) -> None:
-        if data.strip():
-            self.parts.append(data.strip())
+def _create_markitdown(settings: MarkItDownSettings) -> MarkItDown:
+    """Compatibility seam retained for the existing Zimbra unit tests."""
+    return create_markitdown(settings, markitdown_type=MarkItDown)
 
 
-def _decoded_text(data: bytes) -> str:
-    try:
-        return data.decode("utf-8-sig")
-    except UnicodeDecodeError as exc:
-        raise ServiceError("attachment_malformed", "The attachment is not valid UTF-8 text.") from exc
-
-
-def _docx_text(data: bytes) -> str:
-    try:
-        with zipfile.ZipFile(io.BytesIO(data)) as archive:
-            if any(info.flag_bits & 0x1 for info in archive.infolist()):
-                raise ServiceError("attachment_encrypted", "Encrypted DOCX attachments are not supported.")
-            document_info = archive.getinfo("word/document.xml")
-            if document_info.file_size > _MAX_DOCX_XML_BYTES:
-                raise ServiceError("attachment_too_complex", "The DOCX document exceeds the safe expansion limit.")
-            document = ET.fromstring(archive.read(document_info))
-    except ServiceError:
-        raise
-    except (zipfile.BadZipFile, KeyError, ET.ParseError) as exc:
-        raise ServiceError("attachment_malformed", "The DOCX attachment could not be parsed.") from exc
-    except RuntimeError as exc:
-        if "encrypted" in str(exc).lower():
-            raise ServiceError("attachment_encrypted", "Encrypted DOCX attachments are not supported.") from exc
-        raise ServiceError("attachment_malformed", "The DOCX attachment could not be parsed.") from exc
-    paragraphs = []
-    for paragraph in document.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p"):
-        text = "".join(node.text or "" for node in paragraph.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t"))
-        if text:
-            paragraphs.append(text)
-    return "\n".join(paragraphs)
-
-
-def _pdf_text(data: bytes) -> str:
-    try:
-        reader = PdfReader(io.BytesIO(data))
-        if reader.is_encrypted:
-            raise ServiceError("attachment_encrypted", "Encrypted PDF attachments are not supported.")
-        if len(reader.pages) > _MAX_PDF_PAGES:
-            raise ServiceError("attachment_too_complex", "The PDF exceeds the safe page limit.")
-        return "\n\n".join(page.extract_text() or "" for page in reader.pages)
-    except ServiceError:
-        raise
-    except Exception as exc:
-        raise ServiceError("attachment_malformed", "The PDF attachment could not be parsed.") from exc
-
-
-def _extract_attachment_text(data: bytes, filename: str, content_type: str) -> str:
-    suffix = PurePath(filename).suffix.lower()
-    if content_type == "application/pdf" or suffix == ".pdf":
-        return _pdf_text(data)
-    if content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or suffix == ".docx":
-        return _docx_text(data)
-    text_types = {".txt", ".csv", ".json", ".xml", ".html", ".htm", ".log"}
-    if content_type.startswith("text/") or content_type in {"application/json", "application/xml"} or suffix in text_types:
-        text = _decoded_text(data)
-        if content_type == "text/html" or suffix in {".html", ".htm"}:
-            parser = _HTMLText()
-            try:
-                parser.feed(text)
-            except Exception as exc:
-                raise ServiceError("attachment_malformed", "The HTML attachment could not be parsed.") from exc
-            return "\n".join(parser.parts)
-        if content_type == "application/json" or suffix == ".json":
-            try:
-                json.loads(text)
-            except json.JSONDecodeError as exc:
-                raise ServiceError("attachment_malformed", "The JSON attachment could not be parsed.") from exc
-        if content_type == "text/csv" or suffix == ".csv":
-            try:
-                for _ in csv.reader(io.StringIO(text)):
-                    pass
-            except csv.Error as exc:
-                raise ServiceError("attachment_malformed", "The CSV attachment could not be parsed.") from exc
-        if content_type in {"application/xml", "text/xml"} or suffix == ".xml":
-            try:
-                ET.fromstring(text)
-            except ET.ParseError as exc:
-                raise ServiceError("attachment_malformed", "The XML attachment could not be parsed.") from exc
-        return text
-    raise ServiceError("attachment_unsupported", "This attachment type cannot be converted to text.")
+def _validate_archive_safety(data: bytes, filename: str, content_type: str) -> None:
+    """Compatibility wrapper; archive checks are implemented by the shared converter."""
+    _shared_validate_archive_safety(data, filename, content_type)

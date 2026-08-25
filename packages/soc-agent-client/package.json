@@ -26,7 +26,10 @@
         "@deepseek-ai/dsh-client-connection",
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-tool",
-        "@deepseek-ai/dsh-client-ui-settings"
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-commands",
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
       ],
       "platform": "web"
     }
@@ -36,6 +39,9 @@
     "@deepseek-ai/dsh-client-runtime": "*",
     "@deepseek-ai/dsh-client-ui-tool": "*",
     "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-commands": "*",
+    "@deepseek-ai/dsh-client-ui-settings-plugins": "*",
     "react": "^18.2.0"
   },
   "devDependencies": {
@@ -45,6 +51,10 @@
     "@deepseek-ai/dsh-client-ui-sidebar": "file:../../vendor/deepseek-harness/packages/client/ui-sidebar",
     "@deepseek-ai/dsh-client-ui-tool": "file:../../vendor/deepseek-harness/packages/client/ui-tool",
     "@deepseek-ai/dsh-client-ui-settings": "file:../../vendor/deepseek-harness/packages/client/ui-settings",
+    "@deepseek-ai/dsh-client-ui-commands": "file:../../vendor/deepseek-harness/packages/client/ui-commands",
+    "@deepseek-ai/dsh-client-ui-settings-plugins": "file:../../vendor/deepseek-harness/packages/client/ui-settings-plugins",
+    "@deepseek-ai/dsh-settings": "file:../../vendor/deepseek-harness/packages/settings/settings",
+    "@deepseek-ai/schemastery": "file:../../vendor/deepseek-harness/vendor/schemastery",
     "@types/node": "^24.13.3",
     "@types/react": "~18.3.1",
     "react": "^18.2.0",

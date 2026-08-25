@@ -72,7 +72,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
 
     @server.tool()
     async def zimbra_get_attachment_text(ctx: Context, message_id: str, part: str, account_id: str = "", max_chars: int = 20_000) -> dict[str, Any]:
-        """Download one bounded Zimbra attachment and return bounded evidence text."""
+        """Download one bounded Zimbra attachment and return MarkItDown Markdown evidence."""
         return await execute(ctx, "zimbra", "get_attachment_text", lambda: get_runtime(ctx).zimbra_mail.get_attachment_text(message_id, part, account_id, max_chars))
 
     @server.tool()

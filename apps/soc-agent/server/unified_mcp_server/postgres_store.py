@@ -314,6 +314,10 @@ class PostgresStore:
             "ZIMBRA_TIMEOUT",
             "ZIMBRA_MAX_ATTACHMENT_BYTES",
             "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS",
+            "MARKITDOWN_LLM_ENABLED",
+            "MARKITDOWN_LLM_BASE_URL",
+            "MARKITDOWN_LLM_MODEL",
+            "MARKITDOWN_LLM_TIMEOUT",
         ]
         current = self.list_config()
         for key in keys:

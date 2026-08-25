@@ -33,6 +33,8 @@ def test_defaults_are_secure_and_services_can_be_unconfigured():
     assert settings.splunk.detection_enable_enabled is False
     assert settings.zimbra.max_attachment_bytes == 10_000_000
     assert settings.zimbra.max_attachment_text_chars == 200_000
+    assert settings.markitdown.llm_enabled is False
+    assert settings.markitdown.llm_timeout == 60
     assert settings.email_server.url == "http://100.114.50.103:9100"
     assert settings.email_server.configured is False
 
@@ -131,6 +133,35 @@ def test_email_server_credentials_load_without_exposing_password_in_status():
     assert settings.email_server.timeout == 45
     assert settings.email_server.configured is True
     assert "email-secret" not in json.dumps(settings.public_status())
+
+
+def test_markitdown_llm_settings_are_opt_in_and_redacted_from_status():
+    settings = ServerSettings.from_env(
+        {
+            "MARKITDOWN_LLM_ENABLED": "true",
+            "MARKITDOWN_LLM_API_KEY": "llm-secret",
+            "MARKITDOWN_LLM_BASE_URL": "https://llm.example.com/v1",
+            "MARKITDOWN_LLM_MODEL": "vision-model",
+            "MARKITDOWN_LLM_TIMEOUT": "90",
+        }
+    )
+
+    assert settings.markitdown.llm_enabled is True
+    assert settings.markitdown.llm_base_url == "https://llm.example.com/v1"
+    assert settings.markitdown.llm_model == "vision-model"
+    assert settings.markitdown.llm_timeout == 90
+    status = json.dumps(settings.public_status())
+    assert "llm-secret" not in status
+    assert "vision-model" in status
+
+
+@pytest.mark.parametrize("name", ["MARKITDOWN_LLM_API_KEY", "MARKITDOWN_LLM_MODEL"])
+def test_markitdown_llm_requires_credentials_and_model(name):
+    values = {"MARKITDOWN_LLM_ENABLED": "true", "MARKITDOWN_LLM_API_KEY": "secret", "MARKITDOWN_LLM_MODEL": "model"}
+    values.pop(name)
+
+    with pytest.raises(ValueError):
+        ServerSettings.from_env(values)
 
 
 def test_zimbra_email_and_password_load_from_environment():

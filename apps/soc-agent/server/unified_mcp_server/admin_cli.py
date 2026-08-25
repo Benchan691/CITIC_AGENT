@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import json
 import sys
 from collections.abc import Mapping
@@ -11,8 +12,10 @@ from os import environ
 from typing import Any
 
 from .config import ServerSettings
+from .attachment_converter import AttachmentConversionLimits, AttachmentConverter
 from .email.service import EmailSubscriptionService
 from .env_loader import load_server_env
+from .errors import ServiceError
 from .postgres_store import PostgresAccountStore, PostgresStore, dump_json
 from .splunk_service import SplunkService
 from .zimbra_service import ZimbraService
@@ -34,6 +37,10 @@ CONFIG_KEYS = {
     "zimbra.allow_send": ("ZIMBRA_ALLOW_SEND",),
     "zimbra.max_attachment_bytes": ("ZIMBRA_MAX_ATTACHMENT_BYTES",),
     "zimbra.max_attachment_text_chars": ("ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS",),
+    "markitdown.llm_enabled": ("MARKITDOWN_LLM_ENABLED",),
+    "markitdown.llm_base_url": ("MARKITDOWN_LLM_BASE_URL",),
+    "markitdown.llm_model": ("MARKITDOWN_LLM_MODEL",),
+    "markitdown.llm_timeout": ("MARKITDOWN_LLM_TIMEOUT",),
 }
 
 
@@ -72,6 +79,13 @@ def _public_settings(store: PostgresStore) -> dict[str, Any]:
             "max_attachment_text_chars": settings.zimbra.max_attachment_text_chars,
             "send_enabled": settings.zimbra.allow_send,
             "account_count": store.count_accounts(),
+        },
+        "markitdown": {
+            "llm_enabled": settings.markitdown.llm_enabled,
+            "llm_base_url": settings.markitdown.llm_base_url,
+            "llm_model": settings.markitdown.llm_model,
+            "llm_timeout": settings.markitdown.llm_timeout,
+            "has_api_key": bool(config.get("MARKITDOWN_LLM_API_KEY") or settings.markitdown.llm_api_key),
         },
         "subscription_server": {
             "url": settings.email_server.url,
@@ -171,6 +185,30 @@ async def list_signatures(store: PostgresStore, payload: Mapping[str, Any]) -> d
     return await service.list_signatures(str(payload.get("account_id", "")))
 
 
+def convert_attachment(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    encoded = payload.get("data")
+    if not isinstance(encoded, str) or not encoded:
+        raise RuntimeError("Attachment data is required.")
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError("Attachment data is invalid.") from exc
+    settings = _settings(store)
+    raw_limits = payload.get("limits")
+    limits = raw_limits if isinstance(raw_limits, Mapping) else {}
+    try:
+        max_bytes = int(limits.get("max_bytes", settings.zimbra.max_attachment_bytes))
+        max_chars = int(limits.get("max_chars", settings.zimbra.max_attachment_text_chars))
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("Attachment conversion limits are invalid.") from exc
+    return AttachmentConverter(settings.markitdown).convert(
+        data,
+        str(payload.get("filename", "")),
+        str(payload.get("content_type", "")),
+        AttachmentConversionLimits(max_bytes=max_bytes, max_chars=max_chars),
+    )
+
+
 def add_account(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
     account = store.add_account(
         label=str(payload.get("label", "")).strip(),
@@ -219,34 +257,42 @@ def main() -> None:
     payload = _read_payload()
     command = args.command
 
-    if command == "get-settings":
-        result = _public_settings(store)
-    elif command == "update-settings":
-        result = update_settings(store, payload)
-    elif command == "delete-setting":
-        result = delete_setting(store, args.arg or "")
-    elif command == "list-accounts":
-        result = list_accounts(store)
-    elif command == "add-account":
-        result = add_account(store, payload)
-    elif command == "update-account":
-        result = update_account(store, args.arg or "", payload)
-    elif command == "delete-account":
-        result = delete_account(store, args.arg or "")
-    elif command == "test-account":
-        result = asyncio.run(test_account(store, args.arg or ""))
-    elif command == "send-email":
-        result = asyncio.run(send_email(store, payload))
-    elif command == "list-signatures":
-        result = asyncio.run(list_signatures(store, payload))
-    elif command == "test-splunk":
-        result = asyncio.run(test_splunk(store))
-    elif command == "test-subscription-server":
-        result = asyncio.run(test_subscription_server(store))
-    elif command == "migrate":
-        result = migrate(store)
-    else:
-        raise RuntimeError(f"Unknown command: {command}")
+    try:
+        if command == "get-settings":
+            result = _public_settings(store)
+        elif command == "update-settings":
+            result = update_settings(store, payload)
+        elif command == "delete-setting":
+            result = delete_setting(store, args.arg or "")
+        elif command == "list-accounts":
+            result = list_accounts(store)
+        elif command == "add-account":
+            result = add_account(store, payload)
+        elif command == "update-account":
+            result = update_account(store, args.arg or "", payload)
+        elif command == "delete-account":
+            result = delete_account(store, args.arg or "")
+        elif command == "test-account":
+            result = asyncio.run(test_account(store, args.arg or ""))
+        elif command == "send-email":
+            result = asyncio.run(send_email(store, payload))
+        elif command == "list-signatures":
+            result = asyncio.run(list_signatures(store, payload))
+        elif command == "convert-attachment":
+            result = convert_attachment(store, payload)
+        elif command == "test-splunk":
+            result = asyncio.run(test_splunk(store))
+        elif command == "test-subscription-server":
+            result = asyncio.run(test_subscription_server(store))
+        elif command == "migrate":
+            result = migrate(store)
+        else:
+            raise RuntimeError(f"Unknown command: {command}")
+    except ServiceError as error:
+        if command != "convert-attachment":
+            raise
+        sys.stderr.write(json.dumps({"code": error.code, "message": error.message}))
+        raise SystemExit(2) from error
     sys.stdout.write(dump_json(result))
 
 

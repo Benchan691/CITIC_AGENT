@@ -1,8 +1,10 @@
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-commands/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import React from 'react'
 import { CiticBrandMark, CiticBrandName } from './CiticBrand.tsx'
 import { SplunkSettings } from './SplunkSettings.ts'
@@ -11,8 +13,12 @@ import { ZimbraSettings } from './ZimbraSettings.ts'
 import { SchedulerSettings } from './ScheduledTasksForm.ts'
 import { SETTINGS_SECTIONS } from './sections.ts'
 import { installEmailDraftToolview } from './EmailDraftToolview.tsx'
+import { MarkItDownDocumentController } from './markitdownAttachments.ts'
+import { MarkItDownDocuments, openMarkItDownPicker } from './MarkItDownDocuments.tsx'
+import { AttachmentSettingsController, MarkItDownAttachmentSettingsCard } from './MarkItDownAttachmentSettings.tsx'
+import { MARKITDOWN_ATTACHMENTS_NAMESPACE } from '../attachment-constants.ts'
 
-export const inject = ['slots', 'connection'] as const
+export const inject = ['slots', 'connection', 'conversation', 'commandUi', 'settingsScope'] as const
 
 export { SplunkSettings } from './SplunkSettings.ts'
 export { SubscriptionServerSettings } from './SubscriptionServerSettings.ts'
@@ -22,6 +28,40 @@ export { EmailDraftToolview } from './EmailDraftToolview.tsx'
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle
+  const documents = new MarkItDownDocumentController(
+    connection,
+    ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }),
+  )
+  const settings = new AttachmentSettingsController(
+    ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }),
+  )
+  ctx.effect(
+    () => ctx.conversation.registerDocumentProvider(documents),
+    'soc-agent: MarkItDown document provider',
+  )
+  ctx.slots.inject('conversation.input.documents', () => ctx.slots.register({
+    name: 'conversation.input.documents',
+  }, props => React.createElement(MarkItDownDocuments, { ...props, controller: documents })))
+  ctx.effect(
+    () => ctx.commandUi.register({
+      name: 'attach-file',
+      description: 'Attach file',
+      available: () => true,
+      ui: {
+        kind: 'action',
+        options: async () => [],
+        onSelect: (_option, session) => {
+          openMarkItDownPicker(session.sessionId)
+        },
+      },
+    }),
+    'soc-agent: MarkItDown file command',
+  )
+  ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
+    name: 'settings.plugin.item',
+    key: MARKITDOWN_ATTACHMENTS_NAMESPACE,
+    inject: () => settings.inject(),
+  }, MarkItDownAttachmentSettingsCard))
   installEmailDraftToolview(ctx)
   ctx.slots.inject('sidebar.brand.mark', () =>
     ctx.slots.inject('sidebar.brand.name', () =>

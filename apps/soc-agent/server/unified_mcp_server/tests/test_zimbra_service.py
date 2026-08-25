@@ -1,4 +1,5 @@
 import io
+import zipfile
 
 import pytest
 from pypdf import PdfWriter
@@ -342,6 +343,50 @@ async def test_attachment_text_is_bounded_and_returns_evidence_metadata(monkeypa
     assert result["text"] == "evidence"
     assert result["bytes"] == 8
     assert result["sha256"] == "ee8250fb76e094b34b471f13a73dbbe51d1ae142e9df59d7c0d31ec20f0a0a8e"
+    assert result["title"] is None
+    assert result["format"] == {"content_type": "text/plain", "extension": ".txt"}
+    assert result["converter"]["name"] == "markitdown"
+    assert result["llm_enabled"] is False
+
+
+def test_markitdown_receives_bounded_stream_and_attachment_metadata(monkeypatch):
+    captured = {}
+
+    class FakeResult:
+        markdown = "# Converted"
+        title = "Evidence"
+
+    class FakeMarkItDown:
+        def __init__(self, **kwargs):
+            captured["init"] = kwargs
+
+        def convert_stream(self, stream, *, stream_info):
+            captured["data"] = stream.read()
+            captured["stream_info"] = stream_info
+            return FakeResult()
+
+    monkeypatch.setattr(module, "MarkItDown", FakeMarkItDown)
+    service = ZimbraService(settings())
+    text, title = service._convert_attachment_text(b"evidence", "report.txt", "text/plain")
+
+    assert text == "# Converted"
+    assert title == "Evidence"
+    assert captured["init"] == {"enable_builtins": True, "enable_plugins": False}
+    assert captured["data"] == b"evidence"
+    assert captured["stream_info"].filename == "report.txt"
+    assert captured["stream_info"].mimetype == "text/plain"
+    assert captured["stream_info"].extension == ".txt"
+
+
+def test_archive_member_limit_is_enforced():
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for index in range(module._MAX_ARCHIVE_MEMBERS + 1):
+            archive.writestr(f"{index}.txt", "x")
+
+    with pytest.raises(ServiceError) as error:
+        module._validate_archive_safety(buffer.getvalue(), "bundle.zip", "application/zip")
+    assert error.value.code == "attachment_too_complex"
 
 
 @pytest.mark.asyncio

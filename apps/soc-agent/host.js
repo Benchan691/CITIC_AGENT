@@ -8,6 +8,8 @@ export const inject = ['agents', 'connection', 'tools']
 
 const CHANNEL = '/soc-agent-config'
 const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
+const HARD_ATTACHMENT_BYTES = 100_000_000
+const HARD_MARKDOWN_CHARS = 2_000_000
 
 export { ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS }
 
@@ -44,7 +46,7 @@ function adminFailureMessage(command, stderr, exitCode) {
   return `${label}: ${detail}`
 }
 
-function runAdmin(command, arg, payload) {
+function runAdmin(command, arg, payload, signal) {
   return new Promise((resolvePromise, rejectPromise) => {
     const args = ['run', 'python', '-m', 'unified_mcp_server.admin_cli', command]
     if (arg !== undefined && arg !== '') args.push(arg)
@@ -54,11 +56,41 @@ function runAdmin(command, arg, payload) {
     })
     let stdout = ''
     let stderr = ''
+    let settled = false
+    const abort = () => {
+      if (settled) return
+      settled = true
+      child.kill('SIGTERM')
+      rejectPromise(new Error('attachment_conversion_cancelled'))
+    }
+    if (signal?.aborted) {
+      abort()
+      return
+    }
+    signal?.addEventListener('abort', abort, { once: true })
     child.stdout.on('data', chunk => { stdout += String(chunk) })
     child.stderr.on('data', chunk => { stderr += String(chunk) })
-    child.on('error', error => rejectPromise(new Error(adminFailureMessage(command, error.message, -1))))
+    child.on('error', error => {
+      if (settled) return
+      settled = true
+      rejectPromise(new Error(adminFailureMessage(command, error.message, -1)))
+    })
     child.on('close', code => {
+      if (settled) return
+      settled = true
+      signal?.removeEventListener('abort', abort)
       if (code !== 0) {
+        if (command === 'convert-attachment') {
+          try {
+            const failure = JSON.parse(stderr.trim())
+            if (failure?.code && failure?.message) {
+              rejectPromise(new Error(`${failure.code}: ${failure.message}`))
+              return
+            }
+          } catch { /* map malformed converter failures below */ }
+          rejectPromise(new Error('attachment_conversion_failed: The attachment conversion failed.'))
+          return
+        }
         rejectPromise(new Error(adminFailureMessage(command, stderr, code)))
         return
       }
@@ -73,7 +105,27 @@ function runAdmin(command, arg, payload) {
   })
 }
 
-async function handleEndpoint(endpoint, payload) {
+function validateAttachmentPayload(payload) {
+  if (!payload || typeof payload !== 'object') throw new Error('attachment_invalid_request')
+  const filename = typeof payload.filename === 'string' ? payload.filename : ''
+  const contentType = typeof payload.content_type === 'string' ? payload.content_type : ''
+  const data = typeof payload.data === 'string' ? payload.data : ''
+  if (!filename || filename.length > 255 || filename.includes('\0') || filename !== filename.split(/[\\/]/u).at(-1)) {
+    throw new Error('attachment_invalid_filename')
+  }
+  if (contentType.length > 255) throw new Error('attachment_invalid_mime')
+  if (!/^[A-Za-z0-9+/]*={0,2}$/u.test(data) || data.length % 4 !== 0) throw new Error('attachment_invalid_request')
+  const bytes = Buffer.from(data, 'base64')
+  if (bytes.length > HARD_ATTACHMENT_BYTES) throw new Error('attachment_too_large')
+  const limits = payload.limits && typeof payload.limits === 'object' ? payload.limits : {}
+  const maxBytes = Number(limits.max_bytes ?? 10_000_000)
+  const maxChars = Number(limits.max_chars ?? 200_000)
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > HARD_ATTACHMENT_BYTES) throw new Error('attachment_invalid_limits')
+  if (!Number.isSafeInteger(maxChars) || maxChars < 1 || maxChars > HARD_MARKDOWN_CHARS) throw new Error('attachment_invalid_limits')
+  return { filename, content_type: contentType, data, limits: { max_bytes: maxBytes, max_chars: maxChars } }
+}
+
+async function handleEndpoint(endpoint, payload, signal) {
   switch (endpoint) {
     case 'get-settings': return ok(await runAdmin('get-settings'))
     case 'update-settings': return ok(await runAdmin('update-settings', undefined, payload))
@@ -87,6 +139,10 @@ async function handleEndpoint(endpoint, payload) {
     case 'list-signatures': return ok(await runAdmin('list-signatures', undefined, payload))
     case 'test-splunk': return ok(await runAdmin('test-splunk'))
     case 'test-subscription-server': return ok(await runAdmin('test-subscription-server'))
+    case 'convert-attachment': {
+      const request = validateAttachmentPayload(payload)
+      return ok(await runAdmin('convert-attachment', undefined, request, signal))
+    }
     case 'migrate': return ok(await runAdmin('migrate'))
     default: return badRequest(`Unknown endpoint: ${endpoint}`)
   }
@@ -108,10 +164,16 @@ export function apply(ctx) {
   }, { global: true })
   ctx.connection.rpc.handle(
     CHANNEL,
-    async (endpoint, payload) => {
+    async (endpoint, payload, signal) => {
       try {
-        return await handleEndpoint(endpoint, payload ?? {})
+        return await handleEndpoint(endpoint, payload ?? {}, signal)
       } catch (error) {
+        if (endpoint === 'convert-attachment') {
+          const message = error instanceof Error ? error.message : 'attachment_conversion_failed'
+          const [code, ...rest] = message.split(': ')
+          const stableCodes = new Set(['attachment_invalid_request', 'attachment_invalid_filename', 'attachment_invalid_mime', 'attachment_too_large', 'attachment_invalid_limits', 'attachment_conversion_cancelled', 'attachment_unsupported', 'attachment_converter_unavailable', 'attachment_malformed', 'attachment_encrypted', 'attachment_too_complex', 'attachment_conversion_failed'])
+          return { ok: false, error: { code: stableCodes.has(code) ? code : 'attachment_conversion_failed', message: stableCodes.has(code) && rest.length > 0 ? rest.join(': ') : 'The attachment conversion failed.', details: {} } }
+        }
         return internalError(error instanceof Error ? error.message : String(error))
       }
     },
