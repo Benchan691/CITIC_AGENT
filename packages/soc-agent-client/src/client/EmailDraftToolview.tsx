@@ -271,9 +271,9 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
             </div>
           )}
           <div className={css.actions}>
-            <button className={css.button} type="button" disabled={status === 'sending'} onClick={() => { setStatus('discarded') }}>Discard</button>
-            <button className={css.button} type="button" disabled={status === 'sending'} onClick={() => { void loadSignatures() }}>Add signature</button>
-            <button className={css.button} type="button" disabled={status === 'sending'} onClick={submit}>
+            <button className={`${css.button} ${css.danger}`} type="button" disabled={status === 'sending'} onClick={() => { setStatus('discarded') }}>Discard</button>
+            <button className={`${css.button} ${css.signatureButton}`} type="button" disabled={status === 'sending'} onClick={() => { void loadSignatures() }}>Add signature</button>
+            <button className={`${css.button} ${css.primary}`} type="button" disabled={status === 'sending'} onClick={submit}>
               {status === 'sending' ? 'Sending…' : status === 'failed' ? 'Retry' : 'Send'}
             </button>
           </div>
