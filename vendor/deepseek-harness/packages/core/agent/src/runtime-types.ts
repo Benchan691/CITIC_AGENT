@@ -116,6 +116,9 @@ export interface Agent {
    */
   send(message: UserMessage, target: InboxTarget, wakeup: boolean): void
 
+  /** Atomically route an ordered batch of input to one inbox boundary. */
+  sendBatch?(messages: readonly UserMessage[], target: InboxTarget, wakeup: boolean): void
+
   /**
    * Queue an ordinary follow-up turn and wake the driver. The item becomes the
    * sole ordinary message of its own turn.

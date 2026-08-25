@@ -28,11 +28,16 @@ interface ConversationAttachmentFace {
     session: SessionFace,
     text: string,
     imageIds: readonly DraftAttachmentId[],
+    documentIds: readonly DraftAttachmentId[],
     mode: InputSubmitMode,
     signal?: AbortSignal,
   ): Promise<SubmitOutcome>
   serializeDraftImages(imageIds: readonly DraftAttachmentId[]): Promise<readonly SubmitImageAttachment[]>
   releaseDraftImage(id: DraftAttachmentId): void
+  createDraftDocuments(sessionId: SessionId, files: readonly File[]): readonly import('../contract/slots.ts').ComposerDocument[]
+  draftDocuments(sessionId: SessionId, ids: readonly DraftAttachmentId[]): readonly import('../contract/slots.ts').ComposerDocument[]
+  releaseDraftDocument(sessionId: SessionId, id: DraftAttachmentId): void
+  serializeDraftDocuments(sessionId: SessionId, ids: readonly DraftAttachmentId[], signal: AbortSignal): Promise<readonly import('../service.ts').MarkdownAttachment[]>
 }
 
 /** Session-addressed input facade registry (SessionInputResolver face + composer-layer extras). */
@@ -77,7 +82,8 @@ export class InputHub implements SessionInputResolver {
       inputTriggers: () => this.controller(actx),
       popup: () => this.popup(actx),
       queue: queueReadFaceOf(session),
-      defaultSink: (text, imageIds, mode, signal) => this.sink(session, text, imageIds, mode, signal),
+      defaultSink: (text, imageIds, mode, signal) => this.sink(session, text, imageIds, [], mode, signal),
+      documentSink: (text, imageIds, documentIds, mode, signal) => this.sink(session, text, imageIds, documentIds, mode, signal),
       steerQueue: () => { void this.steerQueue(session, shell) },
       commandImages: {
         serialize: ids => this.conversation().serializeDraftImages(ids),
@@ -90,6 +96,9 @@ export class InputHub implements SessionInputResolver {
           for (const imageId of ids) conversation?.releaseDraftImage(imageId)
         },
         unsupportedNotice: token => this.t('command.imagesUnsupported', {
+          command: token.trim().replace(/^\//u, ''),
+        }),
+        unsupportedDocumentsNotice: token => this.t('command.imagesUnsupported', {
           command: token.trim().replace(/^\//u, ''),
         }),
       },
@@ -111,10 +120,12 @@ export class InputHub implements SessionInputResolver {
       return () => {
         for (const off of offs) off()
         const drafts = shell.snapshot.imageIds
+        const documentDrafts = shell.snapshot.documentIds ?? []
         shell.dispose()
         this.shells.delete(id)
         const conversation = this.rootCtx.get('conversation') as ConversationAttachmentFace | undefined
         for (const imageId of drafts) conversation?.releaseDraftImage(imageId)
+        for (const documentId of documentDrafts) conversation?.releaseDraftDocument(id, documentId)
       }
     }, 'conversation.input: session shell')
     return shell
@@ -166,11 +177,12 @@ export class InputHub implements SessionInputResolver {
     session: SessionFace,
     text: string,
     imageIds: readonly DraftAttachmentId[],
+    documentIds: readonly DraftAttachmentId[],
     mode: InputSubmitMode,
     signal: AbortSignal,
   ): Promise<SubmitOutcome> {
-    if (text === '' && imageIds.length === 0) return Promise.resolve({ kind: 'success' })
-    return this.conversation().sendSession(session, text, imageIds, mode, signal)
+    if (text === '' && imageIds.length === 0 && documentIds.length === 0) return Promise.resolve({ kind: 'success' })
+    return this.conversation().sendSession(session, text, imageIds, documentIds, mode, signal)
   }
 
   /**

@@ -1,7 +1,8 @@
 /**
- * Model selection plugin, browser half — TWO entries over ONE per-session
- * directory owned by ModelDirectoryResolver (`ctx.modelDirectories`). The /model popupSelect
- * contribution and the composer's named `conversation.input.model` seat both
+ * Model selection plugin, browser half — one supported composer seat over the
+ * per-session directory owned by ModelDirectoryResolver (`ctx.modelDirectories`).
+ * The legacy /model contribution remains registered but disabled for compatibility;
+ * the composer's named `conversation.input.model` seat
  * load the session's provider-grouped advisory directory (`session.models`)
  * and submit through `session.selectModel` via the same directory instance,
  * so the host-reported current selection is the single fact both surfaces echo
@@ -34,10 +35,13 @@ export type { ModelKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** The model selection surfaces' copy (/model popup + composer seat). */
+    /** The model selection surface's composer copy. */
     model: ModelKey
   }
 }
+
+/** Dictionary namespace owned by this plugin. */
+const NS = 'model'
 
 /** One selectable row's id: an opaque row key (resolved by lookup, never parsed). */
 function rowId(providerId: string, modelId: string): string {
@@ -68,13 +72,7 @@ function optionsOf(directory: SessionModels, t: TranslateNS<'model'>): SelectOpt
   return rows
 }
 
-/**
- * Resolve a picked row back to its model selection by matching against the loaded
- * groups (the same data the rows were built from — ids stay opaque).
- * @param state - the session's directory snapshot.
- * @param id - the picked row id.
- * @returns the row's model selection, or undefined for failure rows / stale ids.
- */
+/** Resolve a popup row back to its model selection without parsing opaque ids. */
 function selectionOf(state: ModelDirectoryState, id: string): ModelSelection | undefined {
   for (const group of state.groups) {
     for (const model of group.models) {
@@ -93,32 +91,28 @@ function selectionOf(state: ModelDirectoryState, id: string): ModelSelection | u
   return undefined
 }
 
-/** Dictionary namespace owned by this plugin. */
-const NS = 'model'
-
 /** Required services: the contribution registry, the seat's slot registry, locale, and the service's own faces. */
 export const inject = ['commandUi', 'connection', 'locale', 'sessions', 'slots', 'remote']
 
 /**
  * Client plugin body: mount ModelDirectoryResolver, register the `model` dictionaries,
- * then register the /model popup contribution and the composer model seat
- * over the service.
+ * then register the disabled /model contribution and composer model seat over the service.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-model-selection: dictionaries')
 
-  // Non-slot faces (the command description, the popup option builder) read
-  // through the bound translate; the seat component reads the standard seat.
+  // The seat component reads the standard seat; the bound translator supplies
+  // the composer block reason.
   const t = ctx.locale.bind(NS)
 
   // The composer-block reason is this plugin's own copy, read at raise time so
   // a locale change reaches the next publish.
   ctx.plugin(ModelDirectoryResolver, { blockReason: () => t('blocked.composer') })
 
-  // Entry 1: the /model popupSelect over the shared directory. The command
-  // description is registry-held text: it reads t() once at registration and
-  // refreshes only on re-registration, not on locale change.
+  // Keep the contribution registered for clients/tests that inspect the model
+  // command surface, but disable both menu listing and runtime execution. The
+  // composer model seat below remains the supported model-selection surface.
   ctx.inject(['commandUi', 'modelDirectories'], (scope: ClientContext) => {
     const command = scope.get('commandUi') as CommandUiContract
     const models = scope.modelDirectories
@@ -126,6 +120,8 @@ export function apply(ctx: ClientContext): void {
     scope.effect(() => command.register({
       name: 'model',
       description: t('command.description'),
+      showInCommandMenu: false,
+      enabled: false,
       available: session => sessions.subagentAddress(session.sessionId) === undefined,
       ui: {
         kind: 'popupSelect',
@@ -147,10 +143,10 @@ export function apply(ctx: ClientContext): void {
           await directory.select(selection)
         },
       },
-    }), 'ui-model-selection: /model contribution')
+    }), 'ui-model-selection: disabled /model contribution')
   })
 
-  // Entry 2: the composer's named model seat over the SAME directory.
+  // The composer's named model seat over the shared directory.
   ctx.inject(['slots', 'modelDirectories'], (scope: ClientContext) => {
     const models = scope.modelDirectories
     const sessions = scope.sessions

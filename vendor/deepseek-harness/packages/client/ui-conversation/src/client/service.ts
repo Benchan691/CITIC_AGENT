@@ -15,7 +15,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ISessions, SessionFace, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SubmitImageAttachment, SubmitOutcome } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { ImageAttachmentRef, ImageMediaType } from '@deepseek-ai/dsh-attachment'
-import type { ComposerAttachment } from './contract/slots.ts'
+import type { PromptContext } from '@deepseek-ai/dsh-client-connection/client'
+import type { ComposerAttachment, ComposerDocument } from './contract/slots.ts'
 import type { QueueAction, QueueItemId } from './contract/queue.ts'
 import type { ComposerBlocks } from './input/blocks.ts'
 import type { DraftAttachmentId, SessionInputResolver } from './input/contract.ts'
@@ -34,6 +35,8 @@ export interface IConversation {
    * cannot import makes a session's input inert with its own reason.
    */
   readonly blocks: ComposerBlocks
+  /** Register the one non-image composer document provider. */
+  registerDocumentProvider(provider: ComposerDocumentProvider): () => void
   /**
    * Send a prompt into the caller scope's session (queued turn).
    * @param text - prompt text, sent verbatim as one text block.
@@ -57,6 +60,34 @@ export interface IConversation {
    * @returns completion of the page pull.
    */
   loadOlder(): Promise<void>
+}
+
+/** Markdown returned by a non-image composer document conversion. */
+export interface MarkdownAttachment {
+  readonly id: DraftAttachmentId
+  readonly filename: string
+  readonly markdown: string
+}
+
+function attachmentContext(documents: readonly MarkdownAttachment[]): PromptContext | undefined {
+  if (documents.length === 0) return undefined
+  const names = documents.map(document => document.filename).join(', ')
+  const prefix = 'Attached: '
+  const summary = names.length + prefix.length <= 120
+    ? prefix + names
+    : `${prefix}${names.slice(0, Math.max(1, 120 - prefix.length - 1))}…`
+  return {
+    text: documents.map(document => `[Attachment: ${document.filename}]\n${document.markdown}`).join('\n\n'),
+    source: { kind: 'plugin', plugin: 'dsh-soc-agent', form: 'notice', summary },
+  }
+}
+
+/** Provider seam for browser-owned non-image composer documents. */
+export interface ComposerDocumentProvider {
+  create(sessionId: SessionId, files: readonly File[]): readonly ComposerDocument[]
+  list(sessionId: SessionId, ids: readonly DraftAttachmentId[]): readonly ComposerDocument[]
+  release(sessionId: SessionId, id: DraftAttachmentId): void
+  convert(sessionId: SessionId, ids: readonly DraftAttachmentId[], signal: AbortSignal): Promise<readonly MarkdownAttachment[]>
 }
 
 /** Create one browser-only draft descriptor; only its id enters input state. */
@@ -98,6 +129,7 @@ export class ConversationController extends Service implements IConversation {
   private readonly imageUrls = new Map<string, ImageUrlEntry>()
   private readonly imageGenerations = new Map<SessionId, number>()
   private readonly createdImageUrls = new Set<string>()
+  private documentProvider: ComposerDocumentProvider | undefined
   private disposed = false
 
   /**
@@ -146,6 +178,7 @@ export class ConversationController extends Service implements IConversation {
     session: SessionFace,
     text: string,
     imageIds: readonly DraftAttachmentId[],
+    documentIds: readonly DraftAttachmentId[],
     mode: InputSubmitMode,
     signal?: AbortSignal,
   ): Promise<SubmitOutcome> {
@@ -154,11 +187,48 @@ export class ConversationController extends Service implements IConversation {
       throw new Error('conversation.sendSession: one or more draft images are no longer available')
     }
     const uploaded = await this.serializeImages(attachments.map(attachment => attachment.file))
+    if (documentIds.length > 0 && this.documentProvider === undefined) {
+      throw new Error('conversation.sendSession: document provider is unavailable')
+    }
+    const documents = this.documentProvider === undefined
+      ? []
+      : await this.documentProvider.convert(session.sessionId, documentIds, signal ?? new AbortController().signal)
+    const context = attachmentContext(documents)
     const content = [...uploaded, ...(text === '' ? [] : [{ type: 'text' as const, text }])]
-    const result = await session.prompt(content, mode, signal)
+    if (content.length === 0 && context === undefined) return { kind: 'success' }
+    const result = await session.prompt(content, mode, signal, context === undefined ? undefined : { contexts: [context] })
     if (!result.ok) return { kind: 'error' }
     this.releaseDraftImages(attachments)
+    for (const document of documents) this.documentProvider?.release(session.sessionId, document.id)
     return { kind: 'success' }
+  }
+
+  registerDocumentProvider(provider: ComposerDocumentProvider): () => void {
+    if (this.documentProvider !== undefined) throw new Error('conversation: document provider already registered')
+    this.documentProvider = provider
+    return () => {
+      if (this.documentProvider === provider) this.documentProvider = undefined
+    }
+  }
+
+  createDraftDocuments(sessionId: SessionId, files: readonly File[]): readonly ComposerDocument[] {
+    return this.documentProvider?.create(sessionId, files) ?? []
+  }
+
+  draftDocuments(sessionId: SessionId, ids: readonly DraftAttachmentId[]): readonly ComposerDocument[] {
+    return this.documentProvider?.list(sessionId, ids) ?? []
+  }
+
+  releaseDraftDocument(sessionId: SessionId, id: DraftAttachmentId): void {
+    this.documentProvider?.release(sessionId, id)
+  }
+
+  async serializeDraftDocuments(
+    sessionId: SessionId,
+    ids: readonly DraftAttachmentId[],
+    signal: AbortSignal,
+  ): Promise<readonly MarkdownAttachment[]> {
+    return this.documentProvider?.convert(sessionId, ids, signal) ?? []
   }
 
   /**

@@ -10,7 +10,10 @@ import { makeTranslate, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-run
 import type { QueuedMessage, SessionFace } from '@deepseek-ai/dsh-client-runtime/client'
 import { ComposerBlockRegistry } from '../src/client/input/blocks.ts'
 import { InputHub } from '../src/client/input/hub.ts'
-import { ConversationController, UnsupportedImageMediaTypeError } from '../src/client/service.ts'
+import {
+  ConversationController, UnsupportedImageMediaTypeError,
+  type ComposerDocumentProvider,
+} from '../src/client/service.ts'
 import { zh } from '../src/client/locales.ts'
 
 async function bench(readAttachment?: SessionFace['readAttachment']) {
@@ -48,6 +51,35 @@ describe('ConversationController', () => {
     expect(b.updateQueue).toHaveBeenCalledWith('item-1', { kind: 'remove' })
     expect(b.cancel).toHaveBeenCalledOnce()
     expect(b.loadOlder).toHaveBeenCalledOnce()
+    await b.runtime.dispose()
+  })
+
+  it('passes converted documents as one context entry without changing the user text', async () => {
+    const b = await bench()
+    const id = 'document-1' as never
+    const file = new File(['source'], 'report.txt', { type: 'text/plain' })
+    const document = { kind: 'document' as const, id, file }
+    const provider: ComposerDocumentProvider = {
+      create: () => [document],
+      list: () => [document],
+      release: vi.fn(),
+      convert: vi.fn(async () => [{ id, filename: file.name, markdown: '# converted' }]),
+    }
+    b.root.registerDocumentProvider(provider)
+    const session = b.runtime.sessions.binding('s1')!.session
+
+    await b.scoped.sendSession(session, 'summarize this', [], [id], 'queue')
+    expect(b.prompt).toHaveBeenCalledWith(
+      [{ type: 'text', text: 'summarize this' }],
+      'queue',
+      undefined,
+      { contexts: [{
+        text: '[Attachment: report.txt]\n# converted',
+        source: { kind: 'plugin', plugin: 'dsh-soc-agent', form: 'notice', summary: 'Attached: report.txt' },
+      }] },
+    )
+    expect(provider.release).toHaveBeenCalledWith('s1', id)
+
     await b.runtime.dispose()
   })
 

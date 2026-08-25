@@ -46,7 +46,7 @@ export interface ApiProxy {
 // ---- Domain interfaces and payload entities ----
 export type {
   HistoryEntry, ModelCatalogFailure, ModelCatalogModel, ModelProviderGroup, ModelReasoning,
-  ModelReasoningEffort, ModelSelection, PromptContentPart, QueueAction, SessionModels,
+  ModelReasoningEffort, ModelSelection, PromptContentPart, PromptContext, QueueAction, SessionModels,
   SessionListMetadata, SessionProjectionsBlock, SessionSearchItem, SessionsApi, SessionSummary,
 } from './sessions.ts'
 export type { DirectoryEntry, DirectoryListing, HostApi } from './host.ts'

@@ -130,6 +130,91 @@ function registerTextOnly(ctx: Context): void {
 }
 
 describe('Web session model selection', () => {
+  it('queues one context batch before the typed message and wakes file-only submissions', async () => {
+    const { ctx, agent, sessionId } = await harness()
+    const sendBatch = vi.fn()
+    Object.assign(agent, { sendBatch })
+    const api = createApiProxy(ctx, {
+      defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
+      cwd: '/tmp',
+    })
+    const context = {
+      text: '[Attachment: report.txt]\nconverted markdown',
+      source: { kind: 'plugin' as const, plugin: 'dsh-soc-agent', form: 'notice' as const, summary: 'Attached: report.txt' },
+    }
+
+    const queued = await api.sessions.prompt(request({
+      sessionId, mode: 'queue' as const, content: [{ type: 'text' as const, text: 'summarize' }], contexts: [context],
+    }))
+    expect(queued.result.ok).toBe(true)
+    expect(sendBatch).toHaveBeenLastCalledWith(
+      [expect.objectContaining({ source: context.source }), expect.objectContaining({ source: expect.objectContaining({ kind: 'user' }) })],
+      'next-turn', true,
+    )
+    expect((sendBatch.mock.lastCall?.[0] as Array<{ content: unknown }>)[0]?.content).toEqual([
+      { type: 'text', text: context.text },
+    ])
+    expect((sendBatch.mock.lastCall?.[0] as Array<{ content: unknown }>)[1]?.content).toEqual([
+      { type: 'text', text: 'summarize' },
+    ])
+
+    const steered = await api.sessions.prompt(request({
+      sessionId, mode: 'steer' as const, content: [], contexts: [context],
+    }))
+    expect(steered.result.ok).toBe(true)
+    expect(sendBatch).toHaveBeenLastCalledWith(
+      [expect.objectContaining({ source: context.source })], 'next-step', true,
+    )
+    await ctx.fiber.dispose()
+  })
+
+  it('keeps first-turn context and the typed message in the same idle batch', async () => {
+    const { ctx, agent, sessionId } = await harness()
+    Object.assign(agent, { status: 'idle' })
+    const sendBatch = vi.fn()
+    Object.assign(agent, { sendBatch })
+    const api = createApiProxy(ctx, {
+      defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
+      cwd: '/tmp',
+    })
+    const context = {
+      text: '[Attachment: first.txt]\nfirst-turn markdown',
+      source: { kind: 'plugin' as const, plugin: 'dsh-soc-agent', form: 'notice' as const, summary: 'Attached: first.txt' },
+    }
+
+    const result = await api.sessions.prompt(request({
+      sessionId, mode: 'queue' as const, content: [{ type: 'text' as const, text: 'read it' }], contexts: [context],
+    }))
+    expect(result.result.ok).toBe(true)
+    expect(sendBatch).toHaveBeenCalledWith(
+      [expect.objectContaining({ source: context.source }), expect.objectContaining({ source: expect.objectContaining({ kind: 'user' }) })],
+      'next-step', true,
+    )
+    await ctx.fiber.dispose()
+  })
+
+  it('rejects invalid context before enqueueing anything', async () => {
+    const { ctx, agent, sessionId } = await harness()
+    const sendBatch = vi.fn()
+    Object.assign(agent, { sendBatch })
+    const api = createApiProxy(ctx, {
+      defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
+      cwd: '/tmp',
+    })
+    const result = await api.sessions.prompt(request({
+      sessionId, mode: 'queue' as const, content: [], contexts: [{
+        text: '',
+        source: { kind: 'plugin' as const, plugin: 'dsh-soc-agent', form: 'notice' as const, summary: 'Attached: report.txt' },
+      }],
+    }))
+    expect(result.result).toMatchObject({
+      ok: false,
+      error: { code: 'attachment-error', details: { reason: 'INVALID_CONTEXT' } },
+    })
+    expect(sendBatch).not.toHaveBeenCalled()
+    await ctx.fiber.dispose()
+  })
+
   it('validates an ordered image batch before persisting any member', async () => {
     const { ctx, agent, sessionId } = await harness()
     const validateImage = vi.fn((_input: { data: Uint8Array }) => Promise.resolve())

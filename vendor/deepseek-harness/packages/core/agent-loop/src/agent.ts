@@ -111,11 +111,16 @@ export class ReactLoopAgent implements Agent {
   }
 
   send(message: UserMessage, target: InboxTarget, wakeup: boolean): void {
+    this.sendBatch([message], target, wakeup)
+  }
+
+  sendBatch(messages: readonly UserMessage[], target: InboxTarget, wakeup: boolean): void {
+    if (messages.length === 0) return
     // Waking input cannot join an aborted activity, so it starts the next turn.
     // Captured before the insertion so a reentrant cancel from a splice observer cannot reclassify it.
     const wakingAfterAbort = wakeup && this.phase.kind !== 'idle' && this.phase.abort.signal.aborted
     const resolvedTarget = wakingAfterAbort ? 'next-turn' : target
-    this.inbox.splice(resolvedTarget, Infinity, 0, [message])
+    this.inbox.splice(resolvedTarget, Infinity, 0, [...messages])
     if (wakeup) this.wakeDriver(wakingAfterAbort)
   }
 

@@ -12,7 +12,7 @@ import type { RequestPayload, ResponseValue } from './rpc-map.ts'
 import type { Wire } from './rpc.schema.ts'
 import type {
   HistoryEntry, ModelCatalogFailure, ModelCatalogModel, ModelProviderGroup, ModelReasoning,
-  ModelReasoningEffort, ModelSelection, SessionListMetadata, SessionProjectionsBlock, SessionSearchItem, SessionSummary,
+  ModelReasoningEffort, ModelSelection, PromptContext, SessionListMetadata, SessionProjectionsBlock, SessionSearchItem, SessionSummary,
 } from './sessions.ts'
 import type { FolderId } from './sessions.ts'
 import type { ToolEventView } from './events.ts'
@@ -289,11 +289,22 @@ export const promptContentPartSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('image'), mediaType: imageMediaTypeSchema, data: z.string(), name: z.string().optional() }),
 ])
 
+const promptContextSchema: z.ZodType<PromptContext> = z.object({
+  text: z.string().min(1).max(2_000_000),
+  source: z.object({
+    kind: z.literal('plugin'),
+    plugin: z.string().min(1).max(120),
+    form: z.literal('notice'),
+    summary: z.string().min(1).max(120),
+  }).strict(),
+}).strict()
+
 /** session.prompt request payload, including optional browser-local request provenance. */
 export const sessionPromptRequestSchema = z.object({
   sessionId: sessionIdSchema,
   mode: z.union([z.literal('queue'), z.literal('steer')]),
   content: z.array(promptContentPartSchema),
+  contexts: z.array(promptContextSchema).max(5).optional(),
   clientTimeZone: z.string().optional(),
 }) as unknown as z.ZodType<RequestPayload<'session.prompt'>>
 

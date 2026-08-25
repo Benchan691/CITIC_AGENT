@@ -128,6 +128,8 @@ export type PickOutcome =
 export interface SubmitEnvelope {
   /** Number of image attachments accompanying the draft. */
   readonly images: number
+  /** Number of non-image document attachments accompanying the draft. */
+  readonly documents?: number
 }
 
 /** Candidate request passed to a source. The signal is superseded on query change / menu close. */

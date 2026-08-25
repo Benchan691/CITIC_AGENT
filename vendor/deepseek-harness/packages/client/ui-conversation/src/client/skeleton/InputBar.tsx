@@ -78,6 +78,7 @@ export type InputBarProps = ComposerBarProps
 
 export function InputBar({
   useSession, useInput, inputActions, keyboard, addImages, removeImage, draftImages,
+  addDocuments, removeDocument, draftDocuments,
   resolveSubmitMode, toggleCommandMenu, stop, command, t,
   renderSlot, useNotices, useLexicon, useMenuLauncher,
   useProjection, sessionId, variant, disabled: inert = false, blocked,
@@ -105,7 +106,11 @@ export function InputBar({
     () => input === undefined || draftImages === undefined ? [] : draftImages(input.imageIds),
     [draftImages, input?.imageIds],
   )
-  const empty = draft.trim() === '' && attachments.length === 0
+  const documents = useMemo(
+    () => input === undefined || draftDocuments === undefined ? [] : draftDocuments(input.documentIds ?? []),
+    [draftDocuments, input?.documentIds],
+  )
+  const empty = draft.trim() === '' && attachments.length === 0 && documents.length === 0
   // Transient error banner (machine notices, image-intake rejections, and
   // prompt failures): the seq keys the Toast so an identical repeated message
   // restarts the hold-then-fade cycle instead of reusing the faded one.
@@ -188,6 +193,12 @@ export function InputBar({
       inputActions.pruneImages(attachments.map(attachment => attachment.id))
     }
   }, [attachments, input?.imageIds, inputActions])
+  useEffect(() => {
+    if (input === undefined || inputActions === undefined) return
+    if (documents.length !== (input.documentIds ?? []).length) {
+      inputActions.pruneDocuments?.(documents.map(document => document.id))
+    }
+  }, [documents, input?.documentIds, inputActions])
 
   // A native Safari edit that shortens the draft may leave the previous
   // soft-wrap layout behind after the mirror shrinks. The native-change signal
@@ -534,7 +545,14 @@ export function InputBar({
     if (rejected !== null) showToast(rejected)
   }, [addImages, attachments, imageLimits, showToast, t])
 
+  const intakeDocuments = useCallback((files: readonly File[]): void => {
+    if (addDocuments === undefined || files.length === 0) return
+    const message = addDocuments(files)
+    if (message !== null) showToast(message)
+  }, [addDocuments, showToast])
+
   const canAcceptDrop = !locked && !machineBusy && addImages !== undefined
+  const canAcceptDocuments = !locked && !machineBusy && addDocuments !== undefined
 
   const onSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>): void => {
     // Any caret/selection gesture ends a live paste attempt (the machine
@@ -716,6 +734,13 @@ export function InputBar({
             count: imageLimits.maxImagesPerMessage,
             size: imageSizeText(imageLimits.maxImageBytes),
           },
+        })}
+        {draftDocuments !== undefined && renderSlot('conversation.input.documents', {
+          documents,
+          ...(input?.phase === undefined ? {} : { phase: input.phase }),
+          canAcceptDocuments,
+          onAddDocuments: intakeDocuments,
+          onRemoveDocument: (id) => { removeDocument?.(id) },
         })}
         {/* One scrollport, two text layers. The hidden mirror renders draft+'\n' and stretches the
             stack to the draft's FULL height (counting rows by '\n' cannot see soft wraps); the

@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentIdType, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
 import type {
-  HistoryEntry, IApiClient, MessageId, MuxFrame, PromptContentPart, QueueAction, RpcError,
+  HistoryEntry, IApiClient, MessageId, MuxFrame, PromptContentPart, PromptContext, QueueAction, RpcError,
   RpcId, RpcResponse, RpcResult, SessionId, SubagentAddress, ToolEventView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 // Value import from the inline-safe wire layer (not the connection plugin):
@@ -191,6 +191,7 @@ export class Session implements SessionFace {
     content: PromptContentPart[],
     mode: 'queue' | 'steer',
     signal?: AbortSignal,
+    options?: { contexts?: PromptContext[] },
   ): Promise<RpcResult<{ accepted: true }>> {
     this.promptError = null
     this.lastAgentError = null
@@ -207,6 +208,7 @@ export class Session implements SessionFace {
           sessionId: this.sessionId,
           mode,
           content,
+          ...options?.contexts === undefined ? {} : { contexts: options.contexts },
           clientTimeZone: resolvedClientTimeZone(),
         }, signal)).result
       } else if (this.address.mode === 'one-shot') {
@@ -219,7 +221,16 @@ export class Session implements SessionFace {
           },
         }
       } else {
-        if (content.some(part => part.type === 'image')) {
+        if (options?.contexts !== undefined && options.contexts.length > 0) {
+          result = {
+            ok: false,
+            error: {
+              code: 'attachment-error',
+              message: 'Document context is unavailable for subagent continuations.',
+              details: { reason: 'SUBAGENT_CONTEXT_UNSUPPORTED' },
+            },
+          }
+        } else if (content.some(part => part.type === 'image')) {
           result = {
             ok: false,
             error: {

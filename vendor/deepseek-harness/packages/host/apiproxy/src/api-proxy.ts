@@ -44,7 +44,7 @@ import type {} from '@deepseek-ai/dsh-tools'
 import type {
   ApiProxy, ConfigurableProviderView, CredentialView, GoalRef, HistoryEntry, HostFrame,
   ModelCatalogFailure, ModelProviderGroup,
-  ModelReasoning, MuxFrame, PromptContentPart, QuestionResponsePayload, SessionListMetadata, SessionProjectionsBlock, SessionSearchItem,
+  ModelReasoning, MuxFrame, PromptContentPart, PromptContext, QuestionResponsePayload, SessionListMetadata, SessionProjectionsBlock, SessionSearchItem,
   QueuedInboxItem, SessionSummary, SettingsNamespaceView, SubagentAddress, JobView, ToolEventView,
   WorkspaceId, WorkspaceView,
   FolderId, FolderView,
@@ -142,6 +142,32 @@ async function durablePromptContent(ctx: Context, content: readonly PromptConten
     ? { type: 'text', text: part.text }
     // admitEncodedImages returns one reference per image part in order.
     : { type: 'image', attachment: refs[next++] as ImageAttachmentRef })
+}
+
+const MAX_PROMPT_CONTEXTS = 5
+const MAX_PROMPT_CONTEXT_CHARS = 2_000_000
+const MAX_PROMPT_CONTEXT_SUMMARY_CHARS = 120
+
+/** Build non-user context messages before any prompt inbox mutation. */
+function promptContextMessages(contexts: readonly PromptContext[] | undefined): UserMessage[] {
+  if (contexts === undefined || contexts.length === 0) return []
+  if (contexts.length > MAX_PROMPT_CONTEXTS) throw new Error('invalid_prompt_context')
+  let totalChars = 0
+  return contexts.map((context) => {
+    if (context.text.length === 0 || context.text.length > MAX_PROMPT_CONTEXT_CHARS
+      || context.source.kind !== 'plugin'
+      || context.source.plugin.length === 0 || context.source.plugin.length > MAX_PROMPT_CONTEXT_SUMMARY_CHARS
+      || context.source.form !== 'notice'
+      || context.source.summary.length === 0 || context.source.summary.length > MAX_PROMPT_CONTEXT_SUMMARY_CHARS) {
+      throw new Error('invalid_prompt_context')
+    }
+    totalChars += context.text.length
+    if (totalChars > MAX_PROMPT_CONTEXT_CHARS) throw new Error('invalid_prompt_context')
+    return createUserMessage({
+      content: [{ type: 'text', text: context.text }],
+      source: context.source,
+    })
+  })
 }
 
 /** Search durable content for an image reference, including nested tool results. */
@@ -2457,7 +2483,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       },
 
       async prompt(request) {
-        const { sessionId, mode, content, clientTimeZone } = request.payload
+        const { sessionId, mode, content, contexts, clientTimeZone } = request.payload
         const canonicalTimeZone = clientTimeZone === undefined
           ? undefined
           : canonicalClientTimeZone(clientTimeZone)
@@ -2480,6 +2506,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         const hasImage = content.some(part => part.type === 'image')
         const admit = async (): Promise<RpcResponse<{ accepted: true }>> => {
           try {
+            const contextMessages = promptContextMessages(contexts)
             if (hasImage) {
               const current = selectionFor(agent).current
               const modelInfo = await ctx.llm.resolveModelInfo(current.provider, current.model)
@@ -2492,10 +2519,36 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
               }
             }
             const durable = await durablePromptContent(ctx, content)
-            const message: UserMessage = createUserMessage({ content: durable, source })
-            if (mode === 'steer') agent.steer(message)
-            else agent.followup(message)
+            const message = durable.length > 0 ? createUserMessage({ content: durable, source }) : undefined
+            const target = mode === 'steer' ? 'next-step' : 'next-turn'
+            const messages = message === undefined ? contextMessages : [...contextMessages, message]
+            if (messages.length > 0) {
+              if (contextMessages.length === 0 && message !== undefined) {
+                if (mode === 'steer') agent.steer(message)
+                else agent.followup(message)
+              } else if (agent.sendBatch !== undefined) {
+                // An idle agent claims every next-step item in its first model
+                // call. This keeps first-turn context beside the user prompt;
+                // next-turn claims consume only one item at a time.
+                const batchTarget = agent.status === 'idle' ? 'next-step' : target
+                agent.sendBatch(messages, batchTarget, true)
+              }
+              else {
+                // Compatibility for structural test doubles and older host agents.
+                const batchTarget = agent.status === 'idle' ? 'next-step' : target
+                for (const [index, item] of messages.entries()) {
+                  agent.send(item, batchTarget, index === messages.length - 1)
+                }
+              }
+            }
           } catch (error: unknown) {
+            if (error instanceof Error && error.message === 'invalid_prompt_context') {
+              return err(request, {
+                code: 'attachment-error',
+                message: 'Attachment context is invalid.',
+                details: { reason: 'INVALID_CONTEXT' },
+              })
+            }
             if (error instanceof AttachmentError) {
               return err(request, {
                 code: 'attachment-error',

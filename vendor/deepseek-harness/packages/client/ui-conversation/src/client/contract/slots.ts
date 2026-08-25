@@ -30,6 +30,29 @@ export interface ComposerAttachment {
   previewUrl: string
 }
 
+/** Browser-owned document that has not crossed the durable host boundary. */
+export interface ComposerDocument {
+  kind: 'document'
+  id: DraftAttachmentId
+  file: File
+  status?: 'queued' | 'converting' | 'converted' | 'failed'
+  error?: string
+}
+
+/** Input state handed to the optional document attachment presentation plugin. */
+export interface ComposerDocumentsOwnerProps {
+  /** Browser-owned draft documents in input order. */
+  documents: readonly ComposerDocument[]
+  /** Current admission phase, used to show conversion progress. */
+  phase?: InputState['phase']
+  /** Whether another document batch may be added now. */
+  canAcceptDocuments: boolean
+  /** Add one selected batch through the provider validation path. */
+  onAddDocuments: (files: readonly File[]) => void
+  /** Remove one document through the conversation service. */
+  onRemoveDocument: (id: DraftAttachmentId) => void
+}
+
 /** Input state handed to the optional attachment presentation plugin. */
 export interface ComposerAttachmentsOwnerProps {
   /** Browser-owned draft images in input order. */
@@ -248,6 +271,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       kind: 'single'
       scope: 'session-maybe'
       owner: ComposerAttachmentsOwnerProps
+    }
+    /** Optional non-image document rail and upload surface inside the composer. */
+    'conversation.input.documents': {
+      kind: 'single'
+      scope: 'session-maybe'
+      owner: ComposerDocumentsOwnerProps
     }
     /**
      * The named plan-status seat in the composer tool row, immediately right
@@ -555,10 +584,16 @@ export interface ComposerBarInjected {
   keyboard: ComposerKeyboard | undefined
   /** Create previews and append image ids to the session input. */
   addImages: ((files: readonly File[]) => string | null) | undefined
+  /** Create previews and append document ids to the session input. */
+  addDocuments?: ((files: readonly File[]) => string | null) | undefined
   /** Release one preview and remove its id from session input. */
   removeImage: ((id: DraftAttachmentId) => void) | undefined
+  /** Release one document and remove its id from session input. */
+  removeDocument?: ((id: DraftAttachmentId) => void) | undefined
   /** Resolve ordered input ids to browser-owned draft images. */
   draftImages: ((ids: readonly DraftAttachmentId[]) => readonly ComposerAttachment[]) | undefined
+  /** Resolve ordered input ids to browser-owned draft documents. */
+  draftDocuments?: ((ids: readonly DraftAttachmentId[]) => readonly ComposerDocument[]) | undefined
   /** Resolve one keyboard submission gesture against the current running state and persisted preference. */
   resolveSubmitMode: (
     running: boolean,
@@ -605,7 +640,7 @@ export interface InputControlOwnerProps {
 export type ComposerBarProps =
   PropsRuntime<'conversation.composer.bar'>
   & PropsRenderSlots<
-    'conversation.input.attachments' | 'conversation.input.plan' | 'conversation.input.model'
+    'conversation.input.attachments' | 'conversation.input.documents' | 'conversation.input.plan' | 'conversation.input.model'
   >
   & InjectFace<ComposerBarInjected>
   & PropsLocale<'conversation'>
@@ -793,6 +828,10 @@ export type ChatViewSlotProps =
 /** Full props of the attachment plugin's composer entry. */
 export type ComposerAttachmentsProps =
   PropsRuntime<'conversation.input.attachments'> & PropsLocale<'conversation'>
+
+/** Full props of the document attachment entry. */
+export type ComposerDocumentsProps =
+  PropsRuntime<'conversation.input.documents'> & PropsLocale<'conversation'>
 
 /** Full props of the attachment plugin's message-gallery entry. */
 export type MessageImagesProps = PropsRuntime<'conversation.message.images'> & PropsLocale<'conversation'>

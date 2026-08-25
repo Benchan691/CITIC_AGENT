@@ -95,6 +95,17 @@ export type PromptContentPart =
   | { type: 'text'; text: string }
   | { type: 'image'; mediaType: ImageMediaType; data: string; name?: string }
 
+/** One non-user context message admitted beside a browser prompt. */
+export interface PromptContext {
+  text: string
+  source: {
+    kind: 'plugin'
+    plugin: string
+    form: 'notice'
+    summary: string
+  }
+}
+
 /** Complete model selection for one session. */
 export interface ModelSelection {
   /** Registered provider route. */
@@ -366,6 +377,7 @@ export interface SessionsApi {
     sessionId: SessionId
     mode: 'queue' | 'steer'
     content: PromptContentPart[]
+    contexts?: PromptContext[]
     clientTimeZone?: string
   }>):
   Promise<RpcResponse<{ accepted: true; command?: { kind: 'success'; text?: string } }>>

@@ -9,7 +9,7 @@
  */
 import type { AttachmentIdType, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type {
-  MessageId, PromptContentPart, QueueAction, RpcResult, SessionId,
+  MessageId, PromptContentPart, PromptContext, QueueAction, RpcResult, SessionId,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { ConversationSnapshot } from '../sessions/conversation.ts'
@@ -42,6 +42,7 @@ export interface ISession {
     content: PromptContentPart[],
     mode: 'queue' | 'steer',
     signal?: AbortSignal,
+    options?: { contexts?: PromptContext[] },
   ): Promise<RpcResult<{ accepted: true }>>
   /**
    * Resolve one durable image referenced by this session.

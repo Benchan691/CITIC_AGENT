@@ -39,6 +39,26 @@ describe('Agent', () => {
     await agent.whenIdle()
   })
 
+  it('delivers an idle context batch with its first user message in one model call', async () => {
+    const adapter = new MockAdapter([textResponse('ok')])
+    const ctx = await harness(adapter)
+    const agent = ctx.agentLoop.create(SessionId('first-turn-context'), { provider: 'mock', model: 'mock' })
+    const context = createUserMessage({
+      content: [{ type: 'text', text: '[Attachment: report.txt]\nconverted' }],
+      source: { kind: 'plugin', plugin: 'dsh-soc-agent', form: 'notice', summary: 'Attached: report.txt' },
+    })
+    const prompt = createUserMessage({ content: [{ type: 'text', text: 'summarize it' }], source: { kind: 'user' } })
+
+    agent.sendBatch?.([context, prompt], 'next-step', true)
+    await agent.whenIdle()
+
+    expect(adapter.requests).toHaveLength(1)
+    expect(adapter.requests[0]?.messages.slice(-2).map(message => message.content)).toEqual([
+      context.content,
+      prompt.content,
+    ])
+  })
+
   it('inject() preserves an explicitly empty plugin source', async () => {
     const ctx = await harness(new MockAdapter([textResponse('ok')]))
     const agent = ctx.agentLoop.create(SessionId('a1'), { provider: 'mock', model: 'mock' })

@@ -276,6 +276,18 @@ describe('sessions domain schemas', () => {
     expect(prompt.mode).toBe('queue')
     expect(prompt.clientTimeZone).toBe('Asia/Shanghai')
     expect(sessionPromptRequestSchema.parse({
+      sessionId: 's1', mode: 'queue', content: [], contexts: [{
+        text: '[Attachment: report.txt]\nhello',
+        source: { kind: 'plugin', plugin: 'dsh-soc-agent', form: 'notice', summary: 'Attached: report.txt' },
+      }],
+    }).contexts?.[0]?.source.summary).toBe('Attached: report.txt')
+    expect(() => sessionPromptRequestSchema.parse({
+      sessionId: 's1', mode: 'queue', content: [], contexts: [{
+        text: '',
+        source: { kind: 'plugin', plugin: 'dsh-soc-agent', form: 'notice', summary: 'Attached: report.txt' },
+      }],
+    })).toThrow()
+    expect(sessionPromptRequestSchema.parse({
       sessionId: 's1', mode: 'queue', content: [],
     }).clientTimeZone).toBeUndefined()
     expect(() => sessionPromptRequestSchema.parse({ sessionId: 's1', mode: 'inject', content: [] })).toThrow()

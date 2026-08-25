@@ -255,11 +255,16 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
       rows.push({ name: c.name, description: c.description, ...(c.input !== undefined ? { hint: c.input.hint } : {}) })
     }
     for (const contribution of this.live.contributions.values()) {
+      if (contribution.enabled === false || contribution.showInCommandMenu === false) continue
       if (!contribution.available(session)) continue
       if (seen.has(contribution.name)) {
         throw new Error(`ui-commands: contribution /${contribution.name} collides with a host command`)
       }
-      rows.push({ name: contribution.name, description: contribution.description })
+      rows.push({
+        name: contribution.name,
+        description: contribution.description,
+        ...(contribution.ui.kind === 'action' ? { icon: '📎' } : {}),
+      })
     }
     return fuzzyCandidates(
       rows.filter(c => req.position === 'leading' || c.hint === undefined),
@@ -271,8 +276,14 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   private dispatch(pick: InputTriggerPick): PickOutcome {
     const name = pick.candidate.name
     const contribution = this.live.contributions.get(name)
-    if (contribution !== undefined && contribution.available(pick.session)) {
-      this.openPopup(name, contribution.ui, pick.session, { via: 'menu', span: pick.span })
+    if (contribution !== undefined && contribution.enabled !== false && contribution.available(pick.session)) {
+      if (contribution.ui.kind === 'action') {
+        void Promise.resolve(contribution.ui.onSelect(undefined as never, pick.session)).catch((error: unknown) => {
+          this.noticeFor(pick.session.sessionId, 'error', error instanceof Error ? error.message : String(error))
+        })
+        return 'handled'
+      }
+      if (contribution.ui.kind === 'popupSelect') this.openPopup(name, contribution.ui, pick.session, { via: 'menu', span: pick.span })
       return 'handled'
     }
     const desc = this.directory.resolve(pick.session.sessionId, name)
@@ -331,11 +342,21 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     const refuseImages = (): never => {
       throw new Error(this.t('notice.imagesUnsupported', { command: name }))
     }
+    const refuseDocuments = (): never => {
+      throw new Error(this.t('notice.imagesUnsupported', { command: name }))
+    }
     const contribution = this.live.contributions.get(name)
-    if (contribution !== undefined && contribution.available(session)) {
+    if (contribution !== undefined && contribution.enabled !== false && contribution.available(session)) {
       if (!bare) return undefined
       if (envelope.images > 0) refuseImages()
-      this.openPopup(name, contribution.ui, session, { via: 'enter', token })
+      if ((envelope.documents ?? 0) > 0) refuseDocuments()
+      if (contribution.ui.kind === 'action') {
+        void Promise.resolve(contribution.ui.onSelect(undefined as never, session)).catch((error: unknown) => {
+          this.noticeFor(session.sessionId, 'error', error instanceof Error ? error.message : String(error))
+        })
+        return 'handled'
+      }
+      if (contribution.ui.kind === 'popupSelect') this.openPopup(name, contribution.ui, session, { via: 'enter', token })
       return 'handled'
     }
     await this.directory.ensureReady(session.sessionId, signal)
@@ -347,16 +368,19 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
       const decoration = this.live.decorations.get(name)
       if (decoration !== undefined && decoration.available(session)) {
         if (envelope.images > 0) refuseImages()
+        if ((envelope.documents ?? 0) > 0) refuseDocuments()
         this.openPopup(name, decoration.ui, session, { via: 'enter', token })
         return 'handled'
       }
     }
     if (desc.input !== undefined) {
       if (envelope.images > 0 && desc.input.images !== true) refuseImages()
+      if ((envelope.documents ?? 0) > 0) refuseDocuments()
       return { claim: this.leadingClaim(desc, session) }
     }
     if (!bare) return undefined
     if (envelope.images > 0) refuseImages()
+    if ((envelope.documents ?? 0) > 0) refuseDocuments()
     this.consumeVia(session.sessionId, { via: 'enter', token })
     this.runDetached(desc, session, trimmed)
     return 'handled'
@@ -371,7 +395,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   ): void {
     const actx = this.scopeFor(session.sessionId)
     if (actx === undefined) return
-    this.popupFor(actx).open(name, ui, session, segment)
+    if (ui.kind === 'popupSelect') this.popupFor(actx).open(name, ui, session, segment)
   }
 
   /** Build the leadingInput claim: token `/name ` + the command.execute submit transaction. */

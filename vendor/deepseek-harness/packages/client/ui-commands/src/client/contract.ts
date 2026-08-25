@@ -31,8 +31,8 @@ export interface SelectOption {
  * The shell component is owned by ui-commands; business never sees it. Both
  * callbacks receive the ClientSessionContext captured at popup open.
  */
-export type CommandUiSpec = {
-  readonly kind: 'popupSelect'
+export interface CommandUiSpec {
+  readonly kind: 'popupSelect' | 'action'
   options(session: ClientSessionContext, signal: AbortSignal): Promise<readonly SelectOption[]>
   onSelect(option: SelectOption, session: ClientSessionContext): void | Promise<void>
 }
@@ -48,9 +48,13 @@ export interface CommandContribution {
   readonly name: string
   /** Menu row description. */
   readonly description: string
+  /** Keep the client command available for typed invocation without listing it in the + menu. */
+  readonly showInCommandMenu?: boolean
+  /** Disable command execution while retaining the registration for compatibility. */
+  readonly enabled?: boolean
   /** Capability filter, called with a fresh projection per candidate pass. */
   available(session: ClientSessionContext): boolean
-  /** The command's UI behavior (this phase: popupSelect only). */
+  /** The command's UI behavior. */
   readonly ui: CommandUiSpec
 }
 
