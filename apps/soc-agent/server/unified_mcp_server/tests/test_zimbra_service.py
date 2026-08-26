@@ -8,6 +8,7 @@ import unified_mcp_server.zimbra_service as module
 from unified_mcp_server.config import ZimbraSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 from unified_mcp_server.account_store import AccountStore
+from unified_mcp_server.auth import ZimbraIdentity
 from unified_mcp_server.zimbra_service import ZimbraService, _upstream_error
 from unified_mcp_server.zimbra.mail.service import ZimbraMailService
 
@@ -67,6 +68,45 @@ async def test_get_email_bounds_body_for_agent_context(monkeypatch):
     assert message["body"] == "abcd"
     assert message["body_characters"] == 10
     assert message["body_truncated"] is True
+
+
+@pytest.mark.asyncio
+async def test_identity_bound_service_uses_server_token_and_rejects_account_selection(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        module,
+        "zimbra_list_folders",
+        lambda host, token, **kwargs: captured.update(host=host, token=token) or [],
+    )
+    identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
+    service = ZimbraService(settings(email="legacy@example.com", password="must-not-be-used"), identity=identity)
+
+    with pytest.raises(ServiceError) as error:
+        await service.list_folders("another-account")
+    assert error.value.code == "account_selection_disabled"
+
+    result = await service.list_folders()
+    assert captured == {"host": "mail.example.com", "token": "server-token"}
+    assert result["account"]["email"] == "a***@example.com"
+    assert result["account_id"] == "authenticated"
+
+
+def test_identity_bound_core_never_reports_legacy_environment_account():
+    identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
+    service = ZimbraMailService(settings(email="legacy@example.com", password="must-not-be-used"), identity=identity)
+
+    assert service.account_count() == 1
+    assert service.list_accounts() == [{
+        "id": "authenticated",
+        "label": "Authenticated Zimbra account",
+        "email": "a***@example.com",
+    }]
+
+
+def test_http_auth_status_is_classified_as_zimbra_auth_failure():
+    error = _upstream_error(RuntimeError("401 Client Error: Forbidden"))
+
+    assert error.code == "zimbra_auth_error"
 
 
 @pytest.mark.asyncio

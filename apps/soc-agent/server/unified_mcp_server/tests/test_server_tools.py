@@ -58,6 +58,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     for tool in tools:
         assert "ctx" not in tool.parameters.get("properties", {})
         assert "ctx" not in tool.parameters.get("required", [])
+        if tool.name.startswith("zimbra_"):
+            assert "account_id" not in tool.parameters.get("properties", {})
 
     saved_searches = next(tool for tool in tools if tool.name == "splunk_list_saved_searches")
     assert set(saved_searches.parameters["properties"]) == {
@@ -76,45 +78,45 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert preview_tool.parameters.get("required", []) == []
 
     draft_tool = next(tool for tool in tools if tool.name == "zimbra_send_email")
-    assert set(draft_tool.parameters["properties"]) == {"to", "cc", "bcc", "subject", "body", "account_id"}
+    assert set(draft_tool.parameters["properties"]) == {"to", "cc", "bcc", "subject", "body"}
     assert set(draft_tool.parameters["required"]) == {"to", "subject", "body"}
     assert "zimbra_create_email_draft" not in {tool.name for tool in tools}
     list_signatures_tool = next(tool for tool in tools if tool.name == "zimbra_list_signatures")
-    assert set(list_signatures_tool.parameters["properties"]) == {"account_id"}
+    assert set(list_signatures_tool.parameters["properties"]) == set()
     create_signature_tool = next(tool for tool in tools if tool.name == "zimbra_create_signature")
-    assert set(create_signature_tool.parameters["properties"]) == {"name", "text", "html", "account_id"}
+    assert set(create_signature_tool.parameters["properties"]) == {"name", "text", "html"}
     assert create_signature_tool.parameters["required"] == ["name"]
     delete_signature_tool = next(tool for tool in tools if tool.name == "zimbra_delete_signature")
-    assert set(delete_signature_tool.parameters["properties"]) == {"signature_id", "account_id"}
+    assert set(delete_signature_tool.parameters["properties"]) == {"signature_id"}
     assert delete_signature_tool.parameters["required"] == ["signature_id"]
     use_signature_tool = next(tool for tool in tools if tool.name == "zimbra_use_signature_on_email")
     assert set(use_signature_tool.parameters["properties"]) == {
-        "to", "cc", "bcc", "subject", "body", "signature_id", "body_format", "placement", "account_id",
+        "to", "cc", "bcc", "subject", "body", "signature_id", "body_format", "placement",
     }
     assert set(use_signature_tool.parameters["required"]) == {"to", "subject", "body", "signature_id"}
     get_email_tool = next(tool for tool in tools if tool.name == "zimbra_get_email")
     assert set(get_email_tool.parameters["properties"]) == {
-        "message_id", "account_id", "max_body_chars",
+        "message_id", "max_body_chars",
     }
     header_tool = next(tool for tool in tools if tool.name == "zimbra_get_email_headers")
-    assert set(header_tool.parameters["properties"]) == {"message_id", "account_id", "names"}
+    assert set(header_tool.parameters["properties"]) == {"message_id", "names"}
     move_tool = next(tool for tool in tools if tool.name == "zimbra_move_email")
     assert set(move_tool.parameters["required"]) == {"message_id", "folder_id"}
     search_email_tool = next(tool for tool in tools if tool.name == "zimbra_search_emails")
     assert set(search_email_tool.parameters["properties"]) == {
-        "query", "limit", "account_id", "offset",
+        "query", "limit", "offset",
     }
     attachment_tool = next(tool for tool in tools if tool.name == "zimbra_get_attachment_text")
     assert set(attachment_tool.parameters["properties"]) == {
-        "message_id", "part", "account_id", "max_chars",
+        "message_id", "part", "max_chars",
     }
     filter_list_tool = next(tool for tool in tools if tool.name == "zimbra_list_email_filters")
     assert set(filter_list_tool.parameters["properties"]) == {
-        "account_id", "include_details",
+        "include_details",
     }
     delete_filter_tool = next(tool for tool in tools if tool.name == "zimbra_delete_email_filter")
     assert set(delete_filter_tool.parameters["properties"]) == {
-        "name", "expected_fingerprint", "account_id",
+        "name", "expected_fingerprint",
     }
     assert set(delete_filter_tool.parameters["required"]) == {"name", "expected_fingerprint"}
     for name in (

@@ -90,6 +90,7 @@
   "agent-presets",
   "time-context",
   "soc-agent-mcp",
+  "soc-agent-auth-host",
   "soc-agent-admin-host",
   "soc-memory",
   "soc-agent-scheduler",

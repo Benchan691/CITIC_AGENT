@@ -14,8 +14,6 @@ const form: EmailDraftFormFields = {
   bcc: '',
   subject: '  An exact subject  ',
   body: 'The exact body.',
-  accountId: 'primary',
-  accountLabel: 'Primary account',
 }
 
 test('normalizes editable recipient fields without duplicating addresses', () => {
@@ -29,7 +27,6 @@ test('normalizes editable recipient fields without duplicating addresses', () =>
     bcc: [],
     subject: 'An exact subject',
     body: 'The exact body.',
-    account_id: 'primary',
   })
 })
 

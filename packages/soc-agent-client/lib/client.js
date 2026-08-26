@@ -79,13 +79,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
-		const css$3 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
-		const tagId$3 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$3) + "]") === null) {
+		const css$4 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
+		const tagId$4 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$4) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$3;
-			tag.textContent = css$3;
+			tag.dataset.pluginCss = tagId$4;
+			tag.textContent = css$4;
 			document.head.appendChild(tag);
 		}
 		var SplunkZimbraOverlay_module_css_default = {
@@ -341,125 +341,6 @@ window.__ModuleLoader__.load({
 			}, status) : null);
 		}
 		//#endregion
-		//#region src/client/ZimbraSettings.ts
-		function AccountEditor({ onSave }) {
-			const [draft, setDraft] = (0, react.useState)({
-				id: "",
-				label: "",
-				email: "",
-				password: ""
-			});
-			return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.account }, react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Label"), react.default.createElement(TextInput, {
-				value: draft.label,
-				onChange: (value) => setDraft({
-					...draft,
-					label: value
-				})
-			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Email"), react.default.createElement(TextInput, {
-				value: draft.email,
-				onChange: (value) => setDraft({
-					...draft,
-					email: value
-				})
-			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Password"), react.default.createElement(TextInput, {
-				value: draft.password,
-				type: "password",
-				onChange: (value) => setDraft({
-					...draft,
-					password: value
-				})
-			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.primaryButton,
-				type: "button",
-				onClick: () => onSave(draft)
-			}, "Add account")));
-		}
-		function ZimbraSettings({ connection }) {
-			const [accounts, setAccounts] = (0, react.useState)([]);
-			const [tests, setTests] = (0, react.useState)({});
-			const [loaded, setLoaded] = (0, react.useState)(false);
-			const [status, setStatus] = (0, react.useState)("Loading...");
-			const load = (0, react.useCallback)(async () => {
-				try {
-					setAccounts((await rpc$1(connection, "list-accounts")).accounts || []);
-					setLoaded(true);
-					setStatus("");
-				} catch (error) {
-					setStatus(errorText(error));
-				}
-			}, [connection]);
-			(0, react.useEffect)(() => {
-				load();
-			}, [load]);
-			const saveAccount = async (account) => {
-				try {
-					setStatus("Saving account...");
-					await rpc$1(connection, "add-account", account);
-					await load();
-				} catch (error) {
-					setStatus(errorText(error));
-				}
-			};
-			const deleteAccount = async (id) => {
-				try {
-					setStatus("Deleting account...");
-					await rpc$1(connection, "delete-account", { id });
-					await load();
-				} catch (error) {
-					setStatus(errorText(error));
-				}
-			};
-			const testAccount = async (id) => {
-				setTests((current) => ({
-					...current,
-					[id]: {
-						kind: "pending",
-						text: "Testing…"
-					}
-				}));
-				try {
-					await rpc$1(connection, "test-account", { id });
-					setTests((current) => ({
-						...current,
-						[id]: {
-							kind: "ok",
-							text: "Account test succeeded"
-						}
-					}));
-				} catch (error) {
-					setTests((current) => ({
-						...current,
-						[id]: {
-							kind: "fail",
-							text: errorText(error)
-						}
-					}));
-				}
-			};
-			if (!loaded) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
-			return react.default.createElement(react.default.Fragment, null, react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Accounts"), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Zimbra server settings are configured in the server .env file."), accounts.length === 0 ? react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "No connected accounts.") : null, accounts.map((account) => react.default.createElement("div", {
-				className: SplunkZimbraOverlay_module_css_default.connectedAccount,
-				key: account.id
-			}, react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.accountIdentity }, react.default.createElement("strong", null, account.label || account.email || account.id), account.email && account.email !== account.label ? react.default.createElement("span", { className: SplunkZimbraOverlay_module_css_default.accountMeta }, account.email) : null), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.accountActions }, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => {
-					testAccount(account.id);
-				}
-			}, "Test"), react.default.createElement(TestStatus, { result: tests[account.id] ?? null }), react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.deleteButton,
-				type: "button",
-				onClick: () => {
-					deleteAccount(account.id);
-				}
-			}, "Delete")))), react.default.createElement(AccountEditor, { onSave: (account) => {
-				saveAccount(account);
-			} })), status ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.status,
-				role: "status"
-			}, status) : null);
-		}
-		//#endregion
 		//#region src/client/ScheduledTasksForm.ts
 		const CHANNEL$1 = "/soc-agent-schedules";
 		async function rpc(connection, endpoint, payload = {}) {
@@ -644,6 +525,162 @@ window.__ModuleLoader__.load({
 			label: "Scheduled Tasks"
 		}];
 		//#endregion
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AuthGate.module.css.mjs
+		const css$3 = ".e9h_7W_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.e9h_7W_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.e9h_7W_title{margin:0 0 20px;font-size:20px;font-weight:600}.e9h_7W_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.e9h_7W_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.e9h_7W_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.e9h_7W_button:disabled{cursor:wait;opacity:.65}.e9h_7W_error{color:#ffb7b7;margin:10px 0;font-size:13px}.e9h_7W_loading{color:#cbd6e2;font-size:14px}.e9h_7W_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.e9h_7W_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
+		const tagId$3 = "dsh-soc-agent-client/AuthGate.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$3) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "dsh-soc-agent-client";
+			tag.dataset.pluginCss = tagId$3;
+			tag.textContent = css$3;
+			document.head.appendChild(tag);
+		}
+		var AuthGate_module_css_default = {
+			"badge": "e9h_7W_badge",
+			"button": "e9h_7W_button",
+			"card": "e9h_7W_card",
+			"error": "e9h_7W_error",
+			"field": "e9h_7W_field",
+			"input": "e9h_7W_input",
+			"layer": "e9h_7W_layer",
+			"loading": "e9h_7W_loading",
+			"logout": "e9h_7W_logout",
+			"title": "e9h_7W_title"
+		};
+		//#endregion
+		//#region src/client/AuthGate.tsx
+		async function readAuth() {
+			const response = await fetch("/auth/me", {
+				credentials: "same-origin",
+				cache: "no-store"
+			});
+			if (!response.ok) return { authenticated: false };
+			const value = await response.json();
+			return value.authenticated === true && typeof value.user?.zimbra_email === "string" ? value : { authenticated: false };
+		}
+		function AuthGate() {
+			const [state, setState] = (0, react.useState)(null);
+			const [email, setEmail] = (0, react.useState)("");
+			const [password, setPassword] = (0, react.useState)("");
+			const [error, setError] = (0, react.useState)("");
+			const [busy, setBusy] = (0, react.useState)(false);
+			const refresh = (0, react.useCallback)(async () => {
+				try {
+					setState(await readAuth());
+				} catch {
+					setState({ authenticated: false });
+				}
+			}, []);
+			(0, react.useEffect)(() => {
+				refresh();
+				const timer = window.setInterval(() => {
+					refresh();
+				}, 3e4);
+				return () => window.clearInterval(timer);
+			}, [refresh]);
+			const login = async (event) => {
+				event.preventDefault();
+				setBusy(true);
+				setError("");
+				try {
+					if (!(await fetch("/auth/login", {
+						method: "POST",
+						credentials: "same-origin",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({
+							email,
+							password
+						})
+					})).ok) throw new Error("Invalid email or password.");
+					setPassword("");
+					window.location.reload();
+				} catch (caught) {
+					setPassword("");
+					setError(caught instanceof Error ? caught.message : "Login failed.");
+					setBusy(false);
+				}
+			};
+			const logout = async () => {
+				setBusy(true);
+				try {
+					await fetch("/auth/logout", {
+						method: "POST",
+						credentials: "same-origin"
+					});
+				} finally {
+					window.location.reload();
+				}
+			};
+			if (state === null) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: AuthGate_module_css_default.layer,
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: AuthGate_module_css_default.loading,
+					children: "Loading…"
+				})
+			});
+			if (!state.authenticated || !state.user) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: AuthGate_module_css_default.layer,
+				role: "dialog",
+				"aria-label": "SOC Agent login",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+					className: AuthGate_module_css_default.card,
+					onSubmit: login,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
+							className: AuthGate_module_css_default.title,
+							children: "SOC Agent"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: AuthGate_module_css_default.field,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Email" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								className: AuthGate_module_css_default.input,
+								type: "email",
+								autoComplete: "username",
+								value: email,
+								onChange: (event) => setEmail(event.target.value),
+								required: true
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: AuthGate_module_css_default.field,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Password" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								className: AuthGate_module_css_default.input,
+								type: "password",
+								autoComplete: "current-password",
+								value: password,
+								onChange: (event) => setPassword(event.target.value),
+								required: true
+							})]
+						}),
+						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: AuthGate_module_css_default.error,
+							role: "alert",
+							children: error
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							className: AuthGate_module_css_default.button,
+							type: "submit",
+							disabled: busy,
+							children: "Login"
+						})
+					]
+				})
+			});
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: AuthGate_module_css_default.badge,
+				"aria-label": `Signed in as ${state.user.zimbra_email}`,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: state.user.zimbra_email }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+					className: AuthGate_module_css_default.logout,
+					type: "button",
+					onClick: () => {
+						logout();
+					},
+					disabled: busy,
+					children: "Logout"
+				})]
+			});
+		}
+		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/EmailDraftToolview.module.css.mjs
 		const css$2 = "._2F_7Mq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}._2F_7Mq_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}._2F_7Mq_title{font-weight:600}._2F_7Mq_account{color:var(--dsw-alias-text-l2);font-size:12px}._2F_7Mq_content{gap:9px;padding:12px;display:grid}._2F_7Mq_field{gap:4px;display:grid}._2F_7Mq_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}._2F_7Mq_input,._2F_7Mq_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}._2F_7Mq_textarea{resize:vertical;min-height:180px;line-height:1.45}._2F_7Mq_input:focus,._2F_7Mq_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}._2F_7Mq_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}._2F_7Mq_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}._2F_7Mq_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}._2F_7Mq_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}._2F_7Mq_primary:hover{background:#1d4ed8;border-color:#1d4ed8}._2F_7Mq_danger{color:#fff;background:#dc2626;border-color:#dc2626}._2F_7Mq_danger:hover{background:#b91c1c;border-color:#b91c1c}._2F_7Mq_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}._2F_7Mq_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}._2F_7Mq_button:disabled{cursor:wait;opacity:.6}._2F_7Mq_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}._2F_7Mq_error{color:var(--dsw-alias-danger,#b42318)}";
 		const tagId$2 = "dsh-soc-agent-client/EmailDraftToolview.module.css";
@@ -686,8 +723,7 @@ window.__ModuleLoader__.load({
 				cc: parseRecipientText(fields.cc),
 				bcc: parseRecipientText(fields.bcc),
 				subject: fields.subject.trim(),
-				body: fields.body,
-				account_id: fields.accountId
+				body: fields.body
 			};
 		}
 		//#endregion
@@ -721,16 +757,12 @@ window.__ModuleLoader__.load({
 		}
 		function formFromEnvelope(envelope) {
 			const draft = envelope.draft || {};
-			const account = draft.account;
-			const accountLabel = [account?.label, account?.email].filter((value) => typeof value === "string" && value !== "").join(" · ");
 			return {
 				to: listValue(draft.to).join(", "),
 				cc: listValue(draft.cc).join(", "),
 				bcc: listValue(draft.bcc).join(", "),
 				subject: typeof draft.subject === "string" ? draft.subject : "",
-				body: typeof draft.body === "string" ? draft.body : "",
-				accountId: typeof draft.account_id === "string" ? draft.account_id : "",
-				accountLabel
+				body: typeof draft.body === "string" ? draft.body : ""
 			};
 		}
 		function errorMessage(envelope) {
@@ -749,9 +781,7 @@ window.__ModuleLoader__.load({
 				cc: "",
 				bcc: "",
 				subject: "",
-				body: "",
-				accountId: "",
-				accountLabel: ""
+				body: ""
 			});
 			const [status, setStatus] = (0, react.useState)("editing");
 			const [sendError, setSendError] = (0, react.useState)(null);
@@ -842,7 +872,7 @@ window.__ModuleLoader__.load({
 				setSignaturePanel(true);
 				setSignatureStatus("Loading signatures…");
 				try {
-					const next = (await rpc$1(connection, "list-signatures", { account_id: fields.accountId })).signatures ?? [];
+					const next = (await rpc$1(connection, "list-signatures")).signatures ?? [];
 					setSignatures(next);
 					setSignatureId((current) => current || next[0]?.id || "");
 					setSignatureStatus(next.length ? null : "No signatures are configured for this account.");
@@ -880,13 +910,10 @@ window.__ModuleLoader__.load({
 				"aria-label": "Editable Zimbra email draft",
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					className: EmailDraftToolview_module_css_default.header,
-					children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: EmailDraftToolview_module_css_default.title,
 						children: "Email draft"
-					}), fields.accountLabel && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						className: EmailDraftToolview_module_css_default.account,
-						children: ["via ", fields.accountLabel]
-					})] })
+					}) })
 				}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: EmailDraftToolview_module_css_default.content,
 					children: [
@@ -1588,6 +1615,8 @@ window.__ModuleLoader__.load({
 		];
 		function apply(ctx) {
 			const connection = ctx.get("connection");
+			const api = connection.api;
+			api.folders = void 0;
 			const documents = new MarkItDownDocumentController(connection, ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
 			const settings = new AttachmentSettingsController(ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
 			ctx.effect(() => ctx.conversation.registerDocumentProvider(documents), "soc-agent: MarkItDown document provider");
@@ -1613,6 +1642,11 @@ window.__ModuleLoader__.load({
 				inject: () => settings.inject()
 			}, MarkItDownAttachmentSettingsCard));
 			installEmailDraftToolview(ctx);
+			ctx.slots.inject("shell.overlay", () => ctx.slots.register({
+				name: "shell.overlay",
+				id: "soc-agent-auth-gate",
+				priority: -100
+			}, AuthGate));
 			ctx.slots.inject("sidebar.brand.mark", () => ctx.slots.inject("sidebar.brand.name", () => ctx.slots.inject("conversation.hero.brand.mark", function* () {
 				yield ctx.slots.register({
 					name: "sidebar.brand.mark",
@@ -1632,7 +1666,7 @@ window.__ModuleLoader__.load({
 					name: "settings.section",
 					...SETTINGS_SECTIONS[0],
 					inject: () => ({ connection })
-				}, () => react.default.createElement(react.default.Fragment, null, react.default.createElement(SplunkSettings, { connection }), react.default.createElement(ZimbraSettings, { connection }), react.default.createElement(SubscriptionServerSettings, { connection })));
+				}, () => react.default.createElement(react.default.Fragment, null, react.default.createElement(SplunkSettings, { connection }), react.default.createElement(SubscriptionServerSettings, { connection })));
 				const schedules = ctx.slots.register({
 					name: "settings.section",
 					...SETTINGS_SECTIONS[1],
@@ -1654,7 +1688,6 @@ window.__ModuleLoader__.load({
 		exports.SchedulerSettings = SchedulerSettings;
 		exports.SplunkSettings = SplunkSettings;
 		exports.SubscriptionServerSettings = SubscriptionServerSettings;
-		exports.ZimbraSettings = ZimbraSettings;
 		exports.apply = apply;
 		exports.inject = inject;
 		return module.exports;

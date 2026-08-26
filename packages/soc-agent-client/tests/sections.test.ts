@@ -30,11 +30,10 @@ test('subscription server connection test stays environment-configured and read-
   assert.doesNotMatch(source, /SUBSCRIPTION_SERVER_PASSWORD/)
 })
 
-test('keeps Zimbra server configuration in .env and exposes accounts only', () => {
+test('does not expose stored Zimbra-account controls in settings', () => {
   const source = readFileSync(new URL('../src/client/ZimbraSettings.ts', import.meta.url), 'utf8')
-  assert.match(source, /list-accounts/)
-  assert.match(source, /server \.env file/)
-  assert.doesNotMatch(source, /label: 'Host'/)
-  assert.doesNotMatch(source, /label: 'Allow send'/)
+  assert.doesNotMatch(source, /list-accounts/)
+  assert.match(source, /signed-in user/)
+  assert.doesNotMatch(source, /password/i)
   assert.doesNotMatch(source, /Save settings/)
 })

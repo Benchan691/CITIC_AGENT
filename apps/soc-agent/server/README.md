@@ -23,6 +23,12 @@ webserver exposes subscription listing, preview, creation, updates, and
 deletion. Sends, moves, folders, filters, detection changes, and subscription
 mutations remain approval-gated by the host.
 
+The web UI authenticates users directly against the configured Zimbra server.
+The PostgreSQL-backed application session stores the authenticated Zimbra token
+server-side for 24 hours; it never stores the submitted password. Workspaces
+and Harness sessions are owned by the authenticated local user, and the first
+successful login creates that user's `General` workspace.
+
 Attachment conversion is local by default. Install `uv sync --extra test --extra
 markitdown-llm` and set the `MARKITDOWN_LLM_*` variables only when
 OpenAI-compatible OCR or image descriptions are explicitly required.

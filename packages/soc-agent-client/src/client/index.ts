@@ -5,13 +5,14 @@ import type {} from '@deepseek-ai/dsh-client-ui-commands/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import React from 'react'
 import { CiticBrandMark, CiticBrandName } from './CiticBrand.tsx'
 import { SplunkSettings } from './SplunkSettings.ts'
 import { SubscriptionServerSettings } from './SubscriptionServerSettings.ts'
-import { ZimbraSettings } from './ZimbraSettings.ts'
 import { SchedulerSettings } from './ScheduledTasksForm.ts'
 import { SETTINGS_SECTIONS } from './sections.ts'
+import { AuthGate } from './AuthGate.tsx'
 import { installEmailDraftToolview } from './EmailDraftToolview.tsx'
 import { MarkItDownDocumentController } from './markitdownAttachments.ts'
 import { MarkItDownDocuments, openMarkItDownPicker } from './MarkItDownDocuments.tsx'
@@ -22,12 +23,17 @@ export const inject = ['slots', 'connection', 'conversation', 'commandUi', 'sett
 
 export { SplunkSettings } from './SplunkSettings.ts'
 export { SubscriptionServerSettings } from './SubscriptionServerSettings.ts'
-export { ZimbraSettings } from './ZimbraSettings.ts'
 export { SchedulerSettings } from './ScheduledTasksForm.ts'
 export { EmailDraftToolview } from './EmailDraftToolview.tsx'
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle
+  // SOC workspaces are the per-user filesystem workspaces guarded by the
+  // server-side ownership proxy. Harness logical folders are process-global,
+  // so keep that optional client surface disabled; WorkspaceRuntime then uses
+  // workspace.* and sessions are created inside the owned workspace.
+  const api = connection.api as { folders?: unknown }
+  api.folders = undefined
   const documents = new MarkItDownDocumentController(
     connection,
     ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }),
@@ -63,6 +69,11 @@ export function apply(ctx: ClientContext): void {
     inject: () => settings.inject(),
   }, MarkItDownAttachmentSettingsCard))
   installEmailDraftToolview(ctx)
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'soc-agent-auth-gate',
+    priority: -100,
+  }, AuthGate))
   ctx.slots.inject('sidebar.brand.mark', () =>
     ctx.slots.inject('sidebar.brand.name', () =>
       ctx.slots.inject('conversation.hero.brand.mark', function* () {
@@ -77,7 +88,6 @@ export function apply(ctx: ClientContext): void {
       inject: () => ({ connection }),
     }, () => React.createElement(React.Fragment, null,
       React.createElement(SplunkSettings, { connection }),
-      React.createElement(ZimbraSettings, { connection }),
       React.createElement(SubscriptionServerSettings, { connection }),
     ))
     const schedules = ctx.slots.register({

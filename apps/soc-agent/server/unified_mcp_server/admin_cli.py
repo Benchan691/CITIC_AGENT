@@ -16,9 +16,8 @@ from .attachment_converter import AttachmentConversionLimits, AttachmentConverte
 from .email.service import EmailSubscriptionService
 from .env_loader import load_server_env
 from .errors import ServiceError
-from .postgres_store import PostgresAccountStore, PostgresStore, dump_json
+from .postgres_store import PostgresStore, dump_json
 from .splunk_service import SplunkService
-from .zimbra_service import ZimbraService
 
 load_server_env()
 
@@ -72,13 +71,12 @@ def _public_settings(store: PostgresStore) -> dict[str, Any]:
         },
         "zimbra": {
             "host": settings.zimbra.host,
-            "configured": bool(settings.zimbra.host and store.count_accounts()),
+            "configured": bool(settings.zimbra.host),
             "verify_ssl": settings.zimbra.verify_ssl,
             "timeout": settings.zimbra.timeout,
             "max_attachment_bytes": settings.zimbra.max_attachment_bytes,
             "max_attachment_text_chars": settings.zimbra.max_attachment_text_chars,
             "send_enabled": settings.zimbra.allow_send,
-            "account_count": store.count_accounts(),
         },
         "markitdown": {
             "llm_enabled": settings.markitdown.llm_enabled,
@@ -155,34 +153,15 @@ async def test_subscription_server(store: PostgresStore) -> dict[str, Any]:
 
 
 async def test_account(store: PostgresStore, account_id: str) -> dict[str, Any]:
-    settings = _settings(store)
-    accounts = PostgresAccountStore(store)
-    account = accounts.get(account_id)
-    if account is None:
-        raise RuntimeError("Account not found.")
-    service = ZimbraService(settings.zimbra, accounts)
-    await service.test_account(account)
-    return {"ok": True, "account_id": account.id}
+    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
 
 
 async def send_email(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
-    settings = _settings(store)
-    service = ZimbraService(settings.zimbra, PostgresAccountStore(store))
-    return await service.send_email(
-        payload.get("to", []),
-        payload.get("subject", ""),
-        payload.get("body", ""),
-        payload.get("account_id", ""),
-        cc=payload.get("cc"),
-        bcc=payload.get("bcc"),
-        body_format=payload.get("body_format", "text"),
-    )
+    raise RuntimeError("Authenticated Zimbra sessions are required for mail operations.")
 
 
 async def list_signatures(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
-    settings = _settings(store)
-    service = ZimbraService(settings.zimbra, PostgresAccountStore(store))
-    return await service.list_signatures(str(payload.get("account_id", "")))
+    raise RuntimeError("Authenticated Zimbra sessions are required for mail operations.")
 
 
 def convert_attachment(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -210,42 +189,24 @@ def convert_attachment(store: PostgresStore, payload: Mapping[str, Any]) -> dict
 
 
 def add_account(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
-    account = store.add_account(
-        label=str(payload.get("label", "")).strip(),
-        email=str(payload.get("email", "")).strip(),
-        username=str(payload.get("username", "")).strip(),
-        password=str(payload.get("password", "")),
-    )
-    return {"account": account.public_dict()}
+    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
 
 
 def update_account(store: PostgresStore, account_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:
-    account = store.update_account(
-        account_id,
-        label=None if "label" not in payload else str(payload.get("label", "")).strip(),
-        email=None if "email" not in payload else str(payload.get("email", "")).strip(),
-        username=None if "username" not in payload else str(payload.get("username", "")).strip(),
-        password=None if "password" not in payload or not str(payload.get("password", "")) else str(payload["password"]),
-    )
-    return {"account": account.public_dict()}
+    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
 
 
 def list_accounts(store: PostgresStore) -> dict[str, Any]:
-    return {"accounts": [account.public_dict() for account in store.list_accounts()]}
+    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
 
 
 def delete_account(store: PostgresStore, account_id: str) -> dict[str, Any]:
-    return {"deleted": store.delete_account(account_id), "account_id": account_id}
+    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
 
 
 def migrate(store: PostgresStore) -> dict[str, Any]:
-    settings = _settings(store)
-    from .account_store import AccountStore
-
-    file_store = AccountStore(settings.zimbra.accounts_file, settings.zimbra.key_file, settings.zimbra.explicit_key)
     store.migrate_env_config(environ)
-    imported = store.migrate_account_store(file_store)
-    return {"ok": True, "imported_accounts": imported}
+    return {"ok": True, "imported_accounts": 0}
 
 
 def main() -> None:

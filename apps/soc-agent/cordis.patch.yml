@@ -178,10 +178,13 @@
         cwd: !!js "process.env.DSH_SOC_AGENT_SERVER ?? ((process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]) + '/apps/soc-agent/server')"
         env:
           MCP_SERVER_ROOT: !!js "process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]"
-          APP_POSTGRES_URI: !!js process.env.APP_POSTGRES_URI ?? ''
+          APP_POSTGRES_URI: !!js "process.env.APP_POSTGRES_URI || process.env.LANGGRAPH_POSTGRES_URI || process.env.POSTGRES_URI || ''"
           APP_SETTINGS_ENCRYPTION_KEY: !!js process.env.APP_SETTINGS_ENCRYPTION_KEY ?? ''
         toolCallTimeoutMs: 120000
         failOnStartupError: true
+    - id: soc-agent-auth-host
+      name: dsh-soc-agent/auth-host
+      description: Zimbra-backed application login and server-side workspace ownership boundary.
     - id: soc-agent-admin-host
       name: dsh-soc-agent/host
       description: Host policy, tool allowlists, and admin RPC for the SOC Agent product.
@@ -205,3 +208,7 @@
         runTimeoutMs: 900000
     - id: soc-agent-admin-ui
       name: dsh-soc-agent-client
+
+- id: connection
+  name: '@deepseek-ai/dsh-client-connection'
+  inject: [webRuntime, socAuth]

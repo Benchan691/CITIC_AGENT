@@ -118,7 +118,8 @@ class ZimbraSettings:
 
     @property
     def configured(self) -> bool:
-        return bool(self.host and self.email and self.password)
+        # Credentials are supplied only for the current login request.
+        return bool(self.host)
 
     @property
     def missing(self) -> list[str]:
@@ -250,6 +251,8 @@ class ServerSettings:
             accounts_file=_storage_path(env, "ZIMBRA_ACCOUNTS_FILE", ".data/zimbra_accounts.enc"),
             key_file=_storage_path(env, "ZIMBRA_ACCOUNTS_KEY_FILE", ".data/zimbra_accounts.key"),
             explicit_key=_value(env, "ZIMBRA_ACCOUNTS_KEY"),
+            # Legacy fields remain readable for compatibility-only service tests;
+            # the SOC host never constructs a normal runtime from them.
             email=_value(env, "ZIMBRA_EMAIL"),
             password=_value(env, "ZIMBRA_PASSWORD"),
         )
@@ -295,7 +298,7 @@ class ServerSettings:
         env = persisted
         return cls.from_env(env)
 
-    def public_status(self, account_count: int = 0) -> dict[str, object]:
+    def public_status(self) -> dict[str, object]:
         return {
             "server": {"name": self.name, "transport": self.transport},
             "splunk": {
@@ -311,9 +314,8 @@ class ServerSettings:
                 "detection_app": self.splunk.detection_app,
             },
             "zimbra": {
-                "configured": bool(self.zimbra.host and account_count),
+                "configured": self.zimbra.configured,
                 "host": self.zimbra.host,
-                "account_count": account_count,
                 "verify_ssl": self.zimbra.verify_ssl,
                 "filter_write_enabled": self.zimbra.allow_filter_write,
                 "filter_redirect_enabled": self.zimbra.allow_filter_redirect,

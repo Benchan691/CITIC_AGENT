@@ -22,9 +22,7 @@ export {
 export type { EmailDraftFields, EmailDraftFormFields } from './emailDraft.ts'
 
 interface DraftEnvelope {
-  draft: Partial<EmailDraftFields> & {
-    account?: { label?: unknown; email?: unknown }
-  }
+  draft: Partial<EmailDraftFields>
   error?: unknown
 }
 
@@ -52,9 +50,9 @@ function parseEnvelope(block: ToolCallBlock): DraftEnvelope | null {
     const record = value as Record<string, unknown>
     const data = record.data
     if (typeof data === 'object' && data !== null && 'draft' in data) {
-      return data as DraftEnvelope
+      return data as unknown as DraftEnvelope
     }
-    if ('draft' in record) return record as DraftEnvelope
+    if ('draft' in record) return record as unknown as DraftEnvelope
     return { draft: {}, error: record.error }
   } catch {
     return null
@@ -69,18 +67,12 @@ function listValue(value: unknown): string[] {
 
 function formFromEnvelope(envelope: DraftEnvelope): EmailDraftFormFields {
   const draft = envelope.draft || {}
-  const account = draft.account
-  const accountLabel = [account?.label, account?.email]
-    .filter((value): value is string => typeof value === 'string' && value !== '')
-    .join(' · ')
   return {
     to: listValue(draft.to).join(', '),
     cc: listValue(draft.cc).join(', '),
     bcc: listValue(draft.bcc).join(', '),
     subject: typeof draft.subject === 'string' ? draft.subject : '',
     body: typeof draft.body === 'string' ? draft.body : '',
-    accountId: typeof draft.account_id === 'string' ? draft.account_id : '',
-    accountLabel,
   }
 }
 
@@ -101,7 +93,7 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
   const envelope = useMemo(() => parseEnvelope(block), [block])
   const sourceKey = useMemo(() => JSON.stringify(envelope?.draft ?? null), [envelope])
   const [fields, setFields] = useState<EmailDraftFormFields>(() => envelope ? formFromEnvelope(envelope) : {
-    to: '', cc: '', bcc: '', subject: '', body: '', accountId: '', accountLabel: '',
+    to: '', cc: '', bcc: '', subject: '', body: '',
   })
   const [status, setStatus] = useState<'editing' | 'sending' | 'sent' | 'failed' | 'discarded'>('editing')
   const [sendError, setSendError] = useState<string | null>(null)
@@ -178,7 +170,7 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
     setSignaturePanel(true)
     setSignatureStatus('Loading signatures…')
     try {
-      const result = await rpc(connection, 'list-signatures', { account_id: fields.accountId }) as { signatures?: Signature[] }
+      const result = await rpc(connection, 'list-signatures') as { signatures?: Signature[] }
       const next = result.signatures ?? []
       setSignatures(next)
       setSignatureId(current => current || next[0]?.id || '')
@@ -222,7 +214,6 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
       <div className={css.header}>
         <div>
           <div className={css.title}>Email draft</div>
-          {fields.accountLabel && <div className={css.account}>via {fields.accountLabel}</div>}
         </div>
       </div>
       <div className={css.content}>

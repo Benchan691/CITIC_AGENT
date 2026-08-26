@@ -17,6 +17,7 @@ export const inject = [
   'sessionTitle',
   'storageDomain',
   'tools',
+  'socAuth',
 ]
 
 export const Config = s.object({
@@ -56,6 +57,8 @@ const taskSchema = z.object({
   updatedAt: z.iso.datetime({ offset: true }),
   nextRunAt: z.iso.datetime({ offset: true }).nullable(),
   lastRunAt: z.iso.datetime({ offset: true }).optional(),
+  ownerUserId: z.string().min(1).optional(),
+  workspaceId: z.string().min(1).optional(),
 }).strict()
 const runSchema = z.object({
   id: z.string().uuid(),
@@ -95,7 +98,7 @@ function operationValue(value) {
 }
 
 function taskSummary(task) {
-  const { prompt, ...summary } = task
+  const { prompt, ownerUserId, workspaceId, ...summary } = task
   return {
     ...summary,
     promptCharacters: prompt.length,
@@ -269,6 +272,8 @@ export class SchedulerRuntime {
     this.ctx = ctx
     this.config = config
     this.domain = domain
+    this.auth = ctx?.get?.('socAuth')
+    this.workspaceRegistry = ctx?.get?.('workspaceRegistry')
     this.tasks = domain.table('tasks')
     this.runs = domain.table('runs')
     this.settingsTable = domain.table('config')
@@ -285,10 +290,48 @@ export class SchedulerRuntime {
     this.scanTail = Promise.resolve()
   }
 
-  list() {
+  taskBelongsTo(task, ownerUserId) {
+    return !this.auth || Boolean(ownerUserId && task.ownerUserId === ownerUserId)
+  }
+
+  findTask(id, ownerUserId) {
+    const task = this.tasks.get(String(id))
+    if (!task || !this.taskBelongsTo(task, ownerUserId)) {
+      throw new SchedulerInputError('task_not_found', 'Scheduled task was not found.')
+    }
+    return task
+  }
+
+  async ownerForSession(session, needsWorkspace = false) {
+    if (!this.auth) return undefined
+    if (!session?.userId) throw new SchedulerInputError('authentication_required', 'Authentication is required.')
+    let workspaceId
+    if (needsWorkspace) {
+      if (typeof this.auth.ensureGeneral !== 'function') {
+        throw new SchedulerInputError('workspace_unavailable', 'The user workspace is unavailable.')
+      }
+      workspaceId = String((await this.auth.ensureGeneral(session.userId)).workspaceId)
+    }
+    return { userId: String(session.userId), workspaceId }
+  }
+
+  async ownerForRequest(needsWorkspace = false) {
+    return await this.ownerForSession(this.auth?.currentSession?.(), needsWorkspace)
+  }
+
+  async ownerForExecution(exec, needsWorkspace = false) {
+    if (!this.auth) return undefined
+    const session = await this.auth.sessionForAgent?.(exec?.agent) ?? this.auth.currentSession?.()
+    return await this.ownerForSession(session, needsWorkspace)
+  }
+
+  list(ownerUserId) {
     const allTasks = [...this.tasks.entries()].map(([, task]) => task)
+      .filter(task => this.taskBelongsTo(task, ownerUserId))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    const taskIds = new Set(allTasks.map(task => task.id))
     const allRuns = [...this.runs.entries()].map(([, run]) => run)
+      .filter(run => !this.auth || taskIds.has(run.taskId))
       .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor))
     return {
       tasks: allTasks.slice(0, MAX_TASKS).map(taskSummary),
@@ -330,11 +373,14 @@ export class SchedulerRuntime {
     return this.settings
   }
 
-  create(input) {
-    return this.serialize(() => this.createOnce(input))
+  create(input, owner) {
+    return this.serialize(() => this.createOnce(input, owner))
   }
 
-  async createOnce(input) {
+  async createOnce(input, owner) {
+    if (this.auth && !owner) {
+      throw new SchedulerInputError('authentication_required', 'Authentication is required.')
+    }
     const name = String(input.name ?? '').trim()
     const prompt = String(input.prompt ?? '').trim()
     if (!name || name.length > MAX_NAME_CHARS) {
@@ -344,6 +390,7 @@ export class SchedulerRuntime {
       throw new SchedulerInputError('invalid_prompt', `prompt must contain 1-${MAX_PROMPT_CHARS} characters.`)
     }
     const tasks = [...this.tasks.entries()].map(([, task]) => task)
+      .filter(task => this.taskBelongsTo(task, owner?.userId))
     if (tasks.length >= MAX_TASKS) {
       throw new SchedulerInputError('task_limit', `At most ${MAX_TASKS} scheduled tasks may be stored.`)
     }
@@ -354,22 +401,24 @@ export class SchedulerRuntime {
     const now = iso()
     const task = {
       id: randomUUID(), name, prompt, ...normalized, status: 'active', createdAt: now, updatedAt: now,
+      ...(owner ? { ownerUserId: owner.userId, workspaceId: owner.workspaceId } : {}),
     }
     await this.tasks.put(task.id, task)
     this.arm()
     return taskSummary(task)
   }
 
-  setStatus(id, status) {
-    return this.serialize(() => this.setStatusOnce(id, status))
+  setStatus(id, status, ownerUserId) {
+    return this.serialize(() => this.setStatusOnce(id, status, ownerUserId))
   }
 
-  async setStatusOnce(id, status) {
-    const task = this.tasks.get(String(id))
-    if (!task) throw new SchedulerInputError('task_not_found', 'Scheduled task was not found.')
+  async setStatusOnce(id, status, ownerUserId) {
+    const task = this.findTask(id, ownerUserId)
     if (task.status === 'completed') throw new SchedulerInputError('task_completed', 'A completed one-time task cannot be resumed.')
     if (status === 'active' && task.status !== 'active') {
-      const activeCount = [...this.tasks.entries()].filter(([, item]) => item.status === 'active').length
+      const activeCount = [...this.tasks.entries()]
+        .map(([, item]) => item)
+        .filter(item => item.status === 'active' && this.taskBelongsTo(item, ownerUserId)).length
       if (activeCount >= MAX_ACTIVE_TASKS) {
         throw new SchedulerInputError('active_task_limit', `At most ${MAX_ACTIVE_TASKS} scheduled tasks may be active.`)
       }
@@ -384,12 +433,13 @@ export class SchedulerRuntime {
     return taskSummary(updated)
   }
 
-  delete(id) {
-    return this.serialize(() => this.deleteOnce(id))
+  delete(id, ownerUserId) {
+    return this.serialize(() => this.deleteOnce(id, ownerUserId))
   }
 
-  async deleteOnce(id) {
+  async deleteOnce(id, ownerUserId) {
     const key = String(id)
+    this.findTask(key, ownerUserId)
     if (this.pendingTaskIds.has(key)) {
       throw new SchedulerInputError('task_running', 'A queued or running task cannot be deleted.')
     }
@@ -398,13 +448,12 @@ export class SchedulerRuntime {
     return { id: key, deleted }
   }
 
-  runNow(id) {
-    return this.serialize(() => this.runNowOnce(id))
+  runNow(id, ownerUserId) {
+    return this.serialize(() => this.runNowOnce(id, ownerUserId))
   }
 
-  async runNowOnce(id) {
-    const task = this.tasks.get(String(id))
-    if (!task) throw new SchedulerInputError('task_not_found', 'Scheduled task was not found.')
+  async runNowOnce(id, ownerUserId) {
+    const task = this.findTask(id, ownerUserId)
     if (this.pendingTaskIds.has(task.id)) {
       return await this.recordSkipped(task, iso(), 'skipped_overlap')
     }
@@ -449,7 +498,8 @@ export class SchedulerRuntime {
     this.timer = undefined
     const now = Date.now()
     const due = [...this.tasks.entries()].map(([, task]) => task)
-      .filter(task => task.status === 'active' && task.nextRunAt !== null && Date.parse(task.nextRunAt) <= now)
+      .filter(task => (!this.auth || (task.ownerUserId && task.workspaceId))
+        && task.status === 'active' && task.nextRunAt !== null && Date.parse(task.nextRunAt) <= now)
       .sort((a, b) => a.nextRunAt.localeCompare(b.nextRunAt) || a.createdAt.localeCompare(b.createdAt))
     for (const task of due) {
       const scheduledFor = latestDue(task, now)
@@ -489,13 +539,14 @@ export class SchedulerRuntime {
       .filter(run => run.state === 'queued' || run.state === 'running')
       .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))
     for (const run of incomplete) {
+      const task = this.tasks.get(run.taskId)
+      if (this.auth && (!task?.ownerUserId || !task.workspaceId)) continue
       await this.runs.put(run.id, {
         ...run,
         state: 'failed',
         finishedAt: iso(),
         errorCode: 'host_restart',
       })
-      const task = this.tasks.get(run.taskId)
       if (task && !this.pendingTaskIds.has(task.id)) await this.queueRun(task, run.scheduledFor)
     }
     await this.pruneRuns()
@@ -505,18 +556,44 @@ export class SchedulerRuntime {
   async executeRun(task, queuedRun) {
     const startedAt = iso()
     let handle
+    let applicationSession
+    let workspace
     let run = { ...queuedRun, state: 'running', startedAt }
     await this.runs.put(run.id, run)
     try {
+      if (this.auth) {
+        if (!task.ownerUserId || !task.workspaceId) {
+          throw new SchedulerInputError('authentication_required', 'The scheduled task is not attached to an authenticated workspace.')
+        }
+        applicationSession = await this.auth.store.activeSessionForUser(task.ownerUserId)
+        if (!applicationSession) {
+          throw new SchedulerInputError('authentication_required', 'An active login is required to run this scheduled task.')
+        }
+        const owner = await this.auth.store.workspaceOwner(task.workspaceId)
+        if (!owner || owner.userId !== task.ownerUserId) {
+          throw new SchedulerInputError('workspace_not_found', 'The scheduled task workspace was not found.')
+        }
+        workspace = this.workspaceRegistry?.get?.(task.workspaceId)
+        if (!workspace) {
+          throw new SchedulerInputError('workspace_not_found', 'The scheduled task workspace was not found.')
+        }
+      }
       const sessionId = SessionId(`scheduled-${randomUUID()}`)
       handle = await this.ctx.agents.create({
         sessionId,
-        meta: { cwd: this.config.workspaceRoot },
+        meta: { cwd: workspace?.path ?? this.config.workspaceRoot },
         setup: (agentCtx) => {
           agentCtx.tools.restrict({ allow: [...READ_ONLY_DOMAIN_TOOLS] })
         },
       })
       run = { ...run, sessionId: String(sessionId) }
+      if (this.auth) {
+        if (!await this.auth.store.claimSession(String(sessionId), task.ownerUserId, task.workspaceId)) {
+          throw new SchedulerInputError('session_ownership_failed', 'The scheduled result session could not be assigned.')
+        }
+        this.auth.bindAgentSession(String(sessionId), applicationSession.id)
+        await workspace.attachSession(sessionId)
+      }
       await this.runs.put(run.id, run)
       this.ctx.sessionTitle.rename(handle.agent.session, `[Scheduled] ${task.name} · ${new Date(startedAt).toLocaleString()}`)
       handle.agent.session.append('scheduled-task/run', {
@@ -562,6 +639,7 @@ export class SchedulerRuntime {
       await this.pruneRuns()
       this.ctx.logger.warn(`soc-agent-scheduler: run ${run.id} failed (${code})`)
     } finally {
+      if (this.auth && run.sessionId) this.auth.unbindAgentSession(run.sessionId)
       if (handle) await handle.dispose()
     }
   }
@@ -571,7 +649,8 @@ export class SchedulerRuntime {
     clearTimeout(this.timer)
     const now = Date.now()
     const next = [...this.tasks.entries()].map(([, task]) => task)
-      .filter(task => task.status === 'active' && task.nextRunAt !== null)
+      .filter(task => (!this.auth || (task.ownerUserId && task.workspaceId))
+        && task.status === 'active' && task.nextRunAt !== null)
       .map(task => Date.parse(task.nextRunAt)).sort((a, b) => a - b)[0]
     if (next === undefined) return
     this.timer = setTimeout(() => { void this.scan() }, Math.max(0, Math.min(next - now, MAX_TIMER_DELAY_MS)))
@@ -596,8 +675,12 @@ const tool = (name, description, parameters, execute, kind = 'other') => defineT
 })
 
 function registerTools(ctx, runtime) {
-  const execute = callback => async args => {
-    try { return operationValue(await callback(args)) } catch (error) { return safeError(error) }
+  const execute = callback => async (args, exec) => {
+    try { return operationValue(await callback(args, exec)) } catch (error) { return safeError(error) }
+  }
+  const owned = (callback, needsWorkspace = false) => async (args, exec) => {
+    const owner = await runtime.ownerForExecution(exec, needsWorkspace)
+    return await callback(args, owner)
   }
   const registrations = [
     tool('scheduled_task_create', 'Create a persistent read-only investigation using exactly one one-time or cron rule.', {
@@ -608,25 +691,25 @@ function registerTools(ctx, runtime) {
       } }] },
       cron: { type: 'string' },
       time_zone: { type: 'string' },
-    }, execute(args => runtime.create(args))),
-    tool('scheduled_task_list', 'List persistent scheduled investigations and their recent runs.', {}, execute(() => runtime.list()), 'read'),
-    tool('scheduled_task_pause', 'Pause a scheduled investigation.', { id: { type: 'string', required: true } }, execute(args => runtime.setStatus(args.id, 'paused'))),
-    tool('scheduled_task_resume', 'Resume a paused scheduled investigation.', { id: { type: 'string', required: true } }, execute(args => runtime.setStatus(args.id, 'active'))),
-    tool('scheduled_task_delete', 'Delete an idle scheduled investigation.', { id: { type: 'string', required: true } }, execute(args => runtime.delete(args.id))),
-    tool('scheduled_task_run_now', 'Queue one immediate read-only run of a scheduled investigation.', { id: { type: 'string', required: true } }, execute(args => runtime.runNow(args.id))),
+    }, execute(owned((args, owner) => runtime.create(args, owner), true))),
+    tool('scheduled_task_list', 'List persistent scheduled investigations and their recent runs.', {}, execute(owned((_args, owner) => runtime.list(owner?.userId))), 'read'),
+    tool('scheduled_task_pause', 'Pause a scheduled investigation.', { id: { type: 'string', required: true } }, execute(owned((args, owner) => runtime.setStatus(args.id, 'paused', owner?.userId)))),
+    tool('scheduled_task_resume', 'Resume a paused scheduled investigation.', { id: { type: 'string', required: true } }, execute(owned((args, owner) => runtime.setStatus(args.id, 'active', owner?.userId)))),
+    tool('scheduled_task_delete', 'Delete an idle scheduled investigation.', { id: { type: 'string', required: true } }, execute(owned((args, owner) => runtime.delete(args.id, owner?.userId)))),
+    tool('scheduled_task_run_now', 'Queue one immediate read-only run of a scheduled investigation.', { id: { type: 'string', required: true } }, execute(owned((args, owner) => runtime.runNow(args.id, owner?.userId)))),
   ]
   return () => registrations.reverse().forEach(dispose => dispose())
 }
 
-async function handleRpc(runtime, endpoint, payload) {
+async function handleRpc(runtime, endpoint, payload, owner) {
   try {
     switch (endpoint) {
-      case 'list': return operationValue(runtime.list())
-      case 'create': return operationValue(await runtime.create(payload))
-      case 'pause': return operationValue(await runtime.setStatus(payload.id, 'paused'))
-      case 'resume': return operationValue(await runtime.setStatus(payload.id, 'active'))
-      case 'delete': return operationValue(await runtime.delete(payload.id))
-      case 'run-now': return operationValue(await runtime.runNow(payload.id))
+      case 'list': return operationValue(runtime.list(owner?.userId))
+      case 'create': return operationValue(await runtime.create(payload, owner))
+      case 'pause': return operationValue(await runtime.setStatus(payload.id, 'paused', owner?.userId))
+      case 'resume': return operationValue(await runtime.setStatus(payload.id, 'active', owner?.userId))
+      case 'delete': return operationValue(await runtime.delete(payload.id, owner?.userId))
+      case 'run-now': return operationValue(await runtime.runNow(payload.id, owner?.userId))
       case 'settings': return operationValue(await runtime.updateSettings(payload))
       default: return operationError('unknown_endpoint', `Unknown scheduler endpoint: ${endpoint}`)
     }
@@ -643,7 +726,14 @@ export function apply(ctx, config) {
     const disposeTools = registerTools(ctx, runtime)
     const disposeRpc = ctx.connection.rpc.handle(
       CHANNEL,
-      (endpoint, payload) => handleRpc(runtime, endpoint, payload ?? {}),
+      async (endpoint, payload) => {
+        try {
+          const owner = await runtime.ownerForRequest(endpoint === 'create')
+          return await handleRpc(runtime, endpoint, payload ?? {}, owner)
+        } catch (error) {
+          return safeError(error)
+        }
+      },
       { authority: 'loopback' },
     )
     await runtime.recover()

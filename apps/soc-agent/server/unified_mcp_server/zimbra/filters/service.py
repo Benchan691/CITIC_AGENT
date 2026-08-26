@@ -10,6 +10,7 @@ from email.utils import parseaddr
 from typing import Any
 
 from unified_mcp_server.account_store import AccountStore, StoredAccount
+from unified_mcp_server.auth import ZimbraIdentity
 from unified_mcp_server.config import ZimbraSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 from unified_mcp_server.zimbra import (
@@ -43,8 +44,14 @@ DATE_RE = re.compile(r"^\d+$")
 
 
 class ZimbraFilterService:
-    def __init__(self, settings: ZimbraSettings, accounts: AccountStore | None = None, core: ZimbraCore | None = None) -> None:
-        self.core = core or ZimbraCore(settings, accounts)
+    def __init__(
+        self,
+        settings: ZimbraSettings,
+        accounts: AccountStore | None = None,
+        core: ZimbraCore | None = None,
+        identity: ZimbraIdentity | None = None,
+    ) -> None:
+        self.core = core or ZimbraCore(settings, accounts, identity)
         self.settings = self.core.settings
 
     @staticmethod
@@ -128,6 +135,8 @@ class ZimbraFilterService:
     async def _login(self, account: StoredAccount) -> str:
         if not self.settings.host:
             raise ConfigurationError("Zimbra", ["ZIMBRA_HOST"])
+        if self.core.identity is not None:
+            return self.core.identity.zimbra_token
         return await self._run(zimbra_login, self._config(account))
 
     async def _read_filters(

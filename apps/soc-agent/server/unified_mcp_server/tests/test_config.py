@@ -72,10 +72,9 @@ def test_global_zimbra_environment_settings_load_as_connection_defaults():
     assert settings.zimbra.timeout == 60
     assert settings.zimbra.max_attachment_bytes == 10_000_000
     assert settings.zimbra.max_attachment_text_chars == 200_000
-    assert settings.public_status(account_count=2)["zimbra"] == {
+    assert settings.public_status()["zimbra"] == {
         "configured": True,
         "host": "https://zmailbox.citictel-cpc.com/",
-        "account_count": 2,
         "verify_ssl": False,
         "filter_write_enabled": True,
         "filter_redirect_enabled": True,
@@ -116,7 +115,7 @@ def test_status_redacts_credentials_and_does_not_include_mailbox_identity():
     assert "splunk-secret" not in status
     assert "mail-secret" not in status
     assert "analyst@example.com" not in status
-    assert "account_count" in status
+    assert "account_count" not in status
 
 
 def test_email_server_credentials_load_without_exposing_password_in_status():

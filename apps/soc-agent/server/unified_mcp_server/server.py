@@ -2,6 +2,7 @@
 
 import logging
 import warnings
+from contextvars import ContextVar
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from pydantic_settings.exceptions import IncompleteFieldDefinitionWarning
 
 from .account_store import AccountStore
+from .auth import ZimbraIdentity, identity_for_session
 from .config import ServerSettings
 from .env_loader import load_server_env
 from .errors import ServiceError
@@ -30,6 +32,7 @@ from .zimbra.filters.tools import register_tools as register_filter_tools
 
 load_server_env()
 logger = logging.getLogger(__name__)
+_request_runtime: ContextVar["Runtime | None"] = ContextVar("soc_request_runtime", default=None)
 warnings.filterwarnings(
     "ignore",
     message=r"Field 'lifespan' has an incomplete definition.*",
@@ -46,6 +49,8 @@ class Runtime:
     zimbra_filters: ZimbraFilterService | None = None
     postgres: PostgresStore | None = None
     account_store: AccountStore | PostgresAccountStore | None = None
+    identity: ZimbraIdentity | None = None
+    owns_services: bool = True
 
     @property
     def splunk_search(self):
@@ -82,8 +87,33 @@ class Runtime:
         )
 
     async def close(self) -> None:
+        if not self.owns_services:
+            return
         await self.splunk.close()
         await self.email_subscriptions.close()
+
+    def for_identity(self, identity: ZimbraIdentity) -> "Runtime":
+        """Create a request-scoped view without sharing mutable Zimbra state."""
+        return Runtime(
+            settings=self.settings,
+            splunk=self.splunk,
+            zimbra=ZimbraMailService(
+                self.settings.zimbra,
+                None,
+                self.settings.markitdown,
+                identity,
+            ),
+            email_subscriptions=self.email_subscriptions,
+            zimbra_filters=ZimbraFilterService(
+                self.settings.zimbra,
+                None,
+                identity=identity,
+            ),
+            postgres=self.postgres,
+            account_store=self.account_store,
+            identity=identity,
+            owns_services=False,
+        )
 
     async def refresh(self) -> None:
 
@@ -108,17 +138,25 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
     postgres_store = PostgresStore.from_env()
     settings = settings or ServerSettings.from_store(postgres_store)
 
-    file_account_store = AccountStore(
-        settings.zimbra.accounts_file,
-        settings.zimbra.key_file,
-        settings.zimbra.explicit_key,
-    )
     if postgres_store is not None:
         postgres_store.migrate_env_config(environ)
-        postgres_store.migrate_account_store(file_account_store)
-        account_store: AccountStore | PostgresAccountStore = PostgresAccountStore(postgres_store)
-    else:
-        account_store = file_account_store
+    # Normal operation never reads or writes the legacy stored-account table.
+    # A no-op adapter keeps the compatibility service constructors simple while
+    # ensuring an MCP caller cannot select a persisted mailbox credential.
+    class EmptyAccountStore:
+        def list(self):
+            return []
+
+        def list_agent(self):
+            return []
+
+        def count(self):
+            return 0
+
+        def get(self, _account_id):
+            return None
+
+    account_store = EmptyAccountStore()
 
     @asynccontextmanager
     async def server_lifespan(_):
@@ -147,6 +185,9 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
             await fresh_runtime(ctx)
             return success(service, operation, await action())
         except ServiceError as exc:
+            current = _request_runtime.get()
+            if current is not None and exc.code == "zimbra_auth_error" and current.identity is not None and current.postgres is not None:
+                current.postgres.delete_app_session(current.identity.session_id)
             return failure(
                 service,
                 operation,
@@ -160,18 +201,34 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
             return failure(service, operation, "internal_error", "The MCP server encountered an unexpected error.")
 
     def runtime(ctx: Context) -> Runtime:
-        return ctx.request_context.lifespan_context
+        return _request_runtime.get() or ctx.request_context.lifespan_context
+
+    def _session_id(ctx: Context) -> str:
+        meta = getattr(ctx.request_context, "meta", None)
+        if isinstance(meta, dict):
+            return str(meta.get("soc_session_id", ""))
+        return str(getattr(meta, "soc_session_id", "") or "")
 
     async def fresh_runtime(ctx: Context) -> Runtime:
-        current = runtime(ctx)
-        await current.refresh()
-        return current
+        # A Context may service multiple sequential MCP calls. Never let a
+        # previous call's identity survive a missing or expired metadata value.
+        _request_runtime.set(None)
+        base = ctx.request_context.lifespan_context
+        await base.refresh()
+        if base.postgres is None:
+            raise ServiceError("authentication_required", "Log in with Zimbra before using SOC Agent tools.")
+        identity = identity_for_session(base.postgres, _session_id(ctx))
+        if identity is None:
+            raise ServiceError("session_expired", "Your SOC Agent session has expired. Log in again.")
+        scoped = base.for_identity(identity)
+        _request_runtime.set(scoped)
+        return scoped
 
     @server.tool()
     async def system_get_status(ctx: Context) -> dict[str, Any]:
         """Show non-secret server configuration and service readiness."""
         current = await fresh_runtime(ctx)
-        return success("system", "get_status", current.settings.public_status(current.zimbra.account_count()))
+        return success("system", "get_status", current.settings.public_status())
 
     register_search_tools(
         server,

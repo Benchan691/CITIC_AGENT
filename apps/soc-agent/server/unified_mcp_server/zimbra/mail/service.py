@@ -8,6 +8,7 @@ without changing its behavior.
 import asyncio
 
 from unified_mcp_server.account_store import AccountStore, StoredAccount
+from unified_mcp_server.auth import ZimbraIdentity
 from unified_mcp_server.config import MarkItDownSettings, ZimbraSettings
 from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.zimbra import zimbra_create_folder, zimbra_list_folders, zimbra_login
@@ -22,9 +23,10 @@ class ZimbraMailService(ZimbraService):
         settings: ZimbraSettings,
         accounts: AccountStore | None = None,
         markitdown_settings: MarkItDownSettings | None = None,
+        identity: ZimbraIdentity | None = None,
     ) -> None:
-        self.core = ZimbraCore(settings, accounts)
-        super().__init__(settings, self.core.accounts, markitdown_settings)
+        self.core = ZimbraCore(settings, accounts, identity)
+        super().__init__(settings, self.core.accounts, markitdown_settings, identity)
         self.settings = self.core.settings
         self.accounts = self.core.accounts
 
@@ -71,7 +73,7 @@ class ZimbraMailService(ZimbraService):
         return {"folder": folder}
 
     def _create_folder(self, account: StoredAccount, name: str, parent_id: str) -> dict[str, object]:
-        token = zimbra_login(self._config(account))
+        token = self.core.identity.zimbra_token if self.core.identity is not None else zimbra_login(self._config(account))
         folders = zimbra_list_folders(
             self.settings.host,
             token,

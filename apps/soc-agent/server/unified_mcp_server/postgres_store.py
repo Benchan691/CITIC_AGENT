@@ -1,4 +1,4 @@
-"""PostgreSQL-backed encrypted configuration and Zimbra account storage."""
+"""PostgreSQL-backed encrypted configuration and authenticated SOC state."""
 
 from __future__ import annotations
 
@@ -6,9 +6,10 @@ import base64
 import hashlib
 import json
 import secrets
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from os import environ
 from typing import Any
 
@@ -43,6 +44,31 @@ def _connection_error() -> RuntimeError:
     )
 
 
+# Let the configured Zimbra server decide whether an address is valid. Some
+# installations accept local domains such as user@localhost.
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+$")
+
+
+def normalize_zimbra_email(value: str) -> str:
+    """Return the canonical local identity used for Zimbra-backed login."""
+    email = str(value or "").strip().casefold()
+    if not _EMAIL_RE.fullmatch(email):
+        raise ValueError("a valid email address is required")
+    return email
+
+
+@dataclass(frozen=True)
+class AuthenticatedSession:
+    """Server-side application session; the token never has a public serializer."""
+
+    session_id: str
+    user_id: str
+    zimbra_email: str
+    zimbra_token: str
+    created_at: datetime
+    expires_at: datetime
+
+
 @dataclass(frozen=True)
 class PostgresBootstrap:
     uri: str
@@ -62,7 +88,9 @@ class PostgresBootstrap:
 
 
 class PostgresStore:
-    """Shared encrypted PostgreSQL storage for scalar config and Zimbra accounts."""
+    """Shared encrypted PostgreSQL storage for config and SOC authentication state."""
+
+    SESSION_TTL_SECONDS = 24 * 60 * 60
 
     def __init__(self, uri: str, encryption_key: str) -> None:
         if psycopg is None:
@@ -126,6 +154,64 @@ class PostgresStore:
                     password_encrypted TEXT NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS soc_users (
+                    id TEXT PRIMARY KEY,
+                    zimbra_email TEXT NOT NULL UNIQUE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    last_login_at TIMESTAMPTZ NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS soc_app_sessions (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
+                    zimbra_token_encrypted TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS soc_workspace_owners (
+                    workspace_id TEXT PRIMARY KEY,
+                    owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
+                    workspace_path TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS soc_session_owners (
+                    session_id TEXT PRIMARY KEY,
+                    owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
+                    workspace_id TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS soc_folder_owners (
+                    folder_id TEXT PRIMARY KEY,
+                    owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS soc_bootstrap (
+                    key TEXT PRIMARY KEY,
+                    completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
                 """
             )
@@ -288,6 +374,108 @@ class PostgresStore:
                 (account_id.strip(),),
             ).fetchone()
         return row is not None
+
+    def create_user_session(
+        self,
+        email: str,
+        zimbra_token: str,
+        *,
+        now: datetime | None = None,
+    ) -> AuthenticatedSession:
+        """Upsert the local identity and persist only an encrypted Zimbra token."""
+        normalized = normalize_zimbra_email(email)
+        token = str(zimbra_token or "")
+        if not token:
+            raise ValueError("Zimbra authentication did not return a token")
+        created = now or datetime.now(timezone.utc)
+        expires = created + timedelta(seconds=self.SESSION_TTL_SECONDS)
+        user_id = secrets.token_urlsafe(24)
+        session_id = secrets.token_urlsafe(32)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO soc_users (id, zimbra_email, created_at, last_login_at)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (zimbra_email) DO UPDATE SET last_login_at = EXCLUDED.last_login_at
+                """,
+                (user_id, normalized, created, created),
+            )
+            row = connection.execute(
+                "SELECT id, zimbra_email FROM soc_users WHERE zimbra_email = %s",
+                (normalized,),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("local user creation failed")
+            user_id = str(row[0])
+            connection.execute(
+                """
+                INSERT INTO soc_app_sessions (id, user_id, zimbra_token_encrypted, created_at, expires_at)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (session_id, user_id, self._encrypt_text(token), created, expires),
+            )
+        return AuthenticatedSession(session_id, user_id, normalized, token, created, expires)
+
+    def get_user_by_id(self, user_id: str) -> dict[str, str] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT id, zimbra_email FROM soc_users WHERE id = %s",
+                (str(user_id).strip(),),
+            ).fetchone()
+        if row is None:
+            return None
+        return {"id": str(row[0]), "zimbra_email": str(row[1])}
+
+    def get_app_session(
+        self,
+        session_id: str,
+        *,
+        now: datetime | None = None,
+    ) -> AuthenticatedSession | None:
+        """Resolve one opaque application-session cookie, expiring it atomically."""
+        value = str(session_id or "").strip()
+        if not value or len(value) > 128 or not re.fullmatch(r"[A-Za-z0-9_-]+", value):
+            return None
+        current = now or datetime.now(timezone.utc)
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT s.id, s.user_id, u.zimbra_email, s.zimbra_token_encrypted,
+                       s.created_at, s.expires_at
+                FROM soc_app_sessions AS s
+                JOIN soc_users AS u ON u.id = s.user_id
+                WHERE s.id = %s
+                """,
+                (value,),
+            ).fetchone()
+            if row is None:
+                return None
+            if row[5] <= current:
+                connection.execute("DELETE FROM soc_app_sessions WHERE id = %s", (value,))
+                return None
+            token = self._decrypt_text(str(row[3]))
+        return AuthenticatedSession(
+            session_id=str(row[0]),
+            user_id=str(row[1]),
+            zimbra_email=str(row[2]),
+            zimbra_token=token,
+            created_at=row[4],
+            expires_at=row[5],
+        )
+
+    def delete_app_session(self, session_id: str) -> bool:
+        value = str(session_id or "").strip()
+        if not value:
+            return False
+        with self._connect() as connection:
+            row = connection.execute(
+                "DELETE FROM soc_app_sessions WHERE id = %s RETURNING id",
+                (value,),
+            ).fetchone()
+        return row is not None
+
+    def invalidate_app_session(self, session_id: str) -> bool:
+        return self.delete_app_session(session_id)
 
     def migrate_env_config(self, env: Mapping[str, str]) -> None:
         keys = [

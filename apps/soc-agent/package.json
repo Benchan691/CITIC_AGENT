@@ -10,20 +10,26 @@
   "files": [
     "cordis.patch.yml",
     "host.js",
+    "auth-host.js",
+    "ownership.js",
     "scheduler.js",
     "policy.js"
   ],
   "exports": {
     ".": "./package.json",
     "./host": "./host.js",
+    "./auth-host": "./auth-host.js",
+    "./ownership": "./ownership.js",
     "./scheduler": "./scheduler.js",
     "./policy": "./policy.js",
     "./package.json": "./package.json"
   },
   "dependencies": {
     "@citic/soc-memory": "link:../../packages/soc-memory",
+    "@deepseek-ai/dsh-mcp-client": "link:../../vendor/deepseek-harness/packages/mcp/mcp-client",
     "@deepseek-ai/dsh-soc-agent-scheduler": "link:../../packages/soc-agent-scheduler",
-    "dsh-soc-agent-client": "link:../../packages/soc-agent-client"
+    "dsh-soc-agent-client": "link:../../packages/soc-agent-client",
+    "pg": "^8.16.3"
   },
   "dsh": {
     "bundle": {

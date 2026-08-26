@@ -10,8 +10,8 @@ Screen the queue without turning one shift run into an unbounded investigation.
 ## Scope contract
 
 - Start with `system_get_status`; report and skip unavailable sources.
-- Fix the window start/end, timezone, handoff owner, named Splunk saved searches or detections, and named Zimbra account/folder/query.
-- Never infer an index, sourcetype, account, or saved-search name.
+- Fix the window start/end, timezone, handoff owner, named Splunk saved searches or detections, and the authenticated Zimbra mailbox's folder/query.
+- Never infer an index, sourcetype, mailbox identity, or saved-search name.
 - Default to at most 20 metadata records per source and three deep investigations per run unless the operator sets different limits.
 - Scheduled runs are read-only screening. Route interactive writes to `detection-engineering` or `zimbra-operations`.
 
@@ -27,7 +27,7 @@ Screen the queue without turning one shift run into an unbounded investigation.
 
 ## Scheduled objective
 
-A reusable schedule prompt must name the window/timezone, account IDs, folders or Zimbra queries, exact saved searches/detections, per-source limits, maximum cases, and handoff owner. Reject a generic “check everything” objective.
+A reusable schedule prompt must name the window/timezone, authenticated Zimbra folders or queries, exact saved searches/detections, per-source limits, maximum cases, and handoff owner. Reject a generic “check everything” objective.
 
 ## Handoff
 

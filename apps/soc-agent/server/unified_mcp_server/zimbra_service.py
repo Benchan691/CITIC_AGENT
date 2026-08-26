@@ -1,4 +1,4 @@
-"""Async Zimbra service with server-side account selection."""
+"""Async Zimbra service with server-side identity binding."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ from unified_mcp_server.zimbra import (
 )
 
 from .account_store import AccountStore, StoredAccount
+from .auth import ZimbraIdentity
 from .attachment_converter import (
     MAX_ARCHIVE_MEMBERS as _MAX_ARCHIVE_MEMBERS,
     AttachmentConversionLimits,
@@ -34,6 +35,7 @@ from .attachment_converter import (
 )
 from .config import MarkItDownSettings, ZimbraSettings
 from .errors import ConfigurationError, ServiceError
+from .zimbra.core.service import _EmptyAccountStore
 
 
 _HEADER_NAMES = {
@@ -52,7 +54,10 @@ _DEFAULT_HEADER_NAMES = (
 def _upstream_error(exc: Exception) -> ServiceError:
     """Convert upstream failures to useful messages without returning raw responses."""
     text = str(exc).lower()
-    if any(marker in text for marker in ("login failed", "authentication", "auth failed", "auth token")):
+    if re.search(r"\b(?:401|403)\b", text) or any(marker in text for marker in (
+        "login failed", "authentication", "auth failed", "auth token", "auth_expired", "auth expired",
+        "auth_invalid", "auth invalid", "auth_required", "auth required", "unauthorized",
+    )):
         return ServiceError(
             "zimbra_auth_error",
             "Zimbra authentication failed. Check the email, optional login username, and password.",
@@ -85,17 +90,34 @@ class ZimbraService:
         settings: ZimbraSettings,
         accounts: AccountStore | None = None,
         markitdown_settings: MarkItDownSettings | None = None,
+        identity: ZimbraIdentity | None = None,
     ) -> None:
         self.settings = settings
-        self.accounts = accounts or AccountStore(settings.accounts_file, settings.key_file, settings.explicit_key)
+        self.identity = identity
+        if accounts is not None:
+            self.accounts = accounts
+        elif identity is not None:
+            self.accounts = _EmptyAccountStore()
+        else:
+            self.accounts = AccountStore(settings.accounts_file, settings.key_file, settings.explicit_key)
         self.markitdown_settings = markitdown_settings or MarkItDownSettings()
         self._markitdown = _create_markitdown(self.markitdown_settings)
         self._attachment_converter = AttachmentConverter(self.markitdown_settings, self._markitdown)
 
     def account_count(self) -> int:
+        if self.identity is not None:
+            return 1
         return self.accounts.count() + (1 if self._legacy_account() else 0)
 
     def list_accounts(self) -> list[dict[str, Any]]:
+        if self.identity is not None:
+            return [StoredAccount(
+                "authenticated",
+                "Authenticated Zimbra account",
+                self.identity.zimbra_email,
+                "",
+                "",
+            ).agent_dict()]
         accounts = self.accounts.list_agent()
         legacy = self._legacy_account()
         if legacy:
@@ -401,6 +423,8 @@ class ZimbraService:
         }
 
     def _legacy_account(self) -> StoredAccount | None:
+        if self.identity is not None:
+            return None
         if self.settings.email and self.settings.password:
             return StoredAccount("legacy", "Legacy account", self.settings.email, "", self.settings.password)
         return None
@@ -408,6 +432,16 @@ class ZimbraService:
     def _resolve_account(self, account_id: str, *, require_host: bool = True) -> StoredAccount:
         if require_host and not self.settings.host:
             raise ConfigurationError("Zimbra", ["ZIMBRA_HOST"])
+        if self.identity is not None:
+            if account_id.strip():
+                raise ServiceError("account_selection_disabled", "Zimbra uses the authenticated user's account.")
+            return StoredAccount(
+                "authenticated",
+                "Authenticated Zimbra account",
+                self.identity.zimbra_email,
+                "",
+                "",
+            )
         account_id = account_id.strip()
         if account_id:
             account = self.accounts.get(account_id)
@@ -426,6 +460,9 @@ class ZimbraService:
     def _config(self, account: StoredAccount) -> dict[str, object]:
         return self.settings.client_config(email=account.email, username=account.username, password=account.password)
 
+    def _token(self, account: StoredAccount) -> str:
+        return self.identity.zimbra_token if self.identity is not None else zimbra_login(self._config(account))
+
     async def _run_login(self, account: StoredAccount) -> None:
         if not self.settings.host:
             raise ConfigurationError("Zimbra", ["ZIMBRA_HOST"])
@@ -435,12 +472,12 @@ class ZimbraService:
             raise _upstream_error(exc) from exc
 
     def _list_folders(self, account: StoredAccount) -> dict[str, Any]:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         folders = zimbra_list_folders(self.settings.host, token, verify_ssl=self.settings.verify_ssl, timeout=self.settings.timeout)
         return {"count": len(folders), "folders": folders}
 
     def _list_signatures(self, account: StoredAccount) -> list[dict[str, Any]]:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         return zimbra_list_signatures(
             self.settings.host,
             token,
@@ -455,7 +492,7 @@ class ZimbraService:
         text: str | None,
         html: str | None,
     ) -> dict[str, Any]:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         options = {"verify_ssl": self.settings.verify_ssl, "timeout": self.settings.timeout}
         existing = zimbra_list_signatures(self.settings.host, token, **options)
         if any(str(item.get("name", "")).casefold() == name.casefold() for item in existing):
@@ -470,7 +507,7 @@ class ZimbraService:
         return verified
 
     def _delete_signature(self, account: StoredAccount, signature_id: str) -> dict[str, Any]:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         options = {"verify_ssl": self.settings.verify_ssl, "timeout": self.settings.timeout}
         existing = zimbra_list_signatures(self.settings.host, token, **options)
         signature = next((item for item in existing if item["id"] == signature_id), None)
@@ -491,7 +528,7 @@ class ZimbraService:
         bcc: list[str],
         body_format: str,
     ) -> dict[str, Any]:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         return zimbra_send_message(
             self.settings.host,
             token,
@@ -506,7 +543,7 @@ class ZimbraService:
         )
 
     def _search_emails(self, account: StoredAccount, query: str, limit: int, offset: int) -> list[dict[str, Any]]:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         return zimbra_search_messages(
             self.settings.host,
             token,
@@ -518,7 +555,7 @@ class ZimbraService:
         )
 
     def _get_email(self, account: StoredAccount, message_id: str) -> dict[str, Any] | None:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         return zimbra_get_message(self.settings.host, token, message_id, verify_ssl=self.settings.verify_ssl, timeout=self.settings.timeout)
 
     def _get_email_headers(
@@ -527,7 +564,7 @@ class ZimbraService:
         message_id: str,
         names: list[str],
     ) -> dict[str, Any] | None:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         return zimbra_get_message_headers(
             self.settings.host,
             token,
@@ -538,7 +575,7 @@ class ZimbraService:
         )
 
     def _move_email(self, account: StoredAccount, message_id: str, folder_id: str) -> dict[str, Any]:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         options = {"verify_ssl": self.settings.verify_ssl, "timeout": self.settings.timeout}
         folders = zimbra_list_folders(self.settings.host, token, **options)
         destination = next((folder for folder in folders if str(folder.get("id", "")) == folder_id), None)
@@ -579,7 +616,7 @@ class ZimbraService:
         part: str,
         max_chars: int,
     ) -> dict[str, Any]:
-        token = zimbra_login(self._config(account))
+        token = self._token(account)
         message = zimbra_get_message(
             self.settings.host,
             token,

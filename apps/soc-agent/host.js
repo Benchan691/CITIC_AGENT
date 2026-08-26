@@ -12,9 +12,10 @@ import {
   scopeKeyForTenant,
 } from '../../packages/soc-memory/lib/tenant.js'
 import { detectSecrets, normalizeTags, validateContent } from '../../packages/soc-memory/lib/store.js'
+import { runAuthCommand } from './ownership.js'
 
 export const name = 'soc-agent-host'
-export const inject = ['agents', 'connection', 'tools']
+export const inject = ['agents', 'connection', 'tools', 'socAuth']
 
 const CHANNEL = '/soc-agent-config'
 const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
@@ -183,18 +184,26 @@ export function clearMemoryContext(ctx, agent) {
   memoryContext.clear(agent)
 }
 
-async function handleEndpoint(endpoint, payload, signal) {
+async function handleEndpoint(endpoint, payload, signal, ctx) {
   switch (endpoint) {
     case 'get-settings': return ok(await runAdmin('get-settings'))
     case 'update-settings': return ok(await runAdmin('update-settings', undefined, payload))
     case 'delete-setting': return ok(await runAdmin('delete-setting', payload?.key ?? ''))
-    case 'list-accounts': return ok(await runAdmin('list-accounts'))
-    case 'add-account': return ok(await runAdmin('add-account', undefined, payload))
-    case 'update-account': return ok(await runAdmin('update-account', payload?.id ?? '', payload))
-    case 'delete-account': return ok(await runAdmin('delete-account', payload?.id ?? ''))
-    case 'test-account': return ok(await runAdmin('test-account', payload?.id ?? ''))
-    case 'send-email': return ok(await runAdmin('send-email', undefined, payload))
-    case 'list-signatures': return ok(await runAdmin('list-signatures', undefined, payload))
+    case 'list-accounts': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
+    case 'add-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
+    case 'update-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
+    case 'delete-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
+    case 'test-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
+    case 'send-email': {
+      const session = ctx.get('socAuth')?.currentSession?.()
+      if (!session) throw new Error('authentication required')
+      return ok(await runAuthCommand('send-email', { ...payload, session_id: session.id }))
+    }
+    case 'list-signatures': {
+      const session = ctx.get('socAuth')?.currentSession?.()
+      if (!session) throw new Error('authentication required')
+      return ok(await runAuthCommand('list-signatures', { session_id: session.id }))
+    }
     case 'test-splunk': return ok(await runAdmin('test-splunk'))
     case 'test-subscription-server': return ok(await runAdmin('test-subscription-server'))
     case 'convert-attachment': {
@@ -237,7 +246,7 @@ export function apply(ctx) {
     CHANNEL,
     async (endpoint, payload, signal) => {
       try {
-        return await handleEndpoint(endpoint, payload ?? {}, signal)
+        return await handleEndpoint(endpoint, payload ?? {}, signal, ctx)
       } catch (error) {
         if (endpoint === 'convert-attachment') {
           const message = error instanceof Error ? error.message : 'attachment_conversion_failed'

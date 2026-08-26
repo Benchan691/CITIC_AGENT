@@ -7,7 +7,6 @@ export interface EmailDraftFields {
   bcc: string[]
   subject: string
   body: string
-  account_id: string
   body_format?: 'text' | 'html'
 }
 
@@ -17,8 +16,6 @@ export interface EmailDraftFormFields {
   bcc: string
   subject: string
   body: string
-  accountId: string
-  accountLabel: string
 }
 
 export function parseRecipientText(value: string): string[] {
@@ -32,6 +29,5 @@ export function draftFromForm(fields: EmailDraftFormFields): EmailDraftFields {
     bcc: parseRecipientText(fields.bcc),
     subject: fields.subject.trim(),
     body: fields.body,
-    account_id: fields.accountId,
   }
 }
