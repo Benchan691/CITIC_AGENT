@@ -91,6 +91,7 @@
   "time-context",
   "soc-agent-mcp",
   "soc-agent-admin-host",
+  "soc-memory",
   "soc-agent-scheduler",
   "soc-agent-admin-ui"
 ]

@@ -45,6 +45,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "zimbra_preview_email_filter_update",
         "zimbra_create_email_filter",
         "zimbra_update_email_filter",
+        "zimbra_delete_email_filter",
         "zimbra_set_email_filter_enabled",
         "zimbra_reorder_email_filter",
         "list_subscriptions",
@@ -111,6 +112,11 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert set(filter_list_tool.parameters["properties"]) == {
         "account_id", "include_details",
     }
+    delete_filter_tool = next(tool for tool in tools if tool.name == "zimbra_delete_email_filter")
+    assert set(delete_filter_tool.parameters["properties"]) == {
+        "name", "expected_fingerprint", "account_id",
+    }
+    assert set(delete_filter_tool.parameters["required"]) == {"name", "expected_fingerprint"}
     for name in (
         "splunk_update_detection_draft", "splunk_enable_detection", "splunk_disable_detection",
     ):

@@ -185,6 +185,17 @@
     - id: soc-agent-admin-host
       name: dsh-soc-agent/host
       description: Host policy, tool allowlists, and admin RPC for the SOC Agent product.
+    - id: soc-memory
+      name: '@citic/soc-memory'
+      description: Tenant-isolated persistent SOC memory with provenance, bounded recall, and audited writes.
+      config:
+        autoCapture: true
+        captureToolResults: false
+        redactSecrets: true
+        customerIsolation: strict
+        provenanceRequired: true
+        rolloutPhase: read-only
+        scopedMemory: true
     - id: soc-agent-scheduler
       name: dsh-soc-agent/scheduler
       description: Durable scheduled read-only Splunk and Zimbra investigation runs.

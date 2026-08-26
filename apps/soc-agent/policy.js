@@ -29,6 +29,8 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__get_subscription_schema',
   'mcp__soc_agent__preview_subscription',
   'scheduled_task_list',
+  'soc_memory_search',
+  'soc_memory_read',
 ])
 
 export const ACTION_TOOLS = Object.freeze([
@@ -39,6 +41,7 @@ export const ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__zimbra_move_email',
   'mcp__soc_agent__zimbra_create_email_filter',
   'mcp__soc_agent__zimbra_update_email_filter',
+  'mcp__soc_agent__zimbra_delete_email_filter',
   'mcp__soc_agent__zimbra_set_email_filter_enabled',
   'mcp__soc_agent__zimbra_reorder_email_filter',
   'mcp__soc_agent__zimbra_create_folder',
@@ -52,6 +55,20 @@ export const ACTION_TOOLS = Object.freeze([
   'scheduled_task_resume',
   'scheduled_task_delete',
   'scheduled_task_run_now',
+  'soc_memory_add',
+  'soc_memory_correct',
+  'soc_memory_forget',
+])
+
+export const MEMORY_READ_TOOLS = Object.freeze([
+  'soc_memory_search',
+  'soc_memory_read',
+])
+
+export const MEMORY_WRITE_TOOLS = Object.freeze([
+  'soc_memory_add',
+  'soc_memory_correct',
+  'soc_memory_forget',
 ])
 
 export const DOMAIN_TOOLS = new Set([...READ_ONLY_TOOLS, ...ACTION_TOOLS])

@@ -5,12 +5,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { apply, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS } from '../host.js'
+import { apply, APPROVAL_TOOLS, bindMemoryContext, clearMemoryContext, CONTROL_TOOLS, DOMAIN_TOOLS } from '../host.js'
 import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
+import { createMemoryContextRegistry } from '../../../packages/soc-memory/lib/tenant.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 48)
+  assert.equal(DOMAIN_TOOLS.size, 54)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
@@ -22,6 +23,7 @@ test('interactive analyst policy exposes the exact product tool set', () => {
     'mcp__soc_agent__zimbra_create_email_filter',
     'mcp__soc_agent__zimbra_create_folder',
     'mcp__soc_agent__zimbra_create_signature',
+    'mcp__soc_agent__zimbra_delete_email_filter',
     'mcp__soc_agent__zimbra_delete_signature',
     'mcp__soc_agent__zimbra_move_email',
     'mcp__soc_agent__zimbra_reorder_email_filter',
@@ -32,13 +34,16 @@ test('interactive analyst policy exposes the exact product tool set', () => {
     'scheduled_task_pause',
     'scheduled_task_resume',
     'scheduled_task_run_now',
+    'soc_memory_add',
+    'soc_memory_correct',
+    'soc_memory_forget',
   ])
   for (const name of APPROVAL_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
 })
 
 test('SOC policy has disjoint read-only and action categories', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 28)
-  assert.equal(ACTION_TOOLS.length, 20)
+  assert.equal(READ_ONLY_TOOLS.length, 30)
+  assert.equal(ACTION_TOOLS.length, 24)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
   assert.equal(READ_ONLY_TOOLS.includes('skill'), true)
@@ -61,6 +66,11 @@ test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__create_subscription'), true)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__update_subscription'), true)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__delete_subscription'), true)
+  assert.equal(READ_ONLY_TOOLS.includes('soc_memory_search'), true)
+  assert.equal(READ_ONLY_TOOLS.includes('soc_memory_read'), true)
+  assert.equal(ACTION_TOOLS.includes('soc_memory_add'), true)
+  assert.equal(ACTION_TOOLS.includes('soc_memory_correct'), true)
+  assert.equal(ACTION_TOOLS.includes('soc_memory_forget'), true)
   assert.equal(DOMAIN_TOOLS.has('exit_plan_mode'), false)
   assert.equal(CONTROL_TOOLS.has('exit_plan_mode'), true)
   assert.equal(DOMAIN_TOOLS.has('ask_user_question'), false)
@@ -68,7 +78,7 @@ test('SOC policy has disjoint read-only and action categories', () => {
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 22)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 24)
   for (const name of READ_ONLY_DOMAIN_TOOLS) {
     assert.equal(DOMAIN_TOOLS.has(name), true)
     assert.equal(APPROVAL_TOOLS.has(name), false)
@@ -85,6 +95,8 @@ test('scheduled workers have an exact read-only allowlist', () => {
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__get_subscription_schema'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__preview_subscription'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('ask_user_question'), false)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('soc_memory_search'), true)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('soc_memory_read'), true)
 })
 
 test('host policy delegates reads, asks for mutations, and denies generic tools', async () => {
@@ -111,8 +123,12 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_send_email' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_list_signatures' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_use_signature_on_email' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.equal((await preExecute({ name: 'soc_memory_search', arguments: { scope: 'customer' }, agent }, () => ({ kind: 'delegate' }))).kind, 'deny')
+  assert.equal((await preExecute({ name: 'soc_memory_read', arguments: { scope: 'global' }, agent }, () => ({ kind: 'delegate' }))).kind, 'delegate')
+  assert.equal((await preExecute({ name: 'soc_memory_add', arguments: { scope: 'global', type: 'soc_procedure', sourceType: 'system_configuration', content: 'Use the approved SOC escalation workflow.' }, agent }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_create_folder' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_update_email_filter' }, () => ({ kind: 'delegate' }))).kind, 'ask')
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_delete_email_filter' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_move_email' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_create_signature' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_delete_signature' }, () => ({ kind: 'delegate' }))).kind, 'ask')
@@ -151,6 +167,85 @@ test('host RPC failures use the shared result error contract', async () => {
     if (previousServer === undefined) delete process.env.DSH_SOC_AGENT_SERVER
     else process.env.DSH_SOC_AGENT_SERVER = previousServer
   }
+})
+
+test('host binds memory tenant context only through trusted in-process code', async () => {
+  const handlers = new Map()
+  const agent = { id: 'agent-memory-1', ctx: { tools: { restrict() {} } } }
+  const memoryContext = createMemoryContextRegistry({})
+  const hostContext = {
+    get(name) { return name === 'socMemoryContext' ? memoryContext : undefined },
+    on(event, handler) { handlers.set(event, handler) },
+    agents: { roots: () => [agent] },
+    connection: { rpc: { handle(_channel, handler) { handlers.set('rpc', handler) } } },
+  }
+  apply(hostContext)
+  const bound = bindMemoryContext(hostContext, agent, {
+    customerId: 'G50176',
+    analystId: 'analyst-a',
+    incidentId: 'INC-1',
+  })
+  assert.deepEqual({ ...bound }, {
+    customerId: 'G50176',
+    analystId: 'analyst-a',
+    incidentId: 'INC-1',
+    source: 'host',
+  })
+  assert.deepEqual(memoryContext.snapshot(agent), { ...bound })
+  clearMemoryContext(hostContext, agent)
+  assert.equal(memoryContext.snapshot(agent).customerId, undefined)
+  assert.equal(memoryContext.snapshot(agent).analystId, undefined)
+  assert.equal(memoryContext.snapshot(agent).incidentId, undefined)
+  assert.equal((await handlers.get('rpc')('set-memory-context', { agentId: agent.id, customerId: 'G47193' })).ok, false)
+  handlers.get('agent/disposed')({ agent })
+})
+
+test('host context cleanup is automatic when an agent is disposed', () => {
+  const handlers = new Map()
+  const agent = { id: 'agent-memory-2', ctx: { tools: { restrict() {} } } }
+  const memoryContext = createMemoryContextRegistry({})
+  const hostContext = {
+    get(name) { return name === 'socMemoryContext' ? memoryContext : undefined },
+    on(event, handler) { handlers.set(event, handler) },
+    agents: { roots: () => [agent] },
+    connection: { rpc: { handle(_channel, handler) { handlers.set('rpc', handler) } } },
+  }
+  apply(hostContext)
+  bindMemoryContext(hostContext, agent, { customerId: 'G50176' })
+  assert.equal(memoryContext.snapshot(agent).customerId, 'G50176')
+  handlers.get('agent/disposed')({ agent })
+  assert.equal(memoryContext.snapshot(agent).customerId, undefined)
+})
+
+test('host fails closed for cross-tenant memory arguments and incompatible types', async () => {
+  const handlers = new Map()
+  const agent = { id: 'agent-memory-3', ctx: { tools: { restrict() {} } } }
+  apply({
+    on(event, handler) { handlers.set(event, handler) },
+    agents: { roots: () => [agent] },
+    connection: { rpc: { handle() {} } },
+  })
+  const preExecute = handlers.get('tools/pre-execute')
+  const deniedTenant = await preExecute({
+    name: 'soc_memory_search',
+    arguments: { scope: 'customer', customer_id: 'G47193', query: 'index' },
+    agent,
+  }, () => ({ kind: 'delegate' }))
+  assert.equal(deniedTenant.kind, 'deny')
+  assert.match(deniedTenant.reason, /host-resolved/)
+  const deniedType = await preExecute({
+    name: 'soc_memory_add',
+    arguments: { scope: 'global', type: 'customer_environment', sourceType: 'system_configuration', content: 'not global' },
+    agent,
+  }, () => ({ kind: 'delegate' }))
+  assert.equal(deniedType.kind, 'deny')
+  assert.match(deniedType.reason, /not allowed/)
+  const correctWithoutType = await preExecute({
+    name: 'soc_memory_correct',
+    arguments: { scope: 'global', id: 'mem-12345678', correctedContent: 'Updated global procedure.', sourceType: 'system_configuration' },
+    agent,
+  }, () => ({ kind: 'delegate' }))
+  assert.equal(correctWithoutType.kind, 'ask')
 })
 
 test('assembled Web profile matches the focused enabled-plugin snapshot', () => {

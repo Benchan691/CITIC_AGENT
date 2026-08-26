@@ -21,6 +21,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@citic/soc-memory": "link:../../packages/soc-memory",
     "@deepseek-ai/dsh-soc-agent-scheduler": "link:../../packages/soc-agent-scheduler",
     "dsh-soc-agent-client": "link:../../packages/soc-agent-client"
   },

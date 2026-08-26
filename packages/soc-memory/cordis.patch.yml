@@ -1,0 +1,11 @@
+- id: soc-memory
+  name: '@citic/soc-memory'
+  description: Tenant-isolated persistent SOC memory.
+  config:
+    autoCapture: false
+    captureToolResults: false
+    redactSecrets: true
+    customerIsolation: strict
+    provenanceRequired: true
+    rolloutPhase: read-only
+    scopedMemory: true

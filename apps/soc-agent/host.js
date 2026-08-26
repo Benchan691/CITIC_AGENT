@@ -1,7 +1,17 @@
 import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS } from './policy.js'
+import { ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS } from './policy.js'
+import {
+  MEMORY_SOURCE_TYPES,
+  MEMORY_TYPES,
+  assertModelCannotSelectTenant,
+  createMemoryContextRegistry,
+  isMemoryTypeAllowed,
+  normalizeMemoryScopeType,
+  scopeKeyForTenant,
+} from '../../packages/soc-memory/lib/tenant.js'
+import { detectSecrets, normalizeTags, validateContent } from '../../packages/soc-memory/lib/store.js'
 
 export const name = 'soc-agent-host'
 export const inject = ['agents', 'connection', 'tools']
@@ -11,7 +21,7 @@ const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
 const HARD_ATTACHMENT_BYTES = 100_000_000
 const HARD_MARKDOWN_CHARS = 2_000_000
 
-export { ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS }
+export { ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS }
 
 function bundleRoot() {
   return dirname(fileURLToPath(import.meta.url))
@@ -125,6 +135,54 @@ function validateAttachmentPayload(payload) {
   return { filename, content_type: contentType, data, limits: { max_bytes: maxBytes, max_chars: maxChars } }
 }
 
+const MEMORY_TOOLS = new Set([...MEMORY_READ_TOOLS, ...MEMORY_WRITE_TOOLS])
+
+function validateMemoryExecution(exec, memoryContext) {
+  const args = exec?.arguments !== null && typeof exec?.arguments === 'object' ? exec.arguments : {}
+  assertModelCannotSelectTenant(args)
+  const scope = normalizeMemoryScopeType(args.scope, 'customer')
+  const tenant = memoryContext?.get(exec?.agent) ?? {}
+  const scopeKey = scopeKeyForTenant(scope, tenant)
+  if (MEMORY_WRITE_TOOLS.includes(exec.name)) {
+    const content = exec.name === 'soc_memory_correct' ? args.correctedContent : args.content
+    validateContent(content)
+    if (detectSecrets(content).length > 0) throw new Error('memory: content contains prohibited secret-like data')
+    const type = args.type === undefined ? undefined : String(args.type).trim().toLowerCase()
+    if (type !== undefined && (!MEMORY_TYPES.includes(type) || !isMemoryTypeAllowed(scope, type))) throw new Error('memory: type is not allowed in this scope')
+    const sourceType = String(args.sourceType ?? '').trim().toLowerCase()
+    if (!MEMORY_SOURCE_TYPES.includes(sourceType)) throw new Error('memory: sourceType is required and invalid')
+    if (args.sourceRef !== undefined) {
+      const sourceRef = String(args.sourceRef).trim()
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,255}$/u.test(sourceRef) || detectSecrets(sourceRef).length > 0) throw new Error('memory: sourceRef is invalid')
+    }
+    if (args.confidence !== undefined && (!Number.isFinite(args.confidence) || args.confidence < 0 || args.confidence > 1)) {
+      throw new Error('memory: confidence must be a number from 0 to 1')
+    }
+    if (args.tags !== undefined) {
+      if (!Array.isArray(args.tags) || args.tags.length > 16 || args.tags.some((tag) => typeof tag !== 'string')) throw new Error('memory: tags are invalid')
+      normalizeTags(args.tags)
+    }
+  }
+  return { scope, scopeKey, tenant }
+}
+
+/**
+ * Bind a resolved tenant to an agent from trusted host code. This is
+ * intentionally an in-process API; tenant IDs are never accepted over the
+ * browser/settings RPC channel.
+ */
+export function bindMemoryContext(ctx, agent, context) {
+  const memoryContext = ctx.get?.('socMemoryContext')
+  if (memoryContext === undefined) throw new Error('memory_context_service_unavailable')
+  return memoryContext.set(agent, context)
+}
+
+export function clearMemoryContext(ctx, agent) {
+  const memoryContext = ctx.get?.('socMemoryContext')
+  if (memoryContext === undefined) throw new Error('memory_context_service_unavailable')
+  memoryContext.clear(agent)
+}
+
 async function handleEndpoint(endpoint, payload, signal) {
   switch (endpoint) {
     case 'get-settings': return ok(await runAdmin('get-settings'))
@@ -149,19 +207,32 @@ async function handleEndpoint(endpoint, payload, signal) {
 }
 
 export function apply(ctx) {
+  let memoryContext = ctx.get?.('socMemoryContext')
+  if (memoryContext === undefined) {
+    memoryContext = createMemoryContextRegistry()
+    try { ctx.provide?.('socMemoryContext', memoryContext) } catch { /* another host fiber may own the service */ }
+  }
   ctx.on('agent/created', ({ agent }) => {
     if (!ctx.agents.roots().includes(agent)) return
     try { agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS, ...CONTROL_TOOLS] }) } catch { /* scheduler tools register asynchronously; pre-execute enforces */ }
   })
   ctx.on('tools/pre-execute', (exec, next) => {
     if (!DOMAIN_TOOLS.has(exec.name) && !CONTROL_TOOLS.has(exec.name)) {
-      return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only Splunk, Zimbra, subscription, and scheduled-investigation tools.' })
+      return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only approved Splunk, Zimbra, subscription, scheduling, and SOC memory tools.' })
+    }
+    if (MEMORY_TOOLS.has(exec.name)) {
+      try {
+        validateMemoryExecution(exec, memoryContext)
+      } catch (error) {
+        return Promise.resolve({ kind: 'deny', reason: error instanceof Error ? error.message : 'Memory scope or metadata validation failed.' })
+      }
     }
     if (APPROVAL_TOOLS.has(exec.name)) {
-      return Promise.resolve({ kind: 'ask', reason: 'This action changes a SOC system, sends email, or changes a persistent schedule.' })
+      return Promise.resolve({ kind: 'ask', reason: MEMORY_WRITE_TOOLS.includes(exec.name) ? 'This action changes persistent SOC memory and requires approval.' : 'This action changes a SOC system, sends email, or changes a persistent schedule.' })
     }
     return next()
   }, { global: true })
+  ctx.on('agent/disposed', ({ agent }) => memoryContext.clear(agent))
   ctx.connection.rpc.handle(
     CHANNEL,
     async (endpoint, payload, signal) => {

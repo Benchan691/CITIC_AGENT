@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@citic/soc-memory':
+        specifier: link:../../packages/soc-memory
+        version: link:../../packages/soc-memory
       '@deepseek-ai/dsh-soc-agent-scheduler':
         specifier: link:../../packages/soc-agent-scheduler
         version: link:../../packages/soc-agent-scheduler

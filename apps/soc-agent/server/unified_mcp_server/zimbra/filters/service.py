@@ -392,6 +392,28 @@ class ZimbraFilterService:
         fingerprint = await self._write_rules(token, rules, expected_fingerprint)
         return {"account_id": account.id, "account": account.agent_dict(), "updated": True, "filter": proposed.to_dict(), "fingerprint": fingerprint}
 
+    async def delete_email_filter(self, name: str, expected_fingerprint: str, account_id: str = "") -> dict[str, Any]:
+        name = name.strip()
+        if not name:
+            raise ServiceError("invalid_input", "name cannot be empty")
+        self._require_write()
+        self._require_expected(expected_fingerprint)
+        account = self._resolve_account(account_id)
+        token = await self._login(account)
+        current = await self._read_filters(account, token)
+        self._require_round_trip_safe(current)
+        index, removed = self._find(current, name)
+        rules = [item for position, item in enumerate(current) if position != index]
+        rules = [EmailFilter(**{**item.__dict__, "order": position}) for position, item in enumerate(rules, 1)]
+        fingerprint = await self._write_rules(token, rules, expected_fingerprint)
+        return {
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "deleted": True,
+            "filter": removed.to_dict(),
+            "fingerprint": fingerprint,
+        }
+
     async def set_email_filter_enabled(self, name: str, enabled: bool, expected_fingerprint: str, account_id: str = "") -> dict[str, Any]:
         if enabled:
             return await self.update_email_filter(name, {"enabled": True}, expected_fingerprint, account_id)

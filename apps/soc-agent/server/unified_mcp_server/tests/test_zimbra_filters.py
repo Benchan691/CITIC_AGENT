@@ -224,6 +224,100 @@ async def test_concurrent_modification_is_rejected(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_delete_removes_rule_and_renumbers_remaining_rules(monkeypatch):
+    rules = [rule_xml("First"), rule_xml("Second"), rule_xml("Third")]
+    fake_zimbra(monkeypatch, rules=rules)
+    service = ZimbraFilterService(settings(allow_filter_write=True))
+    captured = {}
+
+    async def fake_write(account, proposed, expected):
+        captured["account"] = account
+        captured["rules"] = proposed
+        captured["expected"] = expected
+        return service._fingerprint(proposed)
+
+    monkeypatch.setattr(service, "_write_rules", fake_write)
+    current = [EmailFilter.from_zimbra(item, order=index) for index, item in enumerate(rules, 1)]
+    expected = service._fingerprint(current)
+
+    result = await service.delete_email_filter("Second", expected)
+
+    assert result["deleted"] is True
+    assert result["filter"]["name"] == "Second"
+    assert [item.name for item in captured["rules"]] == ["First", "Third"]
+    assert [item.order for item in captured["rules"]] == [1, 2]
+    assert captured["expected"] == expected
+
+
+@pytest.mark.asyncio
+async def test_delete_final_rule_writes_empty_rule_set(monkeypatch):
+    rules = [rule_xml()]
+    fake_zimbra(monkeypatch, rules=rules)
+    service = ZimbraFilterService(settings(allow_filter_write=True))
+    captured = {}
+    monkeypatch.setattr(
+        filter_module,
+        "zimbra_modify_filter_rules",
+        lambda _host, _token, xml, **_options: captured.setdefault("xml", xml),
+    )
+    current = [EmailFilter.from_zimbra(rules[0], order=1)]
+
+    result = await service.delete_email_filter("Inbox alerts", service._fingerprint(current))
+
+    assert result["deleted"] is True
+    assert captured["xml"] == "<filterRules />"
+
+
+@pytest.mark.asyncio
+async def test_delete_rejects_invalid_missing_and_disabled_requests(monkeypatch):
+    fake_zimbra(monkeypatch)
+    service = ZimbraFilterService(settings(allow_filter_write=True))
+
+    with pytest.raises(ServiceError) as error:
+        await service.delete_email_filter("", "fingerprint")
+    assert error.value.code == "invalid_input"
+
+    with pytest.raises(ServiceError) as error:
+        await service.delete_email_filter("Inbox alerts", "")
+    assert error.value.code == "expected_fingerprint_required"
+
+    current = await service.list_email_filters()
+    with pytest.raises(ServiceError) as error:
+        await service.delete_email_filter("Missing", current["fingerprint"])
+    assert error.value.code == "not_found"
+
+    disabled = ZimbraFilterService(settings(allow_filter_write=False))
+    with pytest.raises(ServiceError) as error:
+        await disabled.delete_email_filter("Inbox alerts", current["fingerprint"])
+    assert error.value.code == "operation_disabled"
+
+
+@pytest.mark.asyncio
+async def test_delete_rejects_unsafe_and_stale_rule_sets(monkeypatch):
+    unsupported = ET.fromstring(
+        '<filterRule name="Unsupported" active="1"><filterTests condition="allof">'
+        '<addressTest header="From" value="sender@example.com"/></filterTests>'
+        '<filterActions><actionKeep/></filterActions></filterRule>'
+    )
+    fake_zimbra(monkeypatch, rules=[rule_xml(), unsupported])
+    service = ZimbraFilterService(settings(allow_filter_write=True))
+    current = await service.list_email_filters()
+    with pytest.raises(ServiceError) as error:
+        await service.delete_email_filter("Inbox alerts", current["fingerprint"])
+    assert error.value.code == "filter_round_trip_unsafe"
+
+    initial = [rule_xml()]
+    changed = [rule_xml(name="Changed by someone else")]
+    sequence = iter([initial, changed])
+    monkeypatch.setattr(filter_module, "zimbra_get_filter_rules", lambda *args, **kwargs: next(sequence))
+    service = ZimbraFilterService(settings(allow_filter_write=True))
+    expected = service._fingerprint([EmailFilter.from_zimbra(initial[0], order=1)])
+    with pytest.raises(ServiceError) as error:
+        await service.delete_email_filter("Inbox alerts", expected)
+    assert error.value.code == "filter_rules_changed"
+
+
+@pytest.mark.asyncio
 async def test_write_is_blocked_when_an_existing_rule_cannot_round_trip(monkeypatch):
     unsupported = ET.fromstring(
         '<filterRule name="Unsupported" active="1"><filterTests condition="allof">'

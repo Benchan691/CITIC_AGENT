@@ -39,6 +39,11 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute) -> None:
         return await execute(ctx, "zimbra", "update_email_filter", lambda: get_runtime(ctx).zimbra_filters.update_email_filter(name, rule, expected_fingerprint, account_id))
 
     @server.tool()
+    async def zimbra_delete_email_filter(ctx: Context, name: str, expected_fingerprint: str, account_id: str = "") -> dict[str, Any]:
+        """Delete a Zimbra filter using write permission and optimistic concurrency protection."""
+        return await execute(ctx, "zimbra", "delete_email_filter", lambda: get_runtime(ctx).zimbra_filters.delete_email_filter(name, expected_fingerprint, account_id))
+
+    @server.tool()
     async def zimbra_set_email_filter_enabled(ctx: Context, name: str, enabled: bool, expected_fingerprint: str, account_id: str = "") -> dict[str, Any]:
         """Enable or disable a Zimbra filter using optimistic concurrency protection."""
         return await execute(ctx, "zimbra", "set_email_filter_enabled", lambda: get_runtime(ctx).zimbra_filters.set_email_filter_enabled(name, enabled, expected_fingerprint, account_id))
