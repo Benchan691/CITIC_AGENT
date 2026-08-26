@@ -85,6 +85,32 @@ def test_parse_canonical_zimbra_filter_elements():
     assert parsed.actions[1].address == "ops@example.com"
 
 
+def test_unsupported_existing_filter_serializes_as_supported_subset():
+    element = ET.fromstring(
+        '<filterRule name="Unsupported" active="1" custom="drop">'
+        '<filterTests condition="allof">'
+        '<addressTest header="From" value="sender@example.com"/>'
+        '<filtertest name="mystery" index="1"/>'
+        '<headerTest header="Subject" stringComparison="unknown" value="alert"/>'
+        '</filterTests>'
+        '<filterActions><filteraction name="mystery"/><actionKeep/></filterActions>'
+        '</filterRule>'
+    )
+
+    parsed = EmailFilter.from_zimbra(element, order=1)
+    xml = serialize_filter_rules([parsed])
+
+    assert parsed.round_trip_safe is False
+    assert "test element addressTest" in parsed.unsupported
+    assert "filtertest type mystery" in parsed.unsupported
+    assert "filter test subject/unknown" in parsed.unsupported
+    assert "filteraction type mystery" in parsed.unsupported
+    assert "addressTest" not in xml
+    assert "mystery" not in xml
+    assert 'stringComparison="unknown"' not in xml
+    assert "actionKeep" in xml
+
+
 @pytest.mark.parametrize(
     ("test_type", "operator"),
     [
@@ -161,8 +187,13 @@ async def test_validation_checks_supported_inputs_and_existing_folder(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_preview_reports_changed_fields_position_fingerprint_and_gate_state(monkeypatch):
-    fake_zimbra(monkeypatch)
+async def test_preview_reports_changed_fields_position_fingerprint_gate_and_lossiness(monkeypatch):
+    unsupported = ET.fromstring(
+        '<filterRule name="Unsupported" active="1"><filterTests condition="allof">'
+        '<addressTest header="From" value="sender@example.com"/></filterTests>'
+        '<filterActions><actionKeep/></filterActions></filterRule>'
+    )
+    fake_zimbra(monkeypatch, rules=[rule_xml(), unsupported])
     service = ZimbraFilterService(settings(allow_filter_write=False))
 
     result = await service.preview_email_filter_update("Inbox alerts", {"enabled": False, "order": 1})
@@ -175,6 +206,12 @@ async def test_preview_reports_changed_fields_position_fingerprint_and_gate_stat
     assert result["valid"] is True
     assert result["server_allowed"] is False
     assert "filter_write" in result["gate_violations"]
+    assert result["lossy"] is True
+    assert result["lossy_filters"] == [{
+        "name": "Unsupported",
+        "unsupported": ["test element addressTest"],
+    }]
+    assert any("Unsupported" in warning for warning in result["warnings"])
 
 
 @pytest.mark.asyncio
@@ -293,18 +330,30 @@ async def test_delete_rejects_invalid_missing_and_disabled_requests(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_delete_rejects_unsafe_and_stale_rule_sets(monkeypatch):
+async def test_delete_allows_unsafe_and_rejects_stale_rule_sets(monkeypatch):
     unsupported = ET.fromstring(
         '<filterRule name="Unsupported" active="1"><filterTests condition="allof">'
         '<addressTest header="From" value="sender@example.com"/></filterTests>'
         '<filterActions><actionKeep/></filterActions></filterRule>'
     )
     fake_zimbra(monkeypatch, rules=[rule_xml(), unsupported])
+    captured = {}
+    monkeypatch.setattr(
+        filter_module,
+        "zimbra_modify_filter_rules",
+        lambda _host, _token, xml, **_options: captured.setdefault("xml", xml),
+    )
     service = ZimbraFilterService(settings(allow_filter_write=True))
     current = await service.list_email_filters()
-    with pytest.raises(ServiceError) as error:
-        await service.delete_email_filter("Inbox alerts", current["fingerprint"])
-    assert error.value.code == "filter_round_trip_unsafe"
+    result = await service.delete_email_filter("Inbox alerts", current["fingerprint"])
+    assert result["deleted"] is True
+    assert result["lossy"] is True
+    assert result["lossy_filters"] == [{
+        "name": "Unsupported",
+        "unsupported": ["test element addressTest"],
+    }]
+    assert "addressTest" not in captured["xml"]
+    assert "actionKeep" in captured["xml"]
 
     initial = [rule_xml()]
     changed = [rule_xml(name="Changed by someone else")]
@@ -318,27 +367,33 @@ async def test_delete_rejects_unsafe_and_stale_rule_sets(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_write_is_blocked_when_an_existing_rule_cannot_round_trip(monkeypatch):
+async def test_create_rewrites_unsafe_rules_and_reports_lossiness(monkeypatch):
     unsupported = ET.fromstring(
         '<filterRule name="Unsupported" active="1"><filterTests condition="allof">'
         '<addressTest header="From" value="sender@example.com"/></filterTests>'
         '<filterActions><actionKeep/></filterActions></filterRule>'
     )
     fake_zimbra(monkeypatch, rules=[rule_xml(), unsupported])
+    captured = {}
     monkeypatch.setattr(
         filter_module,
         "zimbra_modify_filter_rules",
-        lambda *args, **kwargs: pytest.fail("unsafe rules must never be rewritten"),
+        lambda _host, _token, xml, **_options: captured.setdefault("xml", xml),
     )
     service = ZimbraFilterService(settings(allow_filter_write=True))
     current = await service.list_email_filters()
 
-    with pytest.raises(ServiceError) as error:
-        await service.create_email_filter(
-            valid_payload(name="New rule"), current["fingerprint"]
-        )
+    result = await service.create_email_filter(valid_payload(name="New rule"), current["fingerprint"])
 
-    assert error.value.code == "filter_round_trip_unsafe"
+    assert result["created"] is True
+    assert result["lossy"] is True
+    assert result["lossy_filters"] == [{
+        "name": "Unsupported",
+        "unsupported": ["test element addressTest"],
+    }]
+    assert any("Unsupported" in warning for warning in result["warnings"])
+    assert "addressTest" not in captured["xml"]
+    assert "actionKeep" in captured["xml"]
     assert current["filters"][1]["round_trip_safe"] is False
 
 

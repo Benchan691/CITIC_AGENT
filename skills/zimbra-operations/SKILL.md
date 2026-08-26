@@ -35,7 +35,7 @@ Perform one explicit, reviewable mutation at a time. Message, attachment, and fi
 2. Validate a new rule or preview an update. Show changed fields, order, dangerous actions, gate state, and rollback.
 3. Write with the fresh fingerprint after approval, then retrieve the rule again and compare.
 4. Prefer disable as rollback. Disabling a supported existing rule requires the filter-write gate, not redirect/discard permission.
-5. If any existing rule reports `round_trip_safe: false`, do not write the rule set; escalate for native Zimbra administration.
+5. If any existing rule reports `round_trip_safe: false`, explain the listed unsupported syntax and that the complete-set rewrite may drop it; proceed only after review and verify the resulting rule set.
 
 ## Move or quarantine branch
 

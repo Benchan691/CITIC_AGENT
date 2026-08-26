@@ -1,4 +1,4 @@
-"""Read, validate, preview, and guarded-write Zimbra incoming filters."""
+"""Read, validate, preview, and gated-write Zimbra incoming filters."""
 
 from __future__ import annotations
 
@@ -59,6 +59,30 @@ class ZimbraFilterService:
             if rule.name == name:
                 return index, rule
         raise ServiceError("not_found", "The Zimbra email filter was not found.")
+
+    @staticmethod
+    def _lossy_metadata(rules: list[EmailFilter]) -> dict[str, Any]:
+        lossy_filters = [
+            {"name": rule.name, "unsupported": list(rule.unsupported)}
+            for rule in rules
+            if not rule.round_trip_safe
+        ]
+        return {
+            "lossy": bool(lossy_filters),
+            "lossy_filters": lossy_filters,
+            "warnings": [
+                f"Filter {item['name']!r} contains unsupported Zimbra syntax that may be dropped when the complete filter set is rewritten: "
+                + ", ".join(item["unsupported"])
+                for item in lossy_filters
+            ],
+        }
+
+    @staticmethod
+    def _normalized_rules(rules: list[EmailFilter]) -> list[EmailFilter]:
+        return [
+            EmailFilter(**{**rule.__dict__, "round_trip_safe": True, "unsupported": ()})
+            for rule in rules
+        ]
 
     async def _run(self, function, *args, **kwargs):
         try:
@@ -271,7 +295,16 @@ class ZimbraFilterService:
         except (TypeError, ValueError) as exc:
             raise ServiceError("invalid_input", str(exc)) from exc
         validation = self._validate(rule, current, folders, order_limit=len(current) + 1)
-        return {"account_id": account.id, "account": account.agent_dict(), "fingerprint": self._fingerprint(current), **validation}
+        lossy = self._lossy_metadata(current)
+        return {
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "fingerprint": self._fingerprint(current),
+            **validation,
+            "warnings": [*validation["warnings"], *lossy["warnings"]],
+            "lossy": lossy["lossy"],
+            "lossy_filters": lossy["lossy_filters"],
+        }
 
     async def preview_email_filter_update(self, name: str, payload: dict[str, Any], account_id: str = "") -> dict[str, Any]:
         if not isinstance(payload, dict):
@@ -287,6 +320,7 @@ class ZimbraFilterService:
             raise ServiceError("invalid_input", str(exc)) from exc
         validation = self._validate(proposed, current, folders, current_name=existing.name, order_limit=len(current))
         changed_fields = [key for key in ("name", "enabled", "condition", "tests", "actions", "order") if existing.to_dict().get(key) != proposed.to_dict().get(key)]
+        lossy = self._lossy_metadata(current)
         return {
             "account_id": account.id,
             "account": account.agent_dict(),
@@ -295,22 +329,15 @@ class ZimbraFilterService:
             "changed_fields": changed_fields,
             "resulting_rule_position": proposed.order,
             "current_fingerprint": self._fingerprint(current),
-            **{key: validation[key] for key in ("warnings", "dangerous_actions", "valid", "server_allowed", "executable", "errors", "gate_violations")},
+            **{key: validation[key] for key in ("dangerous_actions", "valid", "server_allowed", "executable", "errors", "gate_violations")},
+            "warnings": [*validation["warnings"], *lossy["warnings"]],
+            "lossy": lossy["lossy"],
+            "lossy_filters": lossy["lossy_filters"],
         }
 
     def _require_write(self) -> None:
         if not self.settings.allow_filter_write:
             raise ServiceError("operation_disabled", "Zimbra filter writes are disabled. Set ZIMBRA_ALLOW_FILTER_WRITE=true after review.")
-
-    @staticmethod
-    def _require_round_trip_safe(rules: list[EmailFilter]) -> None:
-        unsafe = [rule.name for rule in rules if not rule.round_trip_safe]
-        if unsafe:
-            raise ServiceError(
-                "filter_round_trip_unsafe",
-                "Zimbra filter writes are blocked because existing rules contain unsupported syntax.",
-                details={"filters": unsafe},
-            )
 
     @staticmethod
     def _require_expected(expected_fingerprint: str) -> None:
@@ -324,7 +351,6 @@ class ZimbraFilterService:
         expected_fingerprint: str,
     ) -> str:
         latest = self._read_filters_with_token(token)
-        self._require_round_trip_safe(latest)
         actual = self._fingerprint(latest)
         if actual != expected_fingerprint:
             raise ServiceError("filter_rules_changed", "Zimbra filter rules changed since they were read; refresh and retry.", details={"expected_fingerprint": expected_fingerprint, "current_fingerprint": actual})
@@ -335,7 +361,7 @@ class ZimbraFilterService:
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
         )
-        return self._fingerprint(rules)
+        return self._fingerprint(self._normalized_rules(rules))
 
     async def _write_rules(self, token: str, rules: list[EmailFilter], expected_fingerprint: str) -> str:
         return await self._run(
@@ -353,7 +379,6 @@ class ZimbraFilterService:
         account = self._resolve_account(account_id)
         token = await self._login(account)
         current, folders = await self._read_filters_and_folders(account, token)
-        self._require_round_trip_safe(current)
         try:
             rule = EmailFilter.from_payload(payload, default_order=len(current) + 1)
         except (TypeError, ValueError) as exc:
@@ -365,7 +390,14 @@ class ZimbraFilterService:
         rules.insert(rule.order - 1, rule)
         rules = [EmailFilter(**{**item.__dict__, "order": index}) for index, item in enumerate(rules, 1)]
         fingerprint = await self._write_rules(token, rules, expected_fingerprint)
-        return {"account_id": account.id, "account": account.agent_dict(), "created": True, "filter": rule.to_dict(), "fingerprint": fingerprint}
+        return {
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "created": True,
+            "filter": rule.to_dict(),
+            "fingerprint": fingerprint,
+            **self._lossy_metadata(current),
+        }
 
     async def update_email_filter(self, name: str, payload: dict[str, Any], expected_fingerprint: str, account_id: str = "") -> dict[str, Any]:
         if not isinstance(payload, dict):
@@ -375,7 +407,6 @@ class ZimbraFilterService:
         account = self._resolve_account(account_id)
         token = await self._login(account)
         current, folders = await self._read_filters_and_folders(account, token)
-        self._require_round_trip_safe(current)
         index, existing = self._find(current, name.strip())
         merged = {**existing.to_dict(), **payload, "name": payload.get("name", existing.name), "order": payload.get("order", index + 1)}
         try:
@@ -390,7 +421,14 @@ class ZimbraFilterService:
         rules.sort(key=lambda item: item.order)
         rules = [EmailFilter(**{**item.__dict__, "order": position}) for position, item in enumerate(rules, 1)]
         fingerprint = await self._write_rules(token, rules, expected_fingerprint)
-        return {"account_id": account.id, "account": account.agent_dict(), "updated": True, "filter": proposed.to_dict(), "fingerprint": fingerprint}
+        return {
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "updated": True,
+            "filter": proposed.to_dict(),
+            "fingerprint": fingerprint,
+            **self._lossy_metadata(current),
+        }
 
     async def delete_email_filter(self, name: str, expected_fingerprint: str, account_id: str = "") -> dict[str, Any]:
         name = name.strip()
@@ -401,7 +439,6 @@ class ZimbraFilterService:
         account = self._resolve_account(account_id)
         token = await self._login(account)
         current = await self._read_filters(account, token)
-        self._require_round_trip_safe(current)
         index, removed = self._find(current, name)
         rules = [item for position, item in enumerate(current) if position != index]
         rules = [EmailFilter(**{**item.__dict__, "order": position}) for position, item in enumerate(rules, 1)]
@@ -412,6 +449,7 @@ class ZimbraFilterService:
             "deleted": True,
             "filter": removed.to_dict(),
             "fingerprint": fingerprint,
+            **self._lossy_metadata(current),
         }
 
     async def set_email_filter_enabled(self, name: str, enabled: bool, expected_fingerprint: str, account_id: str = "") -> dict[str, Any]:
@@ -422,7 +460,6 @@ class ZimbraFilterService:
         account = self._resolve_account(account_id)
         token = await self._login(account)
         current = await self._read_filters(account, token)
-        self._require_round_trip_safe(current)
         index, existing = self._find(current, name.strip())
         disabled = EmailFilter(**{**existing.__dict__, "enabled": False})
         rules = current[:]
@@ -434,6 +471,7 @@ class ZimbraFilterService:
             "updated": True,
             "filter": disabled.to_dict(),
             "fingerprint": fingerprint,
+            **self._lossy_metadata(current),
         }
 
     async def reorder_email_filter(self, name: str, order: int, expected_fingerprint: str, account_id: str = "") -> dict[str, Any]:
@@ -442,7 +480,6 @@ class ZimbraFilterService:
         account = self._resolve_account(account_id)
         token = await self._login(account)
         current, folders = await self._read_filters_and_folders(account, token)
-        self._require_round_trip_safe(current)
         index, rule = self._find(current, name.strip())
         try:
             target = int(order)
@@ -458,4 +495,11 @@ class ZimbraFilterService:
         if not validation["executable"]:
             raise ServiceError("filter_invalid", "Email filter validation failed.", details=validation)
         fingerprint = await self._write_rules(token, rules, expected_fingerprint)
-        return {"account_id": account.id, "account": account.agent_dict(), "updated": True, "filter": rules[target - 1].to_dict(), "fingerprint": fingerprint}
+        return {
+            "account_id": account.id,
+            "account": account.agent_dict(),
+            "updated": True,
+            "filter": rules[target - 1].to_dict(),
+            "fingerprint": fingerprint,
+            **self._lossy_metadata(current),
+        }

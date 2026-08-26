@@ -48,6 +48,17 @@ _ACTION_ATTRIBUTES = {
     "actionstop": {"index"},
     "actiondiscard": {"index"},
 }
+_SERIALIZABLE_TESTS = {
+    ("header", "exists"), ("header", "not_exists"), ("header", "is"),
+    ("header", "contains"), ("header", "matches"), ("header", "begins"),
+    ("header", "ends"), ("subject", "exists"), ("subject", "not_exists"),
+    ("subject", "is"), ("subject", "contains"), ("subject", "matches"),
+    ("subject", "begins"), ("subject", "ends"), ("body", "contains"),
+    ("body", "is"), ("body", "matches"), ("attachment", "exists"),
+    ("attachment", "not_exists"), ("size", "over"), ("size", "under"),
+    ("date", "before"), ("date", "after"),
+}
+_SERIALIZABLE_ACTIONS = {"keep", "file_into", "tag", "flag", "redirect", "stop", "discard"}
 
 
 def _unsupported_zimbra_parts(element: ET.Element) -> tuple[str, ...]:
@@ -308,7 +319,9 @@ class FilterAction:
             "stop": "actionStop",
             "discard": "actionDiscard",
         }
-        action_type = names.get(self.type, self.type)
+        action_type = names.get(self.type)
+        if action_type is None:
+            raise ValueError(f"unsupported filter action: {self.type}")
         attrs = {"index": str(index)}
         if self.folder:
             attrs["folderPath"] = self.folder
@@ -354,16 +367,30 @@ class EmailFilter:
     def from_zimbra(cls, element: ET.Element, *, order: int) -> "EmailFilter":
         tests_container = next((item for item in element if _local_name(item.tag).lower() == "filtertests"), None)
         actions_container = next((item for item in element if _local_name(item.tag).lower() == "filteractions"), None)
-        tests = tuple(
+        parsed_tests = tuple(
             FilterTest.from_zimbra(item)
             for item in (tests_container if tests_container is not None else [])
             if _local_name(item.tag).lower() in {"filtertest", "headertest", "headerexiststest", "sizetest", "datetest", "bodytest", "attachmenttest"}
         )
-        actions = tuple(
+        parsed_actions = tuple(
             FilterAction.from_zimbra(item)
             for item in (actions_container if actions_container is not None else [])
             if _local_name(item.tag).lower() in {"filteraction", "actionkeep", "actionfileinto", "actiontag", "actionflag", "actionredirect", "actionstop", "actiondiscard"}
         )
+        unsupported = list(_unsupported_zimbra_parts(element))
+        unsupported.extend(
+            f"filter test {test.type}/{test.operator}"
+            for test in parsed_tests
+            if (test.type, test.operator) not in _SERIALIZABLE_TESTS
+        )
+        unsupported.extend(
+            f"filter action {action.type or '<missing>'}"
+            for action in parsed_actions
+            if action.type not in _SERIALIZABLE_ACTIONS
+        )
+        tests = tuple(test for test in parsed_tests if (test.type, test.operator) in _SERIALIZABLE_TESTS)
+        actions = tuple(action for action in parsed_actions if action.type in _SERIALIZABLE_ACTIONS)
+        unsupported = list(dict.fromkeys(unsupported))
         return cls(
             name=_text(element.get("name")),
             enabled=_bool(element.get("active", element.get("enabled")), True),
@@ -371,8 +398,8 @@ class EmailFilter:
             tests=tests,
             actions=actions,
             order=order,
-            round_trip_safe=not (unsupported := _unsupported_zimbra_parts(element)),
-            unsupported=unsupported,
+            round_trip_safe=not unsupported,
+            unsupported=tuple(unsupported),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -388,15 +415,21 @@ class EmailFilter:
         }
 
     def to_zimbra(self) -> ET.Element:
-        if not self.round_trip_safe:
-            raise ValueError("unsupported existing filter syntax cannot be rewritten safely")
         element = ET.Element("filterRule", {"name": self.name, "active": "1" if self.enabled else "0"})
         tests = ET.SubElement(element, "filterTests", {"condition": self.condition})
-        for index, test in enumerate(self.tests):
-            tests.append(test.to_zimbra(index))
+        # ponytail: normalize unsupported existing syntax instead of owning a raw-XML
+        # preservation layer; add raw fragments only if lossless edits become required.
+        for test in self.tests:
+            try:
+                tests.append(test.to_zimbra(len(tests)))
+            except ValueError:
+                continue
         actions = ET.SubElement(element, "filterActions")
-        for index, action in enumerate(self.actions):
-            actions.append(action.to_zimbra(index))
+        for action in self.actions:
+            try:
+                actions.append(action.to_zimbra(len(actions)))
+            except ValueError:
+                continue
         return element
 
 
