@@ -80,8 +80,24 @@ async function waitForCount(mux: { frames: MuxFrame[] }, type: MuxFrame['type'],
   expect(mux.frames.filter(frame => frame.type === type).length).toBeGreaterThanOrEqual(count)
 }
 
-function answer(rpcId: RpcId, sessionId: unknown, approvalId: ApprovalRequestId, outcome: 'allowed-once' | 'rejected'): Parameters<ApiProxy['respond']>[0] {
-  return { type: 'client-response', rpcId, result: { ok: true, value: { sessionId, approvalId, outcome } } }
+async function waitForRequested(mux: { frames: MuxFrame[] }, toolName: string, from = 0): Promise<MuxFrame> {
+  for (let i = 0; i < 200; i += 1) {
+    const found = mux.frames.slice(from).find(frame => frame.type === 'approval/requested' && frame.toolName === toolName)
+    if (found !== undefined) return found
+    await new Promise(resolve => setTimeout(resolve, 5))
+  }
+  throw new Error(`approval request for ${toolName} did not arrive`)
+}
+
+function answer(rpcId: RpcId, sessionId: unknown, approvalId: ApprovalRequestId, outcome: 'allowed-once' | 'rejected', remember?: 'tool'): Parameters<ApiProxy['respond']>[0] {
+  return {
+    type: 'client-response',
+    rpcId,
+    result: {
+      ok: true,
+      value: { sessionId, approvalId, outcome, ...(remember === undefined ? {} : { remember }) },
+    },
+  }
 }
 
 describe('approval pending registry', () => {
@@ -106,6 +122,42 @@ describe('approval pending registry', () => {
     // The question settled: a duplicate answer is late, not re-decidable.
     const dup = await api.respond(answer(envelope.rpcId, requested.sessionId, requested.approvalId, 'rejected'))
     expect(dup).toEqual({ accepted: false, reason: 'not-pending' })
+    abort.abort()
+  })
+
+  it('remembers an approved tool name for the current session only', async () => {
+    const { ctx, api } = await harness()
+    const abort = new AbortController()
+    const mux = openMux(api, abort)
+    const agent = agentOf(ctx)
+    const first = ctx.approval.request({ agent, toolName: 'bash' })
+    const requested = requestedOf(await mux.waitFor('approval/requested'))
+    const envelope = mux.envelopes.find(e => e.payload.type === 'approval/requested') as RpcRequest<MuxFrame>
+
+    expect(await api.respond(answer(envelope.rpcId, requested.sessionId, requested.approvalId, 'allowed-once', 'tool')))
+      .toEqual({ accepted: true })
+    await expect(first).resolves.toBe('allowed-once')
+
+    const frameCount = mux.frames.length
+    await expect(ctx.approval.request({ agent, toolName: 'bash' })).resolves.toBe('allowed-once')
+    await new Promise(resolve => setTimeout(resolve, 5))
+    expect(mux.envelopes.filter(e => e.payload.type === 'approval/requested')).toHaveLength(1)
+
+    const other = ctx.approval.request({ agent, toolName: 'write' })
+    const otherFrame = requestedOf(await waitForRequested(mux, 'write', frameCount))
+    const otherEnvelope = mux.envelopes.find(e => e.payload.type === 'approval/requested' && e.payload.approvalId === otherFrame.approvalId) as RpcRequest<MuxFrame>
+    expect(await api.respond(answer(otherEnvelope.rpcId, otherFrame.sessionId, otherFrame.approvalId, 'rejected')))
+      .toEqual({ accepted: true })
+    await expect(other).resolves.toBe('rejected')
+
+    ctx.emit('session/disposed', agent.session)
+    const afterDisposeCount = mux.frames.length
+    const afterDispose = ctx.approval.request({ agent, toolName: 'bash' })
+    const afterDisposeFrame = requestedOf(await waitForRequested(mux, 'bash', afterDisposeCount))
+    const afterDisposeEnvelope = mux.envelopes.find(e => e.payload.type === 'approval/requested' && e.payload.approvalId === afterDisposeFrame.approvalId) as RpcRequest<MuxFrame>
+    expect(await api.respond(answer(afterDisposeEnvelope.rpcId, afterDisposeFrame.sessionId, afterDisposeFrame.approvalId, 'rejected')))
+      .toEqual({ accepted: true })
+    await expect(afterDispose).resolves.toBe('rejected')
     abort.abort()
   })
 

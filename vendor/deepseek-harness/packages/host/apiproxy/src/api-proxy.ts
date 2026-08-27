@@ -1132,6 +1132,9 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
   let workspaceCreationChain = Promise.resolve()
   const pendingQuestions = new Map<RpcId, PendingQuestion>()
   const pendingApprovals = new Map<RpcId, PendingApproval>()
+  // A same-action grant is deliberately process-local and session-scoped. It
+  // never enters the durable session log or the saved settings document.
+  const approvalSameAction = new Map<SessionId, Set<string>>()
   const muxQueues = new Set<FrameQueue<RpcRequest<MuxFrame>>>()
   const imageAdmissionChains = new WeakMap<Agent, Promise<void>>()
 
@@ -1422,6 +1425,9 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
     ctx.effect(() => () => {
       for (const pending of [...pendingApprovals.values()]) pending.resolve('cancelled')
     }, 'api-proxy: approval registry teardown')
+    ctx.on('session/disposed', (session: Session) => {
+      approvalSameAction.delete(session.id)
+    })
     ctx.on('approval/request', (req, next) => {
       // Dispatch rides a microtask behind the service's own signal check: an
       // abort landing in that window would register the abort listener AFTER
@@ -1458,6 +1464,8 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       // No asked event means the request bypassed the service's audit path —
       // not this channel's question; delegate to the fail-closed default.
       if (approvalId === undefined) return next()
+      const grants = approvalSameAction.get(req.agent.session.id)
+      if (grants?.has(req.toolName)) return Promise.resolve<ApprovalOutcome>('allowed-once')
       const id = approvalId
       return new Promise<ApprovalOutcome>((resolve) => {
         const settle = (outcome: ApprovalOutcome): void => {
@@ -3892,8 +3900,16 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         const parsed = approvalResponsePayloadSchema.safeParse(message.result.value)
         // The payload's audit correlation must match the entry the rpcId routed
         // to — a mismatched answer is malformed, not merely late.
-        if (!parsed.success || parsed.data.approvalId !== approval.approvalId || parsed.data.sessionId !== approval.sessionId) {
+        if (!parsed.success
+          || parsed.data.approvalId !== approval.approvalId
+          || parsed.data.sessionId !== approval.sessionId
+          || (parsed.data.remember !== undefined && parsed.data.outcome !== 'allowed-once')) {
           return Promise.resolve({ accepted: false, reason: 'bad-response' })
+        }
+        if (parsed.data.remember === 'tool') {
+          const grants = approvalSameAction.get(approval.sessionId) ?? new Set<string>()
+          grants.add(approval.toolName)
+          approvalSameAction.set(approval.sessionId, grants)
         }
         approval.resolve(parsed.data.outcome)
         return Promise.resolve({ accepted: true })

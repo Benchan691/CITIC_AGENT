@@ -18,4 +18,6 @@ export interface ApprovalResponsePayload {
   sessionId: SessionId
   approvalId: ApprovalRequestId
   outcome: 'allowed-once' | 'rejected'
+  /** Keep allowing this tool name for the current session only. */
+  remember?: 'tool'
 }

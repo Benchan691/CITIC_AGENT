@@ -58,9 +58,9 @@ function ApprovalFlow({ pending, command, t }: {
   // lands; until then the buttons must not re-fire. An answer failure
   // (rejected receipt / transport) re-arms them for retry.
   const [answered, setAnswered] = useState(false)
-  const answer = (outcome: 'allowed-once' | 'rejected'): void => {
+  const answer = (outcome: 'allowed-once' | 'rejected', remember?: 'tool'): void => {
     setAnswered(true)
-    void pending.answer(outcome).catch(() => { setAnswered(false) })
+    void pending.answer(outcome, remember).catch(() => { setAnswered(false) })
   }
   return (
     <div className={css.root} data-approval-key={pending.key}>
@@ -79,6 +79,9 @@ function ApprovalFlow({ pending, command, t }: {
           </Button>
           <Button variant="primary" disabled={answered} onClick={() => { answer('allowed-once') }}>
             {t('approval.allowOnce')}
+          </Button>
+          <Button variant="primary" disabled={answered} onClick={() => { answer('allowed-once', 'tool') }}>
+            {t('approval.allowSameAction')}
           </Button>
         </div>
       </div>
