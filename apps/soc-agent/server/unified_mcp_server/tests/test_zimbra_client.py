@@ -54,6 +54,20 @@ def test_search_messages_escapes_input_and_caps_limit(monkeypatch):
     assert "&lt;x&gt;" in captured["body"]
 
 
+def test_search_messages_uses_zimbra_anywhere_query(monkeypatch):
+    captured = []
+
+    def fake_request(_host, body, _token, **_options):
+        captured.append(body)
+        return ET.fromstring('<SearchResponse xmlns="urn:zimbraMail"/>')
+
+    monkeypatch.setattr(zimbra, "soap_request", fake_request)
+    zimbra.zimbra_search_messages("mail.example.com", "token", "in:anywhere")
+    zimbra.zimbra_search_messages("mail.example.com", "token", "")
+
+    assert all("<query>is:anywhere</query>" in body for body in captured)
+
+
 def test_search_messages_normalizes_summary_without_get_message(monkeypatch):
     xml = """<SearchResponse xmlns="urn:zimbraMail">
       <m id="42" d="1700000000000" l="2" f="u" s="123">

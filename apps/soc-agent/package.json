@@ -25,10 +25,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@citic/soc-memory": "link:../../packages/soc-memory",
+    "@citic/soc-memory": "workspace:*",
     "@deepseek-ai/dsh-mcp-client": "link:../../vendor/deepseek-harness/packages/mcp/mcp-client",
-    "@deepseek-ai/dsh-soc-agent-scheduler": "link:../../packages/soc-agent-scheduler",
-    "dsh-soc-agent-client": "link:../../packages/soc-agent-client",
+    "@deepseek-ai/dsh-soc-agent-scheduler": "workspace:*",
+    "dsh-soc-agent-client": "workspace:*",
     "pg": "^8.16.3"
   },
   "dsh": {

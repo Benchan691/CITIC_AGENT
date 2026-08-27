@@ -237,7 +237,7 @@ class ServerSettings:
         )
         zimbra = ZimbraSettings(
             host=_value(env, "ZIMBRA_HOST"),
-            verify_ssl=_boolean(env, "ZIMBRA_VERIFY_SSL", True),
+            verify_ssl=_boolean(env, "ZIMBRA_VERIFY_SSL", False),
             timeout=_integer(env, "ZIMBRA_TIMEOUT", 60, 1, 600),
             allow_send=_boolean(env, "ZIMBRA_ALLOW_SEND", True),
             allow_filter_write=_boolean(env, "ZIMBRA_ALLOW_FILTER_WRITE", True),

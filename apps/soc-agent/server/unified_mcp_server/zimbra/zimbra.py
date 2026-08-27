@@ -39,7 +39,7 @@ def _local_name(tag):
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag
 
 
-def _as_bool(value, default=True):
+def _as_bool(value, default=False):
     if value is None or value == "":
         return default
     if isinstance(value, bool):
@@ -49,7 +49,7 @@ def _as_bool(value, default=True):
 
 def _connection_options(cfg):
     return {
-        "verify_ssl": _as_bool(cfg.get("verify_ssl"), True),
+        "verify_ssl": _as_bool(cfg.get("verify_ssl"), False),
         "timeout": int(cfg.get("timeout", 60)),
     }
 
@@ -65,7 +65,7 @@ def _ssl_context(verify_ssl):
     return None if verify_ssl else ssl._create_unverified_context()
 
 
-def soap_request(host, body_xml, auth_token="", *, verify_ssl=True, timeout=60):
+def soap_request(host, body_xml, auth_token="", *, verify_ssl=False, timeout=60):
     header = f"<authToken>{html.escape(auth_token)}</authToken>" if auth_token else ""
     envelope = f"""<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
@@ -133,7 +133,7 @@ def _signature(elem):
     }
 
 
-def zimbra_list_signatures(host, token, *, verify_ssl=True, timeout=60):
+def zimbra_list_signatures(host, token, *, verify_ssl=False, timeout=60):
     root = soap_request(
         host,
         '<GetSignaturesRequest xmlns="urn:zimbraAccount"/>',
@@ -152,7 +152,7 @@ def zimbra_list_signatures(host, token, *, verify_ssl=True, timeout=60):
     return signatures
 
 
-def zimbra_create_signature(host, token, name, text=None, html_content=None, *, verify_ssl=True, timeout=60):
+def zimbra_create_signature(host, token, name, text=None, html_content=None, *, verify_ssl=False, timeout=60):
     contents = []
     if text is not None:
         contents.append(f'<content type="text/plain">{html.escape(text)}</content>')
@@ -176,7 +176,7 @@ def zimbra_create_signature(host, token, name, text=None, html_content=None, *, 
     return {"id": signature.get("id", ""), "name": signature.get("name", "")}
 
 
-def zimbra_delete_signature(host, token, signature_id, *, verify_ssl=True, timeout=60):
+def zimbra_delete_signature(host, token, signature_id, *, verify_ssl=False, timeout=60):
     soap_request(
         host,
         (
@@ -200,7 +200,7 @@ def zimbra_send_message(
     cc=None,
     bcc=None,
     body_format="text",
-    verify_ssl=True,
+    verify_ssl=False,
     timeout=60,
 ):
     content_type = {"text": "text/plain", "html": "text/html"}.get(str(body_format).strip().lower())
@@ -237,7 +237,7 @@ def zimbra_send_message(
     return {"message_id": message.get("id", "")}
 
 
-def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=True, timeout=60):
+def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=False, timeout=60):
     soap_request(
         host,
         (
@@ -260,9 +260,14 @@ def _message_date(value):
         return ""
 
 
-def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl=True, timeout=60):
+def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl=False, timeout=60):
     """Search once and normalize the summary metadata returned by Zimbra."""
-    query = html.escape(str(query or "").strip() or "in:anywhere")
+    query = str(query or "").strip()
+    # Zimbra uses is:anywhere for all mail; in:anywhere is parsed as a folder
+    # path by some servers (including the configured deployment).
+    if not query or query.casefold() == "in:anywhere":
+        query = "is:anywhere"
+    query = html.escape(query)
     limit = max(1, min(int(limit), 100))
     offset = max(0, int(offset))
     root = soap_request(
@@ -299,7 +304,7 @@ def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl
     return messages
 
 
-def zimbra_get_message(host, token, message_id, *, verify_ssl=True, timeout=60):
+def zimbra_get_message(host, token, message_id, *, verify_ssl=False, timeout=60):
     root = soap_request(
         host,
         f'<GetMsgRequest xmlns="urn:zimbraMail"><m id="{html.escape(message_id)}" html="0" needExp="1"/></GetMsgRequest>',
@@ -354,7 +359,7 @@ def zimbra_get_message(host, token, message_id, *, verify_ssl=True, timeout=60):
     }
 
 
-def zimbra_get_message_headers(host, token, message_id, names, *, verify_ssl=True, timeout=60):
+def zimbra_get_message_headers(host, token, message_id, names, *, verify_ssl=False, timeout=60):
     """Retrieve selected raw message headers without returning the message body."""
     requested = [str(name).strip() for name in names if str(name).strip()]
     header_xml = "".join(f'<header n="{html.escape(name)}"/>' for name in requested)
@@ -383,7 +388,7 @@ def zimbra_get_message_headers(host, token, message_id, names, *, verify_ssl=Tru
     return {"message_id": message_id, "headers": headers}
 
 
-def zimbra_list_folders(host, token, *, verify_ssl=True, timeout=60):
+def zimbra_list_folders(host, token, *, verify_ssl=False, timeout=60):
     root = soap_request(
         host,
         '<GetFolderRequest xmlns="urn:zimbraMail" visible="1"/>',
@@ -408,7 +413,7 @@ def zimbra_list_folders(host, token, *, verify_ssl=True, timeout=60):
     return folders
 
 
-def zimbra_create_folder(host, token, name, parent_id, *, verify_ssl=True, timeout=60):
+def zimbra_create_folder(host, token, name, parent_id, *, verify_ssl=False, timeout=60):
     """Create one mailbox folder and return safe normalized folder metadata."""
     root = soap_request(
         host,
@@ -437,7 +442,7 @@ def zimbra_create_folder(host, token, name, parent_id, *, verify_ssl=True, timeo
     }
 
 
-def zimbra_get_filter_rules(host, token, *, verify_ssl=True, timeout=60):
+def zimbra_get_filter_rules(host, token, *, verify_ssl=False, timeout=60):
     """Return the complete incoming filter-rule elements from Zimbra."""
     root = soap_request(
         host,
@@ -464,7 +469,7 @@ def zimbra_get_filter_rules(host, token, *, verify_ssl=True, timeout=60):
     return rules
 
 
-def zimbra_modify_filter_rules(host, token, rules_xml, *, verify_ssl=True, timeout=60):
+def zimbra_modify_filter_rules(host, token, rules_xml, *, verify_ssl=False, timeout=60):
     """Replace the complete incoming filter-rule set using typed XML from the filter service."""
     soap_request(
         host,

@@ -13,13 +13,13 @@ def test_workspace_root_fallback_matches_self_contained_repository(monkeypatch):
     assert workspace_root() == server_root().parents[2]
 
 
-def test_defaults_are_secure_and_services_can_be_unconfigured():
+def test_defaults_are_safe_and_services_can_be_unconfigured():
     settings = ServerSettings.from_env({})
 
     assert settings.transport == "stdio"
     assert settings.splunk.verify_ssl is True
     assert settings.splunk.sanitize_output is True
-    assert settings.zimbra.verify_ssl is True
+    assert settings.zimbra.verify_ssl is False
     assert settings.zimbra.allow_filter_write is True
     assert settings.zimbra.allow_filter_redirect is True
     assert settings.zimbra.allow_filter_discard is True

@@ -17,6 +17,10 @@ The repository is organized by ownership:
 See [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) for commands and
 dependency boundaries.
 
+All JavaScript apps and local plugins share the DeepSeek Harness pnpm
+workspace. Run JavaScript dependency commands from `vendor/deepseek-harness`;
+do not install dependencies separately inside `apps/` or `packages/`.
+
 ## Update the server deployment
 
 The active deployment at `~/CITIC_AGENT/current` is a Git checkout. To update
@@ -29,9 +33,6 @@ git pull --ff-only
 cd vendor/deepseek-harness
 pnpm install --frozen-lockfile
 pnpm run build
-
-cd ../../packages/soc-agent-scheduler
-pnpm install --frozen-lockfile
 ```
 
 Restart the web app in its tmux session

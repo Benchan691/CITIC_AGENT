@@ -10,7 +10,8 @@ apps/
 
 packages/
 ├── soc-agent-client/          Browser settings and tool-view plugin
-└── soc-agent-scheduler/       Durable read-only investigation scheduler
+├── soc-agent-scheduler/       Durable read-only investigation scheduler
+└── soc-memory/                Tenant-isolated SOC memory package
 
 vendor/
 └── deepseek-harness/          In-repository harness source and build runtime
@@ -21,9 +22,10 @@ docs/                          Architecture and operating notes
 
 ## Dependency direction
 
-`apps/soc-agent` consumes the scheduler and client packages. Both packages may
-consume build/runtime code from `vendor/deepseek-harness`; the vendor tree does
-not depend on SOC product code.
+`apps/soc-agent` consumes the scheduler, client, and memory packages. All
+JavaScript packages are members of the `vendor/deepseek-harness` pnpm
+workspace and share its lockfile and virtual store; the vendor tree does not
+depend on SOC product code.
 
 The Python MCP server lives at:
 
@@ -35,25 +37,20 @@ belongs in the agent workflow and skills, not in low-level clients.
 ## Common commands
 
 ```sh
-# SOC MCP server
-cd apps/soc-agent/server
-uv sync --python 3.12 --extra test
-.venv/bin/python -m pytest
+# SOC MCP server (run from the repository root)
+(cd apps/soc-agent/server && uv sync --python 3.12 --extra test && .venv/bin/python -m pytest)
 
-# Product host and policy tests
-cd apps/soc-agent
-pnpm test
-
-# Client build and tests
-cd packages/soc-agent-client
-npm run build
-npm test
-
-# Scheduler tests
-cd packages/soc-agent-scheduler
-pnpm test
+# Shared JavaScript workspace (run from the repository root)
+cd vendor/deepseek-harness
+pnpm install --frozen-lockfile
+pnpm --filter dsh-soc-agent test
+pnpm --filter dsh-soc-agent-client run build
+pnpm --filter dsh-soc-agent-client test
+pnpm --filter @deepseek-ai/dsh-soc-agent-scheduler test
+pnpm --filter @citic/soc-memory test
 ```
 
-Dependencies are intentionally ignored from version control. Recreate them
-from the lockfiles with `pnpm install` or `npm install` in the package being
-worked on.
+Dependencies are intentionally ignored from version control. Recreate all
+JavaScript dependencies from the shared lockfile by running `pnpm install`
+from `vendor/deepseek-harness`. The Python MCP server remains separate and
+uses `uv`.
