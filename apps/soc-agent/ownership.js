@@ -14,9 +14,7 @@ const PRIVATE_HTTP_PATHS = new Set(['/api'])
 const PRIVATE_UPGRADE_PATHS = new Set(['/api/events.mux', '/api/events.host'])
 const STORAGE_ENV_NAMES = ['APP_POSTGRES_URI', 'LANGGRAPH_POSTGRES_URI', 'POSTGRES_URI']
 
-function storageUriFromServerEnv() {
-  const bundleRoot = dirname(fileURLToPath(import.meta.url))
-  const serverRoot = process.env.DSH_SOC_AGENT_SERVER || join(bundleRoot, 'server')
+function storageUriFromServerEnv(serverRoot) {
   try {
     const values = parseEnv(readFileSync(join(serverRoot, '.env'), 'utf8'))
     return STORAGE_ENV_NAMES.map(name => String(values[name] ?? '').trim()).find(Boolean) ?? ''
@@ -26,8 +24,11 @@ function storageUriFromServerEnv() {
   }
 }
 
-function applicationStorageUri() {
-  return STORAGE_ENV_NAMES.map(name => String(process.env[name] ?? '').trim()).find(Boolean) || storageUriFromServerEnv()
+export function resolveApplicationStorageUri(env = process.env, serverRoot) {
+  const ambient = STORAGE_ENV_NAMES.map(name => String(env[name] ?? '').trim()).find(Boolean)
+  if (ambient) return ambient
+  const bundleRoot = dirname(fileURLToPath(import.meta.url))
+  return storageUriFromServerEnv(serverRoot || env.DSH_SOC_AGENT_SERVER || join(bundleRoot, 'server'))
 }
 
 const mcpRequestStorage = new AsyncLocalStorage()
@@ -151,7 +152,7 @@ function isPrivateUpgradeRoute(path) {
 }
 
 export class SocStateStore {
-  constructor(uri = applicationStorageUri()) {
+  constructor(uri = resolveApplicationStorageUri()) {
     this.pool = String(uri).trim() ? new Pool({ connectionString: String(uri).trim(), max: 10 }) : undefined
   }
 
