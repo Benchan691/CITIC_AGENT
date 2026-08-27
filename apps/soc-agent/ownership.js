@@ -2,7 +2,7 @@ import pg from 'pg'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { readFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { parseEnv } from 'node:util'
 import { fileURLToPath } from 'node:url'
 
@@ -46,10 +46,22 @@ function configuredWorkspaceRoot() {
   return process.env.MCP_SERVER_ROOT || process.env.MCP_SEVER_ROOT || dirname(dirname(bundleRoot))
 }
 
-function responseError(request, code, message) {
+function userWorkspaceRoot(userId) {
+  return join(configuredWorkspaceRoot(), '.data', 'soc-workspaces', String(userId))
+}
+
+function generalWorkspacePath(userId) {
+  return join(userWorkspaceRoot(userId), 'general')
+}
+
+function isGeneralWorkspacePath(path, userId) {
+  return resolve(String(path ?? '')) === resolve(generalWorkspacePath(userId))
+}
+
+function responseError(request, code, message, details = {}) {
   return {
     rpcId: request?.rpcId,
-    result: { ok: false, error: { code, message, details: {} } },
+    result: { ok: false, error: { code, message, details } },
   }
 }
 
@@ -494,17 +506,61 @@ export function createScopedApiProxy(api, auth) {
   const ownsSession = async (id, userId) => sessionBelongsToUser(auth.store, id, userId)
   const ownsFolder = async (id, userId) => (await auth.store.folderOwner(String(id))) === userId
 
+  async function normalizeWorkspaceCreateRequest(request, session) {
+    const payload = requestPayload(request)
+    if (!Object.hasOwn(payload, 'path')) return { request }
+    const rawPath = payload.path
+    if (typeof rawPath !== 'string') {
+      return {
+        response: responseError(request, 'workspace-invalid-path', 'workspace name must be a non-empty single directory name', {
+          path: String(rawPath ?? ''),
+        }),
+      }
+    }
+    const name = rawPath.trim()
+    if (isAbsolute(name)) return { request }
+    if (name === '' || name === '.' || name === '..' || /[/\\\0]/u.test(name)) {
+      return {
+        response: responseError(request, 'workspace-invalid-path', `cannot create a workspace at "${rawPath}": name must be a non-empty single directory name`, {
+          path: rawPath,
+        }),
+      }
+    }
+    const path = name.toLowerCase() === 'general'
+      ? generalWorkspacePath(session.userId)
+      : join(userWorkspaceRoot(session.userId), name)
+    try {
+      await mkdir(path, { recursive: true })
+    } catch (error) {
+      return {
+        response: responseError(request, 'workspace-invalid-path', `cannot create a workspace at "${rawPath}": ${error instanceof Error ? error.message : String(error)}`, {
+          path: rawPath,
+        }),
+      }
+    }
+    return { request: { ...request, payload: { ...payload, path } } }
+  }
+
   async function authorize(domain, method, request) {
     const session = current()
     if (!session) return deny(request, domain === 'workspace' ? 'workspace' : 'session')
     const payload = requestPayload(request)
     if (domain === 'workspace') {
+      if (auth.registry !== undefined) await auth.ensureGeneral?.(session.userId)
       if (method === 'create') {
         if (!payload.path) return undefined
         const existing = await auth.store.workspaceOwnerByPath(workspacePath(payload.path))
         return existing && existing.userId !== session.userId ? deny(request, 'workspace') : undefined
       }
-      if (payload.workspaceId && !(await ownsWorkspace(payload.workspaceId, session.userId))) return deny(request, 'workspace')
+      if (payload.workspaceId) {
+        const owner = await auth.store.workspaceOwner(String(payload.workspaceId))
+        if (owner?.userId !== session.userId) return deny(request, 'workspace')
+        if ((method === 'rename' || method === 'delete') && isGeneralWorkspacePath(owner.path, session.userId)) {
+          return responseError(request, 'workspace-protected', 'General is protected and cannot be renamed or deleted', {
+            workspaceId: String(payload.workspaceId),
+          })
+        }
+      }
       if (method === 'insertBefore' && payload.beforeWorkspaceId && !(await ownsWorkspace(payload.beforeWorkspaceId, session.userId))) return deny(request, 'workspace')
       if (method === 'insertSessionBefore') {
         if (!(await ownsWorkspace(payload.workspaceId, session.userId))) return deny(request, 'workspace')
@@ -686,7 +742,16 @@ export function createScopedApiProxy(api, auth) {
           }
         }
         return async (...args) => {
-          const request = args[0]
+          let scopedArgs = args
+          let request = args[0]
+          if (domain === 'workspace' && String(property) === 'create' && current()) {
+            const normalized = await normalizeWorkspaceCreateRequest(request, current())
+            if (normalized.response) return normalized.response
+            if (normalized.request !== request) {
+              scopedArgs = [normalized.request, ...args.slice(1)]
+              request = normalized.request
+            }
+          }
           const refused = await authorize(domain, String(property), request)
           if (refused) {
             if (domain === 'downloads') return new Response('session not found', { status: 404 })
@@ -698,7 +763,7 @@ export function createScopedApiProxy(api, auth) {
           if (boundSessionId) auth.bindAgentSession(boundSessionId)
           let response
           try {
-            response = await Reflect.apply(method, object, args)
+            response = await Reflect.apply(method, object, scopedArgs)
           } catch (error) {
             if (boundSessionId) auth.unbindAgentSession(boundSessionId)
             throw error
@@ -930,14 +995,14 @@ export class SocAuthService {
   async ensureGeneral(userId) {
     await this.ready
     if (!this.registry) throw new Error('workspace registry unavailable')
-    const path = join(configuredWorkspaceRoot(), '.data', 'soc-workspaces', userId, 'general')
+    const path = generalWorkspacePath(userId)
     await mkdir(path, { recursive: true })
     const existing = await this.registry.resolveByPath(path)
     const workspace = existing ?? await this.registry.create(path, 'General')
     const claimed = await this.store.claimWorkspace(String(workspace.id), userId, workspace.path)
     if (!claimed) throw new Error('workspace ownership conflict')
-    if (existing === undefined && workspace.title !== 'General') await workspace.setTitle('General')
-    return { workspaceId: String(workspace.id), title: workspace.title }
+    if (workspace.title !== 'General') await workspace.setTitle('General')
+    return { workspaceId: String(workspace.id), title: 'General' }
   }
 
   async handleAuthRoute(kind, request, response) {

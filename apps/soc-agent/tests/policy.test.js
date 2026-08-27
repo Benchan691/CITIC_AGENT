@@ -189,12 +189,14 @@ test('SOC action approval defaults fail closed and session overrides are live', 
   assert.equal((await rpcHandler('set-session-action-policy', {
     session_id: session.id,
     auto_approve_actions: [action.name, action.name],
-  })).error.code, 'soc-action-policy-invalid')
+  })).error.code, 'bad-request')
   assert.equal((await rpcHandler('set-session-action-policy', {
     session_id: session.id,
     auto_approve_actions: ['not-a-soc-action'],
-  })).error.code, 'soc-action-policy-invalid')
-  assert.equal((await rpcHandler('get-action-policy', { session_id: 'missing-session' })).error.code, 'soc-action-session-not-found')
+  })).error.code, 'bad-request')
+  const missingPolicy = await rpcHandler('get-action-policy', { session_id: 'missing-session' })
+  assert.equal(missingPolicy.error.code, 'session-not-found')
+  assert.deepEqual(missingPolicy.error.details, { sessionId: 'missing-session' })
   handlers.get('session/disposed')(session)
   assert.equal((await rpcHandler('get-action-policy', { session_id: session.id })).value.source, 'defaults')
 })

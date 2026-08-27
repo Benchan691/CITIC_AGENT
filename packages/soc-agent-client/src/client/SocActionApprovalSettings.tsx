@@ -22,6 +22,7 @@ export interface SocActionApprovalState {
   saving: boolean
   failed: boolean
   catalogLoaded: boolean
+  catalogFailed: boolean
   actions: readonly SocAction[]
   autoApproveActions: readonly string[]
 }
@@ -149,6 +150,7 @@ export class SocActionApprovalController {
       saving: this.saving,
       failed: this.failed,
       catalogLoaded: this.catalogLoaded,
+      catalogFailed: this.catalogFailed,
       actions: this.actions,
       autoApproveActions: [...autoApproveActions],
     }

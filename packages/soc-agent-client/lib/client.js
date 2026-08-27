@@ -354,6 +354,13 @@ window.__ModuleLoader__.load({
 		function readable(value) {
 			return value ? new Date(value).toLocaleString() : "—";
 		}
+		function modelKey(provider, model) {
+			return `${provider}\u0000${model}`;
+		}
+		function taskModelLabel(task) {
+			if (!task.provider || !task.model) return "Default model";
+			return `${task.provider} / ${task.model} · ${task.reasoningEffort || "Provider default"}`;
+		}
 		function SchedulerSettings({ connection, openSession }) {
 			const [tasks, setTasks] = (0, react.useState)([]);
 			const [runs, setRuns] = (0, react.useState)([]);
@@ -362,8 +369,13 @@ window.__ModuleLoader__.load({
 				runTimeoutMs: 9e5
 			});
 			const [status, setStatus] = (0, react.useState)("Loading...");
+			const [modelStatus, setModelStatus] = (0, react.useState)("Loading models...");
+			const [modelGroups, setModelGroups] = (0, react.useState)([]);
 			const [name, setName] = (0, react.useState)("");
 			const [prompt, setPrompt] = (0, react.useState)("");
+			const [provider, setProvider] = (0, react.useState)("");
+			const [model, setModel] = (0, react.useState)("");
+			const [reasoningEffort, setReasoningEffort] = (0, react.useState)("");
 			const [kind, setKind] = (0, react.useState)("once");
 			const [at, setAt] = (0, react.useState)("");
 			const [cron, setCron] = (0, react.useState)("0 * * * *");
@@ -379,9 +391,40 @@ window.__ModuleLoader__.load({
 					setStatus(error instanceof Error ? error.message : String(error));
 				}
 			}, [connection]);
+			const loadModels = (0, react.useCallback)(async () => {
+				setModelStatus("Loading models...");
+				try {
+					const [catalogResponse, hostResponse] = await Promise.all([connection.api.llm.models({}), connection.api.host.describe({}).catch(() => void 0)]);
+					if (!catalogResponse.result.ok) throw new Error(catalogResponse.result.error.message);
+					const groups = catalogResponse.result.value.groups;
+					const choices = groups.flatMap((group) => group.models.map((item) => ({
+						provider: group.id,
+						id: item.id,
+						reasoning: item.reasoning
+					})));
+					setModelGroups(groups);
+					if (choices.length === 0) {
+						setProvider("");
+						setModel("");
+						setReasoningEffort("");
+						setModelStatus("No models are available.");
+						return;
+					}
+					const preferredProvider = hostResponse?.result.ok ? hostResponse.result.value.provider : void 0;
+					const preferredModel = hostResponse?.result.ok ? hostResponse.result.value.model : void 0;
+					const choice = choices.find((item) => item.provider === preferredProvider && item.id === preferredModel) ?? choices[0];
+					setProvider(choice.provider);
+					setModel(choice.id);
+					setReasoningEffort("");
+					setModelStatus(catalogResponse.result.value.failures.length > 0 ? "Some providers could not be loaded." : "");
+				} catch (error) {
+					setModelStatus(error instanceof Error ? error.message : String(error));
+				}
+			}, [connection]);
 			(0, react.useEffect)(() => {
 				load();
-			}, [load]);
+				loadModels();
+			}, [load, loadModels]);
 			const mutate = async (endpoint, payload) => {
 				setStatus("Saving...");
 				try {
@@ -394,8 +437,11 @@ window.__ModuleLoader__.load({
 			const create = async () => {
 				const payload = {
 					name,
-					prompt
+					prompt,
+					provider,
+					model
 				};
+				if (reasoningEffort) payload.reasoning_effort = reasoningEffort;
 				if (kind === "once") {
 					const [date, time] = at.split("T");
 					payload.at = {
@@ -412,6 +458,7 @@ window.__ModuleLoader__.load({
 				setPrompt("");
 				setAt("");
 			};
+			const selectedModel = modelGroups.find((group) => group.id === provider)?.models.find((item) => item.id === model);
 			return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.form }, react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Persistent read-only investigations run whenever this DSH host is active."), status ? react.default.createElement("p", {
 				className: SplunkZimbraOverlay_module_css_default.status,
 				role: "status"
@@ -452,7 +499,38 @@ window.__ModuleLoader__.load({
 				maxLength: 8e3,
 				rows: 5,
 				onChange: (event) => setPrompt(event.target.value)
-			}), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Rule"), react.default.createElement("select", {
+			}), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Model"), react.default.createElement("select", {
+				className: SplunkZimbraOverlay_module_css_default.input,
+				value: modelKey(provider, model),
+				disabled: modelGroups.length === 0,
+				onChange: (event) => {
+					const selected = modelGroups.flatMap((group) => group.models.map((item) => ({
+						group,
+						item
+					}))).find(({ group, item }) => modelKey(group.id, item.id) === event.target.value);
+					if (!selected) return;
+					setProvider(selected.group.id);
+					setModel(selected.item.id);
+					setReasoningEffort(selected.item.reasoning?.defaultEffort ?? "");
+				}
+			}, modelGroups.map((group) => react.default.createElement("optgroup", {
+				key: group.id,
+				label: group.name
+			}, group.models.map((item) => react.default.createElement("option", {
+				key: modelKey(group.id, item.id),
+				value: modelKey(group.id, item.id)
+			}, item.name)))))), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Reasoning effort"), react.default.createElement("select", {
+				className: SplunkZimbraOverlay_module_css_default.input,
+				value: reasoningEffort,
+				disabled: !provider || !model,
+				onChange: (event) => setReasoningEffort(event.target.value)
+			}, react.default.createElement("option", { value: "" }, "Provider default"), (selectedModel?.reasoning?.efforts ?? []).map((effort) => react.default.createElement("option", {
+				key: effort.id,
+				value: effort.id
+			}, effort.name)))), modelStatus ? react.default.createElement("p", {
+				className: SplunkZimbraOverlay_module_css_default.description,
+				role: "status"
+			}, modelStatus) : null, react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Rule"), react.default.createElement("select", {
 				className: SplunkZimbraOverlay_module_css_default.input,
 				value: kind,
 				onChange: (event) => setKind(event.target.value)
@@ -473,14 +551,14 @@ window.__ModuleLoader__.load({
 			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
 				className: SplunkZimbraOverlay_module_css_default.primaryButton,
 				type: "button",
-				disabled: !name.trim() || !prompt.trim() || kind === "once" && !at,
+				disabled: !name.trim() || !prompt.trim() || !provider || !model || modelGroups.length === 0 || kind === "once" && !at,
 				onClick: () => {
 					create();
 				}
 			}, "Create task"))), react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Tasks"), tasks.length === 0 ? react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "No scheduled tasks.") : null, tasks.map((task) => react.default.createElement("article", {
 				className: SplunkZimbraOverlay_module_css_default.account,
 				key: task.id
-			}, react.default.createElement("strong", null, task.name), react.default.createElement("span", { className: SplunkZimbraOverlay_module_css_default.description }, `${task.status} · Next ${readable(task.nextRunAt)} · Last ${readable(task.lastRunAt)}`), react.default.createElement("code", { className: SplunkZimbraOverlay_module_css_default.rule }, task.rule.kind === "once" ? task.rule.at : `${task.rule.expression} (${task.rule.timeZone})`), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, task.status === "active" ? react.default.createElement("button", {
+			}, react.default.createElement("strong", null, task.name), react.default.createElement("span", { className: SplunkZimbraOverlay_module_css_default.description }, `${task.status} · Next ${readable(task.nextRunAt)} · Last ${readable(task.lastRunAt)}`), react.default.createElement("span", { className: SplunkZimbraOverlay_module_css_default.description }, `Model: ${taskModelLabel(task)}`), react.default.createElement("code", { className: SplunkZimbraOverlay_module_css_default.rule }, task.rule.kind === "once" ? task.rule.at : `${task.rule.expression} (${task.rule.timeZone})`), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, task.status === "active" ? react.default.createElement("button", {
 				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
 				type: "button",
 				onClick: () => {
@@ -804,6 +882,7 @@ window.__ModuleLoader__.load({
 			}, [sourceKey]);
 			if (!("kind" in block)) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				className: EmailDraftToolview_module_css_default.card,
+				"data-dshcf-preserve": "true",
 				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					className: EmailDraftToolview_module_css_default.message,
 					children: "Preparing email draft…"
@@ -812,6 +891,7 @@ window.__ModuleLoader__.load({
 			const upstreamError = errorMessage(envelope);
 			if (upstreamError || block.isError) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				className: EmailDraftToolview_module_css_default.card,
+				"data-dshcf-preserve": "true",
 				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					className: `${EmailDraftToolview_module_css_default.message} ${EmailDraftToolview_module_css_default.error}`,
 					children: upstreamError || "Unable to create the email draft."
@@ -819,6 +899,7 @@ window.__ModuleLoader__.load({
 			});
 			if (status === "discarded") return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: EmailDraftToolview_module_css_default.card,
+				"data-dshcf-preserve": "true",
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					className: EmailDraftToolview_module_css_default.header,
 					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
@@ -897,6 +978,7 @@ window.__ModuleLoader__.load({
 			};
 			if (status === "sent") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				className: EmailDraftToolview_module_css_default.card,
+				"data-dshcf-preserve": "true",
 				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					className: EmailDraftToolview_module_css_default.header,
 					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
@@ -907,6 +989,7 @@ window.__ModuleLoader__.load({
 			});
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
 				className: EmailDraftToolview_module_css_default.card,
+				"data-dshcf-preserve": "true",
 				"aria-label": "Editable Zimbra email draft",
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					className: EmailDraftToolview_module_css_default.header,
@@ -1758,6 +1841,7 @@ window.__ModuleLoader__.load({
 					saving: this.saving,
 					failed: this.failed,
 					catalogLoaded: this.catalogLoaded,
+					catalogFailed: this.catalogFailed,
 					actions: this.actions,
 					autoApproveActions: [...autoApproveActions]
 				};
@@ -1913,7 +1997,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SocActionPolicyMenu.module.css.mjs
-		const css = ".X9dZ8W_root{align-items:center;display:inline-flex;position:relative}.X9dZ8W_trigger{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:30px;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;border-radius:8px;align-items:center;gap:6px;padding:0 10px;font-size:12px;display:inline-flex}.X9dZ8W_trigger:hover,.X9dZ8W_trigger[aria-expanded=true]{border-color:var(--dsw-alias-label-dimmed);color:var(--dsw-alias-label-primary)}.X9dZ8W_trigger:focus-visible,.X9dZ8W_checkbox:focus-visible,.X9dZ8W_actionButton:focus-visible,.X9dZ8W_resetButton:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.X9dZ8W_icon{font-size:15px;line-height:1}.X9dZ8W_panel{z-index:20;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:min(380px,100vw - 24px);max-height:min(70vh,560px);box-shadow:var(--dsw-shadow-lv2);border-radius:12px;padding:14px;position:absolute;bottom:calc(100% + 8px);right:0;overflow-y:auto}.X9dZ8W_title{color:var(--dsw-alias-label-primary);margin:0;font-size:13px;font-weight:600}.X9dZ8W_description,.X9dZ8W_error,.X9dZ8W_status{color:var(--dsw-alias-label-tertiary);margin:5px 0 0;font-size:11px;line-height:1.5}.X9dZ8W_error{color:var(--dsw-alias-label-error)}.X9dZ8W_groups{gap:12px;margin-top:12px;display:grid}.X9dZ8W_group{border:0;margin:0;padding:0}.X9dZ8W_groupTitle{color:var(--dsw-alias-label-secondary);text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px;font-size:11px;font-weight:600}.X9dZ8W_action{color:var(--dsw-alias-label-primary);cursor:pointer;align-items:flex-start;gap:8px;padding:4px 0;font-size:12px;line-height:1.4;display:flex}.X9dZ8W_checkbox{width:15px;height:15px;accent-color:var(--dsw-alias-brand-primary);flex:none;margin:1px 0 0}.X9dZ8W_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;gap:7px;margin-top:12px;padding-top:11px;display:flex}.X9dZ8W_actionButton,.X9dZ8W_resetButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border-radius:7px;padding:5px 10px;font-size:11px}.X9dZ8W_actionButton{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3);border-color:#0000}.X9dZ8W_actionButton:disabled,.X9dZ8W_resetButton:disabled{opacity:.45;cursor:default}";
+		const css = ".X9dZ8W_root{align-items:center;display:inline-flex;position:relative}.X9dZ8W_trigger{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:30px;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;border-radius:8px;align-items:center;gap:6px;padding:0 10px;font-size:12px;display:inline-flex}.X9dZ8W_trigger:hover,.X9dZ8W_trigger[aria-expanded=true]{border-color:var(--dsw-alias-label-dimmed);color:var(--dsw-alias-label-primary)}.X9dZ8W_trigger:focus-visible,.X9dZ8W_modeRadio:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.X9dZ8W_icon{font-size:15px;line-height:1}.X9dZ8W_panel{z-index:20;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:min(380px,100vw - 24px);max-height:min(70vh,560px);box-shadow:var(--dsw-shadow-lv2);border-radius:12px;padding:14px;position:absolute;bottom:calc(100% + 8px);right:0;overflow-y:auto}.X9dZ8W_error,.X9dZ8W_status{color:var(--dsw-alias-label-tertiary);margin:5px 0 0;font-size:11px;line-height:1.5}.X9dZ8W_error{color:var(--dsw-alias-label-error)}.X9dZ8W_modes{border:0;gap:7px;margin-top:12px;padding:0;display:grid}.X9dZ8W_modeLegend{color:var(--dsw-alias-label-secondary);margin:0 0 4px;font-size:11px;font-weight:600}.X9dZ8W_mode{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary);cursor:pointer;border-radius:8px;align-items:center;gap:8px;padding:8px 9px;font-size:12px;line-height:1.4;display:flex}.X9dZ8W_mode:hover{border-color:var(--dsw-alias-label-dimmed)}.X9dZ8W_modeRadio{width:15px;height:15px;accent-color:var(--dsw-alias-brand-primary);flex:none;margin:0}.X9dZ8W_modeText{gap:2px;display:grid}.X9dZ8W_modeLabel{color:var(--dsw-alias-label-primary);font-weight:600}.X9dZ8W_modeDescription{color:var(--dsw-alias-label-tertiary);font-size:11px}";
 		const tagId = "dsh-soc-agent-client/SocActionPolicyMenu.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -1923,21 +2007,18 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SocActionPolicyMenu_module_css_default = {
-			"action": "X9dZ8W_action",
-			"actionButton": "X9dZ8W_actionButton",
-			"checkbox": "X9dZ8W_checkbox",
-			"description": "X9dZ8W_description",
 			"error": "X9dZ8W_error",
-			"footer": "X9dZ8W_footer",
-			"group": "X9dZ8W_group",
-			"groupTitle": "X9dZ8W_groupTitle",
-			"groups": "X9dZ8W_groups",
 			"icon": "X9dZ8W_icon",
+			"mode": "X9dZ8W_mode",
+			"modeDescription": "X9dZ8W_modeDescription",
+			"modeLabel": "X9dZ8W_modeLabel",
+			"modeLegend": "X9dZ8W_modeLegend",
+			"modeRadio": "X9dZ8W_modeRadio",
+			"modeText": "X9dZ8W_modeText",
+			"modes": "X9dZ8W_modes",
 			"panel": "X9dZ8W_panel",
-			"resetButton": "X9dZ8W_resetButton",
 			"root": "X9dZ8W_root",
 			"status": "X9dZ8W_status",
-			"title": "X9dZ8W_title",
 			"trigger": "X9dZ8W_trigger"
 		};
 		//#endregion
@@ -1955,13 +2036,16 @@ window.__ModuleLoader__.load({
 				source
 			};
 		}
-		function groupsOf(actions) {
-			return [...new Set(actions.map((action) => action.group))];
+		function modeOf(policy) {
+			if (policy.source === "defaults") return "soc";
+			const auto = new Set(policy.autoApproveActions);
+			if (auto.size === 0) return "ask";
+			return auto.size === policy.actions.length && policy.actions.every((action) => auto.has(action.name)) ? "full-access" : "soc";
 		}
 		function SocActionPolicyMenu({ connection, sessionId }) {
 			const [open, setOpen] = (0, react.useState)(false);
 			const [policy, setPolicy] = (0, react.useState)();
-			const [draft, setDraft] = (0, react.useState)();
+			const [draftMode, setDraftMode] = (0, react.useState)();
 			const [loading, setLoading] = (0, react.useState)(false);
 			const [saving, setSaving] = (0, react.useState)(false);
 			const [error, setError] = (0, react.useState)();
@@ -1975,7 +2059,7 @@ window.__ModuleLoader__.load({
 					const next = parsePolicy(response.value);
 					if (next === void 0) throw new Error("The session action policy is unavailable.");
 					setPolicy(next);
-					setDraft(new Set(next.autoApproveActions));
+					setDraftMode(modeOf(next));
 				}).catch((reason) => {
 					if (live) setError(reason instanceof Error ? reason.message : "The session action policy is unavailable.");
 				}).finally(() => {
@@ -1985,49 +2069,35 @@ window.__ModuleLoader__.load({
 					live = false;
 				};
 			}, [connection, sessionId]);
-			const auto = draft ?? new Set(policy?.autoApproveActions ?? []);
-			const toggle = (name, ask) => {
-				const next = new Set(auto);
-				if (ask) next.delete(name);
-				else next.add(name);
-				setDraft(next);
-			};
-			const apply = async () => {
-				if (draft === void 0) return;
+			const currentMode = policy === void 0 ? void 0 : modeOf(policy);
+			const selectedMode = draftMode ?? currentMode;
+			const selectMode = async (mode) => {
+				if (policy === void 0 || saving) return;
+				if (mode === currentMode && !(mode === "soc" && policy.source === "session")) {
+					setOpen(false);
+					return;
+				}
+				setDraftMode(mode);
 				setSaving(true);
 				setError(void 0);
 				try {
-					const response = await connection.rpc.call(CHANNEL, "set-session-action-policy", {
+					const response = mode === "soc" ? await connection.rpc.call(CHANNEL, "reset-session-action-policy", { session_id: String(sessionId) }) : await connection.rpc.call(CHANNEL, "set-session-action-policy", {
 						session_id: String(sessionId),
-						auto_approve_actions: [...draft]
+						auto_approve_actions: mode === "full-access" ? policy.actions.map((action) => action.name) : []
 					});
 					if (!response?.ok) throw new Error(response?.error?.message || "The session action policy could not be saved.");
 					const next = parsePolicy(response.value);
 					if (next === void 0) throw new Error("The session action policy could not be saved.");
 					setPolicy(next);
-					setDraft(new Set(next.autoApproveActions));
+					setDraftMode(modeOf(next));
+					setOpen(false);
 				} catch (reason) {
 					setError(reason instanceof Error ? reason.message : "The session action policy could not be saved.");
 				} finally {
 					setSaving(false);
 				}
 			};
-			const reset = async () => {
-				setSaving(true);
-				setError(void 0);
-				try {
-					const response = await connection.rpc.call(CHANNEL, "reset-session-action-policy", { session_id: String(sessionId) });
-					if (!response?.ok) throw new Error(response?.error?.message || "The session action policy could not be reset.");
-					const next = parsePolicy(response.value);
-					if (next === void 0) throw new Error("The session action policy could not be reset.");
-					setPolicy(next);
-					setDraft(new Set(next.autoApproveActions));
-				} catch (reason) {
-					setError(reason instanceof Error ? reason.message : "The session action policy could not be reset.");
-				} finally {
-					setSaving(false);
-				}
-			};
+			const modeLabel = selectedMode === "full-access" ? "Full Access" : selectedMode === "ask" ? "Ask for approval" : "SOC mode";
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: SocActionPolicyMenu_module_css_default.root,
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
@@ -2040,25 +2110,13 @@ window.__ModuleLoader__.load({
 						className: SocActionPolicyMenu_module_css_default.icon,
 						"aria-hidden": "true",
 						children: "✓"
-					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Actions" })]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: modeLabel })]
 				}), open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: SocActionPolicyMenu_module_css_default.panel,
 					id: `soc-action-policy-${String(sessionId)}`,
 					role: "dialog",
-					"aria-label": "SOC action approvals",
+					"aria-label": "SOC action modes",
 					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: SocActionPolicyMenu_module_css_default.title,
-							children: "SOC action approvals"
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: SocActionPolicyMenu_module_css_default.description,
-							children: "Checked actions ask before running. This session override does not change saved defaults."
-						}),
-						policy?.source === "session" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: SocActionPolicyMenu_module_css_default.status,
-							children: "Using a session-only override."
-						}),
 						loading && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 							className: SocActionPolicyMenu_module_css_default.status,
 							children: "Loading actions…"
@@ -2068,44 +2126,83 @@ window.__ModuleLoader__.load({
 							role: "status",
 							children: error
 						}),
-						policy !== void 0 && !loading && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: SocActionPolicyMenu_module_css_default.groups,
-							children: groupsOf(policy.actions).map((group) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
-								className: SocActionPolicyMenu_module_css_default.group,
-								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", {
-									className: SocActionPolicyMenu_module_css_default.groupTitle,
-									children: group
-								}), policy.actions.filter((action) => action.group === group).map((action) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-									className: SocActionPolicyMenu_module_css_default.action,
+						policy !== void 0 && !loading && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+							className: SocActionPolicyMenu_module_css_default.modes,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", {
+									className: SocActionPolicyMenu_module_css_default.modeLegend,
+									children: "Choose a mode"
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: SocActionPolicyMenu_module_css_default.mode,
 									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-										className: SocActionPolicyMenu_module_css_default.checkbox,
-										type: "checkbox",
-										checked: !auto.has(action.name),
+										className: SocActionPolicyMenu_module_css_default.modeRadio,
+										type: "radio",
+										name: `soc-action-mode-${String(sessionId)}`,
+										checked: selectedMode === "full-access",
+										readOnly: true,
 										disabled: saving,
-										onChange: (event) => toggle(action.name, event.currentTarget.checked)
-									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: action.label })]
-								}, action.name))]
-							}, group))
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							className: SocActionPolicyMenu_module_css_default.footer,
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								className: SocActionPolicyMenu_module_css_default.resetButton,
-								type: "button",
-								disabled: saving || loading,
-								onClick: () => {
-									reset();
-								},
-								children: "Use saved defaults"
-							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								className: SocActionPolicyMenu_module_css_default.actionButton,
-								type: "button",
-								disabled: saving || loading || draft === void 0,
-								onClick: () => {
-									apply();
-								},
-								children: saving ? "Saving…" : "Apply to session"
-							})]
+										onClick: () => {
+											selectMode("full-access");
+										}
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+										className: SocActionPolicyMenu_module_css_default.modeText,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: SocActionPolicyMenu_module_css_default.modeLabel,
+											children: "Full Access"
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: SocActionPolicyMenu_module_css_default.modeDescription,
+											children: "Run all known SOC actions without asking."
+										})]
+									})]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: SocActionPolicyMenu_module_css_default.mode,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										className: SocActionPolicyMenu_module_css_default.modeRadio,
+										type: "radio",
+										name: `soc-action-mode-${String(sessionId)}`,
+										checked: selectedMode === "ask",
+										readOnly: true,
+										disabled: saving,
+										onClick: () => {
+											selectMode("ask");
+										}
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+										className: SocActionPolicyMenu_module_css_default.modeText,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: SocActionPolicyMenu_module_css_default.modeLabel,
+											children: "Ask for approval"
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: SocActionPolicyMenu_module_css_default.modeDescription,
+											children: "Ask before every known SOC action."
+										})]
+									})]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: SocActionPolicyMenu_module_css_default.mode,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										className: SocActionPolicyMenu_module_css_default.modeRadio,
+										type: "radio",
+										name: `soc-action-mode-${String(sessionId)}`,
+										checked: selectedMode === "soc",
+										readOnly: true,
+										disabled: saving,
+										onClick: () => {
+											selectMode("soc");
+										}
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+										className: SocActionPolicyMenu_module_css_default.modeText,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: SocActionPolicyMenu_module_css_default.modeLabel,
+											children: "SOC mode"
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: SocActionPolicyMenu_module_css_default.modeDescription,
+											children: "Use the approval checklist from Settings → Plugins."
+										})]
+									})]
+								})
+							]
 						})
 					]
 				})]
@@ -2922,7 +3019,10 @@ window.__ModuleLoader__.load({
 			const settings = new AttachmentSettingsController(ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
 			const actionApproval = new SocActionApprovalController(connection, ctx.settingsScope.bind({ namespace: SOC_ACTION_APPROVAL_NAMESPACE }));
 			ctx.effect(() => ctx.conversation.registerDocumentProvider(documents), "soc-agent: MarkItDown document provider");
-			ctx.slots.inject("conversation.input.documents", () => ctx.slots.register({ name: "conversation.input.documents" }, (props) => react.default.createElement(MarkItDownDocuments, {
+			ctx.slots.inject("conversation.input.documents", () => ctx.slots.register({
+				name: "conversation.input.documents",
+				locale: "conversation"
+			}, (props) => react.default.createElement(MarkItDownDocuments, {
 				...props,
 				controller: documents
 			})));
@@ -2948,7 +3048,7 @@ window.__ModuleLoader__.load({
 				key: SOC_ACTION_APPROVAL_NAMESPACE,
 				inject: () => actionApproval.inject()
 			}, SocActionApprovalSettingsCard));
-			ctx.slots.inject("conversation.input.left", (sessionId) => ctx.slots.register({
+			ctx.slots.inject("conversation.input.left", () => ctx.slots.register({
 				name: "conversation.input.left",
 				id: "soc-action-policy",
 				priority: -10

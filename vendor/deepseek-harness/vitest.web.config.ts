@@ -1,6 +1,7 @@
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { defineConfig } from 'vitest/config'
 import { standardDecoratorPlugin, vitestExecArgv } from './vitest.shared.ts'
+import { SOC_UNSUPPORTED_WEB_TESTS } from '../../apps/soc-agent/tests/web-test-policy.js'
 
 // Web browser lane: real host entry points, built-client interaction snapshots,
 // and replayed keyless e2e scenarios outside the unit/e2e includes. Linux PR CI
@@ -27,6 +28,10 @@ export default defineConfig({
       'apps/web/tests/**/*.e2e.ts',
       'apps/web/tests/**/*.snapshot.ts',
     ],
+    // The upstream Web suite remains the default. The SOC lane opts in with
+    // DSH_SOC_AGENT=1 and excludes only tests whose product surface is absent
+    // or intentionally replaced by the SOC composition.
+    exclude: process.env.DSH_SOC_AGENT === '1' ? SOC_UNSUPPORTED_WEB_TESTS : [],
     // Local and record runs stay serial. CI runs workspace-mutating HMR and
     // dynamic Cordis lifecycle coverage before parallelizing the remaining files.
     testTimeout: 180_000,

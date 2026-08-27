@@ -16,7 +16,6 @@
   "credentials",
   "llm-pi-ai",
   "session-persistence-jsonl",
-  "session-folders",
   "attachment-local",
   "session-query-sqlite",
   "session-projection",

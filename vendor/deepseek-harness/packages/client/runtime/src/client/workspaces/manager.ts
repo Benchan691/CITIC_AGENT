@@ -71,9 +71,21 @@ export class WorkspaceManager {
     this.snapshotCache = this.buildSnapshot()
   })
 
-  /** @param api - shared wire client. */
-  constructor(private readonly api: IApiClient) {
+  /**
+   * @param api - shared wire client.
+   * @param logicalFolders - optional Host capability probe; omitted keeps the
+   * legacy client-side `folders` presence behavior for fixture/embedded hosts.
+   */
+  constructor(
+    private readonly api: IApiClient,
+    private readonly logicalFolders?: () => boolean | undefined,
+  ) {
     this.snapshotCache = this.buildSnapshot()
+  }
+
+  /** Select the Host's physical workspace registry when logical folders are unavailable. */
+  private usesLogicalFolders(): boolean {
+    return this.api.folders !== undefined && (this.logicalFolders?.() ?? true)
   }
 
   /**
@@ -94,7 +106,7 @@ export class WorkspaceManager {
       try {
         let items: WorkspaceView[]
         let archived: SessionId[]
-        if (this.api.folders === undefined) {
+        if (!this.usesLogicalFolders()) {
           const result = (await this.api.workspace.list({})).result
           if (!result.ok) {
             this.state = 'error'
@@ -105,7 +117,7 @@ export class WorkspaceManager {
           archived = result.value.archivedSessionIds
         } else {
           const [folderResponse, workspaceResponse] = await Promise.all([
-            this.api.folders.list({}),
+            this.api.folders!.list({}),
             this.api.workspace.list({}),
           ])
           const { result: folderResult } = folderResponse
@@ -153,7 +165,7 @@ export class WorkspaceManager {
    * @returns the wire result.
    */
   async create(input: WorkspaceCreateInput): Promise<RpcResult<{ workspace: WorkspaceView; created: boolean }>> {
-    if (this.api.folders === undefined) {
+    if (!this.usesLogicalFolders()) {
       const workspace = new Workspace(this.api, input)
       const completion = workspace.materialize()
       if (completion === undefined) throw new Error('a local Workspace must be materializable')
@@ -162,7 +174,7 @@ export class WorkspaceManager {
       return result
     }
     try {
-      const response = await this.api.folders.create({ name: input.path })
+      const response = await this.api.folders!.create({ name: input.path })
       const { result } = response
       if (!result.ok) return result
       const view = folderAsWorkspace(result.value.folder)
@@ -188,12 +200,12 @@ export class WorkspaceManager {
    * @returns the wire result.
    */
   async rename(workspaceId: WorkspaceId, title: string): Promise<RpcResult<{ workspace: WorkspaceView }>> {
-    if (this.api.folders === undefined) {
+    if (!this.usesLogicalFolders()) {
       const { result } = await this.api.workspace.rename({ workspaceId, title })
       if (result.ok) this.upsert(result.value.workspace)
       return result
     }
-    const response = await this.api.folders.rename({ folderId: workspaceId as never, name: title })
+    const response = await this.api.folders!.rename({ folderId: workspaceId as never, name: title })
     const { result } = response
     if (!result.ok) return result
     const workspace = folderAsWorkspace(result.value.folder)
@@ -208,12 +220,12 @@ export class WorkspaceManager {
    * @returns the wire result.
    */
   async delete(workspaceId: WorkspaceId): Promise<RpcResult<{ deleted: true }>> {
-    if (this.api.folders === undefined) {
+    if (!this.usesLogicalFolders()) {
       const { result } = await this.api.workspace.delete({ workspaceId })
       if (result.ok) this.remove(workspaceId, true)
       return result
     }
-    const response = await this.api.folders.delete({ folderId: workspaceId as never })
+    const response = await this.api.folders!.delete({ folderId: workspaceId as never })
     const { result } = response
     if (result.ok) this.remove(workspaceId, true)
     return result.ok
@@ -272,7 +284,7 @@ export class WorkspaceManager {
     sessionId: SessionId,
     beforeSessionId?: SessionId,
   ): Promise<RpcResult<{ workspace: WorkspaceView }>> {
-    if (this.api.folders === undefined) {
+    if (!this.usesLogicalFolders()) {
       const { result } = await this.api.workspace.insertSessionBefore({
         workspaceId, sessionId,
         ...beforeSessionId === undefined ? {} : { beforeSessionId },
@@ -281,7 +293,7 @@ export class WorkspaceManager {
       return result
     }
     void beforeSessionId
-    const response = await this.api.folders.moveSessionToFolder({
+    const response = await this.api.folders!.moveSessionToFolder({
       folderId: workspaceId as never,
       sessionId,
     })
@@ -297,8 +309,8 @@ export class WorkspaceManager {
    * @param folderId - folder projected as a Workspace id on the client.
    */
   async syncFolder(folderId: WorkspaceId): Promise<void> {
-    if (this.api.folders === undefined) return
-    const response = await this.api.folders.get({ folderId: folderId as never })
+    if (!this.usesLogicalFolders()) return
+    const response = await this.api.folders!.get({ folderId: folderId as never })
     if (!response.result.ok) return
     this.upsert(folderAsWorkspace(response.result.value.folder))
   }

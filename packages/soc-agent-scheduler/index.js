@@ -2,7 +2,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import { Cron } from 'croner'
 import s from '@deepseek-ai/schemastery'
 import { z } from 'zod'
-import { createUserMessage } from '../../vendor/deepseek-harness/packages/llm/llm/lib/index.js'
+import { createUserMessage, ReasoningEffortId } from '../../vendor/deepseek-harness/packages/llm/llm/lib/index.js'
+import { installModelSelection } from '../../vendor/deepseek-harness/packages/core/agent/lib/index.js'
 import { SessionId } from '../../vendor/deepseek-harness/packages/core/session/lib/index.js'
 import { defineDomain, domainTable } from '../../vendor/deepseek-harness/packages/storage/storage-domain/lib/index.js'
 import { defineTool } from '../../vendor/deepseek-harness/packages/core/tools/lib/index.js'
@@ -10,6 +11,7 @@ import { READ_ONLY_DOMAIN_TOOLS } from '../../apps/soc-agent/policy.js'
 
 export const name = 'soc-agent-scheduler'
 export const inject = [
+  'agentDefaultModel',
   'agents',
   'connection',
   'sessions',
@@ -32,6 +34,9 @@ const CHANNEL = '/soc-agent-schedules'
 const MAX_TIMER_DELAY_MS = 2_147_483_647
 const MAX_NAME_CHARS = 120
 const MAX_PROMPT_CHARS = 8_000
+const MAX_PROVIDER_CHARS = 200
+const MAX_MODEL_CHARS = 200
+const MAX_EFFORT_CHARS = 120
 const MAX_TASKS = 50
 const MAX_ACTIVE_TASKS = 20
 const MAX_RECENT_RUNS = 20
@@ -51,6 +56,9 @@ const taskSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
   prompt: z.string().min(1),
+  provider: z.string().min(1).optional(),
+  model: z.string().min(1).optional(),
+  reasoningEffort: z.string().min(1).optional(),
   rule: z.discriminatedUnion('kind', [onceRuleSchema, cronRuleSchema]),
   status: z.enum(['active', 'paused', 'completed']),
   createdAt: z.iso.datetime({ offset: true }),
@@ -104,6 +112,50 @@ function taskSummary(task) {
     promptCharacters: prompt.length,
     promptSha256: createHash('sha256').update(prompt).digest('hex'),
   }
+}
+
+function optionalText(value) {
+  return value === undefined || value === null ? '' : String(value).trim()
+}
+
+function modelSelectionFromInput(input) {
+  const provider = optionalText(input.provider)
+  const model = optionalText(input.model)
+  const reasoningEffort = optionalText(input.reasoning_effort ?? input.reasoningEffort)
+  if (provider.length > MAX_PROVIDER_CHARS || model.length > MAX_MODEL_CHARS || reasoningEffort.length > MAX_EFFORT_CHARS) {
+    throw new SchedulerInputError('invalid_model', 'provider, model, or reasoning_effort is too long.')
+  }
+  if ((provider.length === 0) !== (model.length === 0)) {
+    throw new SchedulerInputError('invalid_model', 'provider and model must be provided together.')
+  }
+  if (reasoningEffort && !provider) {
+    throw new SchedulerInputError('invalid_model', 'reasoning_effort requires provider and model.')
+  }
+  if (!provider) return undefined
+  return {
+    provider,
+    model,
+    ...reasoningEffort ? { reasoningEffort } : {},
+  }
+}
+
+function selectionForTask(task, defaultSelection) {
+  const hasProvider = typeof task.provider === 'string' && task.provider.length > 0
+  const hasModel = typeof task.model === 'string' && task.model.length > 0
+  if (hasProvider !== hasModel) {
+    throw new SchedulerInputError('invalid_model', 'The scheduled task has an incomplete model selection.')
+  }
+  if (hasProvider) {
+    return {
+      provider: task.provider,
+      model: task.model,
+      ...task.reasoningEffort === undefined ? {} : { reasoningEffort: ReasoningEffortId(task.reasoningEffort) },
+    }
+  }
+  if (!defaultSelection?.provider || !defaultSelection?.model) {
+    throw new SchedulerInputError('model_unavailable', 'No model is configured for this scheduled task.')
+  }
+  return defaultSelection
 }
 
 function textOutput(_args, value) {
@@ -389,6 +441,7 @@ export class SchedulerRuntime {
     if (!prompt || prompt.length > MAX_PROMPT_CHARS) {
       throw new SchedulerInputError('invalid_prompt', `prompt must contain 1-${MAX_PROMPT_CHARS} characters.`)
     }
+    const modelSelection = modelSelectionFromInput(input)
     const tasks = [...this.tasks.entries()].map(([, task]) => task)
       .filter(task => this.taskBelongsTo(task, owner?.userId))
     if (tasks.length >= MAX_TASKS) {
@@ -401,6 +454,7 @@ export class SchedulerRuntime {
     const now = iso()
     const task = {
       id: randomUUID(), name, prompt, ...normalized, status: 'active', createdAt: now, updatedAt: now,
+      ...(modelSelection ?? {}),
       ...(owner ? { ownerUserId: owner.userId, workspaceId: owner.workspaceId } : {}),
     }
     await this.tasks.put(task.id, task)
@@ -579,10 +633,14 @@ export class SchedulerRuntime {
         }
       }
       const sessionId = SessionId(`scheduled-${randomUUID()}`)
+      const defaultSelection = this.ctx?.get?.('agentDefaultModel') ?? this.ctx?.agentDefaultModel
+      const selection = selectionForTask(task, defaultSelection?.currentSelection?.())
       handle = await this.ctx.agents.create({
         sessionId,
         meta: { cwd: workspace?.path ?? this.config.workspaceRoot },
+        agentOptions: { provider: selection.provider, model: selection.model },
         setup: (agentCtx) => {
+          installModelSelection(agentCtx, { current: selection, assembled: undefined })
           agentCtx.tools.restrict({ allow: [...READ_ONLY_DOMAIN_TOOLS] })
         },
       })
@@ -596,13 +654,6 @@ export class SchedulerRuntime {
       }
       await this.runs.put(run.id, run)
       this.ctx.sessionTitle.rename(handle.agent.session, `[Scheduled] ${task.name} · ${new Date(startedAt).toLocaleString()}`)
-      handle.agent.session.append('scheduled-task/run', {
-        taskId: task.id,
-        runId: run.id,
-        taskName: task.name,
-        scheduledFor: run.scheduledFor,
-        startedAt,
-      })
       handle.agent.followup(createUserMessage({
         content: [{ type: 'text', text: [
           '[SCHEDULED INVESTIGATION]',
@@ -683,9 +734,12 @@ function registerTools(ctx, runtime) {
     return await callback(args, owner)
   }
   const registrations = [
-    tool('scheduled_task_create', 'Create a persistent read-only investigation using exactly one one-time or cron rule.', {
+    tool('scheduled_task_create', 'Create a persistent read-only investigation using exactly one one-time or cron rule, with an optional provider, model, and reasoning effort.', {
       name: { type: 'string', required: true },
       prompt: { type: 'string', required: true },
+      provider: { type: 'string' },
+      model: { type: 'string' },
+      reasoning_effort: { type: 'string' },
       at: { oneOf: [{ type: 'string' }, { type: 'object', additionalProperties: false, properties: {
         date: { type: 'string', required: true }, time: { type: 'string', required: true }, time_zone: { type: 'string', required: true },
       } }] },

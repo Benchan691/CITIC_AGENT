@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import test from 'node:test'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -50,7 +50,7 @@ function authFixture() {
     pendingResponseSession(rpcId) { return pendingResponses.get(String(rpcId)) },
     forgetPendingResponse(rpcId) { pendingResponses.delete(String(rpcId)) },
   }
-  return { auth, store }
+  return { auth, store, workspaces }
 }
 
 function nodeResponse() {
@@ -154,6 +154,126 @@ test('scoped API prevents cross-user workspace/session IDOR and filters queries'
     assert.equal(denied.result.ok, false)
   }
   assert.deepEqual(calls, [])
+})
+
+test('SOC relative workspace names create private directories and reject traversal', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'soc-workspace-root-'))
+  const previousRoot = process.env.MCP_SERVER_ROOT
+  process.env.MCP_SERVER_ROOT = root
+  try {
+    const { auth } = authFixture()
+    const requests = []
+    const api = {
+      workspace: {
+        create: async request => {
+          requests.push(request)
+          return response(request, {
+            workspace: { workspaceId: 'workspace-new', path: request.payload.path, title: 'Test' },
+            created: true,
+          })
+        },
+      },
+    }
+    const scoped = createScopedApiProxy(api, auth)
+    const created = await scoped.workspace.create({ rpcId: 'workspace-create', payload: { path: 'Test' } })
+    const expected = join(root, '.data', 'soc-workspaces', 'user-a', 'Test')
+    assert.equal(created.result.ok, true)
+    assert.equal(requests[0].payload.path, expected)
+    assert.equal((await stat(expected)).isDirectory(), true)
+
+    for (const name of ['', '.', '..', '../escape', 'nested/name', 'nested\\name']) {
+      const rejected = await scoped.workspace.create({ rpcId: `invalid-${name}`, payload: { path: name } })
+      assert.equal(rejected.result.ok, false)
+      assert.equal(rejected.result.error.code, 'workspace-invalid-path')
+    }
+    assert.equal(requests.length, 1)
+  } finally {
+    if (previousRoot === undefined) delete process.env.MCP_SERVER_ROOT
+    else process.env.MCP_SERVER_ROOT = previousRoot
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('General workspace paths are protected from direct rename and delete RPCs', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'soc-general-root-'))
+  const previousRoot = process.env.MCP_SERVER_ROOT
+  process.env.MCP_SERVER_ROOT = root
+  try {
+    const { auth } = authFixture()
+    const generalPath = join(root, '.data', 'soc-workspaces', 'user-a', 'general')
+    auth.store.workspaceOwner = async id => id === 'general'
+      ? { userId: 'user-a', path: generalPath }
+      : undefined
+    const calls = []
+    const api = {
+      workspace: {
+        rename: async request => { calls.push('rename'); return response(request, {}) },
+        delete: async request => { calls.push('delete'); return response(request, {}) },
+      },
+    }
+    const scoped = createScopedApiProxy(api, auth)
+    for (const [method, rpcId] of [['rename', 'general-rename'], ['delete', 'general-delete']]) {
+      const result = await scoped.workspace[method]({ rpcId, payload: { workspaceId: 'general', ...(method === 'rename' ? { title: 'changed' } : {}) } })
+      assert.deepEqual(result.result, {
+        ok: false,
+        error: {
+          code: 'workspace-protected',
+          message: 'General is protected and cannot be renamed or deleted',
+          details: { workspaceId: 'general' },
+        },
+      })
+    }
+    assert.deepEqual(calls, [])
+  } finally {
+    if (previousRoot === undefined) delete process.env.MCP_SERVER_ROOT
+    else process.env.MCP_SERVER_ROOT = previousRoot
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('ensureGeneral repairs a missing legacy General workspace on reload', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'soc-general-repair-'))
+  const previousRoot = process.env.MCP_SERVER_ROOT
+  process.env.MCP_SERVER_ROOT = root
+  try {
+    const records = []
+    const store = {
+      async ensureSchema() {},
+      async claimWorkspace() { return true },
+    }
+    const auth = new SocAuthService({}, store)
+    auth.registry = {
+      async resolveByPath(path) { return records.find(workspace => workspace.path === path) },
+      async create(path, title) {
+        const workspace = {
+          id: `general-${records.length + 1}`,
+          path,
+          title,
+          async setTitle(next) { workspace.title = next },
+        }
+        records.push(workspace)
+        return workspace
+      },
+    }
+
+    const first = await auth.ensureGeneral('user-a')
+    const expectedPath = join(root, '.data', 'soc-workspaces', 'user-a', 'general')
+    assert.deepEqual(first, { workspaceId: 'general-1', title: 'General' })
+    assert.equal(records[0].path, expectedPath)
+    assert.equal((await stat(expectedPath)).isDirectory(), true)
+
+    // A legacy delete leaves the physical directory behind. The next load
+    // must register a fresh protected General over that same path.
+    records.splice(0, 1)
+    const repaired = await auth.ensureGeneral('user-a')
+    assert.deepEqual(repaired, { workspaceId: 'general-1', title: 'General' })
+    assert.equal(records.length, 1)
+    assert.equal(records[0].path, expectedPath)
+  } finally {
+    if (previousRoot === undefined) delete process.env.MCP_SERVER_ROOT
+    else process.env.MCP_SERVER_ROOT = previousRoot
+    await rm(root, { recursive: true, force: true })
+  }
 })
 
 test('scoped session-log downloads enforce ownership on their direct request shape', async () => {

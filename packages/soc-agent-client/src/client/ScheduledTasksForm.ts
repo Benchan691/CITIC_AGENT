@@ -1,4 +1,4 @@
-import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import type { ConnectionHandle, ModelProviderGroup } from '@deepseek-ai/dsh-client-connection/client'
 import React, { useCallback, useEffect, useState } from 'react'
 import css from './SplunkZimbraOverlay.module.css'
 
@@ -7,6 +7,9 @@ type Task = {
   name: string
   promptCharacters: number
   promptSha256: string
+  provider?: string
+  model?: string
+  reasoningEffort?: string
   rule: { kind: 'once'; at: string } | { kind: 'cron'; expression: string; timeZone: string }
   status: 'active' | 'paused' | 'completed'
   nextRunAt: string | null
@@ -40,6 +43,15 @@ function readable(value?: string | null): string {
   return value ? new Date(value).toLocaleString() : '—'
 }
 
+function modelKey(provider: string, model: string): string {
+  return `${provider}\u0000${model}`
+}
+
+function taskModelLabel(task: Task): string {
+  if (!task.provider || !task.model) return 'Default model'
+  return `${task.provider} / ${task.model} · ${task.reasoningEffort || 'Provider default'}`
+}
+
 export function SchedulerSettings({ connection, openSession }: {
   connection: ConnectionHandle
   openSession: (id: string) => void
@@ -48,8 +60,13 @@ export function SchedulerSettings({ connection, openSession }: {
   const [runs, setRuns] = useState<Run[]>([])
   const [schedulerSettings, setSchedulerSettings] = useState<SchedulerSettings>({ maxConcurrentRuns: 1, runTimeoutMs: 900000 })
   const [status, setStatus] = useState('Loading...')
+  const [modelStatus, setModelStatus] = useState('Loading models...')
+  const [modelGroups, setModelGroups] = useState<ModelProviderGroup[]>([])
   const [name, setName] = useState('')
   const [prompt, setPrompt] = useState('')
+  const [provider, setProvider] = useState('')
+  const [model, setModel] = useState('')
+  const [reasoningEffort, setReasoningEffort] = useState('')
   const [kind, setKind] = useState<'once' | 'cron'>('once')
   const [at, setAt] = useState('')
   const [cron, setCron] = useState('0 * * * *')
@@ -67,7 +84,46 @@ export function SchedulerSettings({ connection, openSession }: {
     }
   }, [connection])
 
-  useEffect(() => { void load() }, [load])
+  const loadModels = useCallback(async () => {
+    setModelStatus('Loading models...')
+    try {
+      const [catalogResponse, hostResponse] = await Promise.all([
+        connection.api.llm.models({}),
+        connection.api.host.describe({}).catch(() => undefined),
+      ])
+      if (!catalogResponse.result.ok) {
+        throw new Error(catalogResponse.result.error.message)
+      }
+      const groups = catalogResponse.result.value.groups
+      const choices = groups.flatMap(group => group.models.map(item => ({
+        provider: group.id,
+        id: item.id,
+        reasoning: item.reasoning,
+      })))
+      setModelGroups(groups)
+      if (choices.length === 0) {
+        setProvider('')
+        setModel('')
+        setReasoningEffort('')
+        setModelStatus('No models are available.')
+        return
+      }
+      const preferredProvider = hostResponse?.result.ok ? hostResponse.result.value.provider : undefined
+      const preferredModel = hostResponse?.result.ok ? hostResponse.result.value.model : undefined
+      const choice = choices.find(item => item.provider === preferredProvider && item.id === preferredModel) ?? choices[0]
+      setProvider(choice.provider)
+      setModel(choice.id)
+      setReasoningEffort('')
+      setModelStatus(catalogResponse.result.value.failures.length > 0 ? 'Some providers could not be loaded.' : '')
+    } catch (error) {
+      setModelStatus(error instanceof Error ? error.message : String(error))
+    }
+  }, [connection])
+
+  useEffect(() => {
+    void load()
+    void loadModels()
+  }, [load, loadModels])
 
   const mutate = async (endpoint: string, payload: Record<string, unknown>) => {
     setStatus('Saving...')
@@ -80,7 +136,8 @@ export function SchedulerSettings({ connection, openSession }: {
   }
 
   const create = async () => {
-    const payload: Record<string, unknown> = { name, prompt }
+    const payload: Record<string, unknown> = { name, prompt, provider, model }
+    if (reasoningEffort) payload.reasoning_effort = reasoningEffort
     if (kind === 'once') {
       const [date, time] = at.split('T')
       payload.at = { date, time: time?.length === 5 ? `${time}:00` : time, time_zone: timeZone }
@@ -93,6 +150,8 @@ export function SchedulerSettings({ connection, openSession }: {
     setPrompt('')
     setAt('')
   }
+
+  const selectedModel = modelGroups.find(group => group.id === provider)?.models.find(item => item.id === model)
 
   return React.createElement(
     'div',
@@ -120,6 +179,35 @@ export function SchedulerSettings({ connection, openSession }: {
       React.createElement('label', { className: css.fieldLabel }, 'Investigation prompt'),
       React.createElement('textarea', { className: css.textarea, value: prompt, maxLength: 8000, rows: 5, onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => setPrompt(event.target.value) }),
       React.createElement('div', { className: css.row },
+        React.createElement('label', null, 'Model'),
+        React.createElement('select', {
+          className: css.input,
+          value: modelKey(provider, model),
+          disabled: modelGroups.length === 0,
+          onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
+            const selected = modelGroups.flatMap(group => group.models.map(item => ({ group, item })))
+              .find(({ group, item }) => modelKey(group.id, item.id) === event.target.value)
+            if (!selected) return
+            setProvider(selected.group.id)
+            setModel(selected.item.id)
+            setReasoningEffort(selected.item.reasoning?.defaultEffort ?? '')
+          },
+        }, modelGroups.map(group => React.createElement('optgroup', { key: group.id, label: group.name }, group.models.map(item => React.createElement('option', { key: modelKey(group.id, item.id), value: modelKey(group.id, item.id) }, item.name))))),
+      ),
+      React.createElement('div', { className: css.row },
+        React.createElement('label', null, 'Reasoning effort'),
+        React.createElement('select', {
+          className: css.input,
+          value: reasoningEffort,
+          disabled: !provider || !model,
+          onChange: (event: React.ChangeEvent<HTMLSelectElement>) => setReasoningEffort(event.target.value),
+        },
+        React.createElement('option', { value: '' }, 'Provider default'),
+        (selectedModel?.reasoning?.efforts ?? []).map(effort => React.createElement('option', { key: effort.id, value: effort.id }, effort.name)),
+        ),
+      ),
+      modelStatus ? React.createElement('p', { className: css.description, role: 'status' }, modelStatus) : null,
+      React.createElement('div', { className: css.row },
         React.createElement('label', null, 'Rule'),
         React.createElement('select', { className: css.input, value: kind, onChange: (event: React.ChangeEvent<HTMLSelectElement>) => setKind(event.target.value as 'once' | 'cron') },
           React.createElement('option', { value: 'once' }, 'One time'),
@@ -130,7 +218,7 @@ export function SchedulerSettings({ connection, openSession }: {
         ? React.createElement('div', { className: css.row }, React.createElement('label', null, 'Local time'), React.createElement('input', { className: css.input, type: 'datetime-local', step: 1, value: at, onChange: (event: React.ChangeEvent<HTMLInputElement>) => setAt(event.target.value) }))
         : React.createElement('div', { className: css.row }, React.createElement('label', null, '5-field cron'), React.createElement('input', { className: css.input, value: cron, onChange: (event: React.ChangeEvent<HTMLInputElement>) => setCron(event.target.value) })),
       React.createElement('div', { className: css.row }, React.createElement('label', null, 'Time zone'), React.createElement('input', { className: css.input, value: timeZone, onChange: (event: React.ChangeEvent<HTMLInputElement>) => setTimeZone(event.target.value) })),
-      React.createElement('div', { className: css.actions }, React.createElement('button', { className: css.primaryButton, type: 'button', disabled: !name.trim() || !prompt.trim() || (kind === 'once' && !at), onClick: () => { void create() } }, 'Create task')),
+      React.createElement('div', { className: css.actions }, React.createElement('button', { className: css.primaryButton, type: 'button', disabled: !name.trim() || !prompt.trim() || !provider || !model || modelGroups.length === 0 || (kind === 'once' && !at), onClick: () => { void create() } }, 'Create task')),
     ),
     React.createElement(
       'section', { className: css.section },
@@ -140,6 +228,7 @@ export function SchedulerSettings({ connection, openSession }: {
         'article', { className: css.account, key: task.id },
         React.createElement('strong', null, task.name),
         React.createElement('span', { className: css.description }, `${task.status} · Next ${readable(task.nextRunAt)} · Last ${readable(task.lastRunAt)}`),
+        React.createElement('span', { className: css.description }, `Model: ${taskModelLabel(task)}`),
         React.createElement('code', { className: css.rule }, task.rule.kind === 'once' ? task.rule.at : `${task.rule.expression} (${task.rule.timeZone})`),
         React.createElement('div', { className: css.actions },
           task.status === 'active' ? React.createElement('button', { className: css.secondaryButton, type: 'button', onClick: () => { void mutate('pause', { id: task.id }) } }, 'Pause') : null,

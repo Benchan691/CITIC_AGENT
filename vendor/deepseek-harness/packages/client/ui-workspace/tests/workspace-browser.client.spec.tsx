@@ -71,6 +71,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     searchSessions: vi.fn(async () => ({ items: [], hasMore: false })),
     searchResultLimit: 20,
     renameSession: vi.fn(async () => {}),
+    deleteSession: vi.fn(async () => {}),
     forkSession: vi.fn(),
     renameWorkspace: vi.fn(async () => {}),
     deleteWorkspace: vi.fn(async () => {}),
@@ -1110,6 +1111,72 @@ describe('WorkspaceBrowser', () => {
     fireEvent.click(screen.getByRole('button', { name: '关闭' }))
     expect(deleteWorkspace).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: '删除文件夹' })).toBeNull()
+  })
+
+  it('confirms session deletion, prevents duplicate submits, and waits for the list projection', async () => {
+    let resolveDelete!: () => void
+    const deleteSession = vi.fn(() => new Promise<void>((resolve) => { resolveDelete = resolve }))
+    const session = summary('alpha-session', 1)
+    const browser = mount({
+      useSessions: hook(sessionState([session])),
+      useWorkspaces: hook(workspaceState([workspace('alpha', ['alpha-session'])])),
+      deleteSession,
+    })
+    fireEvent.click(screen.getByText('alpha'))
+    fireEvent.click(screen.getByRole('button', { name: '会话“alpha-session”的操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除会话' }))
+    expect(screen.getByRole('dialog', { name: '删除会话' }).textContent)
+      .toContain('删除“alpha-session”？这将永久删除此会话及其消息。')
+
+    const confirm = screen.getByRole<HTMLButtonElement>('button', { name: '删除会话' })
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+    expect(deleteSession).toHaveBeenCalledOnce()
+    expect(deleteSession).toHaveBeenCalledWith(session.id)
+    expect(confirm.disabled).toBe(true)
+    expect(screen.getByRole('status').textContent).toBe('正在删除会话…')
+
+    await act(async () => { resolveDelete(); await Promise.resolve() })
+    expect(screen.getByRole('dialog', { name: '删除会话' })).toBeTruthy()
+    rerender(browser, {
+      useSessions: hook(sessionState([])),
+      useWorkspaces: hook(workspaceState([workspace('alpha', [])])),
+    })
+    await waitFor(() => { expect(screen.queryByRole('dialog', { name: '删除会话' })).toBeNull() })
+  })
+
+  it('clears every General session, including archived rows, sequentially and retries after a failure', async () => {
+    const deleteSession = vi.fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('archived delete failed'))
+      .mockResolvedValueOnce(undefined)
+    const browser = mount({
+      useSessions: hook(sessionState([summary('visible', 2)])),
+      useWorkspaces: hook(workspaceState([workspace('general', ['visible', 'archived'], 'General')])),
+      deleteSession,
+    })
+    fireEvent.click(screen.getByText('General'))
+    fireEvent.click(screen.getByRole('button', { name: '文件夹“General”的操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '清除会话' }))
+    expect(screen.getByRole('dialog', { name: '清除会话' }).textContent)
+      .toContain('清除“General”中的 2 个会话？')
+
+    fireEvent.click(screen.getByRole<HTMLButtonElement>('button', { name: '清除会话' }))
+    await waitFor(() => { expect(screen.getByRole('alert').textContent).toBe('archived delete failed') })
+    expect(deleteSession.mock.calls.map(([id]) => id)).toEqual([sid('visible'), sid('archived')])
+    expect(screen.getByRole('status').textContent).toBe('已清除 1/2 个会话。')
+
+    fireEvent.click(screen.getByRole<HTMLButtonElement>('button', { name: '清除会话' }))
+    await waitFor(() => { expect(deleteSession).toHaveBeenCalledTimes(3) })
+    expect(deleteSession.mock.calls[2]).toEqual([sid('archived')])
+    // The modal remains until the Workspace membership projection has also
+    // removed the captured ids, even though all delete RPCs succeeded.
+    expect(screen.getByRole('dialog', { name: '清除会话' })).toBeTruthy()
+    rerender(browser, {
+      useSessions: hook(sessionState([])),
+      useWorkspaces: hook(workspaceState([workspace('general', [], 'General')])),
+    })
+    await waitFor(() => { expect(screen.queryByRole('dialog', { name: '清除会话' })).toBeNull() })
   })
 
   it('search hides drag affordances (rows are not draggable during search)', () => {

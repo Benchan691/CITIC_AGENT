@@ -185,7 +185,7 @@ export class TestSessions implements ISessions {
   /** Calls observed on the service-level face, newest last. */
   readonly calls: {
     method: 'open' | 'openSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents'
-      | 'clear' | 'search' | 'fork'
+      | 'clear' | 'delete' | 'search' | 'fork'
     args: unknown[]
   }[] = []
 
@@ -455,6 +455,12 @@ export class TestSessions implements ISessions {
       draft.current = undefined
       draft.currentAddress = undefined
     })
+  }
+
+  /** Permanently remove a fixture session through the public sessions face. */
+  async delete(id: SessionId): Promise<void> {
+    this.calls.push({ method: 'delete', args: [id] })
+    await this.remove(id)
   }
 
   /**

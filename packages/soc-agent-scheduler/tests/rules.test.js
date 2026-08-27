@@ -24,12 +24,17 @@ function runtimeWith({ tasks = [], runs = [], concurrency = 1 } = {}) {
 function executionRuntime({ whenIdle = async () => {}, flush = true, createError } = {}) {
   const tables = { tasks: new MemoryTable(), runs: new MemoryTable(), config: new MemoryTable() }
   const session = { events: [], append(type, data) { this.events.push({ type, data }) } }
-  const observations = { restricted: [], title: '', followedUp: false, cancelled: false, disposed: false, order: [] }
+  const observations = { agentOptions: undefined, modelHandlers: {}, restricted: [], title: '', followedUp: false, cancelled: false, disposed: false, order: [] }
   const ctx = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'default-provider', model: 'default-model' }) },
     agents: {
       async create(options) {
         if (createError) throw createError
-        options.setup({ tools: { restrict: value => { observations.restricted.push(value); observations.order.push('restrict') } } })
+        observations.agentOptions = options.agentOptions
+        options.setup({
+          on(type, listener) { observations.modelHandlers[type] = listener; return () => {} },
+          tools: { restrict: value => { observations.restricted.push(value); observations.order.push('restrict') } },
+        })
         return {
           agent: {
             session,
@@ -98,12 +103,20 @@ test('task results omit stored prompts and enforce active-task and prompt caps',
   const { runtime } = runtimeWith()
   await runtime.initialize()
   const first = await runtime.create({
-    name: 'Review 1', prompt: 'sensitive objective', cron: '0 * * * *', time_zone: 'UTC',
+    name: 'Review 1', prompt: 'sensitive objective', provider: 'provider-a', model: 'model-a', reasoning_effort: 'high', cron: '0 * * * *', time_zone: 'UTC',
   })
   assert.equal(first.prompt, undefined)
   assert.equal(first.promptCharacters, 19)
   assert.equal(first.promptSha256.length, 64)
+  assert.deepEqual(
+    { provider: first.provider, model: first.model, reasoningEffort: first.reasoningEffort },
+    { provider: 'provider-a', model: 'model-a', reasoningEffort: 'high' },
+  )
   assert.equal(runtime.list().tasks[0].prompt, undefined)
+  await assert.rejects(
+    runtime.create({ name: 'Missing model', prompt: 'Review alerts', provider: 'provider-a', cron: '0 * * * *', time_zone: 'UTC' }),
+    error => error.code === 'invalid_model',
+  )
   await assert.rejects(
     runtime.create({ name: 'Too long', prompt: 'x'.repeat(8001), cron: '0 * * * *', time_zone: 'UTC' }),
     error => error.code === 'invalid_prompt',
@@ -214,7 +227,7 @@ test('scheduler concurrency and timeout settings are durable and validated', asy
 
 test('successful runs create linked result sessions with read-only tools and metadata', async () => {
   const { runtime, tables, session, observations } = executionRuntime()
-  const task = { id: 'task-1', name: 'Review', prompt: 'Review alerts' }
+  const task = { id: 'task-1', name: 'Review', prompt: 'Review alerts', provider: 'scheduled-provider', model: 'scheduled-model', reasoningEffort: 'high' }
   const run = { id: 'run-1', taskId: task.id, scheduledFor: '2026-08-17T01:00:00.000Z', state: 'queued' }
   await runtime.executeRun(task, run)
   const stored = tables.runs.get(run.id)
@@ -225,8 +238,23 @@ test('successful runs create linked result sessions with read-only tools and met
   assert.match(observations.title, /^\[Scheduled\] Review ·/)
   assert.deepEqual(observations.restricted, [{ allow: [...READ_ONLY_DOMAIN_TOOLS] }])
   assert.deepEqual(observations.order, ['restrict', 'followup'])
-  assert.equal(session.events[0].type, 'scheduled-task/run')
-  assert.equal(session.events[0].data.runId, run.id)
+  assert.deepEqual(observations.agentOptions, { provider: 'scheduled-provider', model: 'scheduled-model' })
+  const assembled = await observations.modelHandlers['system-prompt/assemble']({}, {}, () => Promise.resolve({ variables: {} }))
+  assert.deepEqual(assembled.variables, { provider: 'scheduled-provider', model: 'scheduled-model' })
+  assert.deepEqual(
+    await observations.modelHandlers['agent/request']({}, () => Promise.resolve({ provider: 'default-provider', model: 'default-model', reasoningEffort: 'inherited' })),
+    { provider: 'scheduled-provider', model: 'scheduled-model', reasoningEffort: 'high' },
+  )
+  assert.deepEqual(session.events, [])
+})
+
+test('legacy tasks use the current default model selection', async () => {
+  const { runtime, observations } = executionRuntime()
+  await runtime.executeRun(
+    { id: 'task-legacy', name: 'Review', prompt: 'Review alerts' },
+    { id: 'run-legacy', taskId: 'task-legacy', scheduledFor: '2026-08-17T01:00:00.000Z', state: 'queued' },
+  )
+  assert.deepEqual(observations.agentOptions, { provider: 'default-provider', model: 'default-model' })
 })
 
 test('failed creation and timed-out runs record stable errors', async () => {

@@ -2277,6 +2277,12 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
             })()
             : await folderStore.deleteSession(sessionId)
           if (!deleted) return err(request, { code: 'session-not-found', message: `session "${sessionId}" not found`, details: { sessionId } })
+          // Session deletion removes the durable/live log, but the workspace
+          // registry owns its independent membership account. Detach only
+          // after the delete commit so a failed deletion leaves grouping intact.
+          for (const workspace of ctx.workspaceRegistry.list()) {
+            await workspace.detachSession(sessionId)
+          }
           return ok(request, { deleted: true as const })
         } catch (error: unknown) {
           return err(request, { code: 'internal', message: `failed to delete session "${sessionId}": ${String(error)}`, details: {} })
@@ -3115,6 +3121,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           attachedSessions: ctx.agents.list().length,
           home: homedir(),
           canOpenPath: canOpenPaths(),
+          logicalFolders: ctx.get('sessionFolders') !== undefined,
         }))
       },
 

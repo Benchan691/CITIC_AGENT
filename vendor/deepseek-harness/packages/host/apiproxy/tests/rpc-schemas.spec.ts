@@ -65,6 +65,7 @@ describe('rpcErrorSchema', () => {
     expect(rpcErrorSchema.parse({ code: 'invalid-time-zone', message: 'm', details: { value: 'CST' } }).code).toBe('invalid-time-zone')
     expect(rpcErrorSchema.parse({ code: 'workspace-attach-failed', message: 'm', details: { sessionId: 's', workspaceId: 'w' } }).code).toBe('workspace-attach-failed')
     expect(rpcErrorSchema.parse({ code: 'workspace-not-found', message: 'm', details: { workspaceId: 'w' } }).code).toBe('workspace-not-found')
+    expect(rpcErrorSchema.parse({ code: 'workspace-protected', message: 'm', details: { workspaceId: 'w' } }).code).toBe('workspace-protected')
     expect(rpcErrorSchema.parse({ code: 'workspace-invalid-path', message: 'm', details: { path: '/x' } }).code).toBe('workspace-invalid-path')
     expect(rpcErrorSchema.parse({ code: 'workspace-name-conflict', message: 'm', details: { name: 'x' } }).code).toBe('workspace-name-conflict')
     expect(rpcErrorSchema.parse({ code: 'workspace-move-invalid', message: 'm', details: { workspaceId: 'w', sessionId: 's' } }).code).toBe('workspace-move-invalid')
@@ -338,8 +339,9 @@ describe('host domain schemas', () => {
     expect(hostDescribeRequestSchema.parse({})).toEqual({})
     const value = hostDescribeValueSchema.parse({
       version: '1', cwd: '/x', provider: 'p', model: 'm', attachedSessions: 2, home: '/h', canOpenPath: true,
+      logicalFolders: false,
     })
-    expect(value).toMatchObject({ provider: 'p', model: 'm', attachedSessions: 2, canOpenPath: true })
+    expect(value).toMatchObject({ provider: 'p', model: 'm', attachedSessions: 2, canOpenPath: true, logicalFolders: false })
     expect(hostDescribeValueSchema.parse({
       version: '1', cwd: '/x', attachedSessions: 0, home: '/h', canOpenPath: false,
     }).provider).toBeUndefined()
@@ -565,6 +567,10 @@ describe('respond payload schemas', () => {
     expect(approvalRequestIdSchema.parse('a1')).toBe('a1')
     const approval = approvalResponsePayloadSchema.parse({ sessionId: 's', approvalId: 'a', outcome: 'rejected' })
     expect(approval.outcome).toBe('rejected')
+    const remembered = approvalResponsePayloadSchema.parse({
+      sessionId: 's', approvalId: 'a', outcome: 'allowed-once', remember: 'tool',
+    })
+    expect(remembered.remember).toBe('tool')
     expect(() => approvalResponsePayloadSchema.parse({ sessionId: 's', approvalId: 'a', outcome: 'cancelled' })).toThrow()
     const answer = askUserQuestionAnswerSchema.parse({ answers: [{ id: 'q', selected: ['x'], custom: 'c' }] })
     expect(answer.answers[0]?.selected).toEqual(['x'])

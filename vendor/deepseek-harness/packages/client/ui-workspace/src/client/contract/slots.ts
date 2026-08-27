@@ -8,8 +8,9 @@
  * - WorkspacePicker fills the conversation empty-state hole (menu + error
  *   dialog shared with the browser).
  *
- * Folder creation is native to this package: a logical chat folder has a name
- * and no filesystem path or directory-picker dependency.
+ * Folder-name creation is native to this package; the SOC host maps relative
+ * names to private physical directories, while absolute paths remain host
+ * adoption inputs.
  */
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pull the owner SlotMap merges into programs that resolve the
@@ -71,6 +72,8 @@ export type WorkspaceBrowserInjected = {
   searchResultLimit: number
   /** Rename a Session (explicit user title; resolves on host acceptance). */
   renameSession: (sessionId: SessionId, title: string) => Promise<void>
+  /** Permanently delete a Session and its messages. */
+  deleteSession: (sessionId: SessionId) => Promise<void>
   /** Fork a Session at its last completed turn and open the child. */
   forkSession: (sessionId: SessionId) => void
   /** Rename a Host Workspace (rejects on name conflict; resolves on durability). */

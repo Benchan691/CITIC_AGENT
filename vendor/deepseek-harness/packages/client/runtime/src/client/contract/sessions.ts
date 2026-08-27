@@ -73,6 +73,8 @@ export interface ISessions {
   noteAgentPreset(sessionId: SessionId, agentPreset: string): void
   /** Clear the current selection into the no-session view state. */
   clear(): void
+  /** Permanently delete one session and its messages, then clear it if selected. */
+  delete(sessionId: SessionId): Promise<void>
   /**
    * Search the Host's visible message-content index. Results stay
    * request-local; the list snapshot remains the metadata authority.

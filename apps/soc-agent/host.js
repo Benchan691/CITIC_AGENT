@@ -15,7 +15,7 @@ import { detectSecrets, normalizeTags, validateContent } from '../../packages/so
 import { runAuthCommand } from './ownership.js'
 
 export const name = 'soc-agent-host'
-export const inject = ['agents', 'connection', 'tools', 'socAuth']
+export const inject = ['agents', 'connection', 'tools', 'socAuth', 'sessions', 'settings']
 
 const CHANNEL = '/soc-agent-config'
 const ACTION_POLICY_NAMESPACE = 'soc-action-approval'
@@ -122,11 +122,28 @@ function policyValue(ctx, sessionPolicies, sessionId) {
   }
 }
 
-function policyError(error) {
+function policyError(error, sessionId) {
   if (error instanceof ActionPolicyError) {
-    return { ok: false, error: { code: error.code, message: error.message, details: {} } }
+    if (error.code === 'soc-action-session-not-found') {
+      return {
+        ok: false,
+        error: {
+          code: 'session-not-found',
+          message: error.message,
+          details: { sessionId: String(sessionId ?? '') },
+        },
+      }
+    }
+    return {
+      ok: false,
+      error: {
+        code: 'bad-request',
+        message: error.message,
+        details: { issues: [] },
+      },
+    }
   }
-  return { ok: false, error: { code: 'soc-action-policy-unavailable', message: 'The SOC action policy is unavailable.', details: {} } }
+  return internalError('The SOC action policy is unavailable.')
 }
 
 function bundleRoot() {
@@ -385,10 +402,19 @@ export function apply(ctx) {
           const message = error instanceof Error ? error.message : 'attachment_conversion_failed'
           const [code, ...rest] = message.split(': ')
           const stableCodes = new Set(['attachment_invalid_request', 'attachment_invalid_filename', 'attachment_invalid_mime', 'attachment_too_large', 'attachment_invalid_limits', 'attachment_conversion_cancelled', 'attachment_unsupported', 'attachment_converter_unavailable', 'attachment_malformed', 'attachment_encrypted', 'attachment_too_complex', 'attachment_conversion_failed'])
-          return { ok: false, error: { code: stableCodes.has(code) ? code : 'attachment_conversion_failed', message: stableCodes.has(code) && rest.length > 0 ? rest.join(': ') : 'The attachment conversion failed.', details: {} } }
+          const reason = stableCodes.has(code) ? code : 'attachment_conversion_failed'
+          return {
+            ok: false,
+            error: {
+              code: 'attachment-error',
+              message: reason === code && rest.length > 0 ? rest.join(': ') : 'The attachment conversion failed.',
+              details: { reason },
+            },
+          }
         }
         if (endpoint === 'get-action-policy' || endpoint === 'set-session-action-policy' || endpoint === 'reset-session-action-policy') {
-          return policyError(error)
+          const sessionId = payload?.session_id ?? payload?.sessionId
+          return policyError(error, sessionId)
         }
         return internalError(error instanceof Error ? error.message : String(error))
       }

@@ -526,6 +526,20 @@ export class SessionManager {
     }
   }
 
+  /** Delete one durable session and apply the same removal cleanup as a host removal frame. */
+  async delete(sessionId: SessionId): Promise<RpcResult<{ deleted: true }>> {
+    try {
+      if (this.api.sessions.delete === undefined) {
+        return transportError(new Error('session deletion is unavailable'))
+      }
+      const { result } = await this.api.sessions.delete({ sessionId })
+      if (result.ok) this.removeDeletedSession(sessionId)
+      return result
+    } catch (error) {
+      return transportError(error)
+    }
+  }
+
   /**
    * Contract session.create; on success merge into summaries immediately (no
    * wait for the next refresh). A created session is blank by definition
@@ -633,6 +647,19 @@ export class SessionManager {
     // Eager edge reconciliation — a snapshot-build-time pass would miss consecutive status frames.
     this.syncCompletedNotifications()
     this.notifier.markDirty()
+  }
+
+  /** Shared local cleanup for a confirmed delete and a normal host removal frame. */
+  private removeDeletedSession(sessionId: SessionId): void {
+    this.recordMutation({ kind: 'remove', sessionId })
+    this.updateCatalogActivity(sessionId, false)
+    this.sessions.get(sessionId)?.handleRemoved()
+    this.pendingBuffers.delete(sessionId)
+    this.pendingInteractions.delete(sessionId)
+    this.jobsBySession.delete(sessionId)
+    this.projectionStores.delete(sessionId)
+    this.addresses.delete(sessionId)
+    if (this.selected === sessionId) this.selected = undefined
   }
 
   // ---- Subscription API (for useSessionList) ----
@@ -820,25 +847,18 @@ export class SessionManager {
       case 'host/session-removed': {
         const summary = this.summaries.find(candidate => candidate.sessionId === frame.sessionId)
         const durableSubagent = summary?.origin === 'subagent' || this.addresses.has(frame.sessionId)
-        this.recordMutation(durableSubagent
-          ? { kind: 'status', sessionId: frame.sessionId, running: false }
-          : { kind: 'remove', sessionId: frame.sessionId })
-        this.updateCatalogActivity(frame.sessionId, false)
         if (durableSubagent) {
           // An Activation detaching is not durable child deletion:
           // keep its lineage and conversation while returning it to idle.
+          this.recordMutation({ kind: 'status', sessionId: frame.sessionId, running: false })
+          this.updateCatalogActivity(frame.sessionId, false)
           this.sessions.get(frame.sessionId)?.handleRunning(false)
+          this.pendingBuffers.delete(frame.sessionId)
+          this.pendingInteractions.delete(frame.sessionId)
+          this.jobsBySession.delete(frame.sessionId)
         } else {
-          this.sessions.get(frame.sessionId)?.handleRemoved()
+          this.removeDeletedSession(frame.sessionId)
         }
-        this.pendingBuffers.delete(frame.sessionId) // a removed session's buffered frames must not replay on a future instantiation
-        this.pendingInteractions.delete(frame.sessionId) // a removed session cannot wait on anyone
-        // Owner disposal already dropped these registry-side, but that lands on
-        // the mux stream while this frame rides the host stream, so the two have
-        // no relative order. Clearing here makes a detached Activation's rows
-        // disappear whichever arrives first.
-        this.jobsBySession.delete(frame.sessionId)
-        if (!durableSubagent) this.projectionStores.delete(frame.sessionId)
         // A pull already in flight was requested before this removal and can
         // carry the pre-removal parentAvailable:true, which would resurrect
         // the writable editor this invalidation just closed. Replay false over

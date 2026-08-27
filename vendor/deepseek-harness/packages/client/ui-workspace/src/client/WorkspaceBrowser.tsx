@@ -237,8 +237,12 @@ type SessionTreeProps = Pick<
   onRenameRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
   /** Open the browser-owned delete-confirmation dialog for a real Workspace group. */
   onDeleteRequest: (workspaceId: WorkspaceId, currentTitle: string, sessionCount: number) => void
+  /** Open the General-only clear-sessions confirmation dialog. */
+  onClearRequest: (workspaceId: WorkspaceId, currentTitle: string, sessionIds: readonly SessionId[]) => void
   /** Open the browser-owned session rename dialog. */
   onSessionRename: (sessionId: SessionNode['id'], currentTitle: string) => void
+  /** Open the browser-owned session delete-confirmation dialog. */
+  onSessionDelete: (sessionId: SessionNode['id'], currentTitle: string) => void
   /** Archive a session (row menu action; the row disappears on the state echo). */
   onSessionArchive: (sessionId: SessionNode['id']) => void
   /** Session order behavior: fixed after edits, or additionally promoted by user activity. */
@@ -248,7 +252,7 @@ type SessionTreeProps = Pick<
 /** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
 function SessionTree({
   useSessions, startSession, open, forkSession, workspaces, archivedSessionIds,
-  onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
+  onRenameRequest, onDeleteRequest, onClearRequest, onSessionRename, onSessionDelete, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
   sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
@@ -466,7 +470,17 @@ function SessionTree({
                 drag={workspaceDragProps}
                 actions={group.workspaceId === undefined
                   ? undefined
-                  : {
+                  : workspaces.find(item => item.workspaceId === group.workspaceId)?.title === 'General'
+                    ? {
+                      clear: () => {
+                        const workspace = workspaces.find(item => item.workspaceId === group.workspaceId)
+                        if (group.workspaceId !== undefined) {
+                          onClearRequest(group.workspaceId, group.label, workspace?.sessionIds ?? [])
+                        }
+                      },
+                      clearDisabled: (workspaces.find(item => item.workspaceId === group.workspaceId)?.sessionIds.length ?? 0) === 0,
+                    }
+                    : {
                     rename: () => {
                     /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
                       if (group.workspaceId !== undefined) onRenameRequest(group.workspaceId, group.label)
@@ -519,6 +533,7 @@ function SessionTree({
                     onRename={onSessionRename}
                     onFork={forkSession}
                     onArchive={onSessionArchive}
+                    onDelete={onSessionDelete}
                     drag={dragProps}
                     t={t}
                   />
@@ -547,7 +562,7 @@ function SessionTree({
 
 /** The flat "In one list" body: every session is one draggable top-level row. */
 function FlatList({
-  useSessions, open, forkSession, onSessionRename, onSessionArchive, archivedSessionIds,
+  useSessions, open, forkSession, onSessionRename, onSessionDelete, onSessionArchive, archivedSessionIds,
   orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
 }: Pick<
   SessionTreeProps,
@@ -555,6 +570,7 @@ function FlatList({
   | 'open'
   | 'forkSession'
   | 'onSessionRename'
+  | 'onSessionDelete'
   | 'onSessionArchive'
   | 'archivedSessionIds'
   | 'orderBy'
@@ -635,6 +651,7 @@ function FlatList({
               onRename={onSessionRename}
               onFork={forkSession}
               onArchive={onSessionArchive}
+              onDelete={onSessionDelete}
               flat
               drag={{
                 start: () => {
@@ -751,6 +768,7 @@ export function WorkspaceBrowser({
   startSession,
   open,
   renameSession,
+  deleteSession,
   forkSession,
   renameWorkspace,
   deleteWorkspace,
@@ -765,6 +783,7 @@ export function WorkspaceBrowser({
   const workspaces = useWorkspaces(state => state.items)
   const workspacePhase = useWorkspaces(state => state.phase)
   const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds)
+  const sessionIds = useSessions(state => state.ids)
   const groupBy = useStore(s => s.groupBy)
   const orderBy = useStore(s => s.orderBy)
   const groupExpansion = useStore(s => s.groupExpansion)
@@ -935,6 +954,42 @@ export function WorkspaceBrowser({
     })
   }
 
+  const [sessionDeleteTarget, setSessionDeleteTarget] = useState<{ sessionId: SessionId; title: string } | null>(null)
+  const [sessionDeleting, setSessionDeleting] = useState(false)
+  const [sessionDeleteCommittedId, setSessionDeleteCommittedId] = useState<SessionId | null>(null)
+  const [sessionDeleteError, setSessionDeleteError] = useState<string | null>(null)
+  useEffect(() => {
+    if (sessionDeleteCommittedId === null || sessionIds.includes(sessionDeleteCommittedId)) return
+    setSessionDeleting(false)
+    setSessionDeleteCommittedId(null)
+    setSessionDeleteTarget(null)
+  }, [sessionDeleteCommittedId, sessionIds])
+  const closeSessionDelete = () => {
+    if (sessionDeleting) return
+    setSessionDeleteTarget(null)
+    setSessionDeleteError(null)
+  }
+  const confirmSessionDelete = () => {
+    /* v8 ignore next -- the Modal is absent without a target and its button is disabled while deleting. */
+    if (sessionDeleting || sessionDeleteTarget === null) return
+    setSessionDeleting(true)
+    setSessionDeleteCommittedId(null)
+    setSessionDeleteError(null)
+    deleteSession(sessionDeleteTarget.sessionId).then(() => {
+      // Keep the confirmation pending until the list projection no longer
+      // contains the deleted id; this also covers a delayed host frame.
+      setSessionDeleteCommittedId(sessionDeleteTarget.sessionId)
+    }).catch((reason: unknown) => {
+      setSessionDeleting(false)
+      setSessionDeleteError(reason instanceof Error ? reason.message : String(reason))
+    })
+  }
+  const onSessionDelete = (sessionId: SessionNode['id'], currentTitle: string) => {
+    setSessionDeleteTarget({ sessionId, title: currentTitle })
+    setSessionDeleteCommittedId(null)
+    setSessionDeleteError(null)
+  }
+
   // Delete dialog is separate from the row so a successful removal can
   // unmount that row without tearing down the in-flight confirmation state.
   const [deleteTarget, setDeleteTarget] = useState<{ workspaceId: WorkspaceId; title: string; sessionCount: number } | null>(null)
@@ -968,6 +1023,66 @@ export function WorkspaceBrowser({
       setDeleting(false)
       setDeleteError(reason instanceof Error ? reason.message : String(reason))
     })
+  }
+
+  type ClearTarget = {
+    workspaceId: WorkspaceId
+    title: string
+    sessionIds: SessionId[]
+    remainingSessionIds: SessionId[]
+    deletedCount: number
+  }
+  const [clearTarget, setClearTarget] = useState<ClearTarget | null>(null)
+  const [clearing, setClearing] = useState(false)
+  const [clearError, setClearError] = useState<string | null>(null)
+  useEffect(() => {
+    if (clearTarget === null || clearing || clearTarget.remainingSessionIds.length !== 0) return
+    const workspace = workspaces.find(item => item.workspaceId === clearTarget.workspaceId)
+    const projectedRemaining = workspace?.sessionIds.some(id => clearTarget.sessionIds.includes(id)) === true
+    if (workspace === undefined || !projectedRemaining) {
+      setClearTarget(null)
+      setClearError(null)
+    }
+  }, [clearTarget, clearing, workspaces])
+  const closeClear = () => {
+    if (clearing) return
+    setClearTarget(null)
+    setClearError(null)
+  }
+  const confirmClear = async () => {
+    /* v8 ignore next -- the Modal is absent without a target and its button is disabled while clearing. */
+    if (clearing || clearTarget === null || clearTarget.remainingSessionIds.length === 0) return
+    const target = clearTarget
+    let remaining = [...target.remainingSessionIds]
+    let deletedCount = target.deletedCount
+    setClearing(true)
+    setClearError(null)
+    for (const sessionId of target.remainingSessionIds) {
+      try {
+        await deleteSession(sessionId)
+      } catch (reason: unknown) {
+        setClearing(false)
+        setClearError(reason instanceof Error ? reason.message : String(reason))
+        return
+      }
+      deletedCount += 1
+      remaining = remaining.slice(1)
+      setClearTarget(current => current === null || current.workspaceId !== target.workspaceId
+        ? current
+        : { ...current, remainingSessionIds: remaining, deletedCount })
+    }
+    setClearing(false)
+  }
+  const onClearRequest = (workspaceId: WorkspaceId, title: string, sessionIdsToDelete: readonly SessionId[]) => {
+    const sessionIdsForClear = [...sessionIdsToDelete]
+    setClearTarget({
+      workspaceId,
+      title,
+      sessionIds: sessionIdsForClear,
+      remainingSessionIds: sessionIdsForClear,
+      deletedCount: 0,
+    })
+    setClearError(null)
   }
 
   return (
@@ -1119,7 +1234,7 @@ export function WorkspaceBrowser({
             ? (
               <FlatList
                 useSessions={useSessions} open={open} forkSession={forkSession}
-                onSessionRename={onSessionRename} onSessionArchive={onSessionArchive}
+                onSessionRename={onSessionRename} onSessionDelete={onSessionDelete} onSessionArchive={onSessionArchive}
                 archivedSessionIds={archivedSessionIds}
                 orderBy={orderBy}
                 sessionOrderByAccount={sessionOrderByAccount}
@@ -1133,6 +1248,7 @@ export function WorkspaceBrowser({
               <SessionTree
                 useSessions={useSessions}
                 onSessionRename={onSessionRename}
+                onSessionDelete={onSessionDelete}
                 onSessionArchive={onSessionArchive}
                 forkSession={forkSession}
                 workspaces={workspaces}
@@ -1158,6 +1274,7 @@ export function WorkspaceBrowser({
                   setDeleteTarget({ workspaceId, title, sessionCount })
                   setDeleteError(null)
                 }}
+                onClearRequest={onClearRequest}
               />
             ))}
       </div>
@@ -1252,6 +1369,60 @@ export function WorkspaceBrowser({
       >
         {deleting && <div className={css.deleteStatus} role="status">{t('delete.pending')}</div>}
         {deleteError !== null && <div className={css.renameError} role="alert">{deleteError}</div>}
+      </Modal>
+      <Modal
+        open={clearTarget !== null}
+        onClose={closeClear}
+        closeLabel={t('close')}
+        title={t('clear.sessions')}
+        {...clearTarget === null
+          ? {}
+          : { description: t('clear.desc', { name: clearTarget.title, n: clearTarget.sessionIds.length }) }}
+        footer={(
+          <>
+            <Button variant="outline" disabled={clearing} onClick={closeClear}>{t('cancel')}</Button>
+            <Button
+              variant="outline"
+              className={css.deleteAction}
+              disabled={clearing || clearTarget === null || clearTarget.remainingSessionIds.length === 0}
+              onClick={() => { void confirmClear() }}
+            >
+              {t('clear.sessions')}
+            </Button>
+          </>
+        )}
+      >
+        {clearTarget !== null && (clearing || clearTarget.deletedCount > 0) && (
+          <div className={css.deleteStatus} role="status">
+            {t('clear.progress', { done: clearTarget.deletedCount, n: clearTarget.sessionIds.length })}
+          </div>
+        )}
+        {clearError !== null && <div className={css.renameError} role="alert">{clearError}</div>}
+      </Modal>
+      <Modal
+        open={sessionDeleteTarget !== null}
+        onClose={closeSessionDelete}
+        closeLabel={t('close')}
+        title={t('delete.session')}
+        {...sessionDeleteTarget === null
+          ? {}
+          : { description: t('delete.session.desc', { name: sessionDeleteTarget.title }) }}
+        footer={(
+          <>
+            <Button variant="outline" disabled={sessionDeleting} onClick={closeSessionDelete}>{t('cancel')}</Button>
+            <Button
+              variant="outline"
+              className={css.deleteAction}
+              disabled={sessionDeleting || sessionDeleteTarget === null}
+              onClick={confirmSessionDelete}
+            >
+              {t('delete.session')}
+            </Button>
+          </>
+        )}
+      >
+        {sessionDeleting && <div className={css.deleteStatus} role="status">{t('delete.session.pending')}</div>}
+        {sessionDeleteError !== null && <div className={css.renameError} role="alert">{sessionDeleteError}</div>}
       </Modal>
     </div>
   )

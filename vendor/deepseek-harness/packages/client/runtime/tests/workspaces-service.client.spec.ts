@@ -100,6 +100,26 @@ describe('WorkspaceManager', () => {
     })
   })
 
+  it('uses physical workspace RPCs when the Host disables logical folders', async () => {
+    const api = new FakeApiClient()
+    const folderList = vi.fn(() => Promise.resolve(ok({ items: [] })))
+    Object.assign(api, { folders: { list: folderList } })
+    api.onWorkspaceList = () => Promise.resolve(ok({
+      items: [workspace('general', [], '2026-02-01T00:00:00.000Z')], archivedSessionIds: [],
+    }) as never)
+    api.onWorkspaceCreate = () => Promise.resolve(ok({
+      workspace: workspace('test', [], '2026-02-02T00:00:00.000Z'), created: true,
+    }))
+
+    const manager = new WorkspaceManager(api, () => false)
+    await manager.refresh()
+    await manager.create({ path: 'Test' })
+
+    expect(folderList).not.toHaveBeenCalled()
+    expect(api.callsOf('workspace.list')).toHaveLength(1)
+    expect(api.callsOf('workspace.create')).toEqual([{ path: 'Test' }])
+  })
+
   it('reorders optimistically while newer Host frames outrank unary echoes and failures roll back', async () => {
     const api = new FakeApiClient()
     api.onWorkspaceList = () => Promise.resolve(ok({

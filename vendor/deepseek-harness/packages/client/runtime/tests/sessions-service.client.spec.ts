@@ -9,7 +9,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
-import { SessionCreateError, SessionRuntime, scopeOf } from '../src/client/sessions/service.ts'
+import { SessionCreateError, SessionDeleteError, SessionRuntime, scopeOf } from '../src/client/sessions/service.ts'
 import { FakeApiClient, deferred, err, fakeRemote, ok } from './fake-api.client.ts'
 
 const sid = (s: string): SessionId => s as SessionId
@@ -461,6 +461,35 @@ describe('catalog-addressed navigation', () => {
     expect(b.svc.subagentAddress(sid('child'))).toEqual({
       parentSessionId: sid('root'), childSessionId: sid('child'), mode: 'continuable',
     })
+  })
+})
+
+describe('delete', () => {
+  it('removes the session, clears current selection, and sends the existing RPC', async () => {
+    const b = bench()
+    await feedList(b, [{ id: 's1' }, { id: 's2' }])
+    b.svc.open(sid('s1'))
+
+    await expect(b.svc.delete(sid('s1'))).resolves.toBeUndefined()
+    expect(b.api.callsOf('session.delete')).toEqual([{ sessionId: 's1' }])
+    expect(b.svc.list.getSnapshot().ids).toEqual([sid('s2')])
+    expect(b.svc.list.getSnapshot().current).toBeUndefined()
+  })
+
+  it('keeps the row and exposes a structured error when deletion is rejected', async () => {
+    const b = bench()
+    await feedList(b, [{ id: 's1' }])
+    b.api.onDelete = () => Promise.resolve(err({
+      code: 'session-not-found', message: 'gone', details: { sessionId: sid('s1') },
+    }))
+
+    const failure = await b.svc.delete(sid('s1')).catch(error => error)
+    expect(failure).toBeInstanceOf(SessionDeleteError)
+    expect(failure).toMatchObject({
+      sessionId: sid('s1'),
+      rpcError: { code: 'session-not-found', message: 'gone' },
+    })
+    expect(b.svc.list.getSnapshot().ids).toEqual([sid('s1')])
   })
 })
 

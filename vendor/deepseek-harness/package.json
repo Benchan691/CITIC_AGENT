@@ -44,6 +44,8 @@
     "test:snapshot:refresh": "DSH_SNAPSHOT=refresh vitest run --config vitest.snapshot.config.ts",
     "migrate:packed-session-fixtures": "tsx scripts/migrate-packed-session-fixtures.ts",
     "test:web": "npm run build && npm run test:web:built",
+    "test:web:soc": "npm run build && DSH_SOC_AGENT=1 npm run test:web:built",
+    "test:web:soc:built": "DSH_SOC_AGENT=1 vitest run --config vitest.web.config.ts",
     "test:web:refresh": "npm run build && DSH_SNAPSHOT=refresh vitest run --config vitest.web.config.ts",
     "test:web:built": "vitest run --config vitest.web.config.ts",
     "test:web:ci": "tsx scripts/run-web-snapshots.ts",

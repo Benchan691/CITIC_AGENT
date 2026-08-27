@@ -117,17 +117,17 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
   }, [sourceKey])
 
   if (!('kind' in block)) {
-    return <div className={css.card}><div className={css.message}>Preparing email draft…</div></div>
+    return <div className={css.card} data-dshcf-preserve="true"><div className={css.message}>Preparing email draft…</div></div>
   }
 
   const upstreamError = errorMessage(envelope)
   if (upstreamError || block.isError) {
-    return <div className={css.card}><div className={`${css.message} ${css.error}`}>{upstreamError || 'Unable to create the email draft.'}</div></div>
+    return <div className={css.card} data-dshcf-preserve="true"><div className={`${css.message} ${css.error}`}>{upstreamError || 'Unable to create the email draft.'}</div></div>
   }
 
   if (status === 'discarded') {
     return (
-      <div className={css.card}>
+      <div className={css.card} data-dshcf-preserve="true">
         <div className={css.header}><span className={css.title}>Email draft discarded</span></div>
         <div className={css.actions}>
           <button className={css.button} type="button" onClick={() => { setFields(envelope ? formFromEnvelope(envelope) : fields); setStatus('editing') }}>Reopen</button>
@@ -203,14 +203,14 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
 
   if (status === 'sent') {
     return (
-      <div className={css.card}>
+      <div className={css.card} data-dshcf-preserve="true">
         <div className={css.header}><span className={css.title}>Email sent successfully</span></div>
       </div>
     )
   }
 
   return (
-    <section className={css.card} aria-label="Editable Zimbra email draft">
+    <section className={css.card} data-dshcf-preserve="true" aria-label="Editable Zimbra email draft">
       <div className={css.header}>
         <div>
           <div className={css.title}>Email draft</div>

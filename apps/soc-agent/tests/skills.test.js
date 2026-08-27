@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { SOC_UNSUPPORTED_WEB_TESTS } from './web-test-policy.js'
 
 test('Harness patch enables the filesystem skill and plan review layers', () => {
   const productRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -17,6 +18,15 @@ test('Harness patch enables the filesystem skill and plan review layers', () => 
   assert.match(patch, /- id: plan-mode\n  disabled: false/)
   assert.match(patch, /- id: ui-plan\n  disabled: false/)
   assert.match(patch, /- id: ui-user-questions\n  disabled: false/)
+  assert.match(patch, /- id: session-folders\n  disabled: true/)
+})
+
+test('SOC profile disables native shell and permission controls', () => {
+  const productRoot = fileURLToPath(new URL('..', import.meta.url))
+  const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
+  for (const id of ['subprocess', 'sandbox', 'bash-sandbox', 'permission', 'ui-permission', 'tool-bash', 'tool-pwsh']) {
+    assert.match(patch, new RegExp(`- id: ${id}\\n  disabled: true`), id)
+  }
 })
 
 test('Harness discovers and loads the repository SOC skills through the skill tool', () => {
@@ -112,4 +122,12 @@ test('SOC skills are concise, scoped, and use bounded action parameters', () => 
     () => readFileSync(join(repoRoot, 'skills', 'spl-writing', 'SKILL.md'), 'utf8'),
     /ENOENT/,
   )
+})
+
+test('SOC web policy lists only existing upstream tests', () => {
+  const harnessRoot = fileURLToPath(new URL('../../../vendor/deepseek-harness/', import.meta.url))
+  assert.ok(SOC_UNSUPPORTED_WEB_TESTS.length > 0)
+  for (const relativePath of SOC_UNSUPPORTED_WEB_TESTS) {
+    assert.equal(existsSync(join(harnessRoot, relativePath)), true, relativePath)
+  }
 })

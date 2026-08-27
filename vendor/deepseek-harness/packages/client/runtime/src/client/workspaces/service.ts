@@ -60,6 +60,8 @@ export class WorkspaceRuntime implements IWorkspaces {
   readonly list: SnapshotStore<WorkspaceListState>
   /** Workspace baseline and frame owner. */
   private readonly manager: WorkspaceManager
+  /** Host capability probe; SOC uses physical workspace directories. */
+  private readonly logicalFolders: (() => boolean | undefined) | undefined
   /** In-flight blank-session creates keyed by folder (connectWorkspace coalescing). */
   private readonly connecting = new Map<WorkspaceId, Promise<SessionId>>()
   /** Coalesces the unscoped first-chat create while the initial list settles. */
@@ -74,8 +76,14 @@ export class WorkspaceRuntime implements IWorkspaces {
    * @param api - shared wire client.
    * @param sessions - cross-domain sessions face used for recency and blank-session reuse.
    */
-  constructor(ctx: Context, private readonly api: IApiClient, private readonly sessions: SessionsPort) {
-    this.manager = new WorkspaceManager(api)
+  constructor(
+    ctx: Context,
+    private readonly api: IApiClient,
+    private readonly sessions: SessionsPort,
+    logicalFolders?: () => boolean | undefined,
+  ) {
+    this.logicalFolders = logicalFolders
+    this.manager = new WorkspaceManager(api, logicalFolders)
     this.list = createSnapshotStore<WorkspaceListState>({
       items: [], archivedSessionIds: [], state: 'idle', phase: 'pending', error: null,
       baselinesReady: false, recentWorkspaceId: undefined,
@@ -83,6 +91,11 @@ export class WorkspaceRuntime implements IWorkspaces {
     this.manager.subscribe(() => { this.project() })
     this.sessions.list.subscribe(() => { this.project() })
     ctx.reflect.provide('workspaces', this, undefined)
+  }
+
+  /** Select logical-folder RPCs only when the connected Host advertises them. */
+  private usesLogicalFolders(): boolean {
+    return this.api.folders !== undefined && (this.logicalFolders?.() ?? true)
   }
 
   /**
@@ -112,7 +125,7 @@ export class WorkspaceRuntime implements IWorkspaces {
     // no grouping surface can show, so New Session mints a fresh one instead.
     const archived = this.list.getSnapshot().archivedSessionIds
     const sessions = this.sessions.list.getSnapshot()
-    const logicalFolders = this.api.folders !== undefined
+    const logicalFolders = this.usesLogicalFolders()
     const current = sessions.current === undefined ? undefined : sessions.byId[sessions.current]
     if (logicalFolders && current?.blank === true && !archived.includes(current.id)) {
       const moved = await this.manager.insertSessionBefore(workspaceId, current.id)

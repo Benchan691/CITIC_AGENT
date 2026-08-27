@@ -126,14 +126,15 @@
   disabled: false
 - id: user-questions
   disabled: false
-- id: directory-picker
-  disabled: false
 - id: plugin-inventory
   disabled: false
 - id: ui-settings-plugin-inventory
   disabled: false
 - id: ui-settings-plugins
   disabled: false
+
+- id: session-folders
+  disabled: true
 
 - id: ui-wallpaper
   disabled: false
