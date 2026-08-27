@@ -1,8 +1,9 @@
 import pg from 'pg'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { randomBytes } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
+import { parseEnv } from 'node:util'
 import { fileURLToPath } from 'node:url'
 
 const { Pool } = pg
@@ -11,6 +12,23 @@ const SESSION_TTL_SECONDS = 24 * 60 * 60
 const USERNAME = /^[A-Za-z0-9_-]+$/u
 const PRIVATE_HTTP_PATHS = new Set(['/api'])
 const PRIVATE_UPGRADE_PATHS = new Set(['/api/events.mux', '/api/events.host'])
+const STORAGE_ENV_NAMES = ['APP_POSTGRES_URI', 'LANGGRAPH_POSTGRES_URI', 'POSTGRES_URI']
+
+function storageUriFromServerEnv() {
+  const bundleRoot = dirname(fileURLToPath(import.meta.url))
+  const serverRoot = process.env.DSH_SOC_AGENT_SERVER || join(bundleRoot, 'server')
+  try {
+    const values = parseEnv(readFileSync(join(serverRoot, '.env'), 'utf8'))
+    return STORAGE_ENV_NAMES.map(name => String(values[name] ?? '').trim()).find(Boolean) ?? ''
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+    return ''
+  }
+}
+
+function applicationStorageUri() {
+  return STORAGE_ENV_NAMES.map(name => String(process.env[name] ?? '').trim()).find(Boolean) || storageUriFromServerEnv()
+}
 
 const mcpRequestStorage = new AsyncLocalStorage()
 
@@ -133,7 +151,7 @@ function isPrivateUpgradeRoute(path) {
 }
 
 export class SocStateStore {
-  constructor(uri = process.env.APP_POSTGRES_URI || process.env.LANGGRAPH_POSTGRES_URI || process.env.POSTGRES_URI || '') {
+  constructor(uri = applicationStorageUri()) {
     this.pool = String(uri).trim() ? new Pool({ connectionString: String(uri).trim(), max: 10 }) : undefined
   }
 

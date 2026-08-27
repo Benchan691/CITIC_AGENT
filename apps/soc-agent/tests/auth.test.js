@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import test from 'node:test'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { CallToolResultSchema } from '../../../vendor/deepseek-harness/packages/mcp/mcp-client/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js'
 import { Client as HarnessMcpClient } from '../../../vendor/deepseek-harness/packages/mcp/mcp-client/node_modules/@modelcontextprotocol/sdk/dist/esm/client/index.js'
 import { apply as applyAuthHost } from '../auth-host.js'
-import { createScopedApiProxy, SocAuthService } from '../ownership.js'
+import { createScopedApiProxy, SocAuthService, SocStateStore } from '../ownership.js'
 
 function response(request, value) {
   return { rpcId: request?.rpcId, result: { ok: true, value } }
@@ -64,6 +67,30 @@ function nodeResponse() {
     end(body = '') { this.body = String(body) },
   }
 }
+
+test('SOC auth store reads only its PostgreSQL URI from the server environment file', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'soc-auth-env-'))
+  const names = ['DSH_SOC_AGENT_SERVER', 'APP_POSTGRES_URI', 'LANGGRAPH_POSTGRES_URI', 'POSTGRES_URI']
+  const previous = Object.fromEntries(names.map(name => [name, process.env[name]]))
+  try {
+    for (const name of names) delete process.env[name]
+    process.env.DSH_SOC_AGENT_SERVER = directory
+    await writeFile(join(directory, '.env'), [
+      'APP_POSTGRES_URI=postgresql://example.test/soc',
+      'ZIMBRA_PASSWORD=must-not-be-loaded-by-the-host',
+    ].join('\n'))
+    const store = new SocStateStore()
+    assert.equal(store.pool.options.connectionString, 'postgresql://example.test/soc')
+    assert.equal(process.env.ZIMBRA_PASSWORD, undefined)
+    await store.close()
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+    await rm(directory, { recursive: true, force: true })
+  }
+})
 
 test('scoped API prevents cross-user workspace/session IDOR and filters queries', async () => {
   const { auth } = authFixture()
