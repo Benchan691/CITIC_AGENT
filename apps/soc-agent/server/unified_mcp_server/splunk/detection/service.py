@@ -8,12 +8,14 @@ from typing import Any
 
 from ..core.service import SplunkCore
 from .model import DetectionDraft, validate_detection
+from ..search.executor import SearchExecutor
 from unified_mcp_server.errors import ServiceError
 
 
 class SplunkDetectionService:
-    def __init__(self, core: SplunkCore) -> None:
+    def __init__(self, core: SplunkCore, executor: SearchExecutor | None = None) -> None:
         self.core = core
+        self.executor = executor if executor is not None else SearchExecutor(core)
 
     @staticmethod
     def _flag(value: Any) -> bool:
@@ -107,33 +109,19 @@ class SplunkDetectionService:
         if not validation["valid"]:
             raise ServiceError("detection_invalid", "Detection validation failed.", details=validation)
         query = payload.get("spl", payload.get("search", ""))
-        if not self.core.validate_query(query, earliest_time, latest_time)["would_execute"]:
-            raise ServiceError("detection_invalid", "Detection validation failed.", details=validation)
-        limit = min(max(1, int(max_count)), self.core.settings.max_events)
-        selected_fields = []
-        if fields:
-            selected_fields = list(dict.fromkeys(str(field).strip() for field in fields if str(field).strip()))
-            if len(selected_fields) > 50 or any(len(field) > 128 for field in selected_fields):
-                raise ServiceError("invalid_input", "fields must contain at most 50 names of 128 characters or fewer")
-        events = await self.core.request(
-            lambda client: client.search_oneshot(query, earliest_time, latest_time, limit)
+        execution = await self.executor.execute(
+            query, earliest_time, latest_time, max_count, fields
         )
-        events = self.core.sanitize(events)
-        if selected_fields:
-            events = [
-                {field: event[field] for field in selected_fields if field in event}
-                for event in events
-            ]
-        received_count = len(events)
-        events, sample_budget = self.core.bound_events(events)
+        events = execution["events"]
         return {
             "detection_name": validation["detection"]["name"],
             "window": {"earliest_time": earliest_time, "latest_time": latest_time},
             "sample_count": len(events),
-            "sample_limit_reached": received_count >= limit,
+            "sample_limit_reached": execution["event_budget"]["received_count"] >= execution["limit"],
             "sample_events": events,
-            "sample_budget": sample_budget,
-            "fields": selected_fields,
+            "sample_budget": execution["event_budget"],
+            "search_metadata": execution["search_metadata"],
+            "fields": execution["fields"],
             "warnings": validation["warnings"],
             "note": "Backtests are read-only samples; review volume, deduplication, and suppression before enabling.",
         }

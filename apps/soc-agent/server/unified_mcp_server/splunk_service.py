@@ -13,6 +13,7 @@ from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.splunk.core.client import SplunkClient
 from unified_mcp_server.splunk.core.service import SplunkCore
 from unified_mcp_server.splunk.detection.service import SplunkDetectionService
+from unified_mcp_server.splunk.search.executor import SearchExecutor
 from unified_mcp_server.splunk.search.service import SplunkSearchService
 
 
@@ -25,8 +26,9 @@ class SplunkService:
         core: SplunkCore | None = None,
     ) -> None:
         self.core = core or SplunkCore(settings, client_factory)
-        self.search_service = SplunkSearchService(self.core)
-        self.detection_service = SplunkDetectionService(self.core)
+        executor = SearchExecutor(self.core)
+        self.search_service = SplunkSearchService(self.core, executor)
+        self.detection_service = SplunkDetectionService(self.core, executor)
 
     @property
     def settings(self) -> SplunkSettings:

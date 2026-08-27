@@ -42,8 +42,15 @@ class FakeClient:
     async def get_indexes(self):
         return [{"name": "main"}]
 
-    async def search_oneshot(self, *args):
-        return [{"event": "match"}]
+    async def run_search_job(self, *args):
+        return {
+            "events": [{"event": "match"}],
+            "metadata": {
+                "total_result_count": 1,
+                "fetched_count": 1,
+                "splunk_result_truncated": False,
+            },
+        }
 
     async def get_saved_search(self, name, app="", owner=""):
         return {
@@ -67,7 +74,8 @@ async def test_search_service_is_read_only_and_independent_of_detection():
 
     result = await search.search("index=main error")
 
-    assert result["event_count"] == 1
+    assert result["result"]["type"] == "events"
+    assert result["result"]["rows"] == [{"event": "match"}]
     assert not hasattr(search, "detection_service")
     assert "detection" not in inspect.getsource(type(search)).lower()
     await core.close()

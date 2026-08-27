@@ -59,9 +59,16 @@ class FakeLookupClient:
         self.lookup_args.append((app, search, count))
         return LOOKUPS
 
-    async def search_oneshot(self, *args):
+    async def run_search_job(self, *args):
         self.search_args = args
-        return [{"rule": "allow"}]
+        return {
+            "events": [{"rule": "allow"}],
+            "metadata": {
+                "total_result_count": 1,
+                "fetched_count": 1,
+                "splunk_result_truncated": False,
+            },
+        }
 
 
 @pytest.mark.asyncio

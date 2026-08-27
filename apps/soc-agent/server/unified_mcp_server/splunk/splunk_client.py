@@ -72,6 +72,316 @@ class SplunkClient:
             raise SplunkAPIError("Client not connected. Call connect() first or use async context manager.")
 
     @staticmethod
+    def _response_json(response, operation: str) -> dict[str, Any]:
+        """Return a strict JSON object or raise a client-level API error."""
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise SplunkAPIError(
+                f"Splunk {operation} failed.",
+                status_code=exc.response.status_code,
+            ) from exc
+        try:
+            payload = response.json()
+        except (TypeError, ValueError) as exc:
+            raise SplunkAPIError(f"Splunk returned malformed {operation} JSON.") from exc
+        if not isinstance(payload, dict):
+            raise SplunkAPIError(f"Splunk returned a malformed {operation} response.")
+        return payload
+
+    @staticmethod
+    def _raise_message_errors(payload: dict[str, Any], operation: str) -> None:
+        error = payload.get("error")
+        if error:
+            raise SplunkAPIError(f"Splunk returned an error for {operation}: {error}.")
+        messages = payload.get("messages", [])
+        if messages is None:
+            return
+        if not isinstance(messages, list):
+            raise SplunkAPIError(f"Splunk returned malformed {operation} messages.")
+        for message in messages:
+            if not isinstance(message, dict):
+                raise SplunkAPIError(f"Splunk returned malformed {operation} messages.")
+            if str(message.get("type", "")).upper() in {"ERROR", "FATAL"}:
+                text = message.get("text") or message.get("message")
+                suffix = f": {text}" if text else ""
+                raise SplunkAPIError(f"Splunk returned an error for {operation}{suffix}.")
+
+    @staticmethod
+    def _optional_int(value: Any) -> int | None:
+        if value is None or isinstance(value, bool):
+            return None
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed >= 0 else None
+
+    @staticmethod
+    def _optional_float(value: Any) -> float | None:
+        if value is None or isinstance(value, bool):
+            return None
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed >= 0 else None
+
+    @staticmethod
+    def _job_content(payload: dict[str, Any], operation: str) -> tuple[dict[str, Any], str]:
+        entries = payload.get("entry")
+        if not isinstance(entries, list) or not entries or not isinstance(entries[0], dict):
+            raise SplunkAPIError(f"Splunk returned malformed {operation} status.")
+        content = entries[0].get("content")
+        if not isinstance(content, dict):
+            raise SplunkAPIError(f"Splunk returned malformed {operation} status.")
+        state = str(content.get("dispatchState", "")).strip().upper()
+        if not state:
+            raise SplunkAPIError(f"Splunk returned a job status without dispatchState.")
+        return content, state
+
+    @staticmethod
+    def _job_sid(payload: dict[str, Any], operation: str) -> str:
+        sid = payload.get("sid")
+        if not isinstance(sid, str) or not sid.strip():
+            raise SplunkAPIError(f"Splunk returned no SID for {operation}.")
+        return sid.strip()
+
+    async def _cancel_job(self, sid: str) -> None:
+        """Cancel a remote job without masking the original failure."""
+        try:
+            response = await self._client.post(
+                f"/services/search/jobs/{quote(sid, safe='')}/control",
+                data={"action": "cancel"},
+                params={"output_mode": "json"},
+            )
+            response.raise_for_status()
+        except Exception:
+            # Cancellation is best effort; the original job error is more useful.
+            return
+
+    async def _poll_job(self, sid: str, deadline: float, label: str) -> dict[str, Any]:
+        job_url = f"/services/search/jobs/{quote(sid, safe='')}"
+        poll_delay = 0.5
+        terminal_states = {
+            "FAILED",
+            "PAUSE",
+            "PAUSED",
+            "INTERNAL_CANCEL",
+            "USER_CANCEL",
+            "BAD_INPUT_CANCEL",
+            "QUIT",
+            "CANCELED",
+            "CANCELLED",
+            "ABORTED",
+        }
+        active_states = {"QUEUED", "PARSING", "RUNNING", "FINALIZING", "ROLLINGBACK"}
+
+        while True:
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                raise SplunkAPIError(f"{label} timed out.")
+            try:
+                response = await asyncio.wait_for(
+                    self._client.get(job_url, params={"output_mode": "json"}),
+                    timeout=remaining,
+                )
+                payload = self._response_json(response, f"{label} status")
+                self._raise_message_errors(payload, f"{label} status")
+                content, state = self._job_content(payload, label)
+            except asyncio.TimeoutError as exc:
+                raise SplunkAPIError(f"{label} timed out.") from exc
+            except SplunkAPIError:
+                raise
+            except httpx.RequestError as exc:
+                raise SplunkAPIError(f"Splunk could not retrieve {label} status.") from exc
+            except Exception as exc:
+                raise SplunkAPIError(f"Splunk could not retrieve {label} status.") from exc
+
+            if state == "DONE":
+                return content
+            if state in terminal_states:
+                raise SplunkAPIError(f"{label} entered terminal state {state}.")
+            if state not in active_states:
+                raise SplunkAPIError(f"Splunk returned unknown {label} state {state}.")
+
+            await asyncio.sleep(min(poll_delay, max(0.0, remaining)))
+            poll_delay = min(poll_delay * 2, 2.0)
+
+    @staticmethod
+    def _parse_result_columns(payload: dict[str, Any], operation: str) -> list[str]:
+        fields = payload.get("fields")
+        if fields is None:
+            return []
+        if not isinstance(fields, list):
+            raise SplunkAPIError(f"Splunk returned malformed {operation} fields.")
+
+        columns: list[str] = []
+        for field in fields:
+            if isinstance(field, str):
+                name = field.strip()
+            elif isinstance(field, dict):
+                name = field.get("name")
+                if isinstance(name, str):
+                    name = name.strip()
+            else:
+                name = None
+            if not isinstance(name, str) or not name:
+                raise SplunkAPIError(f"Splunk returned malformed {operation} fields.")
+            if name not in columns:
+                columns.append(name)
+        return columns
+
+    @staticmethod
+    def _parse_result_page(
+        response_text: str,
+        operation: str,
+    ) -> tuple[list[dict[str, Any]], int | None, int | None, list[str]]:
+        try:
+            payload = json.loads(response_text)
+        except json.JSONDecodeError:
+            # Preserve compatibility with line-delimited JSON returned by older
+            # Splunk deployments while still rejecting unrecognizable payloads.
+            return SplunkClient._parse_response(response_text), None, None, []
+        if not isinstance(payload, dict):
+            raise SplunkAPIError(f"Splunk returned malformed {operation} results.")
+        SplunkClient._raise_message_errors(payload, operation)
+        results = payload.get("results")
+        if results is None and "result" in payload:
+            results = [payload["result"]]
+        if not isinstance(results, list) or any(not isinstance(item, dict) for item in results):
+            raise SplunkAPIError(f"Splunk returned malformed {operation} results.")
+        init_offset = SplunkClient._optional_int(payload.get("init_offset"))
+        reported_total = next(
+            (
+                parsed
+                for key in ("total", "total_result_count", "resultCount")
+                if (parsed := SplunkClient._optional_int(payload.get(key))) is not None
+            ),
+            None,
+        )
+        return results, init_offset, reported_total, SplunkClient._parse_result_columns(payload, operation)
+
+    async def _fetch_result_page(
+        self,
+        results_url: str,
+        offset: int,
+        count: int,
+        label: str,
+        deadline: float | None = None,
+    ) -> tuple[list[dict[str, Any]], int | None, int | None, list[str]]:
+        try:
+            if deadline is not None:
+                remaining = deadline - monotonic()
+                if remaining <= 0:
+                    raise SplunkAPIError(f"{label} timed out.")
+            request = self._client.get(
+                results_url,
+                params={"output_mode": "json", "count": count, "offset": offset},
+            )
+            if deadline is None:
+                response = await request
+            else:
+                try:
+                    response = await asyncio.wait_for(request, timeout=remaining)
+                except asyncio.TimeoutError as exc:
+                    raise SplunkAPIError(f"{label} timed out.") from exc
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                raise SplunkAPIError(
+                    f"Splunk {label} result retrieval failed.",
+                    status_code=exc.response.status_code,
+                ) from exc
+            return self._parse_result_page(response.text, label)
+        except SplunkAPIError:
+            raise
+        except httpx.RequestError as exc:
+            raise SplunkAPIError(f"Splunk could not retrieve {label} results.") from exc
+        except Exception as exc:
+            raise SplunkAPIError(f"Splunk could not retrieve {label} results.") from exc
+
+    async def _run_job(
+        self,
+        *,
+        dispatch_url: str,
+        dispatch_params: dict[str, Any],
+        max_count: int,
+        results_path_prefix: str,
+        label: str,
+    ) -> tuple[str, dict[str, Any], list[dict[str, Any]], int | None, list[str]]:
+        sid: str | None = None
+        job_complete = False
+        try:
+            try:
+                response = await self._client.post(dispatch_url, data=dispatch_params)
+                payload = self._response_json(response, f"{label} dispatch")
+                candidate_sid = payload.get("sid")
+                if isinstance(candidate_sid, str) and candidate_sid.strip():
+                    sid = candidate_sid.strip()
+                self._raise_message_errors(payload, f"{label} dispatch")
+                if sid is None:
+                    sid = self._job_sid(payload, label)
+            except SplunkAPIError:
+                raise
+            except httpx.RequestError as exc:
+                raise SplunkAPIError(f"Splunk could not dispatch {label}.") from exc
+            except Exception as exc:
+                raise SplunkAPIError(f"Splunk could not dispatch {label}.") from exc
+
+            deadline = monotonic() + float(self.config.get("job_timeout", 120))
+            content = await self._poll_job(sid, deadline, label)
+
+            limit = max(1, int(max_count))
+            page_size = min(limit, 10_000)
+            results_url = f"{results_path_prefix}/{quote(sid, safe='')}/results"
+            events: list[dict[str, Any]] = []
+            columns: list[str] = []
+            offset = 0
+            page_total: int | None = None
+            status_total = self._optional_int(content.get("resultCount"))
+
+            while len(events) < limit:
+                requested_count = min(page_size, limit - len(events))
+                page, page_offset, reported_total, page_columns = await self._fetch_result_page(
+                    results_url,
+                    offset,
+                    requested_count,
+                    label,
+                    deadline,
+                )
+                if reported_total is not None:
+                    page_total = reported_total
+                if not page:
+                    break
+
+                fetched_page = page[:requested_count]
+                events.extend(fetched_page)
+                for column in page_columns:
+                    if column not in columns:
+                        columns.append(column)
+                for event in fetched_page:
+                    for column in event:
+                        if column not in columns:
+                            columns.append(column)
+                next_offset = (page_offset if page_offset is not None else offset) + len(fetched_page)
+                if next_offset <= offset:
+                    next_offset = offset + len(fetched_page)
+                total = status_total if status_total is not None else page_total
+                if total is not None and next_offset >= total:
+                    break
+                if len(page) < requested_count and total is None:
+                    break
+                offset = next_offset
+
+            total = status_total if status_total is not None else page_total
+            job_complete = True
+            return sid, content, events, total, columns
+        finally:
+            if sid is not None and not job_complete:
+                await self._cancel_job(sid)
+
+    @staticmethod
     def _flag(value: Any) -> bool:
         return value is True or str(value).strip().lower() in {"1", "true", "yes", "on"}
 
@@ -81,11 +391,13 @@ class SplunkClient:
             return f"/servicesNS/{quote(owner or 'nobody', safe='')}/{quote(app or 'search', safe='')}/saved/searches"
         return "/services/saved/searches"
             
-    def _parse_response(self, response_text: str) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _parse_response(response_text: str) -> List[Dict[str, Any]]:
         """Parse JSON results without converting malformed responses into false zeroes."""
         def results(payload: Any) -> list[dict[str, Any]] | None:
             if not isinstance(payload, dict):
                 raise SplunkAPIError("Splunk returned an unexpected JSON response.")
+            SplunkClient._raise_message_errors(payload, "results")
             values = payload.get("results")
             if values is None and "result" in payload:
                 values = [payload["result"]]
@@ -115,6 +427,53 @@ class SplunkClient:
         if values is None:
             raise SplunkAPIError("Splunk returned no recognizable result records.")
         return values
+
+    async def run_search_job(
+        self,
+        query: str,
+        earliest_time: str = "-24h",
+        latest_time: str = "now",
+        max_count: int = 100,
+    ) -> Dict[str, Any]:
+        """Run a normal asynchronous search job and return bounded results."""
+        self._ensure_connected()
+        if query.strip().startswith("|"):
+            search_query = query.strip()
+        else:
+            search_query = f"search {query.strip()}"
+        limit = max(1, int(max_count))
+        _, content, events, total, columns = await self._run_job(
+            dispatch_url="/services/search/jobs",
+            dispatch_params={
+                "search": search_query,
+                "earliest_time": earliest_time,
+                "latest_time": latest_time,
+                "exec_mode": "normal",
+                "search_mode": "normal",
+                "max_count": limit,
+                "output_mode": "json",
+            },
+            max_count=limit,
+            results_path_prefix="/services/search/v2/jobs",
+            label="search job",
+        )
+        fetched_count = len(events)
+        return {
+            "events": events,
+            "columns": columns,
+            "metadata": {
+                "total_result_count": total,
+                "fetched_count": fetched_count,
+                "returned_count": fetched_count,
+                "scan_count": self._optional_int(content.get("scanCount")),
+                "run_duration": self._optional_float(content.get("runDuration")),
+                "splunk_result_truncated": (
+                    total is not None and total > fetched_count
+                    if total is not None
+                    else None
+                ),
+            },
+        }
             
     async def search_oneshot(self, query: str, earliest_time: str = "-24h", 
                            latest_time: str = "now", max_count: int = 100) -> List[Dict[str, Any]]:
@@ -373,98 +732,31 @@ class SplunkClient:
             Dictionary with job info and results
         """
         self._ensure_connected()
-
-        async def cancel_job(job_url: str) -> None:
-            try:
-                response = await self._client.post(
-                    f"{job_url}/control",
-                    data={"action": "cancel"},
-                    params={"output_mode": "json"},
-                )
-                response.raise_for_status()
-            except Exception:
-                # Cancellation is best effort; preserve the original timeout/cancellation.
-                return
-        
-        try:
-            # Dispatch the saved search
-            dispatch_url = f"{self._saved_searches_path(app, owner)}/{quote(search_name, safe='')}/dispatch"
-            params = {
+        dispatch_url = f"{self._saved_searches_path(app, owner)}/{quote(search_name, safe='')}/dispatch"
+        job_id, content, events, _, _columns = await self._run_job(
+            dispatch_url=dispatch_url,
+            dispatch_params={
                 "trigger_actions": "1" if trigger_actions else "0",
-                "output_mode": "json"
-            }
-            
-            response = await self._client.post(dispatch_url, data=params)
-            response.raise_for_status()
-            
-            # Get job ID
-            job_data = response.json()
-            job_id = job_data.get("sid")
-            
-            if not job_id:
-                raise SplunkAPIError("No job ID returned from saved search dispatch")
-            
-            # Poll for completion
-            job_url = f"/services/search/jobs/{quote(str(job_id), safe='')}"
-            deadline = monotonic() + float(self.config.get("job_timeout", 120))
-            poll_delay = 0.5
-            while True:
-                job_response = await self._client.get(job_url, params={"output_mode": "json"})
-                job_response.raise_for_status()
-                
-                job_info = job_response.json()
-                entry = job_info.get("entry", [{}])[0]
-                content = entry.get("content", {})
-                
-                state = str(content.get("dispatchState", "")).upper()
-                if state == "DONE":
-                    break
-                if state in {"FAILED", "PAUSED"}:
-                    raise SplunkAPIError(
-                        f"Saved search entered terminal state {state}",
-                        details={"job_id": job_id, "dispatch_state": state},
-                    )
-
-                if monotonic() >= deadline:
-                    await cancel_job(job_url)
-                    raise SplunkAPIError("Saved search timed out", details={"job_id": job_id})
-                    
-                await asyncio.sleep(poll_delay)
-                poll_delay = min(poll_delay * 2, 2.0)
-            
-            # Get results
-            results_url = f"/services/search/jobs/{quote(str(job_id), safe='')}/results"
-            limit = max(1, min(int(max_count), 10_000))
-            results_response = await self._client.get(results_url, params={"output_mode": "json", "count": limit})
-            results_response.raise_for_status()
-            
-            events = self._parse_response(results_response.text)[:limit]
-            
-            return {
-                "search_name": search_name,
-                "job_id": job_id,
-                "event_count": len(events),
-                "events": events,
-                "metrics": {
-                    key: content.get(key)
-                    for key in (
-                        "runDuration",
-                        "scanCount",
-                        "eventCount",
-                        "resultCount",
-                        "sid",
-                    )
-                    if content.get(key) is not None
-                },
-            }
-        except asyncio.CancelledError:
-            if "job_url" in locals():
-                await cancel_job(job_url)
-            raise
-        except SplunkAPIError:
-            raise
-        except httpx.HTTPStatusError as e:
-            raise SplunkAPIError(f"Failed to run saved search", status_code=e.response.status_code,
-                               details={"error": e.response.text})
-        except Exception as e:
-            raise SplunkAPIError(f"Failed to run saved search: {str(e)}")
+                "output_mode": "json",
+            },
+            max_count=max(1, min(int(max_count), 10_000)),
+            results_path_prefix="/services/search/jobs",
+            label="saved search",
+        )
+        return {
+            "search_name": search_name,
+            "job_id": job_id,
+            "event_count": len(events),
+            "events": events,
+            "metrics": {
+                key: content.get(key)
+                for key in (
+                    "runDuration",
+                    "scanCount",
+                    "eventCount",
+                    "resultCount",
+                    "sid",
+                )
+                if content.get(key) is not None
+            },
+        }

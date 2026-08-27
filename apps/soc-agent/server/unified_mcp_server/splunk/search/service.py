@@ -5,13 +5,15 @@ from __future__ import annotations
 from typing import Any
 
 from ..core.service import SplunkCore
+from .executor import SearchExecutor
 from .lookup import normalize_lookups, rest_search_filter
 from unified_mcp_server.errors import ServiceError
 
 
 class SplunkSearchService:
-    def __init__(self, core: SplunkCore) -> None:
+    def __init__(self, core: SplunkCore, executor: SearchExecutor | None = None) -> None:
         self.core = core
+        self.executor = executor if executor is not None else SearchExecutor(core)
 
     def validate(self, query: str, earliest_time: str = "-24h", latest_time: str = "now") -> dict[str, Any]:
         return self.core.validate_query(query, earliest_time, latest_time)
@@ -24,42 +26,43 @@ class SplunkSearchService:
         max_count: int = 50,
         fields: list[str] | None = None,
     ) -> dict[str, Any]:
-        validation = self.validate(query, earliest_time, latest_time)
-        if not validation["would_execute"]:
-            reason = (
-                "The SPL query contains a command blocked by the safety policy."
-                if validation["blocked_commands"]
-                else "The SPL query exceeds the configured risk tolerance."
-            )
-            raise ServiceError(
-                "query_blocked",
-                reason,
-                details=validation,
-            )
-        limit = min(max(1, int(max_count)), self.core.settings.max_events)
-        selected_fields = []
-        if fields:
-            selected_fields = list(dict.fromkeys(str(field).strip() for field in fields if str(field).strip()))
-            if len(selected_fields) > 50 or any(len(field) > 128 for field in selected_fields):
-                raise ServiceError("invalid_input", "fields must contain at most 50 names of 128 characters or fewer")
-        events = await self.core.request(
-            lambda client: client.search_oneshot(query, earliest_time, latest_time, limit)
+        execution = await self.executor.execute(
+            query, earliest_time, latest_time, max_count, fields
         )
-        events = self.core.sanitize(events)
-        if selected_fields:
-            events = [
-                {field: event[field] for field in selected_fields if field in event}
-                for event in events
-            ]
-        events, event_budget = self.core.bound_events(events)
+        validation = execution["validation"]
+        events = execution["events"]
+        metadata = execution["search_metadata"]
+        run_duration = metadata["run_duration"]
+        run_duration_ms = (
+            int(round(run_duration * 1000))
+            if isinstance(run_duration, (int, float)) and not isinstance(run_duration, bool)
+            else None
+        )
+        result: dict[str, Any] = {
+            "type": execution["result_type"],
+            "rows": events,
+        }
+        if execution["result_type"] == "table":
+            result["columns"] = execution["columns"]
         return {
             "query": query,
-            "earliest_time": earliest_time,
-            "latest_time": latest_time,
-            "event_count": len(events),
-            "events": events,
-            "event_budget": event_budget,
-            "fields": selected_fields,
+            "search": {
+                "earliest_time": earliest_time,
+                "latest_time": latest_time,
+                "run_duration_seconds": run_duration,
+                "run_duration_ms": run_duration_ms,
+                "scanned_events": metadata["scan_count"],
+                "result_count": metadata["total_result_count"],
+                "fetched_count": metadata["fetched_count"],
+                "returned_count": metadata["returned_count"],
+                "splunk_result_truncated": metadata["splunk_result_truncated"],
+                "mcp_context_truncated": metadata["mcp_context_truncated"],
+            },
+            "result": result,
+            "truncated": (
+                metadata["splunk_result_truncated"] is True
+                or metadata["mcp_context_truncated"] is True
+            ),
             "risk": {
                 "score": validation["risk_score"],
                 "tolerance": validation["risk_tolerance"],

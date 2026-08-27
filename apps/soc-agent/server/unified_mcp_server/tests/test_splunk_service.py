@@ -4,6 +4,8 @@ import pytest
 
 from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
+from unified_mcp_server.splunk.splunk_client import SplunkAPIError
+from unified_mcp_server.splunk.search.executor import SearchExecutor
 from unified_mcp_server.splunk_service import SplunkService
 
 
@@ -50,9 +52,18 @@ class FakeClient:
     async def disconnect(self):
         self.closed = True
 
-    async def search_oneshot(self, *args):
+    async def run_search_job(self, *args):
         self.search_args = args
-        return [{"card": "4111-1111-1111-1111", "ssn": "123-45-6789"}]
+        return {
+            "events": [{"card": "4111-1111-1111-1111", "ssn": "123-45-6789"}],
+            "metadata": {
+                "total_result_count": 1,
+                "fetched_count": 1,
+                "scan_count": 1,
+                "run_duration": 0.01,
+                "splunk_result_truncated": False,
+            },
+        }
 
     async def get_indexes(self):
         return [
@@ -125,13 +136,49 @@ async def test_search_reuses_client_caps_results_and_sanitizes():
     service = SplunkService(settings(), factory)
     result = await service.search("index=main | head 10", max_count=500)
 
-    assert result["event_count"] == 1
+    assert result["result"] == {
+        "type": "events",
+        "rows": [{"card": "****-****-****-1111", "ssn": "***-**-****"}],
+    }
     assert created[0].search_args[-1] == 2
+    assert result["search"] == {
+        "earliest_time": "-24h",
+        "latest_time": "now",
+        "run_duration_seconds": 0.01,
+        "run_duration_ms": 10,
+        "scanned_events": 1,
+        "result_count": 1,
+        "fetched_count": 1,
+        "returned_count": 1,
+        "splunk_result_truncated": False,
+        "mcp_context_truncated": False,
+    }
+    assert result["truncated"] is False
+    assert "sid" not in result
+    assert "dispatchState" not in result
+    assert "doneProgress" not in result
     assert "4111-1111-1111-1111" not in str(result)
     assert "123-45-6789" not in str(result)
     assert len(created) == 1
     await service.close()
     assert created[0].closed is True
+
+
+def test_search_and_detection_services_share_one_executor():
+    service = SplunkService(settings(), FakeClient)
+
+    assert isinstance(service.search_service.executor, SearchExecutor)
+    assert service.search_service.executor is service.detection_service.executor
+
+
+@pytest.mark.asyncio
+async def test_executor_owns_field_validation_before_splunk_execution():
+    service = SplunkService(settings(), lambda _: pytest.fail("client should not be created"))
+
+    with pytest.raises(ServiceError) as error:
+        await service.search("index=main", fields=["x" * 129])
+
+    assert error.value.code == "invalid_input"
 
 
 @pytest.mark.asyncio
@@ -186,8 +233,10 @@ async def test_search_projects_requested_fields_after_sanitizing():
 
     result = await service.search("index=main", fields=["card"])
 
-    assert result["fields"] == ["card"]
-    assert result["events"] == [{"card": "****-****-****-1111"}]
+    assert result["result"] == {
+        "type": "events",
+        "rows": [{"card": "****-****-****-1111"}],
+    }
     await service.close()
 
 
@@ -217,23 +266,149 @@ def test_event_budget_keeps_complete_prefix_and_reports_oversized_event():
 @pytest.mark.asyncio
 async def test_field_projection_happens_before_event_character_budget():
     class LargeEventClient(FakeClient):
-        async def search_oneshot(self, *args):
+        async def run_search_job(self, *args):
             self.search_args = args
-            return [
-                {"keep": "one", "_raw": "x" * 25_000},
-                {"keep": "two", "_raw": "y" * 25_000},
-            ]
+            return {
+                "events": [
+                    {"keep": "one", "_raw": "x" * 25_000},
+                    {"keep": "two", "_raw": "y" * 25_000},
+                ],
+                "metadata": {
+                    "total_result_count": 2,
+                    "fetched_count": 2,
+                    "splunk_result_truncated": False,
+                },
+            }
 
     service = SplunkService(settings(), LargeEventClient)
 
     unprojected = await service.search("index=main")
     projected = await service.search("index=main", fields=["keep"])
 
-    assert unprojected["events"] == []
-    assert unprojected["event_budget"]["received_count"] == 2
-    assert unprojected["event_budget"]["truncated"] is True
-    assert projected["events"] == [{"keep": "one"}, {"keep": "two"}]
-    assert projected["event_budget"]["truncated"] is False
+    assert unprojected["result"] == {"type": "events", "rows": []}
+    assert unprojected["search"]["fetched_count"] == 2
+    assert unprojected["search"]["returned_count"] == 0
+    assert unprojected["search"]["splunk_result_truncated"] is False
+    assert unprojected["search"]["mcp_context_truncated"] is True
+    assert unprojected["truncated"] is True
+    assert projected["result"] == {
+        "type": "events",
+        "rows": [{"keep": "one"}, {"keep": "two"}],
+    }
+    assert projected["search"]["mcp_context_truncated"] is False
+
+
+@pytest.mark.asyncio
+async def test_search_formats_analytical_spl_as_a_table_and_preserves_columns():
+    class AnalyticalClient(FakeClient):
+        async def run_search_job(self, *args):
+            self.search_args = args
+            return {
+                "events": [
+                    {"rule": "Failed Login", "count": "12891"},
+                    {"rule": "MFA Failure", "count": "14"},
+                ],
+                "columns": ["rule", "count"],
+                "metadata": {
+                    "total_result_count": 2,
+                    "fetched_count": 2,
+                    "scan_count": 823144,
+                    "run_duration": 1.82,
+                    "splunk_result_truncated": False,
+                },
+            }
+
+    service = SplunkService(settings(), AnalyticalClient)
+
+    result = await service.search("index=security | stats count by rule")
+
+    assert result["query"] == "index=security | stats count by rule"
+    assert result["result"] == {
+        "type": "table",
+        "columns": ["rule", "count"],
+        "rows": [
+            {"rule": "Failed Login", "count": "12891"},
+            {"rule": "MFA Failure", "count": "14"},
+        ],
+    }
+    assert result["search"] == {
+        "earliest_time": "-24h",
+        "latest_time": "now",
+        "run_duration_seconds": 1.82,
+        "run_duration_ms": 1820,
+        "scanned_events": 823144,
+        "result_count": 2,
+        "fetched_count": 2,
+        "returned_count": 2,
+        "splunk_result_truncated": False,
+        "mcp_context_truncated": False,
+    }
+    assert result["truncated"] is False
+
+
+@pytest.mark.asyncio
+async def test_search_combines_backend_and_context_truncation_flags():
+    class TruncatedClient(FakeClient):
+        async def run_search_job(self, *args):
+            return {
+                "events": [{"value": "ok"}],
+                "columns": ["value"],
+                "metadata": {
+                    "total_result_count": 2,
+                    "fetched_count": 1,
+                    "splunk_result_truncated": True,
+                },
+            }
+
+    service = SplunkService(settings(), TruncatedClient)
+    result = await service.search("index=main | stats count by value")
+
+    assert result["search"]["result_count"] == 2
+    assert result["search"]["fetched_count"] == 1
+    assert result["search"]["returned_count"] == 1
+    assert result["search"]["splunk_result_truncated"] is True
+    assert result["search"]["mcp_context_truncated"] is False
+    assert result["truncated"] is True
+
+
+@pytest.mark.asyncio
+async def test_search_leaves_unavailable_job_metadata_null():
+    class MetadataClient(FakeClient):
+        async def run_search_job(self, *args):
+            return {"events": [{"value": "ok"}], "metadata": {}}
+
+    service = SplunkService(settings(), MetadataClient)
+    result = await service.search("index=main")
+
+    assert result["search"]["run_duration_ms"] is None
+    assert result["search"]["scanned_events"] is None
+    assert result["search"]["result_count"] is None
+    assert result["search"]["splunk_result_truncated"] is None
+    assert result["truncated"] is False
+
+
+@pytest.mark.asyncio
+async def test_search_maps_untrustworthy_job_metadata_to_null():
+    class MalformedMetadataClient(FakeClient):
+        async def run_search_job(self, *args):
+            return {
+                "events": [{"value": "ok"}],
+                "metadata": {
+                    "total_result_count": "unknown",
+                    "scan_count": "unknown",
+                    "run_duration": "unknown",
+                    "splunk_result_truncated": "unknown",
+                },
+            }
+
+    service = SplunkService(settings(), MalformedMetadataClient)
+    result = await service.search("index=main")
+
+    assert result["search"]["result_count"] is None
+    assert result["search"]["scanned_events"] is None
+    assert result["search"]["run_duration_seconds"] is None
+    assert result["search"]["run_duration_ms"] is None
+    assert result["search"]["splunk_result_truncated"] is None
 
 
 @pytest.mark.asyncio
@@ -256,6 +431,21 @@ async def test_high_risk_query_is_blocked_before_client_creation():
     with pytest.raises(ServiceError, match="risk tolerance") as error:
         await service.search("index=* | transaction host", earliest_time="0")
     assert error.value.code == "query_blocked"
+
+
+@pytest.mark.asyncio
+async def test_job_failures_are_returned_as_clean_service_errors():
+    class FailedJobClient(FakeClient):
+        async def run_search_job(self, *args):
+            raise SplunkAPIError("job failed", status_code=400)
+
+    service = SplunkService(settings(), FailedJobClient)
+
+    with pytest.raises(ServiceError) as error:
+        await service.search("index=main")
+
+    assert error.value.code == "splunk_api_error"
+    assert error.value.details == {"status_code": 400}
 
 
 @pytest.mark.asyncio
@@ -308,6 +498,8 @@ async def test_backtest_and_writes_are_guarded_and_structured():
     assert backtest["sample_count"] == 1
     assert backtest["sample_budget"]["returned_count"] == 1
     assert backtest["sample_budget"]["truncated"] is False
+    assert backtest["search_metadata"]["returned_count"] == 1
+    assert backtest["search_metadata"]["mcp_context_truncated"] is False
     assert backtest["fields"] == ["card"]
     assert backtest["sample_events"] == [{"card": "****-****-****-1111"}]
     disabled = await writable.set_detection_enabled(
