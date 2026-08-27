@@ -2804,10 +2804,15 @@ const MarkItDownAttachmentSettingsSchema = Schema.object({
 	maxTotalChars: Schema.number().step(1).min(1).max(5e6).default(5e5)
 });
 //#endregion
+//#region src/action-approval-settings.ts
+const SOC_ACTION_APPROVAL_NAMESPACE = "soc-action-approval";
+const SocActionApprovalSettingsSchema = Schema.object({ autoApproveActions: Schema.array(Schema.string()).default([]) });
+//#endregion
 //#region src/index.ts
 function apply(ctx) {
 	ctx.inject(["settings"], (settingsCtx) => {
 		settingsCtx.settings.register(settingsNamespace(MARKITDOWN_ATTACHMENTS_NAMESPACE), MarkItDownAttachmentSettingsSchema);
+		settingsCtx.settings.register(settingsNamespace(SOC_ACTION_APPROVAL_NAMESPACE), SocActionApprovalSettingsSchema);
 	});
 }
 //#endregion

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { apply, APPROVAL_TOOLS, bindMemoryContext, clearMemoryContext, CONTROL_TOOLS, DOMAIN_TOOLS } from '../host.js'
+import { ACTION_CATALOG, apply, APPROVAL_TOOLS, bindMemoryContext, clearMemoryContext, CONTROL_TOOLS, DOMAIN_TOOLS } from '../host.js'
 import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 import { createMemoryContextRegistry } from '../../../packages/soc-memory/lib/tenant.js'
@@ -139,6 +139,64 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.equal((await preExecute({ name: 'mcp__soc_agent__update_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__delete_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'bash' }, () => ({ kind: 'delegate' }))).kind, 'deny')
+})
+
+test('SOC action approval defaults fail closed and session overrides are live', async () => {
+  const handlers = new Map()
+  const session = { id: 'soc-session-1' }
+  const agent = { id: session.id, session, ctx: { tools: { restrict() {} } } }
+  let saved = { autoApproveActions: [] }
+  let rpcHandler
+  apply({
+    get(name) {
+      if (name === 'settings') return { get: () => saved }
+      return undefined
+    },
+    on(event, handler) { handlers.set(event, handler) },
+    agents: { roots: () => [agent], get: id => id === agent.id ? agent : undefined },
+    sessions: { get: id => id === session.id ? session : undefined },
+    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+  })
+  const preExecute = handlers.get('tools/pre-execute')
+  const action = { name: ACTION_TOOLS[0], agent }
+  assert.equal((await preExecute(action, () => ({ kind: 'delegate' }))).kind, 'ask')
+
+  const catalog = await rpcHandler('get-action-catalog', {})
+  assert.deepEqual(catalog.value.actions.map(item => item.name), ACTION_TOOLS)
+  assert.deepEqual(catalog.value.actions, ACTION_CATALOG)
+  assert.deepEqual((await rpcHandler('get-action-policy', { session_id: session.id })).value, {
+    actions: ACTION_CATALOG,
+    autoApproveActions: [],
+    source: 'defaults',
+  })
+
+  saved = { autoApproveActions: [action.name] }
+  assert.deepEqual(await preExecute(action, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+
+  const sessionPolicy = await rpcHandler('set-session-action-policy', {
+    session_id: session.id,
+    auto_approve_actions: [],
+  })
+  assert.equal(sessionPolicy.value.source, 'session')
+  assert.deepEqual(sessionPolicy.value.autoApproveActions, [])
+  assert.equal((await preExecute(action, () => ({ kind: 'delegate' }))).kind, 'ask')
+
+  saved = { autoApproveActions: [action.name] }
+  assert.equal((await preExecute(action, () => ({ kind: 'delegate' }))).kind, 'ask')
+  assert.equal((await rpcHandler('reset-session-action-policy', { session_id: session.id })).value.source, 'defaults')
+  assert.deepEqual((await preExecute(action, () => ({ kind: 'delegate' }))), { kind: 'delegate' })
+
+  assert.equal((await rpcHandler('set-session-action-policy', {
+    session_id: session.id,
+    auto_approve_actions: [action.name, action.name],
+  })).error.code, 'soc-action-policy-invalid')
+  assert.equal((await rpcHandler('set-session-action-policy', {
+    session_id: session.id,
+    auto_approve_actions: ['not-a-soc-action'],
+  })).error.code, 'soc-action-policy-invalid')
+  assert.equal((await rpcHandler('get-action-policy', { session_id: 'missing-session' })).error.code, 'soc-action-session-not-found')
+  handlers.get('session/disposed')(session)
+  assert.equal((await rpcHandler('get-action-policy', { session_id: session.id })).value.source, 'defaults')
 })
 
 test('host RPC failures use the shared result error contract', async () => {

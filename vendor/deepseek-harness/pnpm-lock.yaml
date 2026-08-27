@@ -144,6 +144,9 @@ importers:
 
   ../../packages/soc-agent-client:
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/vendor/cordis
       '@deepseek-ai/dsh-client-connection':
         specifier: workspace:*
         version: link:../../vendor/deepseek-harness/packages/client/connection
@@ -168,6 +171,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-sidebar':
         specifier: workspace:*
         version: link:../../vendor/deepseek-harness/packages/client/ui-sidebar
+      '@deepseek-ai/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/ui-slots
       '@deepseek-ai/dsh-client-ui-tool':
         specifier: workspace:*
         version: link:../../vendor/deepseek-harness/packages/client/ui-tool

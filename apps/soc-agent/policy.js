@@ -33,32 +33,39 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'soc_memory_read',
 ])
 
-export const ACTION_TOOLS = Object.freeze([
-  'mcp__soc_agent__splunk_create_detection_draft',
-  'mcp__soc_agent__splunk_update_detection_draft',
-  'mcp__soc_agent__splunk_enable_detection',
-  'mcp__soc_agent__splunk_disable_detection',
-  'mcp__soc_agent__zimbra_move_email',
-  'mcp__soc_agent__zimbra_create_email_filter',
-  'mcp__soc_agent__zimbra_update_email_filter',
-  'mcp__soc_agent__zimbra_delete_email_filter',
-  'mcp__soc_agent__zimbra_set_email_filter_enabled',
-  'mcp__soc_agent__zimbra_reorder_email_filter',
-  'mcp__soc_agent__zimbra_create_folder',
-  'mcp__soc_agent__zimbra_create_signature',
-  'mcp__soc_agent__zimbra_delete_signature',
-  'mcp__soc_agent__create_subscription',
-  'mcp__soc_agent__update_subscription',
-  'mcp__soc_agent__delete_subscription',
-  'scheduled_task_create',
-  'scheduled_task_pause',
-  'scheduled_task_resume',
-  'scheduled_task_delete',
-  'scheduled_task_run_now',
-  'soc_memory_add',
-  'soc_memory_correct',
-  'soc_memory_forget',
+/**
+ * The one user-facing catalog of actions. Keep the tool name here in sync
+ * with the MCP server and derive ACTION_TOOLS below so policy and UI cannot
+ * silently drift apart.
+ */
+export const ACTION_CATALOG = Object.freeze([
+  { name: 'mcp__soc_agent__zimbra_move_email', group: 'Zimbra', label: 'Move email' },
+  { name: 'mcp__soc_agent__zimbra_create_email_filter', group: 'Zimbra', label: 'Create email filter' },
+  { name: 'mcp__soc_agent__zimbra_update_email_filter', group: 'Zimbra', label: 'Update email filter' },
+  { name: 'mcp__soc_agent__zimbra_delete_email_filter', group: 'Zimbra', label: 'Delete email filter' },
+  { name: 'mcp__soc_agent__zimbra_set_email_filter_enabled', group: 'Zimbra', label: 'Enable or disable email filter' },
+  { name: 'mcp__soc_agent__zimbra_reorder_email_filter', group: 'Zimbra', label: 'Reorder email filters' },
+  { name: 'mcp__soc_agent__zimbra_create_folder', group: 'Zimbra', label: 'Create folder' },
+  { name: 'mcp__soc_agent__zimbra_create_signature', group: 'Zimbra', label: 'Create signature' },
+  { name: 'mcp__soc_agent__zimbra_delete_signature', group: 'Zimbra', label: 'Delete signature' },
+  { name: 'mcp__soc_agent__splunk_create_detection_draft', group: 'Splunk', label: 'Create detection draft' },
+  { name: 'mcp__soc_agent__splunk_update_detection_draft', group: 'Splunk', label: 'Update detection draft' },
+  { name: 'mcp__soc_agent__splunk_enable_detection', group: 'Splunk', label: 'Enable detection' },
+  { name: 'mcp__soc_agent__splunk_disable_detection', group: 'Splunk', label: 'Disable detection' },
+  { name: 'mcp__soc_agent__create_subscription', group: 'Subscriptions', label: 'Create subscription' },
+  { name: 'mcp__soc_agent__update_subscription', group: 'Subscriptions', label: 'Update subscription' },
+  { name: 'mcp__soc_agent__delete_subscription', group: 'Subscriptions', label: 'Delete subscription' },
+  { name: 'scheduled_task_create', group: 'Schedules', label: 'Create scheduled task' },
+  { name: 'scheduled_task_pause', group: 'Schedules', label: 'Pause scheduled task' },
+  { name: 'scheduled_task_resume', group: 'Schedules', label: 'Resume scheduled task' },
+  { name: 'scheduled_task_delete', group: 'Schedules', label: 'Delete scheduled task' },
+  { name: 'scheduled_task_run_now', group: 'Schedules', label: 'Run scheduled task now' },
+  { name: 'soc_memory_add', group: 'SOC memory', label: 'Add memory' },
+  { name: 'soc_memory_correct', group: 'SOC memory', label: 'Correct memory' },
+  { name: 'soc_memory_forget', group: 'SOC memory', label: 'Forget memory' },
 ])
+
+export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
 
 export const MEMORY_READ_TOOLS = Object.freeze([
   'soc_memory_search',

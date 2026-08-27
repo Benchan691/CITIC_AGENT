@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS } from './policy.js'
+import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS } from './policy.js'
 import {
   MEMORY_SOURCE_TYPES,
   MEMORY_TYPES,
@@ -18,11 +18,116 @@ export const name = 'soc-agent-host'
 export const inject = ['agents', 'connection', 'tools', 'socAuth']
 
 const CHANNEL = '/soc-agent-config'
+const ACTION_POLICY_NAMESPACE = 'soc-action-approval'
 const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
 const HARD_ATTACHMENT_BYTES = 100_000_000
 const HARD_MARKDOWN_CHARS = 2_000_000
 
-export { ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS }
+export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS }
+
+const ACTION_NAMES = new Set(ACTION_TOOLS)
+
+class ActionPolicyError extends Error {
+  constructor(code, message) {
+    super(message)
+    this.name = 'ActionPolicyError'
+    this.code = code
+  }
+}
+
+function sessionIdOf(agent) {
+  const id = agent?.session?.id ?? agent?.id
+  return id === undefined || id === null ? undefined : String(id)
+}
+
+function rootsOf(ctx) {
+  try {
+    return typeof ctx.agents?.roots === 'function' ? ctx.agents.roots() : []
+  } catch {
+    return []
+  }
+}
+
+function sessionStoreOf(ctx) {
+  try {
+    return ctx.sessions ?? ctx.get?.('sessions')
+  } catch {
+    return undefined
+  }
+}
+
+function settingsOf(ctx) {
+  try {
+    return ctx.get?.('settings') ?? ctx.settings
+  } catch {
+    return undefined
+  }
+}
+
+function actionSet(value, { strict = false } = {}) {
+  if (!Array.isArray(value) || value.length > ACTION_TOOLS.length) {
+    throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action approval list is invalid.')
+  }
+  const result = new Set()
+  for (const name of value) {
+    if (typeof name !== 'string' || name.length === 0 || name.length > 200) {
+      throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action approval list is invalid.')
+    }
+    if (result.has(name)) {
+      throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action approval list contains duplicate actions.')
+    }
+    if (!ACTION_NAMES.has(name)) {
+      if (strict) throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action approval list contains an unknown action.')
+      continue
+    }
+    result.add(name)
+  }
+  return result
+}
+
+function savedAutoApproveActions(ctx) {
+  try {
+    const value = settingsOf(ctx)?.get?.(ACTION_POLICY_NAMESPACE)
+    return actionSet(value?.autoApproveActions ?? [])
+  } catch {
+    // A malformed or unavailable saved setting must never grant an action.
+    return new Set()
+  }
+}
+
+function resolveOwnedSession(ctx, sessionId) {
+  if (typeof sessionId !== 'string' || sessionId.length === 0 || sessionId.length > 200) {
+    throw new ActionPolicyError('soc-action-policy-invalid', 'A valid session is required.')
+  }
+  const roots = rootsOf(ctx)
+  const root = roots.find(agent => sessionIdOf(agent) === sessionId)
+  if (root?.session !== undefined) return { agent: root, session: root.session }
+  const sessions = sessionStoreOf(ctx)
+  const session = sessions?.get?.(sessionId)
+  if (session === undefined) throw new ActionPolicyError('soc-action-session-not-found', 'The session is no longer available.')
+  const agent = ctx.agents?.get?.(sessionId)
+  if (agent !== undefined && !roots.includes(agent)) {
+    throw new ActionPolicyError('soc-action-session-not-owned', 'The session is not owned by the interactive SOC agent.')
+  }
+  return { agent, session }
+}
+
+function policyValue(ctx, sessionPolicies, sessionId) {
+  const session = sessionPolicies.get(sessionId)
+  const actions = session ?? savedAutoApproveActions(ctx)
+  return {
+    actions: ACTION_CATALOG,
+    autoApproveActions: [...actions],
+    source: session === undefined ? 'defaults' : 'session',
+  }
+}
+
+function policyError(error) {
+  if (error instanceof ActionPolicyError) {
+    return { ok: false, error: { code: error.code, message: error.message, details: {} } }
+  }
+  return { ok: false, error: { code: 'soc-action-policy-unavailable', message: 'The SOC action policy is unavailable.', details: {} } }
+}
 
 function bundleRoot() {
   return dirname(fileURLToPath(import.meta.url))
@@ -184,8 +289,27 @@ export function clearMemoryContext(ctx, agent) {
   memoryContext.clear(agent)
 }
 
-async function handleEndpoint(endpoint, payload, signal, ctx) {
+async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
   switch (endpoint) {
+    case 'get-action-catalog': return ok({ actions: ACTION_CATALOG })
+    case 'get-action-policy': {
+      const sessionId = payload?.session_id ?? payload?.sessionId
+      resolveOwnedSession(ctx, sessionId)
+      return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
+    }
+    case 'set-session-action-policy': {
+      const sessionId = payload?.session_id ?? payload?.sessionId
+      resolveOwnedSession(ctx, sessionId)
+      const actions = actionSet(payload?.auto_approve_actions ?? payload?.autoApproveActions, { strict: true })
+      sessionPolicies.set(String(sessionId), actions)
+      return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
+    }
+    case 'reset-session-action-policy': {
+      const sessionId = payload?.session_id ?? payload?.sessionId
+      resolveOwnedSession(ctx, sessionId)
+      sessionPolicies.delete(String(sessionId))
+      return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
+    }
     case 'get-settings': return ok(await runAdmin('get-settings'))
     case 'update-settings': return ok(await runAdmin('update-settings', undefined, payload))
     case 'delete-setting': return ok(await runAdmin('delete-setting', payload?.key ?? ''))
@@ -216,6 +340,7 @@ async function handleEndpoint(endpoint, payload, signal, ctx) {
 }
 
 export function apply(ctx) {
+  const sessionPolicies = new Map()
   let memoryContext = ctx.get?.('socMemoryContext')
   if (memoryContext === undefined) {
     memoryContext = createMemoryContextRegistry()
@@ -237,22 +362,33 @@ export function apply(ctx) {
       }
     }
     if (APPROVAL_TOOLS.has(exec.name)) {
+      const agent = exec?.agent
+      const sessionId = sessionIdOf(agent)
+      const interactive = agent !== undefined && rootsOf(ctx).includes(agent)
+      if (interactive && sessionId !== undefined) {
+        const autoApproved = sessionPolicies.get(sessionId) ?? savedAutoApproveActions(ctx)
+        if (autoApproved.has(exec.name)) return next()
+      }
       return Promise.resolve({ kind: 'ask', reason: MEMORY_WRITE_TOOLS.includes(exec.name) ? 'This action changes persistent SOC memory and requires approval.' : 'This action changes a SOC system, sends email, or changes a persistent schedule.' })
     }
     return next()
   }, { global: true })
   ctx.on('agent/disposed', ({ agent }) => memoryContext.clear(agent))
+  ctx.on('session/disposed', (session) => sessionPolicies.delete(String(session.id)))
   ctx.connection.rpc.handle(
     CHANNEL,
     async (endpoint, payload, signal) => {
       try {
-        return await handleEndpoint(endpoint, payload ?? {}, signal, ctx)
+        return await handleEndpoint(endpoint, payload ?? {}, signal, ctx, sessionPolicies)
       } catch (error) {
         if (endpoint === 'convert-attachment') {
           const message = error instanceof Error ? error.message : 'attachment_conversion_failed'
           const [code, ...rest] = message.split(': ')
           const stableCodes = new Set(['attachment_invalid_request', 'attachment_invalid_filename', 'attachment_invalid_mime', 'attachment_too_large', 'attachment_invalid_limits', 'attachment_conversion_cancelled', 'attachment_unsupported', 'attachment_converter_unavailable', 'attachment_malformed', 'attachment_encrypted', 'attachment_too_complex', 'attachment_conversion_failed'])
           return { ok: false, error: { code: stableCodes.has(code) ? code : 'attachment_conversion_failed', message: stableCodes.has(code) && rest.length > 0 ? rest.join(': ') : 'The attachment conversion failed.', details: {} } }
+        }
+        if (endpoint === 'get-action-policy' || endpoint === 'set-session-action-policy' || endpoint === 'reset-session-action-policy') {
+          return policyError(error)
         }
         return internalError(error instanceof Error ? error.message : String(error))
       }
