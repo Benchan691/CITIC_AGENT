@@ -32,6 +32,8 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.splunk.detection_write_enabled is False
     assert settings.splunk.detection_enable_enabled is False
     assert settings.splunk.security_queue_mode == "auto"
+    assert settings.splunk.query_policy.normal_search_seconds == 604_800
+    assert settings.splunk.query_policy.wildcard_index_decision == "require_approval"
     assert settings.zimbra.max_attachment_bytes == 10_000_000
     assert settings.zimbra.max_attachment_text_chars == 200_000
     assert settings.markitdown.llm_enabled is False
@@ -213,6 +215,30 @@ def test_security_queue_mode_is_configurable_and_validated():
 
     with pytest.raises(ValueError):
         ServerSettings.from_env({"SPLUNK_SECURITY_QUEUE_MODE": "unknown"})
+
+
+def test_splunk_query_policy_thresholds_and_decisions_are_configurable():
+    settings = ServerSettings.from_env(
+        {
+            "SPLUNK_POLICY_SHORT_SEARCH_SECONDS": "3600",
+            "SPLUNK_POLICY_NORMAL_SEARCH_SECONDS": "7200",
+            "SPLUNK_POLICY_VERY_LONG_SEARCH_SECONDS": "86400",
+            "SPLUNK_POLICY_WILDCARD_INDEX": "deny",
+            "SPLUNK_POLICY_MAX_SUBSEARCH_DEPTH": "2",
+            "SPLUNK_POLICY_TRUSTED_MACROS": "company_auth_base,  trusted_scope",
+        }
+    )
+
+    policy = settings.splunk.query_policy
+    assert policy.short_search_seconds == 3600
+    assert policy.normal_search_seconds == 7200
+    assert policy.very_long_search_seconds == 86400
+    assert policy.wildcard_index_decision == "deny"
+    assert policy.max_subsearch_depth == 2
+    assert policy.trusted_macros == ("company_auth_base", "trusted_scope")
+
+    with pytest.raises(ValueError):
+        ServerSettings.from_env({"SPLUNK_POLICY_WILDCARD_INDEX": "maybe"})
 
 
 def test_zimbra_filter_gates_are_explicit_and_visible_without_secrets():

@@ -136,6 +136,19 @@ class SplunkSearchService:
         if not name:
             raise ServiceError("invalid_input", "name cannot be empty")
         limit = min(max(1, int(max_count)), self.core.settings.max_events)
+        definition = await self.core.request(
+            lambda client: client.get_saved_search(name, app.strip(), owner.strip())
+        )
+        content = definition.get("content") if isinstance(definition, dict) else None
+        if not isinstance(content, dict) or not isinstance(content.get("search"), str) or not content["search"].strip():
+            raise ServiceError("splunk_api_error", "Splunk returned a saved search without executable SPL.")
+        validation = self.core.validate_query(
+            content["search"],
+            content.get("dispatch.earliest_time") or "-24h",
+            content.get("dispatch.latest_time") or "now",
+        )
+        if validation.get("decision") != "allow":
+            raise self.executor._blocked_query_error(validation)
         result = await self.core.request(lambda client: client.run_saved_search(name, False, limit, app.strip(), owner.strip()))
         result = self.core.sanitize(result)
         events = result.get("events") if isinstance(result, dict) else None

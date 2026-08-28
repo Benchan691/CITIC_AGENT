@@ -10,7 +10,7 @@ from mcp.server.fastmcp import Context
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success, failure, service_error) -> None:
     @server.tool()
     async def splunk_validate_query(ctx: Context, query: str, earliest_time: str = "-24h", latest_time: str = "now") -> dict[str, Any]:
-        """Risk-score an SPL query locally without executing it."""
+        """Analyze SPL scope and safety locally without executing it."""
         try:
             data = (await fresh_runtime(ctx)).splunk_search.validate(query, earliest_time, latest_time)
             return success("splunk", "validate_query", data)

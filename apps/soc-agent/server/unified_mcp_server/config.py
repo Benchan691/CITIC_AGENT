@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from os import environ
 from pathlib import Path
 from typing import Mapping
@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 
 from .env_loader import workspace_root
 from .postgres_store import PostgresStore
+from .splunk.query_policy import QueryPolicyConfig
 
 
 def _value(env: Mapping[str, str], name: str, default: str = "") -> str:
@@ -42,6 +43,18 @@ def _preferred(env: Mapping[str, str], primary: str, legacy: str) -> str:
     return primary if _value(env, primary) else legacy
 
 
+def _policy_decision(env: Mapping[str, str], name: str, default: str = "require_approval") -> str:
+    value = _value(env, name, default).lower()
+    if value not in {"allow", "require_approval", "deny"}:
+        raise ValueError(f"{name} must be allow, require_approval, or deny")
+    return value
+
+
+def _policy_macros(env: Mapping[str, str]) -> tuple[str, ...]:
+    raw = _value(env, "SPLUNK_POLICY_TRUSTED_MACROS")
+    return tuple(item.strip() for item in raw.split(",") if item.strip())
+
+
 def _storage_path(env: Mapping[str, str], name: str, default: str) -> str:
     value = _value(env, name, default)
     if value.startswith(".data/"):
@@ -71,6 +84,7 @@ class SplunkSettings:
     detection_owner: str = "nobody"
     url: str = ""
     security_queue_mode: str = "auto"
+    query_policy: QueryPolicyConfig = field(default_factory=QueryPolicyConfig)
 
     @property
     def configured(self) -> bool:
@@ -204,6 +218,23 @@ class ServerSettings:
         security_queue_mode = _value(env, "SPLUNK_SECURITY_QUEUE_MODE", "auto").lower()
         if security_queue_mode not in {"auto", "enterprise_security", "classic"}:
             raise ValueError("SPLUNK_SECURITY_QUEUE_MODE must be auto, enterprise_security, or classic")
+        query_policy = QueryPolicyConfig(
+            short_search_seconds=_integer(env, "SPLUNK_POLICY_SHORT_SEARCH_SECONDS", 86_400, 1, 31_536_000),
+            normal_search_seconds=_integer(env, "SPLUNK_POLICY_NORMAL_SEARCH_SECONDS", 604_800, 1, 31_536_000),
+            very_long_search_seconds=_integer(env, "SPLUNK_POLICY_VERY_LONG_SEARCH_SECONDS", 2_592_000, 1, 31_536_000),
+            wildcard_index_decision=_policy_decision(env, "SPLUNK_POLICY_WILDCARD_INDEX"),
+            no_index_decision=_policy_decision(env, "SPLUNK_POLICY_NO_INDEX"),
+            long_raw_decision=_policy_decision(env, "SPLUNK_POLICY_LONG_RAW"),
+            very_long_decision=_policy_decision(env, "SPLUNK_POLICY_VERY_LONG"),
+            all_time_decision=_policy_decision(env, "SPLUNK_POLICY_ALL_TIME"),
+            expensive_command_decision=_policy_decision(env, "SPLUNK_POLICY_EXPENSIVE_COMMAND"),
+            subsearch_decision=_policy_decision(env, "SPLUNK_POLICY_SUBSEARCH"),
+            nested_subsearch_decision=_policy_decision(env, "SPLUNK_POLICY_NESTED_SUBSEARCH"),
+            unresolved_macro_decision=_policy_decision(env, "SPLUNK_POLICY_UNRESOLVED_MACRO"),
+            unparseable_time_decision=_policy_decision(env, "SPLUNK_POLICY_UNPARSEABLE_TIME"),
+            max_subsearch_depth=_integer(env, "SPLUNK_POLICY_MAX_SUBSEARCH_DEPTH", 1, 1, 16),
+            trusted_macros=_policy_macros(env),
+        )
         splunk_host = (
             _value(env, "SPLUNK_HOST_FOR_DOCKER")
             if _value(env, "RUNNING_INSIDE_DOCKER") == "1"
@@ -239,6 +270,7 @@ class ServerSettings:
             detection_owner=_value(env, "SPLUNK_DETECTION_OWNER", "nobody"),
             url=splunk_url,
             security_queue_mode=security_queue_mode,
+            query_policy=query_policy,
         )
         zimbra = ZimbraSettings(
             host=_value(env, "ZIMBRA_HOST"),
@@ -318,6 +350,7 @@ class ServerSettings:
                 "detection_enable_enabled": self.splunk.detection_enable_enabled,
                 "detection_app": self.splunk.detection_app,
                 "security_queue_mode": self.splunk.security_queue_mode,
+                "query_policy": self.splunk.query_policy.to_dict(),
             },
             "zimbra": {
                 "configured": self.zimbra.configured,

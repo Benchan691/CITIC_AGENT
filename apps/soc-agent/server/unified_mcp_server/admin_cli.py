@@ -31,6 +31,21 @@ CONFIG_KEYS = {
     "splunk.detection_write_enabled": ("SPLUNK_ALLOW_DETECTION_WRITE",),
     "splunk.detection_enable_enabled": ("SPLUNK_ALLOW_DETECTION_ENABLE",),
     "splunk.security_queue_mode": ("SPLUNK_SECURITY_QUEUE_MODE",),
+    "splunk.query_policy.short_search_seconds": ("SPLUNK_POLICY_SHORT_SEARCH_SECONDS",),
+    "splunk.query_policy.normal_search_seconds": ("SPLUNK_POLICY_NORMAL_SEARCH_SECONDS",),
+    "splunk.query_policy.very_long_search_seconds": ("SPLUNK_POLICY_VERY_LONG_SEARCH_SECONDS",),
+    "splunk.query_policy.wildcard_index_decision": ("SPLUNK_POLICY_WILDCARD_INDEX",),
+    "splunk.query_policy.no_index_decision": ("SPLUNK_POLICY_NO_INDEX",),
+    "splunk.query_policy.long_raw_decision": ("SPLUNK_POLICY_LONG_RAW",),
+    "splunk.query_policy.very_long_decision": ("SPLUNK_POLICY_VERY_LONG",),
+    "splunk.query_policy.all_time_decision": ("SPLUNK_POLICY_ALL_TIME",),
+    "splunk.query_policy.expensive_command_decision": ("SPLUNK_POLICY_EXPENSIVE_COMMAND",),
+    "splunk.query_policy.subsearch_decision": ("SPLUNK_POLICY_SUBSEARCH",),
+    "splunk.query_policy.nested_subsearch_decision": ("SPLUNK_POLICY_NESTED_SUBSEARCH",),
+    "splunk.query_policy.unresolved_macro_decision": ("SPLUNK_POLICY_UNRESOLVED_MACRO",),
+    "splunk.query_policy.unparseable_time_decision": ("SPLUNK_POLICY_UNPARSEABLE_TIME",),
+    "splunk.query_policy.max_subsearch_depth": ("SPLUNK_POLICY_MAX_SUBSEARCH_DEPTH",),
+    "splunk.query_policy.trusted_macros": ("SPLUNK_POLICY_TRUSTED_MACROS",),
     "zimbra.host": ("ZIMBRA_HOST",),
     "zimbra.verify_ssl": ("ZIMBRA_VERIFY_SSL",),
     "zimbra.timeout": ("ZIMBRA_TIMEOUT",),
@@ -70,6 +85,7 @@ def _public_settings(store: PostgresStore) -> dict[str, Any]:
             "detection_write_enabled": settings.splunk.detection_write_enabled,
             "detection_enable_enabled": settings.splunk.detection_enable_enabled,
             "security_queue_mode": settings.splunk.security_queue_mode,
+            "query_policy": settings.splunk.query_policy.to_dict(),
         },
         "zimbra": {
             "host": settings.zimbra.host,
@@ -107,6 +123,8 @@ def _read_payload() -> dict[str, Any]:
 def _string_bool(value: Any) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
+    if isinstance(value, (list, tuple)):
+        return ",".join(str(item).strip() for item in value if str(item).strip())
     return str(value).strip()
 
 

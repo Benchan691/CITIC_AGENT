@@ -3,6 +3,7 @@
 import asyncio
 import httpx
 import json
+import math
 from time import monotonic
 from typing import Optional, Dict, Any, List
 from urllib.parse import parse_qs, quote, urlsplit
@@ -230,9 +231,23 @@ class SplunkClient:
     def _optional_int(value: Any) -> int | None:
         if value is None or isinstance(value, bool):
             return None
-        try:
+        if isinstance(value, int):
+            parsed = value
+        elif isinstance(value, float):
+            if not math.isfinite(value) or not value.is_integer():
+                return None
             parsed = int(value)
-        except (TypeError, ValueError):
+        elif isinstance(value, str):
+            raw = value.strip()
+            if not raw or (raw[0] in "+-" and not raw[1:].isdigit()) or (
+                raw[0] not in "+-" and not raw.isdigit()
+            ):
+                return None
+            try:
+                parsed = int(raw)
+            except ValueError:
+                return None
+        else:
             return None
         return parsed if parsed >= 0 else None
 
@@ -244,7 +259,7 @@ class SplunkClient:
             parsed = float(value)
         except (TypeError, ValueError):
             return None
-        return parsed if parsed >= 0 else None
+        return parsed if math.isfinite(parsed) and parsed >= 0 else None
 
     @staticmethod
     def _job_content(payload: dict[str, Any], operation: str) -> tuple[dict[str, Any], str]:

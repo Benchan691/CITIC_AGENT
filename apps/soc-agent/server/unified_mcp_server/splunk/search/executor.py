@@ -54,12 +54,19 @@ class SearchExecutor:
 
     @staticmethod
     def _blocked_query_error(validation: dict[str, Any]) -> ServiceError:
-        reason = (
-            "The SPL query contains a command blocked by the safety policy."
-            if validation["blocked_commands"]
-            else "The SPL query exceeds the configured risk tolerance."
+        decision = validation.get("decision")
+        policy = validation.get("policy", validation)
+        if decision == "require_approval":
+            return ServiceError(
+                "query_approval_required",
+                "The SPL query requires approval before execution.",
+                details={"policy": policy},
+            )
+        return ServiceError(
+            "query_blocked",
+            "The SPL query was denied by the safety policy; risk tolerance cannot override this decision.",
+            details={"policy": policy},
         )
-        return ServiceError("query_blocked", reason, details=validation)
 
     @staticmethod
     def _pipeline_commands(query: str) -> list[str]:
@@ -121,9 +128,23 @@ class SearchExecutor:
             return None
         if isinstance(value, bool):
             return None
-        try:
+        if isinstance(value, int):
+            parsed = value
+        elif isinstance(value, float):
+            if not math.isfinite(value) or not value.is_integer():
+                return None
             parsed = int(value)
-        except (TypeError, ValueError):
+        elif isinstance(value, str):
+            raw = value.strip()
+            if not raw or (raw[0] in "+-" and not raw[1:].isdigit()) or (
+                raw[0] not in "+-" and not raw.isdigit()
+            ):
+                return None
+            try:
+                parsed = int(raw)
+            except ValueError:
+                return None
+        else:
             return None
         if parsed < 0:
             return None
@@ -214,7 +235,7 @@ class SearchExecutor:
         fields: list[str] | None = None,
     ) -> SearchExecution:
         validation = self.core.validate_query(query, earliest_time, latest_time)
-        if not validation["would_execute"]:
+        if validation.get("decision") != "allow":
             raise self._blocked_query_error(validation)
 
         bounded_limit = min(max(1, int(limit)), self.core.settings.max_events)

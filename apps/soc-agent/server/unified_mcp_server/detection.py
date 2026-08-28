@@ -110,8 +110,13 @@ def validate_detection(draft: DetectionDraft, *, query_validation: dict[str, Any
             errors.append(f"invalid MITRE ATT&CK technique: {technique}")
     if not draft.risk_objects and draft.risk_score:
         warnings.append("risk_score is set but risk_objects is empty")
-    if not query_validation.get("would_execute", False):
-        errors.append("SPL exceeds the configured risk tolerance")
+    decision = query_validation.get("decision")
+    if decision == "deny":
+        errors.append("SPL is denied by the safety policy")
+    elif decision == "require_approval":
+        errors.append("SPL requires approval before execution")
+    elif decision != "allow":
+        errors.append("SPL policy could not establish safe execution")
     if "index=" not in draft.spl.lower():
         warnings.append("SPL does not name an index; confirm the data scope before deployment")
     if "| tstats" not in draft.spl.lower() and "| datamodel" not in draft.spl.lower():

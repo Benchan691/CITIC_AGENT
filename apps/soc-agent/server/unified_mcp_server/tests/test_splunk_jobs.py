@@ -330,3 +330,11 @@ async def test_search_job_rejects_http_and_malformed_result_failures():
 def test_search_job_result_parser_rejects_malformed_payloads(payload):
     with pytest.raises(SplunkAPIError):
         SplunkClient._parse_result_page(payload, "search job")
+
+
+def test_job_metadata_rejects_non_integral_and_non_finite_numbers():
+    assert SplunkClient._optional_int(4.5) is None
+    assert SplunkClient._optional_int("4.5") is None
+    assert SplunkClient._optional_int("4") == 4
+    assert SplunkClient._optional_float(float("inf")) is None
+    assert SplunkClient._optional_float("4.2") == 4.2

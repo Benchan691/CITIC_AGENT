@@ -228,6 +228,28 @@ async def test_saved_search_disables_actions_and_sanitizes_results():
 
 
 @pytest.mark.asyncio
+async def test_saved_search_policy_blocks_side_effecting_saved_spl_before_dispatch():
+    class UnsafeSavedClient(FakeClient):
+        async def get_saved_search(self, name, app="", owner=""):
+            return {
+                "name": name,
+                "content": {
+                    "search": "index=main | outputlookup evidence.csv",
+                    "dispatch.earliest_time": "-10m",
+                    "dispatch.latest_time": "now",
+                },
+            }
+
+        async def run_saved_search(self, *args):
+            pytest.fail("unsafe saved search must not be dispatched")
+
+    service = SplunkService(settings(), UnsafeSavedClient)
+    with pytest.raises(ServiceError) as error:
+        await service.run_saved_search("Unsafe")
+    assert error.value.code == "query_blocked"
+
+
+@pytest.mark.asyncio
 async def test_search_projects_requested_fields_after_sanitizing():
     service = SplunkService(settings(), FakeClient)
 

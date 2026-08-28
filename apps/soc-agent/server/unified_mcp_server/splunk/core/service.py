@@ -15,7 +15,8 @@ from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 
 from .client import SplunkAPIError, SplunkClient
-from .guardrails import blocked_spl_commands, sanitize_output, validate_spl_query
+from ..query_policy import QueryPolicyConfig, SplunkQueryPolicy
+from .guardrails import sanitize_output
 
 
 class SplunkCore:
@@ -25,9 +26,13 @@ class SplunkCore:
         self,
         settings: SplunkSettings,
         client_factory: Callable[[dict[str, object]], SplunkClient] = SplunkClient,
+        query_policy: SplunkQueryPolicy | None = None,
     ) -> None:
         self.settings = settings
         self._client_factory = client_factory
+        self.query_policy = query_policy or SplunkQueryPolicy(
+            getattr(settings, "query_policy", QueryPolicyConfig())
+        )
         self._client: SplunkClient | None = None
         self._connect_lock = asyncio.Lock()
 
@@ -37,25 +42,30 @@ class SplunkCore:
         earliest_time: str = "-24h",
         latest_time: str = "now",
     ) -> dict[str, Any]:
-        query = query.strip()
-        if not query:
+        if not isinstance(query, str) or not query.strip():
             raise ServiceError("invalid_input", "query cannot be empty")
-        scored_query = f"{query} earliest={earliest_time} latest={latest_time}"
-        risk_score, risk_message = validate_spl_query(scored_query, self.settings.safe_timerange)
-        blocked_commands = blocked_spl_commands(query)
-        return {
+        if not isinstance(earliest_time, str) or not isinstance(latest_time, str):
+            raise ServiceError("invalid_input", "earliest_time and latest_time must be strings")
+        query = query.strip()
+        policy = self.query_policy.evaluate(query, earliest_time, latest_time)
+        policy_data = policy.to_dict()
+        result = {
             "query": query,
             "earliest_time": earliest_time,
             "latest_time": latest_time,
-            "risk_score": risk_score,
-            "risk_message": risk_message,
+            "risk_score": policy.risk_score,
+            "risk_message": policy.risk_message,
             "risk_tolerance": self.settings.risk_tolerance,
-            "blocked_commands": blocked_commands,
-            "would_execute": (
-                risk_score <= self.settings.risk_tolerance
-                and not blocked_commands
-            ),
+            "blocked_commands": policy.dangerous_commands,
+            "decision": policy.decision,
+            "would_execute": policy.decision == "allow",
+            "policy": policy_data,
         }
+        # Keep the structured policy easy to consume for existing callers that
+        # expect validation fields at the top level, while also providing a
+        # single nested policy object for new callers.
+        result.update(policy_data)
+        return result
 
     def sanitize(self, value: Any) -> Any:
         return sanitize_output(value) if self.settings.sanitize_output else value
