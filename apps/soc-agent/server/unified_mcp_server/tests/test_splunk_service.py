@@ -52,7 +52,7 @@ class FakeClient:
     async def disconnect(self):
         self.closed = True
 
-    async def run_search_job(self, *args):
+    async def run_search_job(self, *args, **kwargs):
         self.search_args = args
         return {
             "events": [{"card": "4111-1111-1111-1111", "ssn": "123-45-6789"}],
@@ -113,7 +113,7 @@ class FakeClient:
         })
         return {"entry": [{"name": name}]}
 
-    async def run_saved_search(self, name, trigger_actions, max_count=100, app="", owner=""):
+    async def run_saved_search(self, name, trigger_actions, max_count=100, app="", owner="", *, runtime_limit=None):
         return {
             "search_name": name,
             "trigger_actions": trigger_actions,
@@ -240,7 +240,7 @@ async def test_saved_search_policy_blocks_side_effecting_saved_spl_before_dispat
                 },
             }
 
-        async def run_saved_search(self, *args):
+        async def run_saved_search(self, *args, **kwargs):
             pytest.fail("unsafe saved search must not be dispatched")
 
     service = SplunkService(settings(), UnsafeSavedClient)
@@ -288,7 +288,7 @@ def test_event_budget_keeps_complete_prefix_and_reports_oversized_event():
 @pytest.mark.asyncio
 async def test_field_projection_happens_before_event_character_budget():
     class LargeEventClient(FakeClient):
-        async def run_search_job(self, *args):
+        async def run_search_job(self, *args, **kwargs):
             self.search_args = args
             return {
                 "events": [
@@ -323,7 +323,7 @@ async def test_field_projection_happens_before_event_character_budget():
 @pytest.mark.asyncio
 async def test_search_formats_analytical_spl_as_a_table_and_preserves_columns():
     class AnalyticalClient(FakeClient):
-        async def run_search_job(self, *args):
+        async def run_search_job(self, *args, **kwargs):
             self.search_args = args
             return {
                 "events": [
@@ -371,7 +371,7 @@ async def test_search_formats_analytical_spl_as_a_table_and_preserves_columns():
 @pytest.mark.asyncio
 async def test_search_combines_backend_and_context_truncation_flags():
     class TruncatedClient(FakeClient):
-        async def run_search_job(self, *args):
+        async def run_search_job(self, *args, **kwargs):
             return {
                 "events": [{"value": "ok"}],
                 "columns": ["value"],
@@ -396,7 +396,7 @@ async def test_search_combines_backend_and_context_truncation_flags():
 @pytest.mark.asyncio
 async def test_search_leaves_unavailable_job_metadata_null():
     class MetadataClient(FakeClient):
-        async def run_search_job(self, *args):
+        async def run_search_job(self, *args, **kwargs):
             return {"events": [{"value": "ok"}], "metadata": {}}
 
     service = SplunkService(settings(), MetadataClient)
@@ -412,7 +412,7 @@ async def test_search_leaves_unavailable_job_metadata_null():
 @pytest.mark.asyncio
 async def test_search_maps_untrustworthy_job_metadata_to_null():
     class MalformedMetadataClient(FakeClient):
-        async def run_search_job(self, *args):
+        async def run_search_job(self, *args, **kwargs):
             return {
                 "events": [{"value": "ok"}],
                 "metadata": {
@@ -458,7 +458,7 @@ async def test_high_risk_query_is_blocked_before_client_creation():
 @pytest.mark.asyncio
 async def test_job_failures_are_returned_as_clean_service_errors():
     class FailedJobClient(FakeClient):
-        async def run_search_job(self, *args):
+        async def run_search_job(self, *args, **kwargs):
             raise SplunkAPIError("job failed", status_code=400)
 
     service = SplunkService(settings(), FailedJobClient)
@@ -512,6 +512,7 @@ async def test_backtest_and_writes_are_guarded_and_structured():
     )
     payload = {"name": "x", "spl": "index=main error", "cron_schedule": "*/5 * * * *"}
     draft = await writable.create_detection_draft(payload)
+    assert draft["status"] == "approval_required"
     assert draft["enabled"] is False
     assert "splunk" not in draft
     assert draft["requires_action_configuration"] is True
@@ -524,8 +525,15 @@ async def test_backtest_and_writes_are_guarded_and_structured():
     assert backtest["search_metadata"]["mcp_context_truncated"] is False
     assert backtest["fields"] == ["card"]
     assert backtest["sample_events"] == [{"card": "****-****-****-1111"}]
-    disabled = await writable.set_detection_enabled(
-        "x", False, draft["detection"]["fingerprint"]
+    current = await writable.get_detection("x")
+    disable_proposal = await writable.set_detection_enabled(
+        "x", False, current["fingerprint"], actor_id="test-analyst"
+    )
+    approval = await writable.approve_detection_change(
+        disable_proposal["proposal_id"], disable_proposal["proposal_hash"], actor_id="test-analyst"
+    )
+    disabled = await writable.apply_approved_detection_change(
+        approval["approval_id"], actor_id="test-analyst"
     )
     assert disabled["enabled"] is False
     assert "splunk" not in disabled
@@ -547,22 +555,38 @@ async def test_detection_update_preserves_actions_and_enable_requires_runnable_s
     draft = await service.create_detection_draft({
         "name": "x", "spl": "index=main error", "cron_schedule": "*/5 * * * *",
     })
+    assert draft["status"] == "approval_required"
+    current = await service.get_detection("x")
+    service.core._client.saved_content["actions"] = ""
+    current = await service.get_detection("x")
     with pytest.raises(ServiceError) as not_runnable:
-        await service.set_detection_enabled("x", True, draft["detection"]["fingerprint"])
+        await service.set_detection_enabled("x", True, current["fingerprint"], actor_id="test-analyst")
     assert not_runnable.value.code == "detection_not_runnable"
 
     client = service.core._client
     client.saved_content["actions"] = "notable"
     current = await service.get_detection("x")
-    updated = await service.update_detection_draft(
-        "x", {"description": "reviewed"}, current["fingerprint"]
+    update_proposal = await service.update_detection_draft(
+        "x", {"description": "reviewed"}, current["fingerprint"], actor_id="test-analyst"
+    )
+    update_approval = await service.approve_detection_change(
+        update_proposal["proposal_id"], update_proposal["proposal_hash"], actor_id="test-analyst"
+    )
+    updated = await service.apply_approved_detection_change(
+        update_approval["approval_id"], actor_id="test-analyst"
     )
     assert updated["actions_preserved"] is True
     assert updated["detection"]["actions"] == "notable"
     assert "actions" not in client.updated_fields[1]
 
-    enabled = await service.set_detection_enabled(
-        "x", True, updated["detection"]["fingerprint"]
+    enable_proposal = await service.set_detection_enabled(
+        "x", True, updated["detection"]["fingerprint"], actor_id="test-analyst"
+    )
+    enable_approval = await service.approve_detection_change(
+        enable_proposal["proposal_id"], enable_proposal["proposal_hash"], actor_id="test-analyst"
+    )
+    enabled = await service.apply_approved_detection_change(
+        enable_approval["approval_id"], actor_id="test-analyst"
     )
     assert enabled["enabled"] is True
 

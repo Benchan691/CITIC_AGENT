@@ -134,9 +134,16 @@ class SplunkCore:
     @staticmethod
     def _service_error(exc: SplunkAPIError) -> ServiceError:
         status = exc.status_code
+        details = dict(exc.details) if isinstance(exc.details, dict) else {}
+        if status:
+            details.setdefault("status_code", status)
+        # Only client-generated lifecycle codes are allowed through.  Splunk
+        # response text remains an API error and is never treated as a caller
+        # controlled service code.
+        code = exc.error_code if exc.error_code in {"runtime_limit_exceeded"} else "splunk_api_error"
         return ServiceError(
-            "splunk_api_error",
+            code,
             exc.message,
-            retryable=status is None or status >= 500,
-            details={"status_code": status} if status else {},
+            retryable=(status is None or status >= 500) if code == "splunk_api_error" else False,
+            details=details,
         )

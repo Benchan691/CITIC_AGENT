@@ -12,6 +12,7 @@ from typing import Any
 from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.splunk.core.client import SplunkClient
 from unified_mcp_server.splunk.core.service import SplunkCore
+from unified_mcp_server.splunk.detection.approval import DetectionApprovalStore
 from unified_mcp_server.splunk.detection.service import SplunkDetectionService
 from unified_mcp_server.splunk.search.executor import SearchExecutor
 from unified_mcp_server.splunk.search.service import SplunkSearchService
@@ -25,11 +26,12 @@ class SplunkService:
         client_factory: Callable[[dict[str, object]], SplunkClient] = SplunkClient,
         *,
         core: SplunkCore | None = None,
+        approval_store: DetectionApprovalStore | None = None,
     ) -> None:
         self.core = core or SplunkCore(settings, client_factory)
         executor = SearchExecutor(self.core)
         self.search_service = SplunkSearchService(self.core, executor)
-        self.detection_service = SplunkDetectionService(self.core, executor)
+        self.detection_service = SplunkDetectionService(self.core, executor, approval_store)
         self.security_queue_service = SplunkSecurityQueueService(self.core, executor)
 
     @property
@@ -39,8 +41,24 @@ class SplunkService:
     def validate(self, query: str, earliest_time: str = "-24h", latest_time: str = "now") -> dict[str, Any]:
         return self.search_service.validate(query, earliest_time, latest_time)
 
-    async def search(self, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
-        return await self.search_service.search(query, earliest_time, latest_time, max_count, fields)
+    async def search(
+        self,
+        query: str,
+        earliest_time: str = "-24h",
+        latest_time: str = "now",
+        max_count: int = 50,
+        fields: list[str] | None = None,
+        *,
+        principal_id: str | None = None,
+    ) -> dict[str, Any]:
+        return await self.search_service.search(
+            query,
+            earliest_time,
+            latest_time,
+            max_count,
+            fields,
+            principal_id=principal_id,
+        )
 
     async def test_connection(self) -> dict[str, Any]:
         return await self.search_service.test_connection()
@@ -48,8 +66,22 @@ class SplunkService:
     async def list_saved_searches(self, name: str = "", app: str = "", limit: int = 50, include_spl: bool = False) -> dict[str, Any]:
         return await self.search_service.list_saved_searches(name, app, limit, include_spl)
 
-    async def run_saved_search(self, name: str, max_count: int = 50, app: str = "", owner: str = "") -> dict[str, Any]:
-        return await self.search_service.run_saved_search(name, max_count, app, owner)
+    async def run_saved_search(
+        self,
+        name: str,
+        max_count: int = 50,
+        app: str = "",
+        owner: str = "",
+        *,
+        principal_id: str | None = None,
+    ) -> dict[str, Any]:
+        return await self.search_service.run_saved_search(
+            name,
+            max_count,
+            app,
+            owner,
+            principal_id=principal_id,
+        )
 
     async def get_detection(self, name: str) -> dict[str, Any]:
         return await self.detection_service.get_detection(name)
@@ -57,8 +89,24 @@ class SplunkService:
     def validate_detection(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.detection_service.validate_detection(payload)
 
-    async def backtest_detection(self, payload: dict[str, Any], earliest_time: str = "-7d", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
-        return await self.detection_service.backtest_detection(payload, earliest_time, latest_time, max_count, fields)
+    async def backtest_detection(
+        self,
+        payload: dict[str, Any],
+        earliest_time: str = "-7d",
+        latest_time: str = "now",
+        max_count: int = 50,
+        fields: list[str] | None = None,
+        *,
+        principal_id: str | None = None,
+    ) -> dict[str, Any]:
+        return await self.detection_service.backtest_detection(
+            payload,
+            earliest_time,
+            latest_time,
+            max_count,
+            fields,
+            principal_id=principal_id,
+        )
 
     async def list_security_findings(
         self,
@@ -81,14 +129,43 @@ class SplunkService:
     async def get_investigation(self, investigation_id: str) -> dict[str, Any]:
         return await self.security_queue_service.get_investigation(investigation_id)
 
-    async def create_detection_draft(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return await self.detection_service.create_detection_draft(payload)
+    async def create_detection_draft(self, payload: dict[str, Any], *, actor_id: str | None = None) -> dict[str, Any]:
+        return await self.detection_service.create_detection_draft(payload, actor_id=actor_id)
 
-    async def update_detection_draft(self, name: str, payload: dict[str, Any], expected_fingerprint: str) -> dict[str, Any]:
-        return await self.detection_service.update_detection_draft(name, payload, expected_fingerprint)
+    async def update_detection_draft(self, name: str, payload: dict[str, Any], expected_fingerprint: str, *, actor_id: str | None = None) -> dict[str, Any]:
+        return await self.detection_service.update_detection_draft(name, payload, expected_fingerprint, actor_id=actor_id)
 
-    async def set_detection_enabled(self, name: str, enabled: bool, expected_fingerprint: str) -> dict[str, Any]:
-        return await self.detection_service.set_detection_enabled(name, enabled, expected_fingerprint)
+    async def set_detection_enabled(self, name: str, enabled: bool, expected_fingerprint: str, *, actor_id: str | None = None) -> dict[str, Any]:
+        return await self.detection_service.set_detection_enabled(name, enabled, expected_fingerprint, actor_id=actor_id)
+
+    async def approve_detection_change(
+        self,
+        proposal_id: str,
+        proposal_hash: str = "",
+        *,
+        actor_id: str | None = None,
+        approved_by: str | None = None,
+    ) -> dict[str, Any]:
+        return await self.detection_service.approve_detection_change(
+            proposal_id, proposal_hash, actor_id=actor_id, approved_by=approved_by
+        )
+
+    async def apply_approved_detection_change(
+        self,
+        approval_id: str,
+        *,
+        actor_id: str | None = None,
+        operation: str | None = None,
+        target_id: str | None = None,
+        proposal_hash: str | None = None,
+    ) -> dict[str, Any]:
+        return await self.detection_service.apply_approved_detection_change(
+            approval_id,
+            actor_id=actor_id,
+            operation=operation,
+            target_id=target_id,
+            proposal_hash=proposal_hash,
+        )
 
     async def close(self) -> None:
         await self.core.close()

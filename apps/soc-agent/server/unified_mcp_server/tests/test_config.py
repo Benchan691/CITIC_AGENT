@@ -31,15 +31,44 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.zimbra.configured is False
     assert settings.splunk.detection_write_enabled is False
     assert settings.splunk.detection_enable_enabled is False
+    assert settings.splunk.detection_approval_ttl_seconds == 600
     assert settings.splunk.security_queue_mode == "auto"
     assert settings.splunk.query_policy.normal_search_seconds == 604_800
     assert settings.splunk.query_policy.wildcard_index_decision == "require_approval"
+    assert settings.splunk.search_resource.global_concurrency == 8
+    assert settings.splunk.search_resource.per_principal_concurrency == 2
+    assert settings.splunk.search_resource.max_lookback_high == 2_592_000
+    assert settings.splunk.search_resource.restricted_decision == "deny"
     assert settings.zimbra.max_attachment_bytes == 10_000_000
     assert settings.zimbra.max_attachment_text_chars == 200_000
     assert settings.markitdown.llm_enabled is False
     assert settings.markitdown.llm_timeout == 60
     assert settings.email_server.url == "http://100.114.50.103:9100"
     assert settings.email_server.configured is False
+
+
+def test_search_resource_settings_are_centralized_and_validated():
+    settings = ServerSettings.from_env(
+        {
+            "SPLUNK_SEARCH_GLOBAL_CONCURRENCY": "4",
+            "SPLUNK_SEARCH_PER_PRINCIPAL_CONCURRENCY": "1",
+            "SPLUNK_SEARCH_QUEUE_TIMEOUT_SECONDS": "7",
+            "SPLUNK_SEARCH_MAX_RUNTIME_LOW": "10",
+            "SPLUNK_SEARCH_MAX_RUNTIME_MEDIUM": "20",
+            "SPLUNK_SEARCH_MAX_RUNTIME_HIGH": "40",
+            "SPLUNK_SEARCH_RESTRICTED_DECISION": "require_approval",
+        }
+    )
+    resource = settings.splunk.search_resource
+    assert resource.global_concurrency == 4
+    assert resource.per_principal_concurrency == 1
+    assert resource.queue_timeout_seconds == 7
+    assert resource.max_runtime_high == 40
+    assert resource.restricted_decision == "require_approval"
+    assert settings.public_status()["splunk"]["search_resource"] == resource.to_dict()
+
+    with pytest.raises(ValueError):
+        ServerSettings.from_env({"SPLUNK_SEARCH_RESTRICTED_DECISION": "allow"})
 
 
 def test_environment_overrides_persisted_configuration():
@@ -57,6 +86,13 @@ def test_environment_overrides_persisted_configuration():
     )
 
     assert settings.zimbra.host == "env.example.com"
+
+
+def test_detection_approval_ttl_is_short_and_configurable():
+    settings = ServerSettings.from_env({"SPLUNK_DETECTION_APPROVAL_TTL_SECONDS": "300"})
+    assert settings.splunk.detection_approval_ttl_seconds == 300
+    with pytest.raises(ValueError):
+        ServerSettings.from_env({"SPLUNK_DETECTION_APPROVAL_TTL_SECONDS": "30"})
 
 
 def test_global_zimbra_environment_settings_load_as_connection_defaults():

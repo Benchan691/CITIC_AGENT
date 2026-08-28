@@ -1,5 +1,15 @@
-"""Read-only Splunk Search capability."""
+"""Read-only Splunk Search capability.
 
-from .service import SplunkSearchService
+The service export is lazy so configuration can import the resource-policy
+types without importing the service/core cycle during startup.
+"""
 
 __all__ = ["SplunkSearchService"]
+
+
+def __getattr__(name: str):
+    if name == "SplunkSearchService":
+        from .service import SplunkSearchService
+
+        return SplunkSearchService
+    raise AttributeError(name)

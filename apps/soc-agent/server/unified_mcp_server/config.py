@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from .env_loader import workspace_root
 from .postgres_store import PostgresStore
 from .splunk.query_policy import QueryPolicyConfig
+from .splunk.search.resource_policy import SearchResourceConfig
 
 
 def _value(env: Mapping[str, str], name: str, default: str = "") -> str:
@@ -50,6 +51,13 @@ def _policy_decision(env: Mapping[str, str], name: str, default: str = "require_
     return value
 
 
+def _restricted_decision(env: Mapping[str, str]) -> str:
+    value = _value(env, "SPLUNK_SEARCH_RESTRICTED_DECISION", "deny").lower()
+    if value not in {"deny", "require_approval"}:
+        raise ValueError("SPLUNK_SEARCH_RESTRICTED_DECISION must be deny or require_approval")
+    return value
+
+
 def _policy_macros(env: Mapping[str, str]) -> tuple[str, ...]:
     raw = _value(env, "SPLUNK_POLICY_TRUSTED_MACROS")
     return tuple(item.strip() for item in raw.split(",") if item.strip())
@@ -85,6 +93,8 @@ class SplunkSettings:
     url: str = ""
     security_queue_mode: str = "auto"
     query_policy: QueryPolicyConfig = field(default_factory=QueryPolicyConfig)
+    detection_approval_ttl_seconds: int = 600
+    search_resource: SearchResourceConfig = field(default_factory=SearchResourceConfig)
 
     @property
     def configured(self) -> bool:
@@ -235,6 +245,32 @@ class ServerSettings:
             max_subsearch_depth=_integer(env, "SPLUNK_POLICY_MAX_SUBSEARCH_DEPTH", 1, 1, 16),
             trusted_macros=_policy_macros(env),
         )
+        search_resource = SearchResourceConfig(
+            global_concurrency=_integer(env, "SPLUNK_SEARCH_GLOBAL_CONCURRENCY", 8, 1, 64),
+            per_principal_concurrency=_integer(
+                env, "SPLUNK_SEARCH_PER_PRINCIPAL_CONCURRENCY", 2, 1, 16
+            ),
+            queue_timeout_seconds=float(
+                _integer(env, "SPLUNK_SEARCH_QUEUE_TIMEOUT_SECONDS", 5, 0, 300)
+            ),
+            max_jobs_per_minute=_integer(env, "SPLUNK_SEARCH_MAX_JOBS_PER_MINUTE", 20, 1, 10_000),
+            budget_per_minute=_integer(env, "SPLUNK_SEARCH_BUDGET_PER_MINUTE", 20, 1, 100_000),
+            max_runtime_low=_integer(env, "SPLUNK_SEARCH_MAX_RUNTIME_LOW", 30, 1, 3_600),
+            max_runtime_medium=_integer(env, "SPLUNK_SEARCH_MAX_RUNTIME_MEDIUM", 60, 1, 3_600),
+            max_runtime_high=_integer(env, "SPLUNK_SEARCH_MAX_RUNTIME_HIGH", 120, 1, 3_600),
+            max_lookback_low=_integer(env, "SPLUNK_SEARCH_MAX_LOOKBACK_LOW", 86_400, 1, 31_536_000),
+            max_lookback_medium=_integer(
+                env, "SPLUNK_SEARCH_MAX_LOOKBACK_MEDIUM", 604_800, 1, 31_536_000
+            ),
+            max_lookback_high=_integer(
+                env, "SPLUNK_SEARCH_MAX_LOOKBACK_HIGH", 2_592_000, 1, 31_536_000
+            ),
+            max_results_low=_integer(env, "SPLUNK_SEARCH_MAX_RESULTS_LOW", 100, 1, 100_000),
+            max_results_medium=_integer(env, "SPLUNK_SEARCH_MAX_RESULTS_MEDIUM", 500, 1, 100_000),
+            max_results_high=_integer(env, "SPLUNK_SEARCH_MAX_RESULTS_HIGH", 1_000, 1, 100_000),
+            backtest_concurrency=_integer(env, "SPLUNK_SEARCH_BACKTEST_CONCURRENCY", 1, 1, 16),
+            restricted_decision=_restricted_decision(env),
+        )
         splunk_host = (
             _value(env, "SPLUNK_HOST_FOR_DOCKER")
             if _value(env, "RUNNING_INSIDE_DOCKER") == "1"
@@ -271,6 +307,10 @@ class ServerSettings:
             url=splunk_url,
             security_queue_mode=security_queue_mode,
             query_policy=query_policy,
+            detection_approval_ttl_seconds=_integer(
+                env, "SPLUNK_DETECTION_APPROVAL_TTL_SECONDS", 600, 60, 900
+            ),
+            search_resource=search_resource,
         )
         zimbra = ZimbraSettings(
             host=_value(env, "ZIMBRA_HOST"),
@@ -349,8 +389,10 @@ class ServerSettings:
                 "detection_write_enabled": self.splunk.detection_write_enabled,
                 "detection_enable_enabled": self.splunk.detection_enable_enabled,
                 "detection_app": self.splunk.detection_app,
+                "detection_approval_ttl_seconds": self.splunk.detection_approval_ttl_seconds,
                 "security_queue_mode": self.splunk.security_queue_mode,
                 "query_policy": self.splunk.query_policy.to_dict(),
+                "search_resource": self.splunk.search_resource.to_dict(),
             },
             "zimbra": {
                 "configured": self.zimbra.configured,

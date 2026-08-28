@@ -28,6 +28,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_update_detection_draft",
         "splunk_enable_detection",
         "splunk_disable_detection",
+        "splunk_approve_detection_change",
+        "splunk_apply_approved_detection_change",
         "splunk_run_saved_search",
         "zimbra_list_accounts",
         "zimbra_list_folders",
@@ -146,6 +148,12 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         detection_write_tool = next(tool for tool in tools if tool.name == name)
         assert "expected_fingerprint" in detection_write_tool.parameters["properties"]
         assert "expected_fingerprint" in detection_write_tool.parameters["required"]
+    approve_tool = next(tool for tool in tools if tool.name == "splunk_approve_detection_change")
+    assert set(approve_tool.parameters["properties"]) == {"proposal_id", "proposal_hash"}
+    assert approve_tool.parameters["required"] == ["proposal_id"]
+    apply_tool = next(tool for tool in tools if tool.name == "splunk_apply_approved_detection_change")
+    assert set(apply_tool.parameters["properties"]) == {"approval_id"}
+    assert apply_tool.parameters["required"] == ["approval_id"]
     backtest_tool = next(tool for tool in tools if tool.name == "splunk_backtest_detection")
     assert "fields" in backtest_tool.parameters["properties"]
 

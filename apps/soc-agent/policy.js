@@ -55,6 +55,8 @@ export const ACTION_CATALOG = Object.freeze([
   { name: 'mcp__soc_agent__splunk_update_detection_draft', group: 'Splunk', label: 'Update detection draft' },
   { name: 'mcp__soc_agent__splunk_enable_detection', group: 'Splunk', label: 'Enable detection' },
   { name: 'mcp__soc_agent__splunk_disable_detection', group: 'Splunk', label: 'Disable detection' },
+  { name: 'mcp__soc_agent__splunk_approve_detection_change', group: 'Splunk', label: 'Approve exact detection change' },
+  { name: 'mcp__soc_agent__splunk_apply_approved_detection_change', group: 'Splunk', label: 'Apply approved detection change' },
   { name: 'mcp__soc_agent__create_subscription', group: 'Subscriptions', label: 'Create subscription' },
   { name: 'mcp__soc_agent__update_subscription', group: 'Subscriptions', label: 'Update subscription' },
   { name: 'mcp__soc_agent__delete_subscription', group: 'Subscriptions', label: 'Delete subscription' },
@@ -69,6 +71,17 @@ export const ACTION_CATALOG = Object.freeze([
 ])
 
 export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
+
+// Detection writes are proposal-bound in the backend. These names must never
+// be satisfied by the generic remembered action-name policy.
+export const DETECTION_ACTION_TOOLS = Object.freeze([
+  'mcp__soc_agent__splunk_create_detection_draft',
+  'mcp__soc_agent__splunk_update_detection_draft',
+  'mcp__soc_agent__splunk_enable_detection',
+  'mcp__soc_agent__splunk_disable_detection',
+  'mcp__soc_agent__splunk_approve_detection_change',
+  'mcp__soc_agent__splunk_apply_approved_detection_change',
+])
 
 export const MEMORY_READ_TOOLS = Object.freeze([
   'soc_memory_search',

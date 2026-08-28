@@ -11,10 +11,18 @@ from urllib.parse import parse_qs, quote, urlsplit
 
 class SplunkAPIError(Exception):
     """Custom exception for Splunk API errors."""
-    def __init__(self, message: str, status_code: Optional[int] = None, details: Optional[dict] = None):
+    def __init__(
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        details: Optional[dict] = None,
+        *,
+        error_code: str | None = None,
+    ):
         self.message = message
         self.status_code = status_code
         self.details = details or {}
+        self.error_code = error_code
         super().__init__(self.message)
 
 
@@ -294,7 +302,29 @@ class SplunkClient:
             # Cancellation is best effort; the original job error is more useful.
             return
 
-    async def _poll_job(self, sid: str, deadline: float, label: str) -> dict[str, Any]:
+    @staticmethod
+    def _deadline_error(
+        label: str,
+        error_code: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> SplunkAPIError:
+        if error_code == "runtime_limit_exceeded":
+            return SplunkAPIError(
+                f"{label} exceeded its runtime limit.",
+                details=details,
+                error_code=error_code,
+            )
+        return SplunkAPIError(f"{label} timed out.", details=details)
+
+    async def _poll_job(
+        self,
+        sid: str,
+        deadline: float,
+        label: str,
+        *,
+        timeout_error_code: str | None = None,
+        timeout_details: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         job_url = f"/services/search/jobs/{quote(sid, safe='')}"
         poll_delay = 0.5
         terminal_states = {
@@ -314,7 +344,7 @@ class SplunkClient:
         while True:
             remaining = deadline - monotonic()
             if remaining <= 0:
-                raise SplunkAPIError(f"{label} timed out.")
+                raise self._deadline_error(label, timeout_error_code, timeout_details)
             try:
                 response = await asyncio.wait_for(
                     self._client.get(job_url, params={"output_mode": "json"}),
@@ -324,7 +354,7 @@ class SplunkClient:
                 self._raise_message_errors(payload, f"{label} status")
                 content, state = self._job_content(payload, label)
             except asyncio.TimeoutError as exc:
-                raise SplunkAPIError(f"{label} timed out.") from exc
+                raise self._deadline_error(label, timeout_error_code, timeout_details) from exc
             except SplunkAPIError:
                 raise
             except httpx.RequestError as exc:
@@ -403,12 +433,15 @@ class SplunkClient:
         count: int,
         label: str,
         deadline: float | None = None,
+        *,
+        timeout_error_code: str | None = None,
+        timeout_details: dict[str, Any] | None = None,
     ) -> tuple[list[dict[str, Any]], int | None, int | None, list[str]]:
         try:
             if deadline is not None:
                 remaining = deadline - monotonic()
                 if remaining <= 0:
-                    raise SplunkAPIError(f"{label} timed out.")
+                    raise self._deadline_error(label, timeout_error_code, timeout_details)
             request = self._client.get(
                 results_url,
                 params={"output_mode": "json", "count": count, "offset": offset},
@@ -419,7 +452,7 @@ class SplunkClient:
                 try:
                     response = await asyncio.wait_for(request, timeout=remaining)
                 except asyncio.TimeoutError as exc:
-                    raise SplunkAPIError(f"{label} timed out.") from exc
+                    raise self._deadline_error(label, timeout_error_code, timeout_details) from exc
             try:
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
@@ -443,6 +476,7 @@ class SplunkClient:
         max_count: int,
         results_path_prefix: str,
         label: str,
+        runtime_limit: float | None = None,
     ) -> tuple[str, dict[str, Any], list[dict[str, Any]], int | None, list[str]]:
         sid: str | None = None
         job_complete = False
@@ -463,8 +497,29 @@ class SplunkClient:
             except Exception as exc:
                 raise SplunkAPIError(f"Splunk could not dispatch {label}.") from exc
 
-            deadline = monotonic() + float(self.config.get("job_timeout", 120))
-            content = await self._poll_job(sid, deadline, label)
+            configured_timeout = float(self.config.get("job_timeout", 120))
+            effective_timeout = configured_timeout
+            timeout_error_code: str | None = None
+            timeout_details: dict[str, Any] | None = None
+            if runtime_limit is not None:
+                try:
+                    requested_runtime = float(runtime_limit)
+                except (TypeError, ValueError) as exc:
+                    raise SplunkAPIError("Invalid search runtime limit.") from exc
+                if not math.isfinite(requested_runtime) or requested_runtime <= 0:
+                    raise SplunkAPIError("Invalid search runtime limit.")
+                effective_timeout = min(configured_timeout, requested_runtime)
+                if requested_runtime <= configured_timeout:
+                    timeout_error_code = "runtime_limit_exceeded"
+                    timeout_details = {"runtime_limit_seconds": requested_runtime}
+            deadline = monotonic() + effective_timeout
+            content = await self._poll_job(
+                sid,
+                deadline,
+                label,
+                timeout_error_code=timeout_error_code,
+                timeout_details=timeout_details,
+            )
 
             limit = max(1, int(max_count))
             page_size = min(limit, 10_000)
@@ -483,6 +538,8 @@ class SplunkClient:
                     requested_count,
                     label,
                     deadline,
+                    timeout_error_code=timeout_error_code,
+                    timeout_details=timeout_details,
                 )
                 if reported_total is not None:
                     page_total = reported_total
@@ -568,6 +625,8 @@ class SplunkClient:
         earliest_time: str = "-24h",
         latest_time: str = "now",
         max_count: int = 100,
+        *,
+        runtime_limit: float | None = None,
     ) -> Dict[str, Any]:
         """Run a normal asynchronous search job and return bounded results."""
         self._ensure_connected()
@@ -590,6 +649,7 @@ class SplunkClient:
             max_count=limit,
             results_path_prefix="/services/search/v2/jobs",
             label="search job",
+            runtime_limit=runtime_limit,
         )
         fetched_count = len(events)
         return {
@@ -937,6 +997,8 @@ class SplunkClient:
         max_count: int = 100,
         app: str = "",
         owner: str = "",
+        *,
+        runtime_limit: float | None = None,
     ) -> Dict[str, Any]:
         """Run a saved search by name and get results.
         
@@ -958,6 +1020,7 @@ class SplunkClient:
             max_count=max(1, min(int(max_count), 10_000)),
             results_path_prefix="/services/search/jobs",
             label="saved search",
+            runtime_limit=runtime_limit,
         )
         return {
             "search_name": search_name,

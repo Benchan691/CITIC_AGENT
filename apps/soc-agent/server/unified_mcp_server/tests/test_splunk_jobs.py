@@ -240,6 +240,23 @@ async def test_search_job_timeout_cancels_remote_job():
 
 
 @pytest.mark.asyncio
+async def test_search_job_resource_runtime_limit_cancels_remote_job(monkeypatch):
+    async def no_sleep(_delay):
+        return None
+
+    monkeypatch.setattr("unified_mcp_server.splunk.splunk_client.asyncio.sleep", no_sleep)
+    http = JobHTTP(statuses=[job_status("RUNNING")])
+
+    with pytest.raises(SplunkAPIError) as error:
+        await make_client(http, job_timeout=30).run_search_job(
+            "index=main", runtime_limit=0.01
+        )
+
+    assert error.value.error_code == "runtime_limit_exceeded"
+    assert http.post_calls[-1][0] == "/services/search/jobs/job%2F1/control"
+
+
+@pytest.mark.asyncio
 async def test_search_job_task_cancellation_cancels_remote_job():
     started = asyncio.Event()
 

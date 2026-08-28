@@ -23,6 +23,14 @@ webserver exposes subscription listing, preview, creation, updates, and
 deletion. Sends, moves, folders, filters, detection changes, and subscription
 mutations remain approval-gated by the host.
 
+Search resource settings limit admission, lookback, runtime, concurrency,
+dispatch rate, and weighted query budget before a Splunk job is created. Keep
+these MCP limits layered with Splunk role-level controls such as
+`srchJobsQuota`, `cumulativeSrchJobsQuota`, `srchDiskQuota`, `srchMaxTime`, and
+allowed/disallowed indexes; the MCP server does not modify Splunk
+authorization. Result limits and the 20,000-character budget control returned
+data, not the amount of work Splunk performs.
+
 The web UI authenticates users directly against the configured Zimbra server.
 The PostgreSQL-backed application session stores the authenticated Zimbra token
 server-side for 24 hours; it never stores the submitted password. Workspaces

@@ -5,16 +5,18 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { ACTION_CATALOG, apply, APPROVAL_TOOLS, bindMemoryContext, clearMemoryContext, CONTROL_TOOLS, DOMAIN_TOOLS } from '../host.js'
+import { ACTION_CATALOG, apply, APPROVAL_TOOLS, bindMemoryContext, clearMemoryContext, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS } from '../host.js'
 import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 import { createMemoryContextRegistry } from '../../../packages/soc-memory/lib/tenant.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 57)
+  assert.equal(DOMAIN_TOOLS.size, 59)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
+    'mcp__soc_agent__splunk_apply_approved_detection_change',
+    'mcp__soc_agent__splunk_approve_detection_change',
     'mcp__soc_agent__splunk_create_detection_draft',
     'mcp__soc_agent__splunk_disable_detection',
     'mcp__soc_agent__splunk_enable_detection',
@@ -43,7 +45,7 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 
 test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(READ_ONLY_TOOLS.length, 33)
-  assert.equal(ACTION_TOOLS.length, 24)
+  assert.equal(ACTION_TOOLS.length, 26)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
   assert.equal(READ_ONLY_TOOLS.includes('skill'), true)
@@ -203,6 +205,33 @@ test('SOC action approval defaults fail closed and session overrides are live', 
   assert.deepEqual(missingPolicy.error.details, { sessionId: 'missing-session' })
   handlers.get('session/disposed')(session)
   assert.equal((await rpcHandler('get-action-policy', { session_id: session.id })).value.source, 'defaults')
+})
+
+test('detection changes cannot be auto-approved by action name', async () => {
+  const handlers = new Map()
+  const session = { id: 'soc-detection-policy-1' }
+  const agent = { id: session.id, session, ctx: { tools: { restrict() {} } } }
+  let saved = { autoApproveActions: [...DETECTION_ACTION_TOOLS] }
+  let rpcHandler
+  apply({
+    get(name) {
+      if (name === 'settings') return { get: () => saved }
+      return undefined
+    },
+    on(event, handler) { handlers.set(event, handler) },
+    agents: { roots: () => [agent] },
+    sessions: { get: id => id === session.id ? session : undefined },
+    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+  })
+  const preExecute = handlers.get('tools/pre-execute')
+  for (const name of DETECTION_ACTION_TOOLS) {
+    const decision = await preExecute({ name, agent, arguments: { proposal_hash: 'abc' } }, () => ({ kind: 'delegate' }))
+    assert.equal(decision.kind, 'ask')
+    assert.match(decision.reason, /immutable backend proposal/)
+  }
+  const policy = await rpcHandler('get-action-policy', { session_id: session.id })
+  assert.equal(policy.value.autoApproveActions.some(name => DETECTION_ACTION_TOOLS.includes(name)), false)
+  saved = { autoApproveActions: [] }
 })
 
 test('host RPC failures use the shared result error contract', async () => {

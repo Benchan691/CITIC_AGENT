@@ -2,12 +2,26 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+import logging
 import math
+from time import monotonic
 from typing import Any, Literal, TypedDict
 
 from unified_mcp_server.errors import ServiceError
 
 from ..core.service import SplunkCore
+from .resource_manager import SearchResourceManager
+from .resource_policy import (
+    SearchResourceConfig,
+    SearchResourceExecution,
+    SearchResourcePolicy,
+    SearchWorkloadType,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 class SearchExecution(TypedDict):
@@ -40,12 +54,31 @@ class SearchExecutor:
         "xyseries",
     })
 
-    def __init__(self, core: SplunkCore) -> None:
+    def __init__(
+        self,
+        core: SplunkCore,
+        resource_policy: SearchResourcePolicy | None = None,
+        resource_manager: SearchResourceManager | None = None,
+    ) -> None:
         self.core = core
+        configured_policy = getattr(core.settings, "search_resource", SearchResourceConfig())
+        self.resource_policy = resource_policy or SearchResourcePolicy(
+            configured_policy,
+            job_timeout_seconds=getattr(core.settings, "job_timeout", None),
+        )
+        self.resource_manager = resource_manager or SearchResourceManager(self.resource_policy.config)
+
+    @staticmethod
+    def normalize_limit(limit: Any) -> int:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ServiceError("invalid_input", "max_count must be an integer")
+        return max(1, limit)
 
     @staticmethod
     def _normalize_fields(fields: list[str] | None) -> list[str]:
         selected_fields: list[str] = []
+        if fields is not None and not isinstance(fields, list):
+            raise ServiceError("invalid_input", "fields must be a list of field names")
         if fields:
             selected_fields = list(dict.fromkeys(str(field).strip() for field in fields if str(field).strip()))
             if len(selected_fields) > 50 or any(len(field) > 128 for field in selected_fields):
@@ -226,6 +259,101 @@ class SearchExecutor:
             raise ServiceError("splunk_api_error", "Splunk returned malformed search results.")
         return events, SearchExecutor._normalize_columns(job_result.get("columns")), metadata
 
+    def _resource_request_limit(self, limit: Any) -> int:
+        requested = self.normalize_limit(limit)
+        server_limit = getattr(self.core.settings, "max_events", requested)
+        if isinstance(server_limit, bool) or not isinstance(server_limit, int):
+            server_limit = requested
+        return min(requested, max(1, server_limit))
+
+    @asynccontextmanager
+    async def _admit(
+        self,
+        validation: dict[str, Any],
+        requested_limit: int,
+        *,
+        principal_id: str | None,
+        workload_type: SearchWorkloadType,
+    ) -> AsyncIterator[SearchResourceExecution]:
+        profile = self.resource_policy.profile(validation, requested_limit)
+        admission = self.resource_policy.evaluate(profile, workload_type)
+        try:
+            self.resource_policy.require_allowed(profile, admission)
+        except ServiceError as exc:
+            self.resource_manager.record_rejection(exc.code, admission.cost_class)
+            raise
+
+        effective_limit = min(requested_limit, admission.max_results)
+        effective_limit = max(1, effective_limit)
+        principal = principal_id.strip() if isinstance(principal_id, str) and principal_id.strip() else "anonymous"
+        started = monotonic()
+        try:
+            async with self.resource_manager.acquire(
+                principal=principal,
+                cost_class=admission.cost_class,
+                weight=admission.concurrency_weight,
+                budget_cost=admission.budget_cost,
+                workload_type=workload_type,
+            ) as lease:
+                logger.info(
+                    "splunk search resource execution started",
+                    extra={
+                        "principal": principal,
+                        "cost_class": admission.cost_class,
+                        "workload_type": workload_type,
+                        "lookback_seconds": profile.lookback_seconds,
+                        "runtime_limit_seconds": admission.max_runtime_seconds,
+                        "effective_max_results": effective_limit,
+                        "queue_wait_seconds": lease.queue_wait_seconds,
+                    },
+                )
+                execution = SearchResourceExecution(
+                    admission=admission,
+                    requested_max_results=requested_limit,
+                    effective_max_results=effective_limit,
+                    principal_id=principal,
+                )
+                try:
+                    yield execution
+                except ServiceError as exc:
+                    if exc.code == "runtime_limit_exceeded":
+                        self.resource_manager.record_runtime_limit()
+                    raise
+        finally:
+            logger.info(
+                "splunk search resource execution finished",
+                extra={
+                    "principal": principal,
+                    "cost_class": admission.cost_class,
+                    "workload_type": workload_type,
+                    "duration_seconds": max(0.0, monotonic() - started),
+                },
+            )
+
+    @asynccontextmanager
+    async def resource_scope(
+        self,
+        query: str,
+        earliest_time: str = "-24h",
+        latest_time: str = "now",
+        limit: int = 50,
+        *,
+        principal_id: str | None = None,
+        workload_type: SearchWorkloadType = "ad_hoc",
+    ) -> AsyncIterator[SearchResourceExecution]:
+        """Admit a non-standard search caller through the same policy path."""
+        validation = self.core.validate_query(query, earliest_time, latest_time)
+        if validation.get("decision") != "allow":
+            raise self._blocked_query_error(validation)
+        requested_limit = self._resource_request_limit(limit)
+        async with self._admit(
+            validation,
+            requested_limit,
+            principal_id=principal_id,
+            workload_type=workload_type,
+        ) as execution:
+            yield execution
+
     async def execute(
         self,
         query: str,
@@ -233,16 +361,31 @@ class SearchExecutor:
         latest_time: str = "now",
         limit: int = 50,
         fields: list[str] | None = None,
+        *,
+        principal_id: str | None = None,
+        workload_type: SearchWorkloadType = "ad_hoc",
     ) -> SearchExecution:
         validation = self.core.validate_query(query, earliest_time, latest_time)
         if validation.get("decision") != "allow":
             raise self._blocked_query_error(validation)
 
-        bounded_limit = min(max(1, int(limit)), self.core.settings.max_events)
+        bounded_limit = self._resource_request_limit(limit)
         selected_fields = self._normalize_fields(fields)
-        job_result = await self.core.request(
-            lambda client: client.run_search_job(query, earliest_time, latest_time, bounded_limit)
-        )
+        async with self._admit(
+            validation,
+            bounded_limit,
+            principal_id=principal_id,
+            workload_type=workload_type,
+        ) as resource:
+            job_result = await self.core.request(
+                lambda client: client.run_search_job(
+                    validation["query"],
+                    earliest_time,
+                    latest_time,
+                    resource.effective_max_results,
+                    runtime_limit=resource.admission.max_runtime_seconds,
+                )
+            )
         raw_events, raw_columns, job_metadata = self._unpack_job_result(job_result)
         events = self.core.sanitize(raw_events)
         if not isinstance(events, list) or any(not isinstance(event, dict) for event in events):
@@ -280,7 +423,7 @@ class SearchExecutor:
         }
         return {
             "validation": validation,
-            "limit": bounded_limit,
+            "limit": resource.effective_max_results,
             "fields": selected_fields,
             "events": events,
             "result_type": "table" if self._is_table_query(validation["query"]) else "events",

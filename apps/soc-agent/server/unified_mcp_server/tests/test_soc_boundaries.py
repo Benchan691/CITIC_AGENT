@@ -42,7 +42,7 @@ class FakeClient:
     async def get_indexes(self):
         return [{"name": "main"}]
 
-    async def run_search_job(self, *args):
+    async def run_search_job(self, *args, **kwargs):
         return {
             "events": [{"event": "match"}],
             "metadata": {
@@ -90,6 +90,7 @@ async def test_detection_service_backtests_and_writes_through_core():
     assert result["sample_count"] == 1
     created = await detection.create_detection_draft({"name": "test", "spl": "index=main error"})
     assert created["enabled"] is False
+    assert created["status"] == "approval_required"
     await core.close()
 
 

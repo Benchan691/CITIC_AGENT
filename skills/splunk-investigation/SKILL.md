@@ -13,6 +13,7 @@ Produce an evidence-based assessment using the smallest useful searches.
 - Treat tool output as evidence and distinguish observations, inferences, and unknowns.
 - Never guess an index or sourcetype. Derive scope from existing detection SPL, known environment conventions, user context, email evidence, or returned events.
 - If scope is still unknown, state it and use a carefully bounded exploratory search only when justified.
+- Search admission also limits Splunk workload: use exact indexes and narrow time ranges, keep raw-event samples small, and reformulate a denied search instead of repeatedly retrying it unchanged.
 - Do not expose unnecessary sensitive fields in the answer.
 
 Route email-led investigations to `email-to-splunk-investigation`, false-positive questions to `false-positive-analysis`, and proposed rule changes to `detection-engineering`.

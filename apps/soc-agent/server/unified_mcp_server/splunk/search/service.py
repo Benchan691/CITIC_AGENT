@@ -25,9 +25,16 @@ class SplunkSearchService:
         latest_time: str = "now",
         max_count: int = 50,
         fields: list[str] | None = None,
+        *,
+        principal_id: str | None = None,
     ) -> dict[str, Any]:
         execution = await self.executor.execute(
-            query, earliest_time, latest_time, max_count, fields
+            query,
+            earliest_time,
+            latest_time,
+            max_count,
+            fields,
+            principal_id=principal_id,
         )
         validation = execution["validation"]
         events = execution["events"]
@@ -131,25 +138,50 @@ class SplunkSearchService:
         max_count: int = 50,
         app: str = "",
         owner: str = "",
+        *,
+        principal_id: str | None = None,
     ) -> dict[str, Any]:
         name = name.strip()
         if not name:
             raise ServiceError("invalid_input", "name cannot be empty")
-        limit = min(max(1, int(max_count)), self.core.settings.max_events)
+        limit = self.executor.normalize_limit(max_count)
+        limit = min(limit, self.core.settings.max_events)
+        app = app.strip()
+        owner = owner.strip()
         definition = await self.core.request(
-            lambda client: client.get_saved_search(name, app.strip(), owner.strip())
+            lambda client: client.get_saved_search(name, app, owner)
         )
         content = definition.get("content") if isinstance(definition, dict) else None
         if not isinstance(content, dict) or not isinstance(content.get("search"), str) or not content["search"].strip():
             raise ServiceError("splunk_api_error", "Splunk returned a saved search without executable SPL.")
-        validation = self.core.validate_query(
-            content["search"],
-            content.get("dispatch.earliest_time") or "-24h",
-            content.get("dispatch.latest_time") or "now",
-        )
+        earliest = content.get("dispatch.earliest_time")
+        latest = content.get("dispatch.latest_time")
+        # A saved search without a known earliest bound may use Splunk's own
+        # potentially unbounded dispatch defaults.  Fail closed instead of
+        # turning missing metadata into an assumed 24-hour workload.
+        earliest = earliest.strip() if isinstance(earliest, str) and earliest.strip() else ""
+        latest = latest.strip() if isinstance(latest, str) and latest.strip() else "now"
+        validation = self.core.validate_query(content["search"], earliest, latest)
         if validation.get("decision") != "allow":
             raise self.executor._blocked_query_error(validation)
-        result = await self.core.request(lambda client: client.run_saved_search(name, False, limit, app.strip(), owner.strip()))
+        async with self.executor.resource_scope(
+            content["search"],
+            earliest,
+            latest,
+            limit,
+            principal_id=principal_id,
+            workload_type="saved_search",
+        ) as resource:
+            result = await self.core.request(
+                lambda client: client.run_saved_search(
+                    name,
+                    False,
+                    resource.effective_max_results,
+                    app,
+                    owner,
+                    runtime_limit=resource.admission.max_runtime_seconds,
+                )
+            )
         result = self.core.sanitize(result)
         events = result.get("events") if isinstance(result, dict) else None
         if isinstance(events, list):

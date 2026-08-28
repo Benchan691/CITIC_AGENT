@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS } from './policy.js'
+import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS } from './policy.js'
 import {
   MEMORY_SOURCE_TYPES,
   MEMORY_TYPES,
@@ -23,7 +23,7 @@ const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
 const HARD_ATTACHMENT_BYTES = 100_000_000
 const HARD_MARKDOWN_CHARS = 2_000_000
 
-export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS }
+export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS }
 
 const ACTION_NAMES = new Set(ACTION_TOOLS)
 
@@ -117,9 +117,23 @@ function policyValue(ctx, sessionPolicies, sessionId) {
   const actions = session ?? savedAutoApproveActions(ctx)
   return {
     actions: ACTION_CATALOG,
-    autoApproveActions: [...actions],
+    // Detection changes always require the backend's exact proposal flow;
+    // never advertise a session-wide detection bypass to the UI.
+    autoApproveActions: [...actions].filter(name => !DETECTION_ACTION_TOOLS.includes(name)),
     source: session === undefined ? 'defaults' : 'session',
   }
+}
+
+function detectionApprovalReason(exec) {
+  let args = exec?.arguments
+  if (typeof args === 'string') {
+    try { args = JSON.parse(args) } catch { args = undefined }
+  }
+  const hash = args && typeof args === 'object' && typeof args.proposal_hash === 'string'
+    ? args.proposal_hash.trim()
+    : ''
+  const suffix = hash ? ` Proposal hash: ${hash}.` : ''
+  return `Splunk detection changes require approval of one immutable backend proposal; remembered tool approvals never apply.${suffix}`
 }
 
 function policyError(error, sessionId) {
@@ -379,14 +393,22 @@ export function apply(ctx) {
       }
     }
     if (APPROVAL_TOOLS.has(exec.name)) {
+      const detectionAction = DETECTION_ACTION_TOOLS.includes(exec.name)
       const agent = exec?.agent
       const sessionId = sessionIdOf(agent)
       const interactive = agent !== undefined && rootsOf(ctx).includes(agent)
-      if (interactive && sessionId !== undefined) {
+      if (!detectionAction && interactive && sessionId !== undefined) {
         const autoApproved = sessionPolicies.get(sessionId) ?? savedAutoApproveActions(ctx)
         if (autoApproved.has(exec.name)) return next()
       }
-      return Promise.resolve({ kind: 'ask', reason: MEMORY_WRITE_TOOLS.includes(exec.name) ? 'This action changes persistent SOC memory and requires approval.' : 'This action changes a SOC system, sends email, or changes a persistent schedule.' })
+      return Promise.resolve({
+        kind: 'ask',
+        reason: detectionAction
+          ? detectionApprovalReason(exec)
+          : MEMORY_WRITE_TOOLS.includes(exec.name)
+            ? 'This action changes persistent SOC memory and requires approval.'
+            : 'This action changes a SOC system, sends email, or changes a persistent schedule.',
+      })
     }
     return next()
   }, { global: true })

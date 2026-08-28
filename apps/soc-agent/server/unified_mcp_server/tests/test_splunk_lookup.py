@@ -59,7 +59,7 @@ class FakeLookupClient:
         self.lookup_args.append((app, search, count))
         return LOOKUPS
 
-    async def run_search_job(self, *args):
+    async def run_search_job(self, *args, **kwargs):
         self.search_args = args
         return {
             "events": [{"rule": "allow"}],

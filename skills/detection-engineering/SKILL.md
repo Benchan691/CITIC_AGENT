@@ -16,7 +16,8 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 - Generic saved-search writes do not persist severity, ATT&CK, risk, suppression, or provider-specific action settings.
 - Never enable a rule without a persisted schedule and at least one persisted Splunk alert action.
 - Do not invent MITRE mappings, severity, risk objects, or scores.
-- All writes follow the harness approval gate.
+- All writes follow the backend exact-proposal approval flow; a remembered
+  approval for a detection tool name is never sufficient.
 
 ## Tools
 
@@ -24,9 +25,16 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 - Inspect with `splunk_get_detection`.
 - Validate locally with `splunk_validate_detection`.
 - Test with `splunk_backtest_detection` using a bounded period, result count, and selected fields.
-- Stage with `splunk_create_detection_draft` or `splunk_update_detection_draft(..., expected_fingerprint=...)`.
-- Use `splunk_enable_detection` only after explicit review and approval.
-- Use `splunk_disable_detection` for a reversible rollback.
+- Stage a disabled draft with `splunk_create_detection_draft` or
+  `splunk_update_detection_draft(..., expected_fingerprint=...)`; these return
+  an immutable proposal, hash, and structured diff and do not write yet.
+- Review the exact `proposal_hash`, target, fingerprint, and before/after
+  values, then approve it with `splunk_approve_detection_change` and apply only
+  the returned approval with `splunk_apply_approved_detection_change`.
+- Use `splunk_enable_detection` only to create a separate exact enable
+  proposal, followed by its own approval and apply call.
+- Use `splunk_disable_detection` for a reversible rollback, also as an exact
+  proposal and single-use approval.
 
 ## Workflow
 
@@ -38,10 +46,11 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 6. Backtest on a representative bounded period. Examine the returned sample count and budget, repeated entities, field consistency, noise, suppression need, and performance; the tool does not return a total match count.
 7. Iterate design → validate → backtest until the result is defensible or limitations are explicit.
 8. Present the exact proposed change and evidence before writing.
-9. Create or update a disabled draft through approval. Treat returned review-only metadata as unpersisted.
-10. For a new draft, configure and re-read the required Splunk alert action outside this generic tool before activation.
-11. Enable only through a second, explicit approval with the fresh fingerprint. Verify resulting state.
-12. If behavior is unsafe or noisy, re-read, disable with the fresh fingerprint, and document rollback evidence.
+9. Create or update a disabled proposal and review its complete diff and hash.
+10. Approve and apply that exact proposal. Treat returned review-only metadata as unpersisted.
+11. For a new draft, configure and re-read the required Splunk alert action outside this generic tool before activation.
+12. Enable only through a second exact proposal and approval with the fresh fingerprint. Verify resulting state.
+13. If behavior is unsafe or noisy, re-read, disable with the fresh fingerprint, and document rollback evidence.
 
 ## Output
 
