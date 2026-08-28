@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
 from typing import Any
 
 from unified_mcp_server.errors import ServiceError
 
 from ..core.service import SplunkCore
 from ..search.executor import SearchExecutor
-from .classic_provider import ClassicSplunkProvider
-from .es_provider import EnterpriseSecurityProvider
+from .standard_provider import StandardSplunkProvider
 from .model import (
     SEVERITIES,
     STATUSES,
@@ -23,7 +21,7 @@ from .provider import FindingProvider
 
 
 class SplunkSecurityQueueService:
-    """Select one provider and expose one bounded canonical queue contract."""
+    """Expose one bounded canonical queue contract for standard Splunk alerts."""
 
     MAX_LIMIT = 200
     MAX_FILTER_CHARS = 256
@@ -41,42 +39,10 @@ class SplunkSecurityQueueService:
         self.core = core
         self.executor = executor if executor is not None else SearchExecutor(core)
         self.codec = codec or OpaqueIdCodec()
-        self._provider: FindingProvider | None = None
+        self._provider: FindingProvider = StandardSplunkProvider(self.core, self.codec, self.executor)
 
     @property
-    def provider(self) -> FindingProvider | None:
-        return self._provider
-
-    async def _get_provider(self) -> FindingProvider:
-        if self._provider is not None:
-            return self._provider
-
-        mode = str(getattr(self.core.settings, "security_queue_mode", "auto") or "auto").strip().lower()
-        if mode not in {"auto", "enterprise_security", "classic"}:
-            raise ServiceError("invalid_configuration", "SPLUNK_SECURITY_QUEUE_MODE must be auto, enterprise_security, or classic.")
-
-        if mode == "classic":
-            self._provider = ClassicSplunkProvider(self.core, self.codec, self.executor)
-            return self._provider
-        if mode == "enterprise_security":
-            self._provider = EnterpriseSecurityProvider(self.core, self.codec, self.executor)
-            return self._provider
-
-        try:
-            await self.core.request(lambda client: client.get_es_findings(limit=1, offset=0))
-        except ServiceError as exc:
-            status = exc.details.get("status_code") if isinstance(exc.details, dict) else None
-            if status == 404:
-                self._provider = ClassicSplunkProvider(self.core, self.codec, self.executor)
-                return self._provider
-            if status in {401, 403}:
-                raise ServiceError(
-                    "insufficient_permissions",
-                    "The Splunk account cannot read Enterprise Security findings.",
-                    details={"status_code": status},
-                ) from exc
-            raise
-        self._provider = EnterpriseSecurityProvider(self.core, self.codec, self.executor)
+    def provider(self) -> FindingProvider:
         return self._provider
 
     @staticmethod
@@ -144,7 +110,7 @@ class SplunkSecurityQueueService:
         cursor: str = "",
     ) -> dict[str, Any]:
         filters = self._filters(status, urgency, owner, detection, earliest_time, latest_time, limit, cursor)
-        provider = await self._get_provider()
+        provider = self.provider
         try:
             page = await provider.list_findings(filters)
         except ServiceError as exc:
@@ -161,8 +127,14 @@ class SplunkSecurityQueueService:
             "findings": bounded,
             "count": len(bounded),
             "total_count": page.total_count,
+            "total_count_exact": page.total_count_exact,
             "next_cursor": page.next_cursor,
             "truncated": page.truncated or budget["truncated"],
+            "partial": page.partial,
+            "partial_reason": page.partial_reason,
+            "backend_pages_fetched": page.backend_pages_fetched,
+            "backend_records_seen": page.backend_records_seen,
+            "local_filtered_count": page.local_filtered_count,
             "truncation": {
                 "row_limit": page.truncated,
                 "context_limit": budget["truncated"],
@@ -181,38 +153,6 @@ class SplunkSecurityQueueService:
         capabilities = await provider.capabilities()
         return self._bounded_public_result(result, provider, capabilities.to_dict())
 
-    async def get_investigation(self, investigation_id: str) -> dict[str, Any]:
-        provider, reference = await self._reference(investigation_id, "investigation")
-        try:
-            result = await provider.get_investigation(reference)
-        except ServiceError as exc:
-            raise self._translate_provider_error(exc) from exc
-        if isinstance(result, dict):
-            investigation = result.get("investigation")
-            if isinstance(investigation, Mapping):
-                result = {
-                    **result,
-                    **{
-                        key: investigation[key]
-                        for key in (
-                            "investigation_id",
-                            "title",
-                            "created_time",
-                            "updated_time",
-                            "status",
-                            "source_status",
-                            "urgency",
-                            "owner",
-                            "disposition",
-                        )
-                        if key in investigation
-                    },
-                }
-            elif result.get("supported") is False:
-                result = {"investigation_id": investigation_id, **result}
-        capabilities = await provider.capabilities()
-        return self._bounded_public_result(result, provider, capabilities.to_dict())
-
     @staticmethod
     def _translate_provider_error(exc: ServiceError) -> ServiceError:
         status = exc.details.get("status_code") if isinstance(exc.details, dict) else None
@@ -228,16 +168,13 @@ class SplunkSecurityQueueService:
         if not isinstance(value, str) or not value.strip() or len(value) > self.MAX_REFERENCE_CHARS:
             raise ServiceError("invalid_input", f"{kind}_id is invalid.")
         prefix = value.split(":", 1)[0]
-        if prefix not in {"classic", "enterprise_security"}:
+        if prefix != self.provider.source:
             raise ServiceError("invalid_input", f"{kind}_id is invalid.")
         try:
             reference = self.codec.decode(value, provider=prefix, kind=kind)
         except ValueError as exc:
             raise ServiceError("invalid_input", f"{kind}_id is invalid or expired.") from exc
-        provider = await self._get_provider()
-        if prefix != provider.source:
-            raise ServiceError("invalid_input", f"{kind}_id does not belong to the active queue provider.")
-        return provider, reference
+        return self.provider, reference
 
     def _bounded_public_result(
         self,
@@ -296,7 +233,6 @@ class SplunkSecurityQueueService:
         if isinstance(evidence, dict):
             collections.extend([
                 (evidence, "related_findings"),
-                (evidence, "investigation_ids"),
             ])
         for container, key in collections:
             items = container.get(key)

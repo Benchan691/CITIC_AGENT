@@ -2,18 +2,37 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ..core.service import SplunkCore
 from .executor import SearchExecutor
 from .lookup import normalize_lookups, rest_search_filter
+from .planner import SearchIntent, SearchPlanner
+from .schema_registry import SearchSchemaRegistry
+from .verifier import SearchResultVerifier
 from unified_mcp_server.errors import ServiceError
 
 
+logger = logging.getLogger(__name__)
+
+
 class SplunkSearchService:
-    def __init__(self, core: SplunkCore, executor: SearchExecutor | None = None) -> None:
+    def __init__(
+        self,
+        core: SplunkCore,
+        executor: SearchExecutor | None = None,
+        planner: SearchPlanner | None = None,
+        schema_registry: SearchSchemaRegistry | None = None,
+        verifier: SearchResultVerifier | None = None,
+    ) -> None:
         self.core = core
         self.executor = executor if executor is not None else SearchExecutor(core)
+        self.planner = planner if planner is not None else SearchPlanner(
+            getattr(core.settings, "search_planner_max_refinements", 2)
+        )
+        self.schema_registry = schema_registry or SearchSchemaRegistry.default()
+        self.verifier = verifier or SearchResultVerifier()
 
     def validate(self, query: str, earliest_time: str = "-24h", latest_time: str = "now") -> dict[str, Any]:
         return self.core.validate_query(query, earliest_time, latest_time)
@@ -36,6 +55,15 @@ class SplunkSearchService:
             fields,
             principal_id=principal_id,
         )
+        return self._format_execution(query, earliest_time, latest_time, execution)
+
+    @staticmethod
+    def _format_execution(
+        query: str,
+        earliest_time: str,
+        latest_time: str,
+        execution: dict[str, Any],
+    ) -> dict[str, Any]:
         validation = execution["validation"]
         events = execution["events"]
         metadata = execution["search_metadata"]
@@ -75,6 +103,113 @@ class SplunkSearchService:
                 "tolerance": validation["risk_tolerance"],
             },
         }
+
+    async def search_intent(
+        self,
+        intent: SearchIntent,
+        *,
+        principal_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Plan and execute one normal SOC search inside this backend call."""
+        if not isinstance(intent, SearchIntent):
+            raise ServiceError("invalid_input", "search intent is malformed")
+        plan = self.planner.plan(intent, self.schema_registry)
+        logger.info(
+            "splunk search intent planned",
+            extra={
+                "objective": intent.objective[:256],
+                "planner_confidence": plan.confidence,
+                "selected_indexes": plan.indexes,
+                "selected_sourcetypes": plan.sourcetypes,
+                "strategy": plan.strategy,
+                "refinement_count": 0,
+            },
+        )
+        refinement_count = 0
+        execution = await self.executor.execute(
+            plan.spl,
+            plan.earliest_time,
+            plan.latest_time,
+            plan.max_count,
+            plan.output_fields,
+            principal_id=principal_id,
+        )
+
+        # The initial plan already expands every alias in its trusted schema.
+        # Only low-confidence zero-result plans may try another ranked trusted
+        # schema, and the planner bounds the number of attempts.
+        while (
+            refinement_count < self.planner.max_refinements
+            and plan.confidence < 0.85
+            and self._can_refine(execution)
+        ):
+            next_plan = self.planner.refine(
+                intent,
+                self.schema_registry,
+                plan,
+                refinement_count,
+            )
+            if next_plan is None:
+                break
+            refinement_count += 1
+            plan = next_plan
+            logger.info(
+                "splunk search intent refined",
+                extra={
+                    "objective": intent.objective[:256],
+                    "planner_confidence": plan.confidence,
+                    "selected_indexes": plan.indexes,
+                    "selected_sourcetypes": plan.sourcetypes,
+                    "strategy": plan.strategy,
+                    "refinement_count": refinement_count,
+                },
+            )
+            execution = await self.executor.execute(
+                plan.spl,
+                plan.earliest_time,
+                plan.latest_time,
+                plan.max_count,
+                plan.output_fields,
+                principal_id=principal_id,
+            )
+
+        response = self._format_execution(
+            plan.spl,
+            plan.earliest_time,
+            plan.latest_time,
+            execution,
+        )
+        response["plan"] = plan.to_dict()
+        response["verification"] = self.verifier.verify(
+            plan,
+            execution,
+            refinement_count=refinement_count,
+        )
+        logger.info(
+            "splunk search intent verified",
+            extra={
+                "objective": intent.objective[:256],
+                "planner_confidence": plan.confidence,
+                "selected_indexes": plan.indexes,
+                "selected_sourcetypes": plan.sourcetypes,
+                "strategy": plan.strategy,
+                "refinement_count": refinement_count,
+                "result_count": response["search"].get("result_count"),
+                "verification_confidence": response["verification"].get("confidence"),
+            },
+        )
+        return response
+
+    @staticmethod
+    def _can_refine(execution: dict[str, Any]) -> bool:
+        metadata = execution.get("search_metadata", {})
+        if not isinstance(metadata, dict):
+            return False
+        if metadata.get("returned_count") != 0:
+            return False
+        if metadata.get("splunk_result_truncated") is True or metadata.get("mcp_context_truncated") is True:
+            return False
+        return metadata.get("total_result_count") in {None, 0}
 
     async def test_connection(self) -> dict[str, Any]:
         indexes = await self.core.request(lambda client: client.get_indexes())

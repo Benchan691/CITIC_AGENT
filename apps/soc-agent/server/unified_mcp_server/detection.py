@@ -1,9 +1,9 @@
 """Detection-rule data model and local validation helpers.
 
 The model deliberately maps to the portable subset of Splunk saved-search
-fields.  Enterprise Security-specific fields are retained as metadata so the
-agent can review them without pretending that the generic Splunk endpoint
-understands every ES adaptive-response setting.
+fields.  Deployment-specific fields are retained as metadata so the agent can
+review them without pretending that the generic Splunk endpoint understands
+every optional adaptive-response setting.
 """
 
 from dataclasses import dataclass, field

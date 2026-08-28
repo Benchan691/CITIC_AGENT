@@ -6,8 +6,14 @@ import pytest
 from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.splunk.core.service import SplunkCore
-from unified_mcp_server.splunk.security_queue.classic_provider import ClassicSplunkProvider
-from unified_mcp_server.splunk.security_queue.model import OpaqueIdCodec, normalize_disposition, normalize_status
+from unified_mcp_server.splunk.security_queue.standard_provider import StandardSplunkProvider
+from unified_mcp_server.splunk.security_queue.model import (
+    FindingFilters,
+    OpaqueIdCodec,
+    SecurityQueueConfig,
+    normalize_disposition,
+    normalize_status,
+)
 from unified_mcp_server.splunk.security_queue.provider import normalize_timestamp
 from unified_mcp_server.splunk.security_queue.service import SplunkSecurityQueueService
 from unified_mcp_server.splunk.splunk_client import SplunkAPIError, SplunkClient
@@ -28,20 +34,17 @@ def settings(**overrides):
         "risk_tolerance": 75,
         "safe_timerange": "24h",
         "sanitize_output": True,
-        "security_queue_mode": "auto",
     }
     values.update(overrides)
     return SplunkSettings(**values)
 
 
 class QueueClient:
-    def __init__(self, config, *, mode="classic", error=None):
+    def __init__(self, config, *, error=None):
         self.config = config
-        self.mode = mode
         self.error = error
         self.connected = False
         self.closed = False
-        self.es_calls = 0
         self.alert_calls = []
 
     async def connect(self):
@@ -49,59 +52,6 @@ class QueueClient:
 
     async def disconnect(self):
         self.closed = True
-
-    async def get_es_findings(self, **_kwargs):
-        self.es_calls += 1
-        if self.error is not None:
-            raise self.error
-        return {
-            "items": [
-                {
-                    "id": "es-1",
-                    "title": "Suspicious login",
-                    "detection_name": "Login analytic",
-                    "trigger_time": "2026-08-27T10:00:00Z",
-                    "severity": "Critical",
-                    "urgency": "High",
-                    "status": "In progress",
-                    "owner": "analyst",
-                    "disposition": "False positive",
-                    "entities": ["user:alice", "user:alice"],
-                    "risk_objects": [{"field": "src_ip", "value": "192.0.2.1"}],
-                    "annotations": {"mitre_attack": ["T1059"]},
-                    "event_count": 0,
-                }
-            ],
-            "total": 1,
-        }
-
-    async def get_es_finding(self, finding_id):
-        assert finding_id == "es-1"
-        return {
-            "id": finding_id,
-            "title": "Suspicious login",
-            "detection_name": "Login analytic",
-            "severity": "critical",
-            "urgency": "high",
-            "status": "in progress",
-            "owner": "analyst",
-            "contributing_events": [
-                {"user": "alice", "card": "4111-1111-1111-1111", "ssn": "123-45-6789"}
-            ],
-            "investigations": ["case-1"],
-        }
-
-    async def get_es_investigation(self, investigation_id):
-        assert investigation_id == "case-1"
-        return {
-            "id": investigation_id,
-            "title": "Login investigation",
-            "status": "In progress",
-            "urgency": "high",
-            "disposition": "Undetermined",
-            "findings": [{"id": "es-1", "title": "Suspicious login"}],
-            "timeline": [{"message": "reviewed"}],
-        }
 
     async def get_fired_alerts(self, *, limit=50, offset=0):
         assert offset >= 0
@@ -131,19 +81,19 @@ class QueueClient:
 
 
 @pytest.mark.asyncio
-async def test_classic_queue_maps_alerts_and_preserves_unknown_soc_fields():
-    core = SplunkCore(settings(security_queue_mode="classic"), QueueClient)
+async def test_standard_queue_maps_alerts_and_preserves_unknown_soc_fields():
+    core = SplunkCore(settings(), QueueClient)
     service = SplunkSecurityQueueService(core)
+    assert isinstance(service.provider, StandardSplunkProvider)
 
     result = await service.list_security_findings(urgency="", limit=1)
     finding = result["findings"][0]
 
-    assert result["source"] == "classic"
-    assert result["capabilities"]["native_findings"] is False
+    assert result["source"] == "standard"
     assert result["history_complete"] is False
     assert result["retention_limited"] is True
     assert result["total_count"] is None
-    assert finding["source_type"] == "classic_alert"
+    assert finding["source_type"] == "standard_alert"
     assert finding["detection_name"] == "Daily login alert"
     assert finding["supporting_sid"] == "sid-1"
     assert finding["event_count"] == 3
@@ -151,14 +101,14 @@ async def test_classic_queue_maps_alerts_and_preserves_unknown_soc_fields():
     assert finding["urgency"] is None
     assert finding["status"] is None
     assert finding["disposition"] is None
-    assert finding["finding_id"].startswith("classic:finding:")
+    assert finding["finding_id"].startswith("standard:finding:")
     assert "Daily login alert" not in finding["finding_id"]
     await core.close()
 
 
 @pytest.mark.asyncio
-async def test_classic_finding_detail_and_investigation_capability():
-    core = SplunkCore(settings(security_queue_mode="classic"), QueueClient)
+async def test_standard_finding_detail_preserves_bounded_response():
+    core = SplunkCore(settings(), QueueClient)
     service = SplunkSecurityQueueService(core)
     listed = await service.list_security_findings(limit=1)
     finding_id = listed["findings"][0]["finding_id"]
@@ -166,105 +116,12 @@ async def test_classic_finding_detail_and_investigation_capability():
     detail = await service.get_security_finding(finding_id)
     assert detail["finding"]["supporting_sid"] == "sid-1"
     assert detail["evidence"]["contributing_events"] == []
-    assert detail["capabilities"]["native_investigations"] is False
-
-    investigation_id = service.codec.encode("classic", "investigation", {"id": "not-supported"})
-    unsupported = await service.get_investigation(investigation_id)
-    assert unsupported["supported"] is False
-    assert unsupported["capabilities"]["native_investigations"] is False
-    assert "native investigation" in unsupported["reason"]
     await core.close()
 
 
 @pytest.mark.asyncio
-async def test_enterprise_security_normalizes_details_and_bounds_evidence():
-    core = SplunkCore(settings(security_queue_mode="enterprise_security"), QueueClient)
-    service = SplunkSecurityQueueService(core)
-
-    listed = await service.list_security_findings(limit=1)
-    finding = listed["findings"][0]
-    assert finding["severity"] == "critical"
-    assert finding["urgency"] == "high"
-    assert finding["status"] == "in_progress"
-    assert finding["source_status"] == "In progress"
-    assert finding["disposition"] == "false_positive"
-    assert finding["entities"] == ["user:alice"]
-    assert finding["event_count"] == 0
-
-    detail = await service.get_security_finding(finding["finding_id"])
-    event = detail["evidence"]["contributing_events"][0]
-    assert event["card"] == "****-****-****-1111"
-    assert event["ssn"] == "***-**-****"
-    assert detail["evidence"]["investigation_ids"]
-    assert detail["capabilities"]["native_findings"] is True
-
-    investigation_id = service.codec.encode("enterprise_security", "investigation", {"id": "case-1"})
-    investigation = await service.get_investigation(investigation_id)
-    assert investigation["supported"] is True
-    assert investigation["investigation"]["status"] == "in_progress"
-    assert investigation["investigation_id"] == investigation["investigation"]["investigation_id"]
-    assert investigation["findings"][0]["finding_id"].startswith("enterprise_security:finding:")
-    assert "case-1" not in investigation["investigation"]["investigation_id"]
-    await core.close()
-
-
-@pytest.mark.asyncio
-async def test_auto_mode_falls_back_only_for_missing_es_capability():
-    clients = []
-
-    class MissingESClient(QueueClient):
-        async def get_es_findings(self, **_kwargs):
-            self.es_calls += 1
-            raise SplunkAPIError("missing", status_code=404)
-
-    def factory(config):
-        client = MissingESClient(config)
-        clients.append(client)
-        return client
-
-    core = SplunkCore(settings(), factory)
-    service = SplunkSecurityQueueService(core)
-    result = await service.list_security_findings(limit=1)
-    assert result["source"] == "classic"
-    assert clients[0].es_calls == 1
-    assert clients[0].alert_calls == ["Daily login alert"]
-    await core.close()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("status", [401, 403])
-async def test_auto_mode_does_not_turn_permission_errors_into_empty_queue(status):
-    class PermissionClient(QueueClient):
-        async def get_es_findings(self, **_kwargs):
-            raise SplunkAPIError("denied", status_code=status)
-
-    core = SplunkCore(settings(), PermissionClient)
-    service = SplunkSecurityQueueService(core)
-    with pytest.raises(ServiceError) as error:
-        await service.list_security_findings()
-    assert error.value.code == "insufficient_permissions"
-    assert error.value.details["status_code"] == status
-    await core.close()
-
-
-@pytest.mark.asyncio
-async def test_auto_mode_does_not_fallback_on_server_errors():
-    class ServerErrorClient(QueueClient):
-        async def get_es_findings(self, **_kwargs):
-            raise SplunkAPIError("unavailable", status_code=500)
-
-    core = SplunkCore(settings(), ServerErrorClient)
-    service = SplunkSecurityQueueService(core)
-    with pytest.raises(ServiceError) as error:
-        await service.list_security_findings()
-    assert error.value.code == "splunk_api_error"
-    assert error.value.retryable is True
-    await core.close()
-
-
-@pytest.mark.asyncio
-async def test_classic_cursor_advances_through_alert_instances_without_duplicates():
-    class PagedClassicClient(QueueClient):
+async def test_standard_cursor_advances_through_alert_instances_without_duplicates():
+    class PagedStandardClient(QueueClient):
         names = ["alert-c", "alert-b", "alert-a"]
 
         async def get_fired_alerts(self, *, limit=50, offset=0):
@@ -284,7 +141,7 @@ async def test_classic_cursor_advances_through_alert_instances_without_duplicate
                 }
             }]
 
-    core = SplunkCore(settings(security_queue_mode="classic"), PagedClassicClient)
+    core = SplunkCore(settings(), PagedStandardClient)
     service = SplunkSecurityQueueService(core)
     first = await service.list_security_findings(limit=1)
     second = await service.list_security_findings(limit=1, cursor=first["next_cursor"])
@@ -300,29 +157,29 @@ async def test_classic_cursor_advances_through_alert_instances_without_duplicate
 
 @pytest.mark.asyncio
 async def test_queue_input_validation_and_signed_ids_prevent_path_injection():
-    core = SplunkCore(settings(security_queue_mode="classic"), QueueClient)
+    core = SplunkCore(settings(), QueueClient)
     service = SplunkSecurityQueueService(core)
 
     with pytest.raises(ServiceError, match="supported queue value"):
         await service.list_security_findings(status="open")
     with pytest.raises(ServiceError, match="invalid or expired"):
-        await service.get_security_finding("classic:finding:../../services/alerts")
-    with pytest.raises(ServiceError, match="active queue provider"):
-        await service.get_security_finding(service.codec.encode("enterprise_security", "finding", {"id": "x"}))
+        await service.get_security_finding("standard:finding:../../services/alerts")
+    with pytest.raises(ServiceError, match="invalid"):
+        await service.get_security_finding(service.codec.encode("other", "finding", {"id": "x"}))
     assert service._limit(10_000) == 200
     await core.close()
 
 
 @pytest.mark.asyncio
-async def test_expired_classic_fired_alert_is_not_found():
+async def test_expired_standard_fired_alert_is_not_found():
     class ExpiredClient(QueueClient):
         async def get_fired_alert(self, _name):
             raise SplunkAPIError("expired", status_code=404)
 
-    core = SplunkCore(settings(security_queue_mode="classic"), ExpiredClient)
+    core = SplunkCore(settings(), ExpiredClient)
     service = SplunkSecurityQueueService(core)
     finding_id = service.codec.encode(
-        "classic",
+        "standard",
         "finding",
         {"alert_name": "Daily login alert", "sid": "sid-1", "trigger_time": "", "fingerprint": ""},
     )
@@ -371,19 +228,19 @@ def raw_client(http):
 
 @pytest.mark.asyncio
 async def test_queue_client_parses_pages_and_quotes_resource_ids():
-    http = QueueHTTP({"entry": [{"name": "f-1", "content": {"id": "f-1"}}], "total": "1"})
+    http = QueueHTTP({"entry": [{"name": "alert-1", "content": {"savedsearch_name": "alert-1"}}], "total": "1"})
     client = raw_client(http)
-    page = await client.get_es_findings(limit=1, offset=0)
+    page = await client.get_fired_alerts(limit=1, offset=0)
     assert page == {
-        "items": [{"name": "f-1", "content": {"id": "f-1"}}],
+        "items": [{"name": "alert-1", "content": {"savedsearch_name": "alert-1"}}],
         "total": 1,
         "next_offset": None,
     }
 
-    direct = QueueHTTP({"id": "f-1", "title": "Finding"})
+    direct = QueueHTTP({"entry": [{"name": "alert/1", "content": {"sid": "sid-1"}}]})
     direct_client = raw_client(direct)
-    assert await direct_client.get_es_finding("f/1") == {"id": "f-1", "title": "Finding"}
-    assert direct.calls[0][0].endswith("/f%2F1")
+    assert await direct_client.get_fired_alert("alert/1") == [{"name": "alert/1", "content": {"sid": "sid-1"}}]
+    assert direct.calls[0][0].endswith("/alert%2F1")
 
 
 @pytest.mark.asyncio
@@ -396,3 +253,204 @@ async def test_queue_client_rejects_http_and_malformed_payloads():
     malformed = QueueHTTP({"entry": ["bad"]})
     with pytest.raises(SplunkAPIError, match="malformed"):
         await raw_client(malformed).get_fired_alerts()
+
+
+@pytest.mark.asyncio
+async def test_standard_provider_uses_bounded_concurrency_and_early_definition_filtering():
+    class ConcurrentStandardClient(QueueClient):
+        def __init__(self, config):
+            super().__init__(config)
+            self.active = 0
+            self.max_active = 0
+            self.definition_calls = 0
+
+        async def get_fired_alerts(self, *, limit=50, offset=0):
+            self.definition_calls += 1
+            entries = [
+                {
+                    "name": f"alert-{index}",
+                    "content": {"savedsearch_name": "Endpoint Malware" if index == 2 else "Other"},
+                }
+                for index in range(10)
+            ]
+            return {"items": entries[offset:offset + limit], "total": len(entries)}
+
+        async def get_fired_alert(self, name):
+            self.alert_calls.append(name)
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            try:
+                await asyncio.sleep(0.01)
+                return [{"content": {"sid": f"sid-{name}", "trigger_time": "2026-08-27T10:00:00Z"}}]
+            finally:
+                self.active -= 1
+
+    client = ConcurrentStandardClient(None)
+    core = SplunkCore(
+        settings(
+            security_queue=SecurityQueueConfig(standard_concurrency=3),
+        ),
+        lambda _: client,
+    )
+    provider = StandardSplunkProvider(core, OpaqueIdCodec())
+
+    page = await provider.list_findings(
+        FindingFilters(detection="Endpoint Malware", earliest_time="0", latest_time="now", limit=1)
+    )
+
+    assert len(page.findings) == 1
+    assert client.alert_calls == ["alert-2"]
+    assert client.max_active == 1
+    assert client.max_active <= 3
+    assert client.definition_calls > 1
+    await core.close()
+
+
+@pytest.mark.asyncio
+async def test_standard_provider_never_exceeds_configured_concurrency():
+    class ManyStandardClient(QueueClient):
+        def __init__(self, config):
+            super().__init__(config)
+            self.active = 0
+            self.max_active = 0
+
+        async def get_fired_alerts(self, *, limit=50, offset=0):
+            entries = [{"name": f"alert-{index}"} for index in range(10)]
+            return {"items": entries[offset:offset + limit], "total": len(entries)}
+
+        async def get_fired_alert(self, name):
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            try:
+                await asyncio.sleep(0.01)
+                return [{"content": {"sid": f"sid-{name}", "trigger_time": "2026-08-27T10:00:00Z"}}]
+            finally:
+                self.active -= 1
+
+    client = ManyStandardClient(None)
+    core = SplunkCore(
+        settings(
+            security_queue=SecurityQueueConfig(standard_concurrency=3),
+        ),
+        lambda _: client,
+    )
+    provider = StandardSplunkProvider(core, OpaqueIdCodec())
+
+    page = await provider.list_findings(
+        FindingFilters(earliest_time="0", latest_time="now", limit=10)
+    )
+
+    assert len(page.findings) == 10
+    assert client.max_active == 3
+    await core.close()
+
+
+@pytest.mark.asyncio
+async def test_standard_provider_deduplicates_repeated_alert_instance_lookups():
+    class DuplicateStandardClient(QueueClient):
+        async def get_fired_alerts(self, *, limit=50, offset=0):
+            return {
+                "items": [{"name": "same-alert"}, {"name": "same-alert"}],
+                "total": 2,
+            }
+
+        async def get_fired_alert(self, name):
+            self.alert_calls.append(name)
+            return [{"content": {"sid": "sid-1", "trigger_time": "2026-08-27T10:00:00Z"}}]
+
+    client = DuplicateStandardClient(None)
+    core = SplunkCore(settings(), lambda _: client)
+    provider = StandardSplunkProvider(core, OpaqueIdCodec())
+
+    await provider.list_findings(FindingFilters(earliest_time="0", latest_time="now", limit=2))
+
+    assert client.alert_calls == ["same-alert"]
+    await core.close()
+
+
+@pytest.mark.asyncio
+async def test_standard_local_time_filter_continues_across_catalog_pages():
+    class PagedStandardClient(QueueClient):
+        entries = [
+            {"name": "old-a"},
+            {"name": "old-b"},
+            *[{"name": f"new-{index}"} for index in range(5)],
+        ]
+
+        async def get_fired_alerts(self, *, limit=50, offset=0):
+            # Simulate a backend that returns smaller pages than requested.
+            return {"items": self.entries[offset:offset + 2], "total": len(self.entries)}
+
+        async def get_fired_alert(self, name):
+            self.alert_calls.append(name)
+            trigger = "2020-01-01T00:00:00Z" if name.startswith("old") else "2026-08-27T10:00:00Z"
+            return [{"content": {"sid": f"sid-{name}", "trigger_time": trigger}}]
+
+    client = PagedStandardClient(None)
+    core = SplunkCore(settings(), lambda _: client)
+    provider = StandardSplunkProvider(core, OpaqueIdCodec())
+
+    page = await provider.list_findings(
+        FindingFilters(earliest_time="-2d", latest_time="now", limit=5)
+    )
+
+    assert {item.title for item in page.findings} == {f"new-{index}" for index in range(5)}
+    assert [call for call in client.alert_calls] == [
+        "old-a", "old-b", "new-0", "new-1", "new-2", "new-3", "new-4"
+    ]
+    await core.close()
+
+
+@pytest.mark.asyncio
+async def test_standard_filtered_overflow_is_preserved_in_cursor():
+    class OverflowStandardClient(QueueClient):
+        async def get_fired_alerts(self, *, limit=50, offset=0):
+            return {"items": [{"name": "one-alert"}], "total": 1}
+
+        async def get_fired_alert(self, name):
+            self.alert_calls.append(name)
+            return [
+                {"content": {"sid": f"sid-{index}", "trigger_time": "2026-08-27T10:00:00Z"}}
+                for index in range(20)
+            ]
+
+    client = OverflowStandardClient(None)
+    core = SplunkCore(settings(), lambda _: client)
+    provider = StandardSplunkProvider(core, OpaqueIdCodec())
+    request = FindingFilters(earliest_time="0", latest_time="now", limit=10)
+
+    first = await provider.list_findings(request)
+    second = await provider.list_findings(
+        FindingFilters(earliest_time="0", latest_time="now", limit=10, cursor=first.next_cursor or "")
+    )
+
+    assert {item.supporting_sid for item in first.findings + second.findings} == {
+        f"sid-{index}" for index in range(20)
+    }
+    assert {item.finding_id for item in first.findings}.isdisjoint(item.finding_id for item in second.findings)
+    assert second.next_cursor is None
+    assert client.alert_calls == ["one-alert", "one-alert"]
+    await core.close()
+
+
+@pytest.mark.asyncio
+async def test_cursor_rejects_changed_filters():
+    class PagedStandardClient(QueueClient):
+        entries = [{"name": "one"}, {"name": "two"}]
+
+        async def get_fired_alerts(self, *, limit=50, offset=0):
+            return {"items": self.entries[offset:offset + limit], "total": len(self.entries)}
+
+        async def get_fired_alert(self, name):
+            return [{"content": {"sid": name, "trigger_time": "2026-08-27T10:00:00Z"}}]
+
+    client = PagedStandardClient(None)
+    core = SplunkCore(settings(), lambda _: client)
+    provider = StandardSplunkProvider(core, OpaqueIdCodec())
+    first = await provider.list_findings(FindingFilters(earliest_time="-2d", latest_time="now", limit=1))
+
+    with pytest.raises(ServiceError, match="invalid or expired"):
+        await provider.list_findings(
+            FindingFilters(earliest_time="-1d", latest_time="now", limit=1, cursor=first.next_cursor or "")
+        )
+    await core.close()

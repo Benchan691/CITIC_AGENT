@@ -45,6 +45,7 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 
 test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(READ_ONLY_TOOLS.length, 33)
+  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_search_intent'), true)
   assert.equal(ACTION_TOOLS.length, 26)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
@@ -56,7 +57,6 @@ test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_list_lookups'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_list_security_findings'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_get_security_finding'), true)
-  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_get_investigation'), true)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_list_security_findings'), false)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_find_lookup'), false)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_list_lookups'), false)

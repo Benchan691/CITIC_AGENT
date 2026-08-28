@@ -11,6 +11,14 @@ uv run unified-mcp-server
 uv run pytest
 ```
 
+Configure non-secret Splunk settings in [`spl_config.json`](spl_config.json).
+Keep `SPLUNK_TOKEN` or `SPLUNK_USERNAME`/`SPLUNK_PASSWORD` in the ignored
+`.env` file; credentials supplied in JSON are ignored. Set
+`SPL_CONFIG_FILE=spl_config.local.json` in `.env` to use a different
+non-secret JSON file. Environment credentials remain the source of truth (with
+existing persisted settings retained only as a deployment fallback) and are
+never returned by public status.
+
 Standalone MCP clients should set `cwd` to this directory and pass `MCP_SERVER_ROOT` when workspace data lives elsewhere (for example the repository root `.data/` directory). The former misspelling `MCP_SEVER_ROOT` remains accepted for compatibility.
 
 Splunk event outputs keep complete events within a 20,000-character budget and

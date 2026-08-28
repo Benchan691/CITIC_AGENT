@@ -15,7 +15,9 @@ from unified_mcp_server.splunk.core.service import SplunkCore
 from unified_mcp_server.splunk.detection.approval import DetectionApprovalStore
 from unified_mcp_server.splunk.detection.service import SplunkDetectionService
 from unified_mcp_server.splunk.search.executor import SearchExecutor
+from unified_mcp_server.splunk.search.planner import SearchIntent, SearchPlanner
 from unified_mcp_server.splunk.search.service import SplunkSearchService
+from unified_mcp_server.splunk.search.schema_registry import SearchSchemaRegistry
 from unified_mcp_server.splunk.security_queue.service import SplunkSecurityQueueService
 
 
@@ -30,7 +32,13 @@ class SplunkService:
     ) -> None:
         self.core = core or SplunkCore(settings, client_factory)
         executor = SearchExecutor(self.core)
-        self.search_service = SplunkSearchService(self.core, executor)
+        planner = SearchPlanner(getattr(self.core.settings, "search_planner_max_refinements", 2))
+        self.search_service = SplunkSearchService(
+            self.core,
+            executor,
+            planner,
+            SearchSchemaRegistry.default(),
+        )
         self.detection_service = SplunkDetectionService(self.core, executor, approval_store)
         self.security_queue_service = SplunkSecurityQueueService(self.core, executor)
 
@@ -59,6 +67,14 @@ class SplunkService:
             fields,
             principal_id=principal_id,
         )
+
+    async def search_intent(
+        self,
+        intent: SearchIntent,
+        *,
+        principal_id: str | None = None,
+    ) -> dict[str, Any]:
+        return await self.search_service.search_intent(intent, principal_id=principal_id)
 
     async def test_connection(self) -> dict[str, Any]:
         return await self.search_service.test_connection()
@@ -125,9 +141,6 @@ class SplunkService:
 
     async def get_security_finding(self, finding_id: str) -> dict[str, Any]:
         return await self.security_queue_service.get_security_finding(finding_id)
-
-    async def get_investigation(self, investigation_id: str) -> dict[str, Any]:
-        return await self.security_queue_service.get_investigation(investigation_id)
 
     async def create_detection_draft(self, payload: dict[str, Any], *, actor_id: str | None = None) -> dict[str, Any]:
         return await self.detection_service.create_detection_draft(payload, actor_id=actor_id)

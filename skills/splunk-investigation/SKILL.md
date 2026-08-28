@@ -22,10 +22,11 @@ Route email-led investigations to `email-to-splunk-investigation`, false-positiv
 
 - `splunk_list_saved_searches(name=..., app=..., limit=..., include_spl=false)` discovers bounded summaries. Request `include_spl=true` only when the query is required.
 - `splunk_list_security_findings(status=..., urgency=..., earliest_time=..., limit=...)` is the primary intake for queue-oriented alert questions.
-- `splunk_get_security_finding(finding_id=...)` retrieves one finding and its available bounded evidence; `splunk_get_investigation(investigation_id=...)` retrieves an Enterprise Security investigation when supported.
+- `splunk_get_security_finding(finding_id=...)` retrieves one standard Splunk fired finding and its available bounded evidence.
 - `splunk_get_detection` retrieves an exact rule definition.
 - `splunk_validate_query` validates new SPL before execution.
-- `splunk_search(..., fields=[...])` runs bounded SPL. Select only fields needed for the current question.
+- `splunk_search_intent(objective=..., entity_type=..., entity=..., result_mode=...)` is the preferred path for normal SOC questions. It plans a trusted index/sourcetype search internally, uses aggregation for statistical questions, and verifies zero-result conclusions.
+- `splunk_search(..., fields=[...])` runs explicit, bounded SPL when the user supplies SPL or advanced analyst control is required. Select only fields needed for the current question.
 - `splunk_run_saved_search(..., max_count=..., app=..., owner=...)` runs an existing scoped search with actions disabled.
 - `splunk_find_lookup` and `splunk_list_lookups` inspect lookup metadata; they do not expose lookup contents.
 
@@ -34,12 +35,12 @@ Route email-led investigations to `email-to-splunk-investigation`, false-positiv
 1. Define the security question, strongest entity, timezone, narrow time window, and expected telemetry.
 2. If a finding/incident ID is involved, use the queue detail tool first. For an alert or saved search without an ID, use bounded queue discovery or filtered saved-search discovery before constructing a query.
 3. Form one testable hypothesis and one plausible alternative.
-4. Build a scoped query that answers one question. Avoid unbounded wildcards, joins, transactions, broad subsearches, and raw-field output unless necessary.
-5. Validate the query. Stop or revise if blocked.
-6. Search with a small `max_count` and explicit `fields`. For statistical questions, aggregate in Splunk with `stats`, `tstats`, `chart`, or similar, then add `sort`/`head` when appropriate. Use a small raw-event sample only when individual evidence is needed.
+4. For a normal entity/objective investigation, use `splunk_search_intent` so the backend plans scope and strategy. Use raw `splunk_search` only for user-supplied SPL, advanced refinement, or a question the intent schema cannot express.
+5. If writing explicit SPL, validate the query. Stop or revise if blocked.
+6. Search with a small `max_count` and explicit fields. For statistical questions, aggregate in Splunk with `stats`, `tstats`, `chart`, or similar, then add `sort`/`head` when appropriate. Use a small raw-event sample only when individual evidence is needed.
 7. Inspect `search.result.type`, `search.result.rows`, and `search` counts. Never interpret `returned_count` as total matches; check `truncation`/`truncated` before making absence or volume conclusions.
 8. If MCP context truncation is reported, narrow `fields` or scope; do not treat omitted samples as zero matches.
-9. Check queue `source` and `capabilities`; Classic fired alerts are retention-limited, and unavailable status/urgency/disposition is not evidence that nobody reviewed an alert.
+9. Check queue `source` and `capabilities`; standard fired-alert history is retention-limited, and unavailable status/urgency/disposition is not evidence that nobody reviewed an alert.
 10. Pivot from returned evidence: entity → related event → surrounding activity → affected scope. Validate every new query.
 11. Build a UTC-normalized timeline while preserving source timestamps and timezone uncertainty.
 12. Classify as malicious, suspicious, likely benign, no supporting evidence, or inconclusive. Use calibrated confidence.

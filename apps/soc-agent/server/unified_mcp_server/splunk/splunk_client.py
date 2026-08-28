@@ -120,32 +120,26 @@ class SplunkClient:
     def _resource_items(payload: dict[str, Any], operation: str) -> list[dict[str, Any]]:
         """Extract a bounded list from the named read-only REST resources."""
         candidates: Any = None
-        for key in ("entry", "items", "findings", "investigations", "results", "data"):
+        for key in ("entry", "items", "results", "data"):
             if key in payload:
                 candidates = payload[key]
                 break
         if isinstance(candidates, dict):
             nested = candidates.get(
                 "items",
-                candidates.get(
-                    "entry",
-                    candidates.get(
-                        "findings",
-                        candidates.get("investigations", candidates.get("results")),
-                    ),
-                ),
+                candidates.get("entry", candidates.get("results")),
             )
             candidates = nested if nested is not None else (
                 [candidates]
                 if any(
                     key in candidates
-                    for key in ("id", "finding_id", "findingId", "investigation_id", "investigationId", "sid")
+                    for key in ("id", "finding_id", "findingId", "sid")
                 )
                 else None
             )
         if candidates is None and any(
             key in payload
-            for key in ("id", "finding_id", "findingId", "investigation_id", "investigationId", "sid")
+            for key in ("id", "finding_id", "findingId", "sid")
         ):
             candidates = [payload]
         if not isinstance(candidates, list) or any(not isinstance(item, dict) for item in candidates):
@@ -170,28 +164,6 @@ class SplunkClient:
             raise SplunkAPIError(f"Splunk could not retrieve {operation}.") from exc
         except Exception as exc:
             raise SplunkAPIError(f"Splunk could not retrieve {operation}.") from exc
-
-    @staticmethod
-    def _single_resource(payload: dict[str, Any], operation: str) -> dict[str, Any]:
-        for key in ("finding", "investigation", "data"):
-            value = payload.get(key)
-            if isinstance(value, dict):
-                nested = value.get("entry") or value.get("items")
-                if isinstance(nested, list) and len(nested) == 1 and isinstance(nested[0], dict):
-                    item = nested[0]
-                    content = item.get("content")
-                    return content if isinstance(content, dict) else item
-                return value
-        # Some Mission Control versions return the resource object directly
-        # rather than wrapping it in ``entry`` or ``data``.
-        if any(key in payload for key in ("id", "finding_id", "findingId", "investigation_id", "investigationId")):
-            return payload
-        items = SplunkClient._resource_items(payload, operation)
-        if len(items) != 1:
-            raise SplunkAPIError(f"Splunk returned malformed {operation} response.")
-        item = items[0]
-        content = item.get("content")
-        return content if isinstance(content, dict) else item
 
     @staticmethod
     def _queue_page(payload: dict[str, Any], operation: str) -> dict[str, Any]:
@@ -762,66 +734,8 @@ class SplunkClient:
         except Exception as e:
             raise SplunkAPIError(f"Splunk returned an invalid index response: {str(e)}") from e
 
-    async def get_es_findings(self, *, limit: int = 50, offset: int = 0, filters: dict[str, str] | None = None) -> dict[str, Any]:
-        """Read a page from the Enterprise Security Mission Control findings API."""
-        self._ensure_connected()
-        params: dict[str, Any] = {
-            "output_mode": "json",
-            "search_format": "true",
-            "limit": max(1, min(int(limit), 201)),
-            "offset": max(0, int(offset)),
-        }
-        for key, value in (filters or {}).items():
-            if isinstance(value, str) and value.strip() and key in {"status", "urgency", "owner", "detection"}:
-                params[key] = value.strip()
-        payload = await self._get_queue_json(
-            "/servicesNS/nobody/missioncontrol/public/v2/findings",
-            params=params,
-            operation="Enterprise Security findings",
-        )
-        return self._queue_page(payload, "Enterprise Security findings")
-
-    async def get_es_finding(self, finding_id: str) -> dict[str, Any]:
-        """Read one Enterprise Security finding by its provider identifier."""
-        self._ensure_connected()
-        payload = await self._get_queue_json(
-            f"/servicesNS/nobody/missioncontrol/public/v2/findings/{quote(finding_id, safe='')}",
-            params={"output_mode": "json", "search_format": "true"},
-            operation="Enterprise Security finding",
-        )
-        return self._single_resource(payload, "Enterprise Security finding")
-
-    async def get_es_investigations(self, *, limit: int = 50, offset: int = 0, filters: dict[str, str] | None = None) -> dict[str, Any]:
-        """Read a page from the Enterprise Security investigations API."""
-        self._ensure_connected()
-        params: dict[str, Any] = {
-            "output_mode": "json",
-            "search_format": "true",
-            "limit": max(1, min(int(limit), 201)),
-            "offset": max(0, int(offset)),
-        }
-        for key, value in (filters or {}).items():
-            if isinstance(value, str) and value.strip() and key in {"status", "urgency", "owner"}:
-                params[key] = value.strip()
-        payload = await self._get_queue_json(
-            "/servicesNS/nobody/missioncontrol/public/v2/investigations",
-            params=params,
-            operation="Enterprise Security investigations",
-        )
-        return self._queue_page(payload, "Enterprise Security investigations")
-
-    async def get_es_investigation(self, investigation_id: str) -> dict[str, Any]:
-        """Read one Enterprise Security investigation by its provider identifier."""
-        self._ensure_connected()
-        payload = await self._get_queue_json(
-            f"/servicesNS/nobody/missioncontrol/public/v2/investigations/{quote(investigation_id, safe='')}",
-            params={"output_mode": "json", "search_format": "true"},
-            operation="Enterprise Security investigation",
-        )
-        return self._single_resource(payload, "Enterprise Security investigation")
-
     async def get_fired_alerts(self, *, limit: int = 50, offset: int = 0) -> dict[str, Any]:
-        """Read the bounded catalog of classic Splunk fired alerts."""
+        """Read the bounded catalog of standard Splunk fired alerts."""
         self._ensure_connected()
         payload = await self._get_queue_json(
             "/services/alerts/fired_alerts",
@@ -835,7 +749,7 @@ class SplunkClient:
         return self._queue_page(payload, "fired alerts")
 
     async def get_fired_alert(self, name: str) -> list[dict[str, Any]]:
-        """Read the unexpired instances for one named classic alert."""
+        """Read the unexpired instances for one named fired alert."""
         self._ensure_connected()
         payload = await self._get_queue_json(
             f"/services/alerts/fired_alerts/{quote(name, safe='')}",

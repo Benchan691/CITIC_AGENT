@@ -32,13 +32,15 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.splunk.detection_write_enabled is False
     assert settings.splunk.detection_enable_enabled is False
     assert settings.splunk.detection_approval_ttl_seconds == 600
-    assert settings.splunk.security_queue_mode == "auto"
     assert settings.splunk.query_policy.normal_search_seconds == 604_800
     assert settings.splunk.query_policy.wildcard_index_decision == "require_approval"
     assert settings.splunk.search_resource.global_concurrency == 8
     assert settings.splunk.search_resource.per_principal_concurrency == 2
     assert settings.splunk.search_resource.max_lookback_high == 2_592_000
     assert settings.splunk.search_resource.restricted_decision == "deny"
+    assert settings.splunk.security_queue.max_backend_pages_per_request == 10
+    assert settings.splunk.security_queue.max_backend_records_per_request == 1_000
+    assert settings.splunk.security_queue.standard_concurrency == 5
     assert settings.zimbra.max_attachment_bytes == 10_000_000
     assert settings.zimbra.max_attachment_text_chars == 200_000
     assert settings.markitdown.llm_enabled is False
@@ -69,6 +71,158 @@ def test_search_resource_settings_are_centralized_and_validated():
 
     with pytest.raises(ValueError):
         ServerSettings.from_env({"SPLUNK_SEARCH_RESTRICTED_DECISION": "allow"})
+
+
+def test_splunk_json_config_overrides_non_secret_values_and_loads_nested_settings(tmp_path):
+    config_path = tmp_path / "spl_config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "host": "json-splunk.example.com",
+                "port": 18089,
+                "scheme": "http",
+                "token": "json-token-must-be-ignored",
+                "username": "json-user-must-be-ignored",
+                "password": "json-password-must-be-ignored",
+                "verify_ssl": False,
+                "job_timeout": 45,
+                "max_events": 321,
+                "allow_detection_write": True,
+                "query_policy": {
+                    "short_search_seconds": 3600,
+                    "trusted_macros": ["company_auth_base", "trusted_scope"],
+                },
+                "search_resource": {
+                    "global_concurrency": 3,
+                    "queue_timeout_seconds": 9,
+                },
+                "security_queue": {
+                    "standard_concurrency": 2,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    settings = ServerSettings.from_env(
+        {
+            "SPL_CONFIG_FILE": str(config_path),
+            "SPLUNK_HOST": "legacy.example.com",
+            "SPLUNK_TOKEN": "legacy-token",
+            "SPLUNK_USERNAME": "env-user",
+            "SPLUNK_PASSWORD": "env-password",
+            "SPLUNK_MAX_EVENTS": "9",
+        }
+    )
+
+    assert settings.splunk.host == "json-splunk.example.com"
+    assert settings.splunk.port == 18089
+    assert settings.splunk.url == "http://json-splunk.example.com:18089"
+    assert settings.splunk.token == "legacy-token"
+    assert settings.splunk.username == "env-user"
+    assert settings.splunk.password == "env-password"
+    assert settings.splunk.verify_ssl is False
+    assert settings.splunk.job_timeout == 45
+    assert settings.splunk.max_events == 321
+    assert settings.splunk.detection_write_enabled is True
+    assert settings.splunk.query_policy.short_search_seconds == 3600
+    assert settings.splunk.query_policy.trusted_macros == (
+        "company_auth_base",
+        "trusted_scope",
+    )
+    assert settings.splunk.search_resource.global_concurrency == 3
+    assert settings.splunk.search_resource.queue_timeout_seconds == 9
+    assert settings.splunk.security_queue.standard_concurrency == 2
+
+
+def test_credential_free_default_splunk_json_is_an_inactive_template(monkeypatch):
+    monkeypatch.delenv("SPL_CONFIG_FILE", raising=False)
+    monkeypatch.delenv("SPLUNK_CONFIG_FILE", raising=False)
+    monkeypatch.setenv("SPLUNK_HOST", "legacy.example.com")
+    monkeypatch.setenv("SPLUNK_TOKEN", "legacy-token")
+    monkeypatch.setenv("SPLUNK_MAX_EVENTS", "17")
+
+    settings = ServerSettings.from_env()
+
+    assert settings.splunk.host == "legacy.example.com"
+    assert settings.splunk.token == "legacy-token"
+    assert settings.splunk.max_events == 17
+
+
+def test_splunk_json_cannot_supply_credentials(tmp_path):
+    config_path = tmp_path / "spl_config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "host": "json-splunk.example.com",
+                "token": "json-token",
+                "username": "json-user",
+                "password": "json-password",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    settings = ServerSettings.from_env({"SPL_CONFIG_FILE": str(config_path)})
+
+    assert settings.splunk.host == "json-splunk.example.com"
+    assert settings.splunk.token == ""
+    assert settings.splunk.username == ""
+    assert settings.splunk.password == ""
+    assert settings.splunk.configured is False
+
+
+def test_splunk_json_config_rejects_malformed_or_wrongly_typed_files(tmp_path):
+    malformed_path = tmp_path / "malformed.json"
+    malformed_path.write_text("{not-json", encoding="utf-8")
+    with pytest.raises(ValueError, match="Splunk configuration JSON"):
+        ServerSettings.from_env({"SPL_CONFIG_FILE": str(malformed_path)})
+
+    wrong_type_path = tmp_path / "wrong-type.json"
+    wrong_type_path.write_text(
+        json.dumps({"host": "splunk.example.com", "search_resource": []}),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="search_resource"):
+        ServerSettings.from_env({"SPL_CONFIG_FILE": str(wrong_type_path)})
+
+
+def test_splunk_json_config_overrides_persisted_splunk_settings(tmp_path):
+    config_path = tmp_path / "spl_config.json"
+    config_path.write_text(
+        json.dumps({"host": "json.example.com", "token": "json-token-must-be-ignored"}),
+        encoding="utf-8",
+    )
+
+    class Store:
+        def list_config(self):
+            return {
+                "SPLUNK_HOST": "stored.example.com",
+                "SPLUNK_TOKEN": "stored-token",
+            }
+
+    settings = ServerSettings.from_store(Store(), {"SPL_CONFIG_FILE": str(config_path)})
+
+    assert settings.splunk.host == "json.example.com"
+    assert settings.splunk.token == "stored-token"
+
+
+def test_security_queue_limits_are_centralized_and_validated():
+    settings = ServerSettings.from_env(
+        {
+            "SECURITY_QUEUE_MAX_BACKEND_PAGES_PER_REQUEST": "3",
+            "SECURITY_QUEUE_MAX_BACKEND_RECORDS_PER_REQUEST": "250",
+            "SECURITY_QUEUE_STANDARD_CONCURRENCY": "4",
+        }
+    )
+    queue = settings.splunk.security_queue
+    assert queue.max_backend_pages_per_request == 3
+    assert queue.max_backend_records_per_request == 250
+    assert queue.standard_concurrency == 4
+    assert settings.public_status()["splunk"]["security_queue"] == queue.to_dict()
+
+    with pytest.raises(ValueError):
+        ServerSettings.from_env({"SECURITY_QUEUE_STANDARD_CONCURRENCY": "0"})
 
 
 def test_environment_overrides_persisted_configuration():
@@ -235,22 +389,13 @@ def test_detection_write_flags_are_explicit_and_visible_without_secrets():
         {
             "SPLUNK_ALLOW_DETECTION_WRITE": "true",
             "SPLUNK_ALLOW_DETECTION_ENABLE": "true",
-            "SPLUNK_DETECTION_APP": "enterprise_security",
+            "SPLUNK_DETECTION_APP": "security_app",
         }
     )
     status = settings.public_status()
     assert status["splunk"]["detection_write_enabled"] is True
     assert status["splunk"]["detection_enable_enabled"] is True
-    assert status["splunk"]["detection_app"] == "enterprise_security"
-
-
-def test_security_queue_mode_is_configurable_and_validated():
-    settings = ServerSettings.from_env({"SPLUNK_SECURITY_QUEUE_MODE": "CLASSIC"})
-    assert settings.splunk.security_queue_mode == "classic"
-    assert settings.public_status()["splunk"]["security_queue_mode"] == "classic"
-
-    with pytest.raises(ValueError):
-        ServerSettings.from_env({"SPLUNK_SECURITY_QUEUE_MODE": "unknown"})
+    assert status["splunk"]["detection_app"] == "security_app"
 
 
 def test_splunk_query_policy_thresholds_and_decisions_are_configurable():

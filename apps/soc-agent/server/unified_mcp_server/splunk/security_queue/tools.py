@@ -20,7 +20,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
         limit: int = 50,
         cursor: str = "",
     ) -> dict[str, Any]:
-        """List bounded read-only security findings from Enterprise Security or classic fired alerts; inspect source and capabilities because classic history is retention-limited."""
+        """List bounded read-only security findings derived from standard Splunk fired alerts; history is retention-limited."""
         return await execute(
             ctx,
             "splunk",
@@ -38,14 +38,4 @@ def register_tools(server, *, get_runtime, execute) -> None:
             "splunk",
             "get_security_finding",
             lambda: get_runtime(ctx).splunk_security_queue.get_security_finding(finding_id),
-        )
-
-    @server.tool()
-    async def splunk_get_investigation(ctx: Context, investigation_id: str) -> dict[str, Any]:
-        """Read one read-only Enterprise Security investigation; classic Splunk reports that native investigations are unsupported."""
-        return await execute(
-            ctx,
-            "splunk",
-            "get_investigation",
-            lambda: get_runtime(ctx).splunk_security_queue.get_investigation(investigation_id),
         )

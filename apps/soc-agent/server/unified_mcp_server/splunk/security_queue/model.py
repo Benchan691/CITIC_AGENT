@@ -22,6 +22,32 @@ STATUSES = frozenset({"new", "in_progress", "pending", "resolved", "closed", "un
 DISPOSITIONS = frozenset({"true_positive", "false_positive", "benign", "undetermined", "unknown"})
 
 
+@dataclass(frozen=True)
+class SecurityQueueConfig:
+    """Safety limits for one logical security-queue request."""
+
+    max_backend_pages_per_request: int = 10
+    max_backend_records_per_request: int = 1_000
+    standard_concurrency: int = 5
+
+    def __post_init__(self) -> None:
+        for name in (
+            "max_backend_pages_per_request",
+            "max_backend_records_per_request",
+            "standard_concurrency",
+        ):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "max_backend_pages_per_request": self.max_backend_pages_per_request,
+            "max_backend_records_per_request": self.max_backend_records_per_request,
+            "standard_concurrency": self.standard_concurrency,
+        }
+
+
 def normalize_enum(value: Any, aliases: Mapping[str, str], allowed: frozenset[str]) -> str | None:
     """Normalize a vendor value while leaving absent values absent."""
     if value is None or isinstance(value, bool):
@@ -195,6 +221,12 @@ class FindingPage:
     next_cursor: str | None
     truncated: bool
     total_count: int | None = None
+    total_count_exact: bool = False
+    partial: bool = False
+    partial_reason: str | None = None
+    backend_pages_fetched: int = 0
+    backend_records_seen: int = 0
+    local_filtered_count: int = 0
 
 
 class OpaqueIdCodec:

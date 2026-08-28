@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
+import hashlib
+import json
 import re
 from typing import Any, Protocol
 
@@ -33,9 +35,6 @@ class FindingProvider(Protocol):
         ...
 
     async def get_finding(self, reference: Mapping[str, Any]) -> dict[str, Any]:
-        ...
-
-    async def get_investigation(self, reference: Mapping[str, Any]) -> dict[str, Any]:
         ...
 
 
@@ -137,6 +136,8 @@ def time_bound(value: str, *, now: datetime | None = None) -> float | None:
     current = now or datetime.now(timezone.utc)
     if raw in {"now", "latest"}:
         return current.timestamp()
+    if raw in {"0", "all", "all_time"}:
+        return 0.0
     if raw in {"@d", "today"}:
         return current.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
     relative = re.fullmatch(r"-(\d+)([smhdw])(?:@[smhdw])?", raw)
@@ -213,7 +214,7 @@ def common_summary(
         source=provider,
         source_type=source_type,
         synthetic=synthetic,
-        type=normalized_type if normalized_type in {"finding", "finding_group", "investigation"} else (
+        type=normalized_type if normalized_type in {"finding", "finding_group"} else (
             "finding_group" if raw.get("is_finding_group") is True else "finding"
         ),
         title=title,
@@ -236,6 +237,15 @@ def common_summary(
 
 
 def matches_filters(summary: FindingSummary, filters: FindingFilters) -> bool:
+    return matches_filters_at(summary, filters)
+
+
+def matches_filters_at(
+    summary: FindingSummary,
+    filters: FindingFilters,
+    *,
+    now: datetime | None = None,
+) -> bool:
     if filters.status and summary.status != filters.status:
         return False
     if filters.urgency and summary.urgency != filters.urgency:
@@ -245,8 +255,8 @@ def matches_filters(summary: FindingSummary, filters: FindingFilters) -> bool:
     if filters.detection and filters.detection.casefold() not in (summary.detection_name or "").casefold():
         return False
     trigger = timestamp_value(summary.trigger_time)
-    earliest = time_bound(filters.earliest_time)
-    latest = time_bound(filters.latest_time)
+    earliest = time_bound(filters.earliest_time, now=now)
+    latest = time_bound(filters.latest_time, now=now)
     if trigger is not None and earliest is not None and trigger < earliest:
         return False
     if trigger is not None and latest is not None and trigger > latest:
@@ -263,17 +273,39 @@ def sort_findings(findings: list[FindingSummary]) -> list[FindingSummary]:
     )
 
 
-def decode_offset(codec: OpaqueIdCodec, provider: str, cursor: str) -> int:
-    if not cursor:
-        return 0
-    try:
-        values = codec.decode(cursor, provider=provider, kind="cursor")
-        offset = values.get("offset")
-        if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
-            raise ValueError
-        return offset
-    except ValueError as exc:
-        raise ServiceError("invalid_input", "cursor is invalid or expired.") from exc
+def filter_fingerprint(filters: FindingFilters) -> str:
+    values = {
+        name: getattr(filters, name)
+        for name in (
+            "status",
+            "urgency",
+            "owner",
+            "detection",
+            "earliest_time",
+            "latest_time",
+        )
+    }
+    return hashlib.sha256(json.dumps(values, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:24]
+
+
+def backend_page_next_offset(
+    raw_page: Mapping[str, Any],
+    offset: int,
+    item_count: int,
+    requested_count: int,
+) -> tuple[int | None, bool]:
+    """Return a safe continuation offset and whether backend records remain."""
+    raw_next = raw_page.get("next_offset")
+    if isinstance(raw_next, int) and not isinstance(raw_next, bool) and raw_next > offset:
+        return raw_next, True
+    total = raw_page.get("total")
+    if isinstance(total, int) and not isinstance(total, bool):
+        if offset + item_count < total:
+            return offset + item_count, True
+        return None, False
+    if item_count >= requested_count:
+        return offset + item_count, True
+    return None, False
 
 
 def encode_offset(codec: OpaqueIdCodec, provider: str, offset: int, **extra: Any) -> str:
