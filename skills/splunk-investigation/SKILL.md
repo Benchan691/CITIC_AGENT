@@ -20,6 +20,8 @@ Route email-led investigations to `email-to-splunk-investigation`, false-positiv
 ## Tools
 
 - `splunk_list_saved_searches(name=..., app=..., limit=..., include_spl=false)` discovers bounded summaries. Request `include_spl=true` only when the query is required.
+- `splunk_list_security_findings(status=..., urgency=..., earliest_time=..., limit=...)` is the primary intake for queue-oriented alert questions.
+- `splunk_get_security_finding(finding_id=...)` retrieves one finding and its available bounded evidence; `splunk_get_investigation(investigation_id=...)` retrieves an Enterprise Security investigation when supported.
 - `splunk_get_detection` retrieves an exact rule definition.
 - `splunk_validate_query` validates new SPL before execution.
 - `splunk_search(..., fields=[...])` runs bounded SPL. Select only fields needed for the current question.
@@ -29,16 +31,18 @@ Route email-led investigations to `email-to-splunk-investigation`, false-positiv
 ## Workflow
 
 1. Define the security question, strongest entity, timezone, narrow time window, and expected telemetry.
-2. If an alert or saved search is involved, use filtered alert discovery and inspect its existing detection SPL before constructing a query.
+2. If a finding/incident ID is involved, use the queue detail tool first. For an alert or saved search without an ID, use bounded queue discovery or filtered saved-search discovery before constructing a query.
 3. Form one testable hypothesis and one plausible alternative.
 4. Build a scoped query that answers one question. Avoid unbounded wildcards, joins, transactions, broad subsearches, and raw-field output unless necessary.
 5. Validate the query. Stop or revise if blocked.
-6. Search with a small `max_count` and explicit `fields`. Increase either only when evidence requires it.
-7. If the event budget reports truncation, narrow `fields` or scope; do not treat omitted samples as zero matches.
-8. Pivot from returned evidence: entity → related event → surrounding activity → affected scope. Validate every new query.
-9. Build a UTC-normalized timeline while preserving source timestamps and timezone uncertainty.
-10. Classify as malicious, suspicious, likely benign, no supporting evidence, or inconclusive. Use calibrated confidence.
-11. Recommend the smallest next action and name missing evidence.
+6. Search with a small `max_count` and explicit `fields`. For statistical questions, aggregate in Splunk with `stats`, `tstats`, `chart`, or similar, then add `sort`/`head` when appropriate. Use a small raw-event sample only when individual evidence is needed.
+7. Inspect `search.result.type`, `search.result.rows`, and `search` counts. Never interpret `returned_count` as total matches; check `truncation`/`truncated` before making absence or volume conclusions.
+8. If MCP context truncation is reported, narrow `fields` or scope; do not treat omitted samples as zero matches.
+9. Check queue `source` and `capabilities`; Classic fired alerts are retention-limited, and unavailable status/urgency/disposition is not evidence that nobody reviewed an alert.
+10. Pivot from returned evidence: entity → related event → surrounding activity → affected scope. Validate every new query.
+11. Build a UTC-normalized timeline while preserving source timestamps and timezone uncertainty.
+12. Classify as malicious, suspicious, likely benign, no supporting evidence, or inconclusive. Use calibrated confidence.
+13. Recommend the smallest next action and name missing evidence.
 
 Zero results mean only that the searched scope returned no evidence. They do not prove absence.
 

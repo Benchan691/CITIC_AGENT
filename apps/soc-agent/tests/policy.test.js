@@ -11,7 +11,7 @@ import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 import { createMemoryContextRegistry } from '../../../packages/soc-memory/lib/tenant.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 54)
+  assert.equal(DOMAIN_TOOLS.size, 57)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
@@ -42,7 +42,7 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 })
 
 test('SOC policy has disjoint read-only and action categories', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 30)
+  assert.equal(READ_ONLY_TOOLS.length, 33)
   assert.equal(ACTION_TOOLS.length, 24)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
@@ -52,6 +52,10 @@ test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_list_data_sources'), false)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_find_lookup'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_list_lookups'), true)
+  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_list_security_findings'), true)
+  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_get_security_finding'), true)
+  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_get_investigation'), true)
+  assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_list_security_findings'), false)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_find_lookup'), false)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_list_lookups'), false)
   assert.equal(READ_ONLY_TOOLS.includes('scheduled_task_list'), true)
@@ -78,7 +82,7 @@ test('SOC policy has disjoint read-only and action categories', () => {
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 24)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 27)
   for (const name of READ_ONLY_DOMAIN_TOOLS) {
     assert.equal(DOMAIN_TOOLS.has(name), true)
     assert.equal(APPROVAL_TOOLS.has(name), false)

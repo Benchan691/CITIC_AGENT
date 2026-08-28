@@ -15,6 +15,9 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "system_get_status",
         "splunk_validate_query",
         "splunk_search",
+        "splunk_list_security_findings",
+        "splunk_get_security_finding",
+        "splunk_get_investigation",
         "splunk_list_saved_searches",
         "splunk_find_lookup",
         "splunk_list_lookups",
@@ -71,6 +74,19 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "query", "earliest_time", "latest_time", "max_count", "fields",
     }
     assert search_tool.parameters["required"] == ["query"]
+    assert "stats" in search_tool.description.lower()
+    queue_list_tool = next(tool for tool in tools if tool.name == "splunk_list_security_findings")
+    assert set(queue_list_tool.parameters["properties"]) == {
+        "status", "urgency", "owner", "detection", "earliest_time", "latest_time", "limit", "cursor",
+    }
+    assert queue_list_tool.parameters.get("required", []) == []
+    finding_tool = next(tool for tool in tools if tool.name == "splunk_get_security_finding")
+    assert set(finding_tool.parameters["properties"]) == {"finding_id"}
+    assert finding_tool.parameters["required"] == ["finding_id"]
+    investigation_tool = next(tool for tool in tools if tool.name == "splunk_get_investigation")
+    assert set(investigation_tool.parameters["properties"]) == {"investigation_id"}
+    assert investigation_tool.parameters["required"] == ["investigation_id"]
+    assert "read-only" in queue_list_tool.description.lower()
     assert "splunk_list_data_sources" not in {tool.name for tool in tools}
     assert "splunk_list_indexes" not in {tool.name for tool in tools}
 

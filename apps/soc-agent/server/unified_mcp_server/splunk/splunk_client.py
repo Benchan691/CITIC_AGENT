@@ -5,7 +5,7 @@ import httpx
 import json
 from time import monotonic
 from typing import Optional, Dict, Any, List
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlsplit
 
 
 class SplunkAPIError(Exception):
@@ -106,6 +106,125 @@ class SplunkClient:
                 text = message.get("text") or message.get("message")
                 suffix = f": {text}" if text else ""
                 raise SplunkAPIError(f"Splunk returned an error for {operation}{suffix}.")
+
+    @staticmethod
+    def _resource_items(payload: dict[str, Any], operation: str) -> list[dict[str, Any]]:
+        """Extract a bounded list from the named read-only REST resources."""
+        candidates: Any = None
+        for key in ("entry", "items", "findings", "investigations", "results", "data"):
+            if key in payload:
+                candidates = payload[key]
+                break
+        if isinstance(candidates, dict):
+            nested = candidates.get(
+                "items",
+                candidates.get(
+                    "entry",
+                    candidates.get(
+                        "findings",
+                        candidates.get("investigations", candidates.get("results")),
+                    ),
+                ),
+            )
+            candidates = nested if nested is not None else (
+                [candidates]
+                if any(
+                    key in candidates
+                    for key in ("id", "finding_id", "findingId", "investigation_id", "investigationId", "sid")
+                )
+                else None
+            )
+        if candidates is None and any(
+            key in payload
+            for key in ("id", "finding_id", "findingId", "investigation_id", "investigationId", "sid")
+        ):
+            candidates = [payload]
+        if not isinstance(candidates, list) or any(not isinstance(item, dict) for item in candidates):
+            raise SplunkAPIError(f"Splunk returned malformed {operation} items.")
+        return candidates
+
+    async def _get_queue_json(
+        self,
+        path: str,
+        *,
+        params: dict[str, Any],
+        operation: str,
+    ) -> dict[str, Any]:
+        try:
+            response = await self._client.get(path, params=params)
+            payload = self._response_json(response, operation)
+            self._raise_message_errors(payload, operation)
+            return payload
+        except SplunkAPIError:
+            raise
+        except httpx.RequestError as exc:
+            raise SplunkAPIError(f"Splunk could not retrieve {operation}.") from exc
+        except Exception as exc:
+            raise SplunkAPIError(f"Splunk could not retrieve {operation}.") from exc
+
+    @staticmethod
+    def _single_resource(payload: dict[str, Any], operation: str) -> dict[str, Any]:
+        for key in ("finding", "investigation", "data"):
+            value = payload.get(key)
+            if isinstance(value, dict):
+                nested = value.get("entry") or value.get("items")
+                if isinstance(nested, list) and len(nested) == 1 and isinstance(nested[0], dict):
+                    item = nested[0]
+                    content = item.get("content")
+                    return content if isinstance(content, dict) else item
+                return value
+        # Some Mission Control versions return the resource object directly
+        # rather than wrapping it in ``entry`` or ``data``.
+        if any(key in payload for key in ("id", "finding_id", "findingId", "investigation_id", "investigationId")):
+            return payload
+        items = SplunkClient._resource_items(payload, operation)
+        if len(items) != 1:
+            raise SplunkAPIError(f"Splunk returned malformed {operation} response.")
+        item = items[0]
+        content = item.get("content")
+        return content if isinstance(content, dict) else item
+
+    @staticmethod
+    def _queue_page(payload: dict[str, Any], operation: str) -> dict[str, Any]:
+        items = SplunkClient._resource_items(payload, operation)
+        paging = payload.get("paging")
+        if not isinstance(paging, dict):
+            paging = {}
+        meta = payload.get("meta")
+        if not isinstance(meta, dict):
+            meta = {}
+
+        def page_value(name: str) -> Any:
+            for container in (payload, paging, meta):
+                value = container.get(name)
+                if value is not None:
+                    return value
+            return None
+
+        total = next(
+            (
+                parsed
+                for key in (
+                    "total",
+                    "total_count",
+                    "totalResults",
+                    "totalCount",
+                    "total_results",
+                    "opensearch:totalResults",
+                )
+                if (parsed := SplunkClient._optional_int(page_value(key))) is not None
+            ),
+            None,
+        )
+        next_offset = SplunkClient._optional_int(page_value("next_offset"))
+        if next_offset is None:
+            next_link = page_value("next") or page_value("nextLink")
+            if isinstance(next_link, str) and next_link.strip():
+                query = parse_qs(urlsplit(next_link).query)
+                values = query.get("offset") or query.get("start")
+                if values:
+                    next_offset = SplunkClient._optional_int(values[0])
+        return {"items": items, "total": total, "next_offset": next_offset}
 
     @staticmethod
     def _optional_int(value: Any) -> int | None:
@@ -567,6 +686,88 @@ class SplunkClient:
             ) from e
         except Exception as e:
             raise SplunkAPIError(f"Splunk returned an invalid index response: {str(e)}") from e
+
+    async def get_es_findings(self, *, limit: int = 50, offset: int = 0, filters: dict[str, str] | None = None) -> dict[str, Any]:
+        """Read a page from the Enterprise Security Mission Control findings API."""
+        self._ensure_connected()
+        params: dict[str, Any] = {
+            "output_mode": "json",
+            "search_format": "true",
+            "limit": max(1, min(int(limit), 201)),
+            "offset": max(0, int(offset)),
+        }
+        for key, value in (filters or {}).items():
+            if isinstance(value, str) and value.strip() and key in {"status", "urgency", "owner", "detection"}:
+                params[key] = value.strip()
+        payload = await self._get_queue_json(
+            "/servicesNS/nobody/missioncontrol/public/v2/findings",
+            params=params,
+            operation="Enterprise Security findings",
+        )
+        return self._queue_page(payload, "Enterprise Security findings")
+
+    async def get_es_finding(self, finding_id: str) -> dict[str, Any]:
+        """Read one Enterprise Security finding by its provider identifier."""
+        self._ensure_connected()
+        payload = await self._get_queue_json(
+            f"/servicesNS/nobody/missioncontrol/public/v2/findings/{quote(finding_id, safe='')}",
+            params={"output_mode": "json", "search_format": "true"},
+            operation="Enterprise Security finding",
+        )
+        return self._single_resource(payload, "Enterprise Security finding")
+
+    async def get_es_investigations(self, *, limit: int = 50, offset: int = 0, filters: dict[str, str] | None = None) -> dict[str, Any]:
+        """Read a page from the Enterprise Security investigations API."""
+        self._ensure_connected()
+        params: dict[str, Any] = {
+            "output_mode": "json",
+            "search_format": "true",
+            "limit": max(1, min(int(limit), 201)),
+            "offset": max(0, int(offset)),
+        }
+        for key, value in (filters or {}).items():
+            if isinstance(value, str) and value.strip() and key in {"status", "urgency", "owner"}:
+                params[key] = value.strip()
+        payload = await self._get_queue_json(
+            "/servicesNS/nobody/missioncontrol/public/v2/investigations",
+            params=params,
+            operation="Enterprise Security investigations",
+        )
+        return self._queue_page(payload, "Enterprise Security investigations")
+
+    async def get_es_investigation(self, investigation_id: str) -> dict[str, Any]:
+        """Read one Enterprise Security investigation by its provider identifier."""
+        self._ensure_connected()
+        payload = await self._get_queue_json(
+            f"/servicesNS/nobody/missioncontrol/public/v2/investigations/{quote(investigation_id, safe='')}",
+            params={"output_mode": "json", "search_format": "true"},
+            operation="Enterprise Security investigation",
+        )
+        return self._single_resource(payload, "Enterprise Security investigation")
+
+    async def get_fired_alerts(self, *, limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        """Read the bounded catalog of classic Splunk fired alerts."""
+        self._ensure_connected()
+        payload = await self._get_queue_json(
+            "/services/alerts/fired_alerts",
+            params={
+                "output_mode": "json",
+                "count": max(1, min(int(limit), 201)),
+                "offset": max(0, int(offset)),
+            },
+            operation="fired alerts",
+        )
+        return self._queue_page(payload, "fired alerts")
+
+    async def get_fired_alert(self, name: str) -> list[dict[str, Any]]:
+        """Read the unexpired instances for one named classic alert."""
+        self._ensure_connected()
+        payload = await self._get_queue_json(
+            f"/services/alerts/fired_alerts/{quote(name, safe='')}",
+            params={"output_mode": "json"},
+            operation="fired alert",
+        )
+        return self._resource_items(payload, "fired alert")
 
     async def get_lookup_table_files(self, app: str = "", search: str = "", count: int = 50) -> List[Dict[str, Any]]:
         """List visible lookup-table knowledge objects without modifying them."""

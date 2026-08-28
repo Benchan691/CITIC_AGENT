@@ -70,6 +70,7 @@ class SplunkSettings:
     detection_app: str = "search"
     detection_owner: str = "nobody"
     url: str = ""
+    security_queue_mode: str = "auto"
 
     @property
     def configured(self) -> bool:
@@ -200,6 +201,9 @@ class ServerSettings:
         splunk_risk_name = _preferred(env, "SPLUNK_RISK_TOLERANCE", "SPL_RISK_TOLERANCE")
         splunk_safe_name = _preferred(env, "SPLUNK_SAFE_TIMERANGE", "SPL_SAFE_TIMERANGE")
         splunk_sanitize_name = _preferred(env, "SPLUNK_SANITIZE_OUTPUT", "SPL_SANITIZE_OUTPUT")
+        security_queue_mode = _value(env, "SPLUNK_SECURITY_QUEUE_MODE", "auto").lower()
+        if security_queue_mode not in {"auto", "enterprise_security", "classic"}:
+            raise ValueError("SPLUNK_SECURITY_QUEUE_MODE must be auto, enterprise_security, or classic")
         splunk_host = (
             _value(env, "SPLUNK_HOST_FOR_DOCKER")
             if _value(env, "RUNNING_INSIDE_DOCKER") == "1"
@@ -234,6 +238,7 @@ class ServerSettings:
             detection_app=_value(env, "SPLUNK_DETECTION_APP", "search"),
             detection_owner=_value(env, "SPLUNK_DETECTION_OWNER", "nobody"),
             url=splunk_url,
+            security_queue_mode=security_queue_mode,
         )
         zimbra = ZimbraSettings(
             host=_value(env, "ZIMBRA_HOST"),
@@ -312,6 +317,7 @@ class ServerSettings:
                 "detection_write_enabled": self.splunk.detection_write_enabled,
                 "detection_enable_enabled": self.splunk.detection_enable_enabled,
                 "detection_app": self.splunk.detection_app,
+                "security_queue_mode": self.splunk.security_queue_mode,
             },
             "zimbra": {
                 "configured": self.zimbra.configured,

@@ -31,6 +31,7 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.zimbra.configured is False
     assert settings.splunk.detection_write_enabled is False
     assert settings.splunk.detection_enable_enabled is False
+    assert settings.splunk.security_queue_mode == "auto"
     assert settings.zimbra.max_attachment_bytes == 10_000_000
     assert settings.zimbra.max_attachment_text_chars == 200_000
     assert settings.markitdown.llm_enabled is False
@@ -203,6 +204,15 @@ def test_detection_write_flags_are_explicit_and_visible_without_secrets():
     assert status["splunk"]["detection_write_enabled"] is True
     assert status["splunk"]["detection_enable_enabled"] is True
     assert status["splunk"]["detection_app"] == "enterprise_security"
+
+
+def test_security_queue_mode_is_configurable_and_validated():
+    settings = ServerSettings.from_env({"SPLUNK_SECURITY_QUEUE_MODE": "CLASSIC"})
+    assert settings.splunk.security_queue_mode == "classic"
+    assert settings.public_status()["splunk"]["security_queue_mode"] == "classic"
+
+    with pytest.raises(ValueError):
+        ServerSettings.from_env({"SPLUNK_SECURITY_QUEUE_MODE": "unknown"})
 
 
 def test_zimbra_filter_gates_are_explicit_and_visible_without_secrets():

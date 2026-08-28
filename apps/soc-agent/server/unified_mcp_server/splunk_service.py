@@ -15,6 +15,7 @@ from unified_mcp_server.splunk.core.service import SplunkCore
 from unified_mcp_server.splunk.detection.service import SplunkDetectionService
 from unified_mcp_server.splunk.search.executor import SearchExecutor
 from unified_mcp_server.splunk.search.service import SplunkSearchService
+from unified_mcp_server.splunk.security_queue.service import SplunkSecurityQueueService
 
 
 class SplunkService:
@@ -29,6 +30,7 @@ class SplunkService:
         executor = SearchExecutor(self.core)
         self.search_service = SplunkSearchService(self.core, executor)
         self.detection_service = SplunkDetectionService(self.core, executor)
+        self.security_queue_service = SplunkSecurityQueueService(self.core, executor)
 
     @property
     def settings(self) -> SplunkSettings:
@@ -57,6 +59,27 @@ class SplunkService:
 
     async def backtest_detection(self, payload: dict[str, Any], earliest_time: str = "-7d", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         return await self.detection_service.backtest_detection(payload, earliest_time, latest_time, max_count, fields)
+
+    async def list_security_findings(
+        self,
+        status: str = "",
+        urgency: str = "",
+        owner: str = "",
+        detection: str = "",
+        earliest_time: str = "-24h",
+        latest_time: str = "now",
+        limit: int = 50,
+        cursor: str = "",
+    ) -> dict[str, Any]:
+        return await self.security_queue_service.list_security_findings(
+            status, urgency, owner, detection, earliest_time, latest_time, limit, cursor
+        )
+
+    async def get_security_finding(self, finding_id: str) -> dict[str, Any]:
+        return await self.security_queue_service.get_security_finding(finding_id)
+
+    async def get_investigation(self, investigation_id: str) -> dict[str, Any]:
+        return await self.security_queue_service.get_investigation(investigation_id)
 
     async def create_detection_draft(self, payload: dict[str, Any]) -> dict[str, Any]:
         return await self.detection_service.create_detection_draft(payload)

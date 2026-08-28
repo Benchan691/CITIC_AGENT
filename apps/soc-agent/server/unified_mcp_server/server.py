@@ -24,6 +24,7 @@ from .responses import failure, success
 from .splunk_service import SplunkService
 from .splunk.search.tools import register_tools as register_search_tools
 from .splunk.detection.tools import register_tools as register_detection_tools
+from .splunk.security_queue.tools import register_tools as register_security_queue_tools
 from .zimbra_service import ZimbraService
 from .zimbra.mail.service import ZimbraMailService
 from .zimbra.mail.tools import register_tools as register_mail_tools
@@ -59,6 +60,10 @@ class Runtime:
     @property
     def splunk_detection(self):
         return self.splunk.detection_service
+
+    @property
+    def splunk_security_queue(self):
+        return self.splunk.security_queue_service
 
     @property
     def zimbra_mail(self):
@@ -247,6 +252,11 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         success=success,
         failure=failure,
         service_error=ServiceError,
+    )
+    register_security_queue_tools(
+        server,
+        get_runtime=runtime,
+        execute=execute,
     )
 
     register_mail_tools(

@@ -38,6 +38,7 @@ packages = [
     "unified_mcp_server.splunk.core",
     "unified_mcp_server.splunk.search",
     "unified_mcp_server.splunk.detection",
+    "unified_mcp_server.splunk.security_queue",
     "unified_mcp_server.zimbra",
     "unified_mcp_server.zimbra.core",
     "unified_mcp_server.zimbra.mail",

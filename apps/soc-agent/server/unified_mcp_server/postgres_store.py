@@ -497,6 +497,7 @@ class PostgresStore:
             "SPLUNK_ALLOW_DETECTION_ENABLE",
             "SPLUNK_DETECTION_APP",
             "SPLUNK_DETECTION_OWNER",
+            "SPLUNK_SECURITY_QUEUE_MODE",
             "ZIMBRA_HOST",
             "ZIMBRA_VERIFY_SSL",
             "ZIMBRA_TIMEOUT",

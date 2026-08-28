@@ -30,6 +30,7 @@ CONFIG_KEYS = {
     "splunk.risk_tolerance": ("SPLUNK_RISK_TOLERANCE",),
     "splunk.detection_write_enabled": ("SPLUNK_ALLOW_DETECTION_WRITE",),
     "splunk.detection_enable_enabled": ("SPLUNK_ALLOW_DETECTION_ENABLE",),
+    "splunk.security_queue_mode": ("SPLUNK_SECURITY_QUEUE_MODE",),
     "zimbra.host": ("ZIMBRA_HOST",),
     "zimbra.verify_ssl": ("ZIMBRA_VERIFY_SSL",),
     "zimbra.timeout": ("ZIMBRA_TIMEOUT",),
@@ -68,6 +69,7 @@ def _public_settings(store: PostgresStore) -> dict[str, Any]:
             "risk_tolerance": settings.splunk.risk_tolerance,
             "detection_write_enabled": settings.splunk.detection_write_enabled,
             "detection_enable_enabled": settings.splunk.detection_enable_enabled,
+            "security_queue_mode": settings.splunk.security_queue_mode,
         },
         "zimbra": {
             "host": settings.zimbra.host,

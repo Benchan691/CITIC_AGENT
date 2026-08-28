@@ -19,7 +19,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
 
     @server.tool()
     async def splunk_search(ctx: Context, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
-        """Execute a guarded Splunk search; select fields to reduce result size when possible."""
+        """Execute a guarded read-only Splunk search. Use stats, tstats, chart, or similar aggregation for statistical questions and keep raw-event samples small; returned_count is not the total match count."""
         return await execute(ctx, "splunk", "search", lambda: get_runtime(ctx).splunk_search.search(query, earliest_time, latest_time, max_count, fields))
 
     @server.tool()
