@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+from datetime import datetime
 from pathlib import PurePath
 from typing import Any
 
@@ -49,6 +50,64 @@ _DEFAULT_HEADER_NAMES = (
     "Message-ID", "Reply-To", "Return-Path", "Received",
     "Authentication-Results", "Received-SPF", "DKIM-Signature",
 )
+_SEARCH_QUERY_EXAMPLES = (
+    "date:MM/DD/YYYY",
+    "after:MM/DD/YYYY",
+    "before:MM/DD/YYYY",
+    "from:analyst@example.com",
+    "subject:alert",
+    "in:Inbox",
+    "is:unread",
+)
+_INVALID_DATE_ALIAS = re.compile(r"(?:^|(?<=[\s(-]))d\s*:\s*(?P<value>[^\s()]+)", re.IGNORECASE)
+
+
+def _query_validation_error(*, invalid_operator: str | None = None, suggested_query: str | None = None) -> ServiceError:
+    details: dict[str, Any] = {
+        "examples": list(_SEARCH_QUERY_EXAMPLES),
+        "date_format": "MM/DD/YYYY (locale-sensitive)",
+    }
+    if invalid_operator:
+        details["invalid_operator"] = invalid_operator
+    if suggested_query:
+        details["suggested_query"] = suggested_query
+    message = (
+        "Invalid Zimbra search query. The d:YYYYMMDD date form is not supported; use date:MM/DD/YYYY, "
+        "after:MM/DD/YYYY, or before:MM/DD/YYYY instead."
+        if invalid_operator == "d"
+        else "Zimbra rejected the search query syntax. Use native operators such as date:MM/DD/YYYY, "
+        "after:MM/DD/YYYY, before:MM/DD/YYYY, from:address, subject:text, in:Inbox, or is:unread."
+    )
+    return ServiceError(
+        "query_validation_error",
+        message,
+        details=details,
+    )
+
+
+def _validate_search_query(query: str) -> None:
+    match = next(
+        (candidate for candidate in _INVALID_DATE_ALIAS.finditer(query) if query[:candidate.start()].count('"') % 2 == 0),
+        None,
+    )
+    if match is None:
+        return
+    value = match.group("value")
+    suggested_query = None
+    if re.fullmatch(r"\d{8}", value):
+        try:
+            suggested_query = f"date:{datetime.strptime(value, '%Y%m%d'):%m/%d/%Y}"
+        except ValueError:
+            pass
+    raise _query_validation_error(invalid_operator="d", suggested_query=suggested_query)
+
+
+def _is_query_error(text: str) -> bool:
+    return any(marker in text for marker in (
+        "parse_error", "parse error", "invalid_search_query", "invalid search query",
+        "invalid_query", "invalid query", "malformed query", "query syntax",
+        "search syntax", "syntax error",
+    ))
 
 
 def _upstream_error(exc: Exception) -> ServiceError:
@@ -76,6 +135,8 @@ def _upstream_error(exc: Exception) -> ServiceError:
             retryable=True,
             details={"exception_type": type(exc).__name__},
         )
+    if _is_query_error(text):
+        return _query_validation_error()
     return ServiceError(
         "zimbra_api_error",
         "Zimbra request failed. Check ZIMBRA_HOST, TLS settings, and account credentials.",
@@ -229,6 +290,7 @@ class ZimbraService:
         query = query.strip()
         if not query:
             raise ServiceError("invalid_input", "query cannot be empty")
+        _validate_search_query(query)
         limit = min(max(1, int(limit)), 100)
         offset = min(max(0, int(offset)), 100_000)
         account = self._resolve_account(account_id)

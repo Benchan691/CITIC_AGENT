@@ -1735,6 +1735,7 @@ dependencies = [
     { name = "mcp" },
     { name = "psycopg", extra = ["binary"] },
     { name = "python-dotenv" },
+    { name = "zimbra-client" },
 ]
 
 [package.optional-dependencies]
@@ -1761,6 +1762,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8,<10" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.24,<2" },
     { name = "python-dotenv", specifier = ">=1.0,<2" },
+    { name = "zimbra-client", specifier = ">=0.3.4,<0.4" },
 ]
 provides-extras = ["markitdown-llm", "test"]
 
@@ -1927,4 +1929,13 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/46/2c/c06ef49dc36e7954e55b802a8b231770d286a9758b3d936bd1e04ce5ba88/xlsxwriter-3.2.9.tar.gz", hash = "sha256:254b1c37a368c444eac6e2f867405cc9e461b0ed97a3233b2ac1e574efb4140c", size = 215940, upload-time = "2025-09-16T00:16:21.63Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/0c/3662f4a66880196a590b202f0db82d919dd2f89e99a27fadef91c4a33d41/xlsxwriter-3.2.9-py3-none-any.whl", hash = "sha256:9a5db42bc5dff014806c58a20b9eae7322a134abb6fce3c92c181bfb275ec5b3", size = 175315, upload-time = "2025-09-16T00:16:20.108Z" },
+]
+
+[[package]]
+name = "zimbra-client"
+version = "0.3.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2d/67/0ccec86a626575de0fb7552eb5e190c73e8dc9d471b61977b8d2b0bdf2e5/zimbra_client-0.3.4.tar.gz", hash = "sha256:9c40c106c578b10721aaf41b63604564c32910dac026cd1b65caf71ba3f86c0f", size = 26922, upload-time = "2026-08-29T12:33:05.086Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/d9/a4390d32ac291e17c9c9af48657d72ad45486cbd8a3364a2b109703fb7cd/zimbra_client-0.3.4-py3-none-any.whl", hash = "sha256:d5db043adf7728526a0504638f7da5ac99015d13bd866a8f224ca406c4333b42", size = 27896, upload-time = "2026-08-29T12:33:03.793Z" },
 ]

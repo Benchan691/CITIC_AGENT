@@ -11,7 +11,7 @@ import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 import { createMemoryContextRegistry } from '../../../packages/soc-memory/lib/tenant.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 59)
+  assert.equal(DOMAIN_TOOLS.size, 58)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
@@ -44,7 +44,8 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 })
 
 test('SOC policy has disjoint read-only and action categories', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 33)
+  assert.equal(READ_ONLY_TOOLS.length, 32)
+  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__zimbra_list_accounts'), false)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_search_intent'), true)
   assert.equal(ACTION_TOOLS.length, 26)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
@@ -84,7 +85,7 @@ test('SOC policy has disjoint read-only and action categories', () => {
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 27)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 26)
   for (const name of READ_ONLY_DOMAIN_TOOLS) {
     assert.equal(DOMAIN_TOOLS.has(name), true)
     assert.equal(APPROVAL_TOOLS.has(name), false)

@@ -9,15 +9,6 @@ from mcp.server.fastmcp import Context
 
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> None:
     @server.tool()
-    async def zimbra_list_accounts(ctx: Context) -> dict[str, Any]:
-        """Show the authenticated Zimbra identity; never returns credentials."""
-        current = await fresh_runtime(ctx)
-        identity = current.identity
-        return success("zimbra", "list_accounts", {
-            "accounts": [{"id": "authenticated", "email": identity.zimbra_email}] if identity else [],
-        })
-
-    @server.tool()
     async def zimbra_list_folders(ctx: Context) -> dict[str, Any]:
         """List visible Zimbra mail folders and their message counts."""
         return await execute(ctx, "zimbra", "list_folders", lambda: get_runtime(ctx).zimbra_mail.list_folders())
@@ -59,7 +50,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
 
     @server.tool()
     async def zimbra_search_emails(ctx: Context, query: str, limit: int = 20, offset: int = 0) -> dict[str, Any]:
-        """Search one page of Zimbra message metadata using native query syntax."""
+        """Search one page of Zimbra message metadata using native query syntax. Use date:MM/DD/YYYY, after:MM/DD/YYYY, or before:MM/DD/YYYY for dates (for example date:08/29/2026); use from:address, subject:text, in:Inbox, or is:unread for other filters. The d:YYYYMMDD form is invalid."""
         return await execute(ctx, "zimbra", "search_emails", lambda: get_runtime(ctx).zimbra_mail.search_emails(query, limit, offset=offset))
 
     @server.tool()

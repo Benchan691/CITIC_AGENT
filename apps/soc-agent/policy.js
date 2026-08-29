@@ -15,7 +15,6 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_get_detection',
   'mcp__soc_agent__splunk_validate_detection',
   'mcp__soc_agent__splunk_backtest_detection',
-  'mcp__soc_agent__zimbra_list_accounts',
   'mcp__soc_agent__zimbra_list_folders',
   'mcp__soc_agent__zimbra_search_emails',
   'mcp__soc_agent__zimbra_get_email',

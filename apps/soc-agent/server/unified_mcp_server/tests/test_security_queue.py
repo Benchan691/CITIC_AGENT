@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
@@ -18,6 +19,13 @@ from unified_mcp_server.splunk.security_queue.provider import normalize_timestam
 from unified_mcp_server.splunk.security_queue.service import SplunkSecurityQueueService
 from unified_mcp_server.splunk.splunk_client import SplunkAPIError, SplunkClient
 from unified_mcp_server.splunk_service import SplunkService
+
+
+_TEST_NOW = datetime.now(timezone.utc).replace(microsecond=0)
+
+
+def _recent_timestamp(hours=1):
+    return (_TEST_NOW - timedelta(hours=hours)).isoformat().replace("+00:00", "Z")
 
 
 def settings(**overrides):
@@ -72,7 +80,7 @@ class QueueClient:
             {
                 "content": {
                     "sid": "sid-1",
-                    "trigger_time": "2026-08-27T11:00:00Z",
+                    "trigger_time": _recent_timestamp(),
                     "severity": "high",
                     "triggered_alerts": "3",
                 }
@@ -136,7 +144,7 @@ async def test_standard_cursor_advances_through_alert_instances_without_duplicat
             return [{
                 "content": {
                     "sid": f"sid-{name}",
-                    "trigger_time": f"2026-08-27T{10 + index:02d}:00:00Z",
+                    "trigger_time": _recent_timestamp(3 - index),
                     "severity": "high",
                 }
             }]
@@ -281,7 +289,7 @@ async def test_standard_provider_uses_bounded_concurrency_and_early_definition_f
             self.max_active = max(self.max_active, self.active)
             try:
                 await asyncio.sleep(0.01)
-                return [{"content": {"sid": f"sid-{name}", "trigger_time": "2026-08-27T10:00:00Z"}}]
+                return [{"content": {"sid": f"sid-{name}", "trigger_time": _recent_timestamp()}}]
             finally:
                 self.active -= 1
 
@@ -323,7 +331,7 @@ async def test_standard_provider_never_exceeds_configured_concurrency():
             self.max_active = max(self.max_active, self.active)
             try:
                 await asyncio.sleep(0.01)
-                return [{"content": {"sid": f"sid-{name}", "trigger_time": "2026-08-27T10:00:00Z"}}]
+                return [{"content": {"sid": f"sid-{name}", "trigger_time": _recent_timestamp()}}]
             finally:
                 self.active -= 1
 
@@ -356,7 +364,7 @@ async def test_standard_provider_deduplicates_repeated_alert_instance_lookups():
 
         async def get_fired_alert(self, name):
             self.alert_calls.append(name)
-            return [{"content": {"sid": "sid-1", "trigger_time": "2026-08-27T10:00:00Z"}}]
+            return [{"content": {"sid": "sid-1", "trigger_time": _recent_timestamp()}}]
 
     client = DuplicateStandardClient(None)
     core = SplunkCore(settings(), lambda _: client)
@@ -383,7 +391,7 @@ async def test_standard_local_time_filter_continues_across_catalog_pages():
 
         async def get_fired_alert(self, name):
             self.alert_calls.append(name)
-            trigger = "2020-01-01T00:00:00Z" if name.startswith("old") else "2026-08-27T10:00:00Z"
+            trigger = "2020-01-01T00:00:00Z" if name.startswith("old") else _recent_timestamp()
             return [{"content": {"sid": f"sid-{name}", "trigger_time": trigger}}]
 
     client = PagedStandardClient(None)
@@ -410,7 +418,7 @@ async def test_standard_filtered_overflow_is_preserved_in_cursor():
         async def get_fired_alert(self, name):
             self.alert_calls.append(name)
             return [
-                {"content": {"sid": f"sid-{index}", "trigger_time": "2026-08-27T10:00:00Z"}}
+                {"content": {"sid": f"sid-{index}", "trigger_time": _recent_timestamp()}}
                 for index in range(20)
             ]
 
@@ -442,7 +450,7 @@ async def test_cursor_rejects_changed_filters():
             return {"items": self.entries[offset:offset + limit], "total": len(self.entries)}
 
         async def get_fired_alert(self, name):
-            return [{"content": {"sid": name, "trigger_time": "2026-08-27T10:00:00Z"}}]
+            return [{"content": {"sid": name, "trigger_time": _recent_timestamp()}}]
 
     client = PagedStandardClient(None)
     core = SplunkCore(settings(), lambda _: client)

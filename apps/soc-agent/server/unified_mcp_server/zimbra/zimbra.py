@@ -1,10 +1,9 @@
 import html
-import ssl
-import urllib.error
-import urllib.parse
-import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+
+from zimbra_client import ZimbraClient
+from zimbra_client.errors import ZimbraLimitError
 
 
 def zimbra_host(cfg):
@@ -35,6 +34,38 @@ def require_zimbra_config(cfg):
         raise ValueError("Missing Zimbra config: " + ", ".join(missing))
 
 
+_TOKEN_EMAIL = "authenticated@invalid"
+_TOKEN_PASSWORD = "token-authenticated"
+
+
+class _TokenClient(ZimbraClient):
+    """Use an existing authenticated session without storing credentials."""
+
+    def __init__(self, host, token, *, email="", verify_ssl=False, timeout=60):
+        self._host = host
+        super().__init__({
+            "host": host,
+            "email": email or _TOKEN_EMAIL,
+            "password": _TOKEN_PASSWORD,
+            "verify_ssl": verify_ssl,
+            "timeout": timeout,
+        })
+        self._auth_token = token
+
+    def request(self, body, *, authenticated=True, retry_auth=False):
+        return soap_request(
+            self._host,
+            ET.tostring(body, encoding="unicode").replace(" />", "/>")
+            if isinstance(body, ET.Element) else body,
+            self._auth_token if authenticated else "",
+            verify_ssl=self.config.verify_ssl,
+            timeout=int(self.config.timeout),
+        )
+
+    def _ensure_auth(self):
+        return self._auth_token
+
+
 def _local_name(tag):
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag
 
@@ -54,140 +85,52 @@ def _connection_options(cfg):
     }
 
 
-def _zimbra_url(host, path):
-    base = str(host or "").strip().rstrip("/")
-    if not base.startswith(("https://", "http://")):
-        base = f"https://{base}"
-    return f"{base}{path}"
-
-
-def _ssl_context(verify_ssl):
-    return None if verify_ssl else ssl._create_unverified_context()
-
-
 def soap_request(host, body_xml, auth_token="", *, verify_ssl=False, timeout=60):
-    header = f"<authToken>{html.escape(auth_token)}</authToken>" if auth_token else ""
-    envelope = f"""<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
-  <soap:Header><context xmlns="urn:zimbra">{header}</context></soap:Header>
-  <soap:Body>{body_xml}</soap:Body>
-</soap:Envelope>
-"""
-    request = urllib.request.Request(
-        _zimbra_url(host, "/service/soap"),
-        data=envelope.encode("utf-8"),
-        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-    )
-    try:
-        with urllib.request.urlopen(
-            request,
-            timeout=timeout,
-            context=_ssl_context(verify_ssl),
-        ) as response:
-            root = ET.fromstring(response.read())
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace").strip()
-        raise RuntimeError(f"Zimbra SOAP request failed ({exc.code}): {detail or exc.reason}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Zimbra connection failed: {exc.reason}") from exc
-
-    fault = next((elem for elem in root.iter() if _local_name(elem.tag) == "Fault"), None)
-    if fault is not None:
-        reason = " ".join(text.strip() for text in fault.itertext() if text.strip())
-        raise RuntimeError(f"Zimbra SOAP fault: {reason or 'unknown fault'}")
-    return root
+    client = _TokenClient(host, auth_token, verify_ssl=verify_ssl, timeout=timeout)
+    body = ET.fromstring(body_xml) if isinstance(body_xml, str) else body_xml
+    return client._request_once(body, auth_token=auth_token if auth_token else "")
 
 
 def zimbra_login(cfg):
-    host = zimbra_host(cfg)
-    account = html.escape(zimbra_username(cfg) or zimbra_email(cfg))
-    password = html.escape(zimbra_password(cfg))
-    root = soap_request(
-        host,
-        f"""<AuthRequest xmlns="urn:zimbraAccount">
-  <account by="name">{account}</account>
-  <password>{password}</password>
-</AuthRequest>""",
-        **_connection_options(cfg),
-    )
-    token = next((elem.text for elem in root.iter() if _local_name(elem.tag) == "authToken"), "")
+    require_zimbra_config(cfg)
+    client = ZimbraClient(cfg).login()
+    token = getattr(client, "_auth_token", "")
     if not token:
         raise RuntimeError("Zimbra login failed: auth token not found")
     return token
 
 
-def _signature(elem):
-    values = {"text": "", "html": ""}
-    for content in elem:
-        if _local_name(content.tag) != "content":
-            continue
-        kind = content.get("type", "")
-        if kind == "text/plain":
-            values["text"] = "".join(content.itertext())
-        elif kind == "text/html":
-            values["html"] = "".join(content.itertext())
+def _token_client(host, token, *, email="", verify_ssl=False, timeout=60):
+    return _TokenClient(host, token, email=email, verify_ssl=verify_ssl, timeout=timeout)
+
+
+def _signature_dict(signature):
     return {
-        "id": elem.get("id", ""),
-        "name": elem.get("name", ""),
-        **values,
+        "id": signature.id,
+        "name": signature.name,
+        "text": signature.text_plain,
+        "html": signature.text_html,
     }
 
 
 def zimbra_list_signatures(host, token, *, verify_ssl=False, timeout=60):
-    root = soap_request(
-        host,
-        '<GetSignaturesRequest xmlns="urn:zimbraAccount"/>',
-        token,
-        verify_ssl=verify_ssl,
-        timeout=timeout,
-    )
-    response = next((elem for elem in root.iter() if _local_name(elem.tag) == "GetSignaturesResponse"), None)
-    if response is None:
-        raise ValueError("Malformed Zimbra signature response")
-    signatures = []
-    for elem in response:
-        if _local_name(elem.tag) != "signature" or not elem.get("id") or not elem.get("name"):
-            raise ValueError("Malformed Zimbra signature response")
-        signatures.append(_signature(elem))
-    return signatures
+    return [
+        _signature_dict(signature)
+        for signature in _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).list_signatures()
+    ]
 
 
 def zimbra_create_signature(host, token, name, text=None, html_content=None, *, verify_ssl=False, timeout=60):
-    contents = []
-    if text is not None:
-        contents.append(f'<content type="text/plain">{html.escape(text)}</content>')
-    if html_content is not None:
-        contents.append(f'<content type="text/html">{html.escape(html_content)}</content>')
-    root = soap_request(
-        host,
-        (
-            '<CreateSignatureRequest xmlns="urn:zimbraAccount">'
-            f'<signature name="{html.escape(name)}">{"".join(contents)}</signature>'
-            '</CreateSignatureRequest>'
-        ),
-        token,
-        verify_ssl=verify_ssl,
-        timeout=timeout,
+    signature = _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).create_signature(
+        name,
+        text=text or "",
+        html=html_content or "",
     )
-    response = next((elem for elem in root.iter() if _local_name(elem.tag) == "CreateSignatureResponse"), None)
-    signature = next((elem for elem in (response if response is not None else ()) if _local_name(elem.tag) == "signature"), None)
-    if signature is None or not signature.get("id") or not signature.get("name"):
-        raise ValueError("Malformed Zimbra signature response")
-    return {"id": signature.get("id", ""), "name": signature.get("name", "")}
+    return {"id": signature.id, "name": signature.name}
 
 
 def zimbra_delete_signature(host, token, signature_id, *, verify_ssl=False, timeout=60):
-    soap_request(
-        host,
-        (
-            '<DeleteSignatureRequest xmlns="urn:zimbraAccount">'
-            f'<signature id="{html.escape(signature_id)}"/>'
-            '</DeleteSignatureRequest>'
-        ),
-        token,
-        verify_ssl=verify_ssl,
-        timeout=timeout,
-    )
+    _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).delete_signature(signature_id)
 
 
 def zimbra_send_message(
@@ -203,51 +146,24 @@ def zimbra_send_message(
     verify_ssl=False,
     timeout=60,
 ):
-    content_type = {"text": "text/plain", "html": "text/html"}.get(str(body_format).strip().lower())
-    if content_type is None:
+    body_format = str(body_format).strip().lower()
+    if body_format not in {"text", "html"}:
         raise ValueError("body_format must be text or html")
-
-    def addresses(values, address_type):
-        return "".join(
-            f'<e t="{address_type}" a="{html.escape(str(address))}"/>'
-            for address in values or ()
-        )
-
-    root = soap_request(
-        host,
-        (
-            '<SendMsgRequest xmlns="urn:zimbraMail"><m>'
-            f'{addresses(recipients, "t")}'
-            f'{addresses(cc, "c")}'
-            f'{addresses(bcc, "b")}'
-            f'<su>{html.escape(str(subject))}</su>'
-            f'<mp ct="{content_type}"><content>{html.escape(str(body))}</content></mp>'
-            '</m></SendMsgRequest>'
-        ),
-        token,
-        verify_ssl=verify_ssl,
-        timeout=timeout,
+    kwargs = {"text": str(body)} if body_format == "text" else {"html": str(body)}
+    result = _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).send_message(
+        to=recipients,
+        cc=cc,
+        bcc=bcc,
+        subject=str(subject),
+        **kwargs,
     )
-    message = next(
-        (elem for elem in root.iter() if _local_name(elem.tag) == "m" and elem.get("id")),
-        None,
-    )
-    if message is None:
-        raise ValueError("Malformed Zimbra send response")
-    return {"message_id": message.get("id", "")}
+    return {"message_id": result.message_id}
 
 
 def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=False, timeout=60):
-    soap_request(
-        host,
-        (
-            f'<MsgActionRequest xmlns="urn:zimbraMail">'
-            f'<action id="{html.escape(message_id)}" op="move" l="{html.escape(str(folder_id))}"/>'
-            f"</MsgActionRequest>"
-        ),
-        token,
-        verify_ssl=verify_ssl,
-        timeout=timeout,
+    _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).move_message(
+        message_id,
+        str(folder_id),
     )
 
 
@@ -481,23 +397,14 @@ def zimbra_modify_filter_rules(host, token, rules_xml, *, verify_ssl=False, time
 
 
 def download_attachment(cfg, token, message_id, part, max_bytes=None):
-    host = zimbra_host(cfg)
-    account = urllib.parse.quote(zimbra_email(cfg), safe="")
-    query = urllib.parse.urlencode({"id": message_id, "part": part})
-    request = urllib.request.Request(
-        _zimbra_url(host, f"/home/{account}/?{query}"),
-        headers={"Cookie": f"ZM_AUTH_TOKEN={token}"},
-    )
     options = _connection_options(cfg)
-    with urllib.request.urlopen(
-        request,
-        timeout=max(120, options["timeout"]),
-        context=_ssl_context(options["verify_ssl"]),
-    ) as response:
-        declared = response.headers.get("Content-Length")
-        if max_bytes is not None and declared and int(declared) > max_bytes:
-            raise ValueError("attachment_too_large")
-        data = response.read(None if max_bytes is None else max_bytes + 1)
-        if max_bytes is not None and len(data) > max_bytes:
-            raise ValueError("attachment_too_large")
-        return data
+    client = _token_client(
+        zimbra_host(cfg),
+        token,
+        email=zimbra_email(cfg) or zimbra_username(cfg),
+        **options,
+    )
+    try:
+        return client.download_attachment(message_id, part, max_bytes=max_bytes)
+    except ZimbraLimitError as exc:
+        raise ValueError("attachment_too_large") from exc

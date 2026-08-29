@@ -31,7 +31,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_approve_detection_change",
         "splunk_apply_approved_detection_change",
         "splunk_run_saved_search",
-        "zimbra_list_accounts",
         "zimbra_list_folders",
         "zimbra_list_signatures",
         "zimbra_create_signature",
@@ -130,6 +129,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert set(search_email_tool.parameters["properties"]) == {
         "query", "limit", "offset",
     }
+    assert "date:mm/dd/yyyy" in search_email_tool.description.lower()
+    assert "d:yyyymmdd" in search_email_tool.description.lower()
     attachment_tool = next(tool for tool in tools if tool.name == "zimbra_get_attachment_text")
     assert set(attachment_tool.parameters["properties"]) == {
         "message_id", "part", "max_chars",

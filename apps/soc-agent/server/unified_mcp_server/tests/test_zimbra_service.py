@@ -55,6 +55,20 @@ async def test_search_returns_metadata_but_body_requires_get(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_invalid_search_query_returns_validation_error_before_network(monkeypatch):
+    monkeypatch.setattr(module, "zimbra_login", lambda *args, **kwargs: pytest.fail("login should not be called"))
+    monkeypatch.setattr(module, "zimbra_search_messages", lambda *args, **kwargs: pytest.fail("search should not be called"))
+
+    with pytest.raises(ServiceError) as error:
+        await ZimbraService(settings()).search_emails("d:20260829")
+
+    assert error.value.code == "query_validation_error"
+    assert error.value.retryable is False
+    assert error.value.details["invalid_operator"] == "d"
+    assert error.value.details["suggested_query"] == "date:08/29/2026"
+
+
+@pytest.mark.asyncio
 async def test_get_email_bounds_body_for_agent_context(monkeypatch):
     monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
     monkeypatch.setattr(
@@ -362,6 +376,15 @@ def test_upstream_errors_are_actionable_without_returning_raw_details():
     assert error.code == "zimbra_auth_error"
     assert "authentication failed" in error.message.lower()
     assert "secret@example.com" not in error.message
+
+
+def test_upstream_query_errors_are_classified_for_agent_correction():
+    error = _upstream_error(RuntimeError("Zimbra SOAP fault: service.PARSE_ERROR: invalid search query"))
+
+    assert error.code == "query_validation_error"
+    assert error.retryable is False
+    assert "date:MM/DD/YYYY" in error.message
+    assert "suggested_query" not in error.details
 
 
 @pytest.mark.asyncio

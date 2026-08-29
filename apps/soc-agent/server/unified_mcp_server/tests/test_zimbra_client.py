@@ -1,6 +1,8 @@
 import xml.etree.ElementTree as ET
 
 import pytest
+from zimbra_client import SendResult, Signature
+from zimbra_client.errors import ZimbraLimitError
 
 import unified_mcp_server.zimbra.zimbra as zimbra
 
@@ -8,11 +10,11 @@ import unified_mcp_server.zimbra.zimbra as zimbra
 def test_send_message_escapes_recipients_and_parses_message_id(monkeypatch):
     captured = {}
 
-    def fake_request(host, body, token, **options):
-        captured.update(host=host, body=body, token=token, options=options)
+    def fake_request(_client, body, auth_token=""):
+        captured.update(body=body, token=auth_token)
         return ET.fromstring('<SendMsgResponse xmlns="urn:zimbraMail"><m id="sent-7"/></SendMsgResponse>')
 
-    monkeypatch.setattr(zimbra, "soap_request", fake_request)
+    monkeypatch.setattr(zimbra._TokenClient, "_request_once", fake_request)
 
     result = zimbra.zimbra_send_message(
         "mail.example.com",
@@ -26,12 +28,135 @@ def test_send_message_escapes_recipients_and_parses_message_id(monkeypatch):
     )
 
     assert result == {"message_id": "sent-7"}
-    assert '<e t="t" a="to@example.com"/>' in captured["body"]
-    assert '<e t="c" a="cc@example.com"/>' in captured["body"]
-    assert '<e t="b" a="b@example.com"/>' in captured["body"]
-    assert "Subject &lt;one&gt;" in captured["body"]
-    assert "Body &amp; details" in captured["body"]
-    assert 'ct="text/html"' in captured["body"]
+    body = ET.tostring(captured["body"], encoding="unicode")
+    assert 't="t" a="to@example.com"' in body
+    assert 't="c" a="cc@example.com"' in body
+    assert 't="b" a="b@example.com"' in body
+    assert "Subject &lt;one&gt;" in body
+    assert "Body &amp; details" in body
+    assert 'ct="text/html"' in body
+    assert captured["token"] == "token"
+
+
+def test_token_client_forwards_existing_token_without_login(monkeypatch):
+    captured = {}
+
+    def fake_request(_client, body, auth_token=""):
+        captured.update(body=body, token=auth_token)
+        return ET.Element("Response")
+
+    monkeypatch.setattr(zimbra._TokenClient, "_request_once", fake_request)
+    monkeypatch.setattr(zimbra._TokenClient, "login", lambda _client: pytest.fail("login should not be called"))
+
+    client = zimbra._token_client("mail.example.com", "session-token", verify_ssl=True, timeout=7)
+    client.request("<NoOpRequest/>")
+
+    assert ET.tostring(captured["body"], encoding="unicode") == "<NoOpRequest />"
+    assert captured["token"] == "session-token"
+
+
+def test_login_uses_zimbra_client_and_returns_its_token(monkeypatch):
+    captured = {}
+
+    class FakeClient:
+        def __init__(self, config):
+            captured["config"] = config
+            self._auth_token = ""
+
+        def login(self):
+            self._auth_token = "login-token"
+            return self
+
+    monkeypatch.setattr(zimbra, "ZimbraClient", FakeClient)
+
+    token = zimbra.zimbra_login({
+        "zimbra_host": "mail.example.com",
+        "zimbra_email": "user@example.com",
+        "zimbra_password": "password",
+    })
+
+    assert token == "login-token"
+    assert captured["config"]["zimbra_email"] == "user@example.com"
+
+
+def test_typed_signature_and_message_operations_keep_legacy_shapes(monkeypatch):
+    calls = []
+
+    class FakeClient:
+        def list_signatures(self):
+            return (Signature("1", "Work", "plain", "<b>html</b>"),)
+
+        def create_signature(self, name, *, text, html):
+            calls.append(("create", name, text, html))
+            return Signature("2", name, text, html)
+
+        def delete_signature(self, signature_id):
+            calls.append(("delete", signature_id))
+
+        def move_message(self, message_id, folder_id):
+            calls.append(("move", message_id, folder_id))
+
+        def send_message(self, **kwargs):
+            calls.append(("send", kwargs))
+            return SendResult("sent-2")
+
+    monkeypatch.setattr(zimbra, "_token_client", lambda *args, **kwargs: FakeClient())
+
+    assert zimbra.zimbra_list_signatures("host", "token") == [{
+        "id": "1", "name": "Work", "text": "plain", "html": "<b>html</b>",
+    }]
+    assert zimbra.zimbra_create_signature("host", "token", "Work", "plain", "<b>html</b>") == {
+        "id": "2", "name": "Work",
+    }
+    zimbra.zimbra_delete_signature("host", "token", "2")
+    zimbra.zimbra_move_message("host", "token", "42", "99")
+    assert zimbra.zimbra_send_message("host", "token", ["to@example.com"], "Subject", "Body") == {
+        "message_id": "sent-2",
+    }
+
+    assert calls == [
+        ("create", "Work", "plain", "<b>html</b>"),
+        ("delete", "2"),
+        ("move", "42", "99"),
+        ("send", {
+            "to": ["to@example.com"],
+            "cc": None,
+            "bcc": None,
+            "subject": "Subject",
+            "text": "Body",
+        }),
+    ]
+
+
+def test_download_attachment_maps_package_size_limit(monkeypatch):
+    class FakeClient:
+        def download_attachment(self, message_id, part, *, max_bytes):
+            assert (message_id, part, max_bytes) == ("42", "2", 10)
+            raise ZimbraLimitError("too large", limit=max_bytes)
+
+    captured = {}
+
+    def fake_client(*args, **kwargs):
+        captured.update(args=args, kwargs=kwargs)
+        return FakeClient()
+
+    monkeypatch.setattr(zimbra, "_token_client", fake_client)
+
+    with pytest.raises(ValueError, match="attachment_too_large"):
+        zimbra.download_attachment(
+            {
+                "zimbra_host": "mail.example.com",
+                "zimbra_email": "user@example.com",
+                "verify_ssl": True,
+                "timeout": 9,
+            },
+            "token",
+            "42",
+            "2",
+            10,
+        )
+
+    assert captured["kwargs"] == {"email": "user@example.com", "verify_ssl": True, "timeout": 9}
 
 
 def test_send_message_rejects_unknown_body_format():
