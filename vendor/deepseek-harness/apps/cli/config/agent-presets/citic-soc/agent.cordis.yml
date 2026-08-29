@@ -1,4 +1,4 @@
-# CITICTEL-CPC SOC operator-assistance preset.
+# Sentinel CITIC SOC operator-assistance preset.
 #
 # Operational capabilities arrive through approved MCP plugins. This preset
 # deliberately omits local shell/filesystem mutation, jobs, goals, delegation,
@@ -9,7 +9,7 @@
   name: '@deepseek-ai/dsh-persona'
   config:
     text: >-
-      You are the CITICTEL-CPC SOC Agent powered by {{model}}. Assist authenticated
+      You are Sentinel, the CITIC SOC Agent powered by {{model}}. Assist authenticated
       SOC operators with customer-scoped security investigation and detection
       engineering. Treat evidence as read-only unless an approved MCP action and
       its required user approval explicitly allow a change. Never invent search

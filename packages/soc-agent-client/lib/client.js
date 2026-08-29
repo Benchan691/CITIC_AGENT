@@ -30,6 +30,18 @@ window.__ModuleLoader__.load({
 		react = __toESM(react, 1);
 		let react_jsx_runtime = require("react/jsx-runtime");
 		let _deepseek_ai_dsh_client_runtime_client = require("@deepseek-ai/dsh-client-runtime/client");
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/CiticBrand.module.css.mjs
+		const css$7 = ".U2KmSq_wordmark{text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;align-items:center;min-width:0;max-width:100%;font-size:16px;font-weight:700;line-height:24px;display:inline-flex;overflow:hidden}";
+		const tagId$7 = "dsh-soc-agent-client/CiticBrand.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$7) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "dsh-soc-agent-client";
+			tag.dataset.pluginCss = tagId$7;
+			tag.textContent = css$7;
+			document.head.appendChild(tag);
+		}
+		var CiticBrand_module_css_default = { "wordmark": "U2KmSq_wordmark" };
+		//#endregion
 		//#region src/client/CiticBrand.tsx
 		/** CITIC Telecom CPC's red emblem, adapted from the official logo artwork. */
 		function CiticBrandMark({ size, className }) {
@@ -73,9 +85,12 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		/** Product name shown next to the CITIC mark in the expanded sidebar. */
+		/** Sentinel wordmark shown next to the CITIC mark in the expanded sidebar. */
 		function CiticBrandName() {
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "CITICTEL-CPC AGENT" });
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				className: CiticBrand_module_css_default.wordmark,
+				children: "Sentinel"
+			});
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
@@ -699,14 +714,14 @@ window.__ModuleLoader__.load({
 			if (!state.authenticated || !state.user) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				className: AuthGate_module_css_default.layer,
 				role: "dialog",
-				"aria-label": "SOC Agent login",
+				"aria-label": "Sentinel login",
 				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
 					className: AuthGate_module_css_default.card,
 					onSubmit: login,
 					children: [
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
 							className: AuthGate_module_css_default.title,
-							children: "SOC Agent"
+							children: "Sentinel"
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
 							className: AuthGate_module_css_default.field,

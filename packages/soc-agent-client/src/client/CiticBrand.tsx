@@ -1,5 +1,6 @@
 import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import css from './CiticBrand.module.css'
 
 type CiticBrandMarkProps = HeroBrandMarkOwnerProps & SidebarBrandMarkOwnerProps
 
@@ -39,7 +40,7 @@ export function CiticBrandMark({ size, className }: CiticBrandMarkProps) {
   )
 }
 
-/** Product name shown next to the CITIC mark in the expanded sidebar. */
+/** Sentinel wordmark shown next to the CITIC mark in the expanded sidebar. */
 export function CiticBrandName() {
-  return <span>CITICTEL-CPC AGENT</span>
+  return <span className={css.wordmark}>Sentinel</span>
 }

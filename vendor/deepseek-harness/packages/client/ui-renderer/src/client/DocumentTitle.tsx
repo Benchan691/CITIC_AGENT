@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-const DEFAULT_CLIENT_TITLE = 'CITICTEL-CPC AGENT'
+const DEFAULT_CLIENT_TITLE = 'Sentinel'
 
 /** Props for the browser title projection. */
 export interface DocumentTitleProps {

@@ -65,9 +65,9 @@ export function AuthGate() {
   if (state === null) return <div className={css.layer}><div className={css.loading}>Loading…</div></div>
   if (!state.authenticated || !state.user) {
     return (
-      <div className={css.layer} role="dialog" aria-label="SOC Agent login">
+      <div className={css.layer} role="dialog" aria-label="Sentinel login">
         <form className={css.card} onSubmit={login}>
-          <h1 className={css.title}>SOC Agent</h1>
+          <h1 className={css.title}>Sentinel</h1>
           <label className={css.field}>
             <span>Email</span>
             <input className={css.input} type="email" autoComplete="username" value={email} onChange={event => setEmail(event.target.value)} required />
