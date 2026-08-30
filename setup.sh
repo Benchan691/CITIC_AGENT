@@ -14,6 +14,10 @@
 # and used as defaults; only broken or missing parameters are asked for.
 #
 # Usage:
+#   Fresh machine, from anywhere — the script clones the repository into an
+#   install path of the user's choice, then runs the full setup inside it:
+#     curl -fsSL https://raw.githubusercontent.com/Benchan691/CITIC_AGENT/main/setup.sh -o setup.sh
+#     bash setup.sh
 #   ./setup.sh            interactive: check, re-ask until valid, write files,
 #                         install/build the harness, repair drifted artifacts,
 #                         wire the profile
@@ -22,9 +26,95 @@
 
 set -euo pipefail
 
-# ------------------------------------------------------------- layout ----
+# ------------------------------------------------------------- output ----
+
+if [ -t 1 ]; then
+  B=$'\033[1m'; G=$'\033[32m'; R=$'\033[31m'; Y=$'\033[33m'; D=$'\033[2m'; N=$'\033[0m'
+else
+  B=""; G=""; R=""; Y=""; D=""; N=""
+fi
+ok()   { printf '%s[ok]%s   %s\n' "$G" "$N" "$1"; }
+bad()  { printf '%s[FAIL]%s %s\n' "$R" "$N" "$1"; }
+warn() { printf '%s[warn]%s %s\n' "$Y" "$N" "$1"; }
+info() { printf '%s[info]%s %s\n' "$D" "$N" "$1"; }
+
+# ------------------------------------------------------------ layout ----
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_REPO_URL="https://github.com/Benchan691/CITIC_AGENT.git"
+
+# Standalone bootstrap: run this script from anywhere that is not already a
+# CITIC_AGENT checkout and it takes responsibility for the whole setup — the
+# user picks the install path, the repository is cloned (or an existing
+# checkout is reused and fast-forwarded), and the clone's own setup.sh
+# re-executes so everything below runs against the checked-out version.
+if [ ! -d "$SCRIPT_DIR/vendor/deepseek-harness" ]; then
+  echo "${B}SOC Agent setup doctor — bootstrap${N}"
+  info "not running inside a CITIC_AGENT checkout — the repository will be installed to a path you choose and the full setup continues there"
+  if ! command -v git >/dev/null 2>&1; then
+    bad "git is required to clone the repository — install it first (https://git-scm.com/downloads)"
+    exit 1
+  fi
+  printf 'Repository URL [%s]: ' "$DEFAULT_REPO_URL"
+  IFS= read -r repo_url || exit 1
+  if [ -z "$repo_url" ]; then repo_url="$DEFAULT_REPO_URL"; fi
+
+  target_dir=""
+  while :; do
+    printf 'Install path [%s/CITIC_AGENT]: ' "$HOME"
+    IFS= read -r reply || exit 1
+    if [ -z "$reply" ]; then reply="$HOME/CITIC_AGENT"; fi
+    case "$reply" in
+      "~") reply="$HOME" ;;
+      "~"/*) reply="$HOME${reply#\~}" ;;
+      "~"*) reply="$HOME${reply#\~}" ;;
+    esac
+    case "$reply" in
+      "/*") : ;;
+      "/"*) : ;;
+      *) reply="$PWD/$reply" ;;
+    esac
+    target_dir="$reply"
+    if [ ! -e "$target_dir" ]; then
+      break
+    fi
+    if [ -d "$target_dir/.git" ] && [ -f "$target_dir/setup.sh" ]; then
+      printf '%s already contains a CITIC_AGENT checkout — reuse and fast-forward it? [Y/n]: ' "$target_dir"
+      IFS= read -r answer || exit 1
+      case "$answer" in
+        n*|N*) continue ;;
+        *) break ;;
+      esac
+    else
+      warn "$target_dir exists and is not a CITIC_AGENT checkout — choose another path."
+    fi
+  done
+
+  if [ -d "$target_dir/.git" ]; then
+    warn "reusing existing checkout at $target_dir — fast-forwarding it"
+    if ! git -C "$target_dir" pull --ff-only; then
+      warn "could not fast-forward the existing checkout — continuing with its current state"
+    fi
+  else
+    echo "Cloning $repo_url into $target_dir …"
+    if ! mkdir -p -- "$(dirname -- "$target_dir")"; then
+      bad "cannot create the parent directory of $target_dir"
+      exit 1
+    fi
+    if ! git clone "$repo_url" "$target_dir"; then
+      bad "git clone failed — if the repository is private, authenticate first (gh auth login) or use your SSH URL"
+      exit 1
+    fi
+  fi
+  if [ ! -f "$target_dir/setup.sh" ] || [ ! -d "$target_dir/vendor/deepseek-harness" ]; then
+    bad "$target_dir does not look like a CITIC_AGENT checkout (missing setup.sh or vendor/deepseek-harness)"
+    exit 1
+  fi
+  echo "Continuing with the full setup inside $target_dir …"
+  echo
+  exec bash "$target_dir/setup.sh" "$@"
+fi
+
 REPO_ROOT="$SCRIPT_DIR"
 HARNESS_DIR="$REPO_ROOT/vendor/deepseek-harness"
 SERVER_DIR="$REPO_ROOT/apps/soc-agent/server"
@@ -66,18 +156,6 @@ if [ ! -f "$PLUGIN_PATCH" ]; then
   echo "error: plugin patch '$PLUGIN_PATCH' is missing." >&2
   exit 1
 fi
-
-# ------------------------------------------------------------- output ----
-
-if [ -t 1 ]; then
-  B=$'\033[1m'; G=$'\033[32m'; R=$'\033[31m'; Y=$'\033[33m'; D=$'\033[2m'; N=$'\033[0m'
-else
-  B=""; G=""; R=""; Y=""; D=""; N=""
-fi
-ok()   { printf '%s[ok]%s   %s\n' "$G" "$N" "$1"; }
-bad()  { printf '%s[FAIL]%s %s\n' "$R" "$N" "$1"; }
-warn() { printf '%s[warn]%s %s\n' "$Y" "$N" "$1"; }
-info() { printf '%s[info]%s %s\n' "$D" "$N" "$1"; }
 
 TMPFILES=""
 cleanup() { [ -n "$TMPFILES" ] && rm -f $TMPFILES 2>/dev/null || true; }
