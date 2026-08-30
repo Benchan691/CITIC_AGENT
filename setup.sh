@@ -98,6 +98,13 @@ PLUGIN_NAMES=(
 )
 PLUGIN_SPECS=()
 
+# Direct profile dependencies setup.sh owns besides the external plugins:
+# the SOC product bundle and its client package (wired by ensure_soc_bundle).
+# Any other direct dependency found in the profile manifest is stale and gets
+# pruned (see prune_stale_plugins) — so removing a plugin from
+# requirements.txt propagates to every machine on the next setup run.
+SOC_MANAGED_DEPS=(dsh-soc-agent dsh-soc-agent-client)
+
 read_plugin_requirements() {
   PLUGIN_SPECS=()
   local line
@@ -802,6 +809,70 @@ verify_external_profile() {
   return "$all_ok"
 }
 
+# Direct dependency names of the profile manifest that are NOT in the managed
+# set (external plugins + SOC packages) — printed one per line. In-box bundle
+# layers (dsh-base, dsh-web-app) are not dependencies and never appear here.
+stale_plugin_names() { # $1 = profile dir
+  local -A expected=()
+  local name
+  for name in "${PLUGIN_NAMES[@]}" "${SOC_MANAGED_DEPS[@]}"; do
+    expected["$name"]=1
+  done
+  node -e '
+    const fs = require("fs");
+    try {
+      const m = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      console.log(Object.keys(m.dependencies || {}).join("\n"));
+    } catch {}
+  ' "$1/package.json" | while IFS= read -r name; do
+    if [ -z "$name" ]; then continue; fi
+    if [ -z "${expected[$name]+x}" ]; then printf '%s\n' "$name"; fi
+  done
+}
+
+# Remove direct profile dependencies that requirements.txt no longer lists.
+# `pnpm dsh plugin remove` clears the dependency and node_modules, but its
+# reconciliation has been observed to leave the dsh.profile.bundles layer
+# entry behind — the manifest cleanup below guarantees the plugin cannot boot
+# again either way.
+prune_stale_plugins() { # $1 = profile dir
+  local pdir="$1" stale
+  stale="$(stale_plugin_names "$pdir")"
+  if [ -z "$stale" ]; then
+    ok "no stale external plugins in the profile"
+    return 0
+  fi
+  local -a stale_arr=()
+  read -r -a stale_arr <<< "$stale"
+  warn "no longer listed in $PLUGIN_REQUIREMENTS — removing: ${stale_arr[*]}"
+  if ! (cd "$HARNESS_DIR" && pnpm dsh plugin --profile "$DSH_PROFILE" remove "${stale_arr[@]}"); then
+    bad "failed to remove stale plugins: ${stale_arr[*]}"
+    return 1
+  fi
+  node -e '
+    const fs = require("fs");
+    const path = process.argv[1];
+    const stale = new Set(process.argv.slice(2));
+    const m = JSON.parse(fs.readFileSync(path, "utf8"));
+    const bundles = m.dsh && m.dsh.profile && m.dsh.profile.bundles;
+    if (Array.isArray(bundles)) {
+      const kept = bundles.filter((entry) => !stale.has(entry));
+      if (kept.length !== bundles.length) {
+        m.dsh.profile.bundles = kept;
+        fs.writeFileSync(path, JSON.stringify(m, null, 2) + "\n");
+      }
+    }
+  ' "$pdir/package.json" "${stale_arr[@]}"
+  local name
+  for name in "${stale_arr[@]}"; do
+    if profile_has_dependency "$pdir/package.json" "$name" || profile_has_bundle "$pdir/package.json" "$name"; then
+      bad "stale plugin still present after removal: $name"
+      return 1
+    fi
+  done
+  ok "stale plugins removed: ${stale_arr[*]}"
+}
+
 ensure_external_plugins() {
   local pdir
   echo "${B}DeepSeek Harness external plugins${N}"
@@ -821,7 +892,10 @@ ensure_external_plugins() {
     bad "external plugin installation failed"
     return 1
   fi
-  verify_external_profile "$pdir"
+  if ! verify_external_profile "$pdir"; then
+    return 1
+  fi
+  prune_stale_plugins "$pdir"
 }
 
 profile_lists() { # $1=manifest $2=package name -> exit 0 when bundled or depended on
@@ -1025,6 +1099,13 @@ run_check_mode() {
     :
   else
     fails=$((fails+1))
+  fi
+  local stale_list
+  stale_list="$(stale_plugin_names "$pdir")"
+  if [ -z "$stale_list" ]; then
+    ok "no stale external plugins"
+  else
+    bad "stale external plugins present: $(printf '%s' "$stale_list" | tr '\n' ' ') — run: ./setup.sh --plugins"; fails=$((fails+1))
   fi
   if [ -d "$HARNESS_DIR/node_modules" ]; then
     if [ -f "$HARNESS_DIR/vendor/schemastery/lib/index.cjs" ] && [ -f "$HARNESS_DIR/apps/web/dist/index.html" ]; then
