@@ -10,7 +10,6 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-wallpaper/client'
 import type { ViewTab } from './contract/views.ts'
 import type {
   ApprovalWait, ChatNodeTurnDataInjected, ChatScrollPosition, ChatViewInjected, ComposerBarInjected,
@@ -481,10 +480,4 @@ export function apply(ctx: Context): void {
     }),
   }, DetailsPanel)
 
-  ctx.inject(['wallpaper'], (wallpaperCtx) => {
-    wallpaperCtx.effect(
-      () => wallpaperCtx.wallpaper.registerSurface({ id: 'conversation', label: 'surface.conversation' }),
-      'ui-conversation: wallpaper conversation surface',
-    )
-  })
 }

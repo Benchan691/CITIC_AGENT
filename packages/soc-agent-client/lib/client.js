@@ -2053,9 +2053,7 @@ window.__ModuleLoader__.load({
 		}
 		function modeOf(policy) {
 			if (policy.source === "defaults") return "soc";
-			const auto = new Set(policy.autoApproveActions);
-			if (auto.size === 0) return "ask";
-			return auto.size === policy.actions.length && policy.actions.every((action) => auto.has(action.name)) ? "full-access" : "soc";
+			return policy.autoApproveActions.length === 0 ? "ask" : "soc";
 		}
 		function SocActionPolicyMenu({ connection, sessionId }) {
 			const [open, setOpen] = (0, react.useState)(false);
@@ -2098,7 +2096,7 @@ window.__ModuleLoader__.load({
 				try {
 					const response = mode === "soc" ? await connection.rpc.call(CHANNEL, "reset-session-action-policy", { session_id: String(sessionId) }) : await connection.rpc.call(CHANNEL, "set-session-action-policy", {
 						session_id: String(sessionId),
-						auto_approve_actions: mode === "full-access" ? policy.actions.map((action) => action.name) : []
+						auto_approve_actions: []
 					});
 					if (!response?.ok) throw new Error(response?.error?.message || "The session action policy could not be saved.");
 					const next = parsePolicy(response.value);
@@ -2112,7 +2110,7 @@ window.__ModuleLoader__.load({
 					setSaving(false);
 				}
 			};
-			const modeLabel = selectedMode === "full-access" ? "Full Access" : selectedMode === "ask" ? "Ask for approval" : "SOC mode";
+			const modeLabel = selectedMode === "ask" ? "Ask for approval" : "SOC mode";
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: SocActionPolicyMenu_module_css_default.root,
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
@@ -2147,29 +2145,6 @@ window.__ModuleLoader__.load({
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", {
 									className: SocActionPolicyMenu_module_css_default.modeLegend,
 									children: "Choose a mode"
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-									className: SocActionPolicyMenu_module_css_default.mode,
-									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-										className: SocActionPolicyMenu_module_css_default.modeRadio,
-										type: "radio",
-										name: `soc-action-mode-${String(sessionId)}`,
-										checked: selectedMode === "full-access",
-										readOnly: true,
-										disabled: saving,
-										onClick: () => {
-											selectMode("full-access");
-										}
-									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
-										className: SocActionPolicyMenu_module_css_default.modeText,
-										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-											className: SocActionPolicyMenu_module_css_default.modeLabel,
-											children: "Full Access"
-										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-											className: SocActionPolicyMenu_module_css_default.modeDescription,
-											children: "Run all known SOC actions without asking."
-										})]
-									})]
 								}),
 								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
 									className: SocActionPolicyMenu_module_css_default.mode,

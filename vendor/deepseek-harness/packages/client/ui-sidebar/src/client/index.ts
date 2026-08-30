@@ -2,7 +2,6 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-wallpaper/client'
 import type { SidebarRootInjected } from './contract/slots.ts'
 import { SidebarRoot } from './SidebarRoot.tsx'
 import { en, zh, type SidebarKey } from './locales.ts'
@@ -57,10 +56,4 @@ export function apply(ctx: ClientContext): void {
     'ui-sidebar: slot registration',
   )
 
-  ctx.inject(['wallpaper'], (wallpaperCtx) => {
-    wallpaperCtx.effect(
-      () => wallpaperCtx.wallpaper.registerSurface({ id: 'sidebar', label: 'surface.sidebar' }),
-      'ui-sidebar: wallpaper surface',
-    )
-  })
 }

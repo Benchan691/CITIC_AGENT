@@ -169,7 +169,6 @@ export function AppFrame({
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={cols.details === 0 || undefined}
       data-dragging={dragging || undefined}
-      data-wallpaper-surface="shell"
     >
       <div className={css.sidebarCol}>
         {/* Render-site slot call with live concession output: a closed

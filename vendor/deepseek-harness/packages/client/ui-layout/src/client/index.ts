@@ -9,7 +9,6 @@
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
-import type {} from '@deepseek-ai/dsh-client-ui-wallpaper/client'
 import type { PanelActions } from './service.ts'
 import { AppFrame } from './AppFrame.tsx'
 import { createLayoutStore } from './stores.ts'
@@ -155,11 +154,4 @@ export function apply(ctx: ClientContext): void {
     }
   }, 'ui-layout: theme presenter')
 
-  // Optional: register the shell surface when the wallpaper plugin is composed.
-  ctx.inject(['wallpaper'], (wallpaperCtx) => {
-    wallpaperCtx.effect(
-      () => wallpaperCtx.wallpaper.registerSurface({ id: 'shell', label: 'surface.shell' }),
-      'ui-layout: wallpaper surface',
-    )
-  })
 }

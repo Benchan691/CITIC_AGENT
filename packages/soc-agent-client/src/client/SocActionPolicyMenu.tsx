@@ -12,7 +12,7 @@ type Policy = {
   source: 'defaults' | 'session'
 }
 
-type ActionMode = 'full-access' | 'ask' | 'soc'
+type ActionMode = 'ask' | 'soc'
 
 function parsePolicy(value: unknown): Policy | undefined {
   if (!value || typeof value !== 'object') return undefined
@@ -29,11 +29,7 @@ function modeOf(policy: Policy): ActionMode {
   // The saved checklist is the SOC mode even when its current selection happens
   // to be all checked or all unchecked. Session overrides select the shortcuts.
   if (policy.source === 'defaults') return 'soc'
-  const auto = new Set(policy.autoApproveActions)
-  if (auto.size === 0) return 'ask'
-  return auto.size === policy.actions.length && policy.actions.every(action => auto.has(action.name))
-    ? 'full-access'
-    : 'soc'
+  return policy.autoApproveActions.length === 0 ? 'ask' : 'soc'
 }
 
 type MenuProps = PropsRuntime<'conversation.input.left'> & { connection: ConnectionHandle }
@@ -81,7 +77,7 @@ export function SocActionPolicyMenu({ connection, sessionId }: MenuProps) {
         ? await connection.rpc.call(CHANNEL, 'reset-session-action-policy', { session_id: String(sessionId) })
         : await connection.rpc.call(CHANNEL, 'set-session-action-policy', {
           session_id: String(sessionId),
-          auto_approve_actions: mode === 'full-access' ? policy.actions.map(action => action.name) : [],
+          auto_approve_actions: [],
         })
       if (!response?.ok) throw new Error(response?.error?.message || 'The session action policy could not be saved.')
       const next = parsePolicy(response.value)
@@ -95,11 +91,7 @@ export function SocActionPolicyMenu({ connection, sessionId }: MenuProps) {
       setSaving(false)
     }
   }
-  const modeLabel = selectedMode === 'full-access'
-    ? 'Full Access'
-    : selectedMode === 'ask'
-      ? 'Ask for approval'
-      : 'SOC mode'
+  const modeLabel = selectedMode === 'ask' ? 'Ask for approval' : 'SOC mode'
 
   return <div className={css.root}>
     <button className={css.trigger} type="button" aria-expanded={open} aria-controls={`soc-action-policy-${String(sessionId)}`} onClick={() => setOpen(value => !value)}>
@@ -111,10 +103,6 @@ export function SocActionPolicyMenu({ connection, sessionId }: MenuProps) {
       {error && <p className={css.error} role="status">{error}</p>}
       {policy !== undefined && !loading && <fieldset className={css.modes}>
         <legend className={css.modeLegend}>Choose a mode</legend>
-        <label className={css.mode}>
-          <input className={css.modeRadio} type="radio" name={`soc-action-mode-${String(sessionId)}`} checked={selectedMode === 'full-access'} readOnly disabled={saving} onClick={() => { void selectMode('full-access') }} />
-          <span className={css.modeText}><span className={css.modeLabel}>Full Access</span><span className={css.modeDescription}>Run all known SOC actions without asking.</span></span>
-        </label>
         <label className={css.mode}>
           <input className={css.modeRadio} type="radio" name={`soc-action-mode-${String(sessionId)}`} checked={selectedMode === 'ask'} readOnly disabled={saving} onClick={() => { void selectMode('ask') }} />
           <span className={css.modeText}><span className={css.modeLabel}>Ask for approval</span><span className={css.modeDescription}>Ask before every known SOC action.</span></span>

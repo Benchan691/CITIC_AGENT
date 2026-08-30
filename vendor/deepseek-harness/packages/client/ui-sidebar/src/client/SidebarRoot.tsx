@@ -119,7 +119,6 @@ export function SidebarRoot({
         collapsed && wide && css.fading, !pointerInside && css.quietBars,
       )}
       style={wide ? { width: collapsed ? lastWideWidth.current : width } : undefined}
-      data-wallpaper-surface="sidebar"
       onPointerEnter={() => {
         cancelLinger()
         setPointerInside(true)

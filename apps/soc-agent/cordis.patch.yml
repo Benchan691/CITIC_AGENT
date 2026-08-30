@@ -136,9 +136,6 @@
 - id: session-folders
   disabled: true
 
-- id: ui-wallpaper
-  disabled: false
-
 - id: ui-cordis
   disabled: true
 - id: ui-workflow-run

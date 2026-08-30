@@ -10,7 +10,7 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { watch as chokidarWatch } from 'chokidar'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, resolve } from 'node:path'
 import { Document, parseDocument } from 'yaml'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
@@ -23,6 +23,8 @@ export interface Config {
   path?: string
   /** Harness home used when `path` is omitted; defaults to `$DSH_HOME` or `~/.dsh`. */
   dshHome?: string
+  /** Remove the retired wallpaper settings and assets during the first shipped harness boot. */
+  legacyUiWallpaperCleanup?: boolean
   /** Watch the document and hot-publish external edits; defaults to true. */
   watch?: boolean
   /** Watcher write-settle window in milliseconds; defaults to 100. */
@@ -37,6 +39,10 @@ const FORMATS: Record<string, SettingsFormat> = {
   '.yml': 'yaml',
   '.json': 'json',
 }
+
+/** The retired wallpaper namespace and its private asset directory. */
+const LEGACY_UI_WALLPAPER_NAMESPACE = 'ui-wallpaper'
+const LEGACY_UI_WALLPAPER_DIRECTORY = 'ui-wallpapers'
 
 /** Fully resolved provider parameters; defaulting happens here, never inline. */
 interface ResolvedSpec {
@@ -106,6 +112,7 @@ export class FileSettingsProvider extends SettingsProvider {
   static Config: z<Config> = z.object({
     path: z.string(),
     dshHome: z.string(),
+    legacyUiWallpaperCleanup: z.boolean().default(false),
     watch: z.boolean().default(true),
     debounceMs: z.number().min(0).default(100),
   })
@@ -168,6 +175,7 @@ export class FileSettingsProvider extends SettingsProvider {
   }
 
   protected async load(): Promise<Record<string, unknown>> {
+    if (this.config.legacyUiWallpaperCleanup === true) await this.cleanupLegacyUiWallpaper()
     let text: string
     try {
       text = await readFile(this.spec.filename, 'utf8')
@@ -292,6 +300,52 @@ export class FileSettingsProvider extends SettingsProvider {
       throw new TypeError(`settings-file: ${this.spec.filename} must be a map of namespace sections`)
     }
     return root as Record<string, unknown>
+  }
+
+  /** Remove retired wallpaper data before the settings document is published. */
+  private async cleanupLegacyUiWallpaper(): Promise<void> {
+    let documentExists = true
+    try {
+      await readFile(this.spec.filename, 'utf8')
+    } catch (error) {
+      if (!isENOENT(error)) throw error
+      documentExists = false
+    }
+
+    if (documentExists) {
+      await withFileLock(this.spec.filename, async () => {
+        let current: string
+        try {
+          current = await readFile(this.spec.filename, 'utf8')
+        } catch (error) {
+          if (isENOENT(error)) return
+          throw error
+        }
+        if (!Object.prototype.hasOwnProperty.call(this.parse(current), LEGACY_UI_WALLPAPER_NAMESPACE)) return
+        await writeFileAtomic(
+          this.spec.filename,
+          this.renderWithoutNamespace(current),
+          { mode: 0o600, dirMode: 0o700 },
+        )
+      })
+    }
+
+    await rm(join(resolveDshHome(this.config.dshHome), LEGACY_UI_WALLPAPER_DIRECTORY), {
+      recursive: true,
+      force: true,
+    })
+  }
+
+  /** Render a valid settings document after deleting one retired namespace. */
+  private renderWithoutNamespace(text: string): string {
+    if (this.spec.format === 'yaml') {
+      const document = parseDocument(text)
+      document.deleteIn([LEGACY_UI_WALLPAPER_NAMESPACE])
+      return document.toString()
+    }
+    const root = this.parse(text)
+    delete root[LEGACY_UI_WALLPAPER_NAMESPACE]
+    return `${JSON.stringify(root, null, 2)}\n`
   }
 
   /**
