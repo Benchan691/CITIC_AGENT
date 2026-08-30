@@ -94,7 +94,6 @@ trim() {
 
 PLUGIN_NAMES=(
   "@linxin666/dsh-client-ui-skin-center"
-  "@liustack/modlens"
   "dsh-auto-collapse"
 )
 PLUGIN_SPECS=()
@@ -852,7 +851,6 @@ verify_profile_resolution() { # $1 = profile dir; prints one line per plugin nam
     @citic/soc-memory \
     @deepseek-ai/dsh-time-context \
     @linxin666/dsh-client-ui-skin-center \
-    @liustack/modlens \
     dsh-auto-collapse
   do
     if node -e '
