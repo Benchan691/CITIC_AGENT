@@ -31,6 +31,8 @@ SERVER_DIR="$REPO_ROOT/apps/soc-agent/server"
 HARNESS_ENV="$HARNESS_DIR/.env"
 SERVER_ENV="$SERVER_DIR/.env"
 SERVER_ENV_EXAMPLE="$SERVER_DIR/.env.example"
+PLUGIN_REQUIREMENTS="$REPO_ROOT/requirements.txt"
+PLUGIN_PATCH="$REPO_ROOT/patches/dsh-auto-collapse@0.1.4.patch"
 
 for _d in "$HARNESS_DIR" "$SERVER_DIR"; do
   if [ ! -d "$_d" ]; then
@@ -54,6 +56,14 @@ SOC_CLIENT_LIB="$REPO_ROOT/packages/soc-agent-client/lib/client.js"
 
 if [ ! -f "$SERVER_ENV_EXAMPLE" ]; then
   echo "error: template '$SERVER_ENV_EXAMPLE' is missing." >&2
+  exit 1
+fi
+if [ ! -f "$PLUGIN_REQUIREMENTS" ]; then
+  echo "error: plugin requirements '$PLUGIN_REQUIREMENTS' is missing." >&2
+  exit 1
+fi
+if [ ! -f "$PLUGIN_PATCH" ]; then
+  echo "error: plugin patch '$PLUGIN_PATCH' is missing." >&2
   exit 1
 fi
 
@@ -80,6 +90,32 @@ trim() {
   s="${s#"${s%%[![:space:]]*}"}"
   s="${s%"${s##*[![:space:]]}"}"
   printf '%s' "$s"
+}
+
+PLUGIN_NAMES=(
+  "@linxin666/dsh-client-ui-skin-center"
+  "@liustack/modlens"
+  "dsh-auto-collapse"
+)
+PLUGIN_SPECS=()
+
+read_plugin_requirements() {
+  PLUGIN_SPECS=()
+  local line
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    line="$(trim "$line")"
+    case "$line" in
+      ''|\#*) continue ;;
+      -*) bad "$PLUGIN_REQUIREMENTS contains a pnpm option instead of a package spec: $line"; return 1 ;;
+      *[[:space:]]*) bad "$PLUGIN_REQUIREMENTS contains whitespace in a package spec: $line"; return 1 ;;
+    esac
+    PLUGIN_SPECS+=("$line")
+  done < "$PLUGIN_REQUIREMENTS"
+  if [ "${#PLUGIN_SPECS[@]}" -ne "${#PLUGIN_NAMES[@]}" ]; then
+    bad "$PLUGIN_REQUIREMENTS must contain exactly ${#PLUGIN_NAMES[@]} package specs"
+    return 1
+  fi
 }
 
 # Strip one pair of surrounding single/double quotes, if both ends match.
@@ -641,6 +677,154 @@ profile_dir() {
   printf '%s/profiles/%s' "${DSH_HOME:-$HOME/.dsh}" "$DSH_PROFILE"
 }
 
+profile_has_dependency() {
+  node -e '
+    const fs = require("fs");
+    try {
+      const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      process.exit(Object.prototype.hasOwnProperty.call(manifest.dependencies || {}, process.argv[2]) ? 0 : 1);
+    } catch {
+      process.exit(1);
+    }
+  ' "$1" "$2"
+}
+
+profile_has_bundle() {
+  node -e '
+    const fs = require("fs");
+    try {
+      const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      const bundles = manifest.dsh?.profile?.bundles || [];
+      process.exit(bundles.includes(process.argv[2]) ? 0 : 1);
+    } catch {
+      process.exit(1);
+    }
+  ' "$1" "$2"
+}
+
+ensure_profile_patch() {
+  local pdir workspace target patch_entry tmp
+  pdir="$(profile_dir)"
+  workspace="$pdir/pnpm-workspace.yaml"
+  target="$pdir/patches/$(basename "$PLUGIN_PATCH")"
+  patch_entry='  dsh-auto-collapse@0.1.4: patches/dsh-auto-collapse@0.1.4.patch'
+
+  mkdir -p "$pdir/patches"
+  if [ -e "$target" ]; then
+    if ! cmp -s "$PLUGIN_PATCH" "$target"; then
+      bad "profile patch differs from the repository copy: $target"
+      return 1
+    fi
+  elif ! cp "$PLUGIN_PATCH" "$target"; then
+    bad "could not copy the dsh-auto-collapse patch into the profile"
+    return 1
+  fi
+
+  if [ ! -f "$workspace" ]; then
+    printf '%s\n' \
+      'packages:' \
+      '  - .' \
+      '' \
+      'nodeLinker: hoisted' \
+      'autoInstallPeers: false' \
+      '' \
+      'patchedDependencies:' \
+      "$patch_entry" > "$workspace"
+    return 0
+  fi
+
+  if grep -Fqx "$patch_entry" "$workspace"; then
+    return 0
+  fi
+  if grep -q '^[[:space:]]*dsh-auto-collapse@0\.1\.4:' "$workspace"; then
+    bad "profile pnpm-workspace.yaml has a different dsh-auto-collapse patch entry"
+    return 1
+  fi
+
+  if grep -q '^patchedDependencies:[[:space:]]*$' "$workspace"; then
+    tmp="$(mktemp "${workspace}.XXXXXX")"
+    if awk -v entry="$patch_entry" '
+      /^patchedDependencies:[[:space:]]*$/ { print; in_patched=1; next }
+      in_patched && /^[^[:space:]#]/ { print entry; in_patched=0 }
+      { print }
+      END { if (in_patched) print entry }
+    ' "$workspace" > "$tmp" && mv "$tmp" "$workspace"; then
+      return 0
+    fi
+    rm -f "$tmp"
+    bad "could not register the dsh-auto-collapse patch in $workspace"
+    return 1
+  fi
+  if grep -q '^patchedDependencies:' "$workspace"; then
+    bad "cannot update inline patchedDependencies in $workspace"
+    return 1
+  fi
+
+  printf '\npatchedDependencies:\n%s\n' "$patch_entry" >> "$workspace"
+}
+
+verify_external_profile() {
+  local pdir="$1" name all_ok=0 profile_patch
+  local patch_entry='  dsh-auto-collapse@0.1.4: patches/dsh-auto-collapse@0.1.4.patch'
+  if [ ! -f "$pdir/package.json" ]; then
+    bad "DeepSeek Harness profile '$DSH_PROFILE' is missing"
+    return 1
+  fi
+
+  for name in "${PLUGIN_NAMES[@]}"; do
+    if profile_has_dependency "$pdir/package.json" "$name"; then
+      ok "external dependency: $name"
+    else
+      bad "external dependency missing: $name"
+      all_ok=1
+    fi
+    if profile_has_bundle "$pdir/package.json" "$name"; then
+      ok "external bundle: $name"
+    else
+      bad "external bundle missing: $name"
+      all_ok=1
+    fi
+  done
+
+  profile_patch="$pdir/patches/$(basename "$PLUGIN_PATCH")"
+  if [ -f "$profile_patch" ] && cmp -s "$PLUGIN_PATCH" "$profile_patch"; then
+    ok "dsh-auto-collapse patch copied to the profile"
+  else
+    bad "dsh-auto-collapse patch is missing or differs in the profile"
+    all_ok=1
+  fi
+  if [ -f "$pdir/pnpm-workspace.yaml" ] \
+    && grep -Fqx "$patch_entry" "$pdir/pnpm-workspace.yaml"; then
+    ok "dsh-auto-collapse patch registered in the profile"
+  else
+    bad "dsh-auto-collapse patch is not registered in the profile"
+    all_ok=1
+  fi
+  return "$all_ok"
+}
+
+ensure_external_plugins() {
+  local pdir
+  echo "${B}DeepSeek Harness external plugins${N}"
+  if ! read_plugin_requirements; then
+    return 1
+  fi
+
+  pdir="$(profile_dir)"
+  if ! ensure_profile_patch; then
+    return 1
+  fi
+
+  echo "Installing external plugin bundles into the '$DSH_PROFILE' profile…"
+  if (cd "$HARNESS_DIR" && pnpm dsh plugin --profile "$DSH_PROFILE" add "${PLUGIN_SPECS[@]}"); then
+    ok "external plugin installation complete"
+  else
+    bad "external plugin installation failed"
+    return 1
+  fi
+  verify_external_profile "$pdir"
+}
+
 profile_lists() { # $1=manifest $2=package name -> exit 0 when bundled or depended on
   node -e '
     const fs = require("fs");
@@ -666,7 +850,10 @@ verify_profile_resolution() { # $1 = profile dir; prints one line per plugin nam
     dsh-soc-agent/scheduler \
     dsh-soc-agent-client \
     @citic/soc-memory \
-    @deepseek-ai/dsh-time-context
+    @deepseek-ai/dsh-time-context \
+    @linxin666/dsh-client-ui-skin-center \
+    @liustack/modlens \
+    dsh-auto-collapse
   do
     if node -e '
       const { createRequire } = require("module");
@@ -829,8 +1016,18 @@ run_check_mode() {
 
   echo
   echo "${B}Harness build & profile${N}"
+  if read_plugin_requirements; then
+    ok "third-party plugin requirements present"
+  else
+    fails=$((fails+1))
+  fi
   local pdir
   pdir="$(profile_dir)"
+  if verify_external_profile "$pdir"; then
+    :
+  else
+    fails=$((fails+1))
+  fi
   if [ -d "$HARNESS_DIR/node_modules" ]; then
     if [ -f "$HARNESS_DIR/vendor/schemastery/lib/index.cjs" ] && [ -f "$HARNESS_DIR/apps/web/dist/index.html" ]; then
       ok "framework build present"
@@ -886,6 +1083,9 @@ case "${1:-}" in
     run_prereq_checks
     ensure_python_server || true
     ensure_harness_ready || true
+    if ! ensure_external_plugins; then
+      exit 1
+    fi
     ensure_soc_bundle || true
     exit 0
     ;;
@@ -896,6 +1096,9 @@ case "${1:-}" in
     write_files
     ensure_python_server || true
     ensure_harness_ready || true
+    if ! ensure_external_plugins; then
+      exit 1
+    fi
     ensure_soc_bundle || true
     echo
     summary

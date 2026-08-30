@@ -1,0 +1,6 @@
+# DeepSeek Harness external profile bundles.
+# One pnpm package spec per line; setup.sh ignores blank lines and comments.
+@linxin666/dsh-client-ui-skin-center@^0.2.5
+@liustack/modlens@^3.18.3
+# The local patch targets dsh-auto-collapse 0.1.4, so keep this commit pinned.
+github:a179-sanae/dsh-auto-collapse#cd21c04ad5942a51cd86b8fdd9f19dc092ae8417

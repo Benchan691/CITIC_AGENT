@@ -1,0 +1,184 @@
+diff --git a/lib/client.js b/lib/client.js
+index 60354db6ddeac48591461158880422af261e1a43..fe87ec99542b6f6641f7f99a5e9583524bc69ecf 100644
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -693,11 +693,11 @@
+       const row = state.row;
+       if (row === null) return;
+       const text = row.firstElementChild;
+-      const label = state.duration === void 0 ? "\u5DF2\u5904\u7406" : `\u5DF2\u5904\u7406 ${formatDuration(state.duration)}`;
++      const label = state.duration === void 0 ? "Processed" : `Processed ${formatDuration(state.duration)}`;
+       if (text !== null && text.textContent !== label) text.textContent = label;
+       const expanded = String(state.expanded);
+       if (row.getAttribute("aria-expanded") !== expanded) row.setAttribute("aria-expanded", expanded);
+-      row.title = state.expanded ? "\u6536\u8D77\u5DE5\u4F5C\u8FC7\u7A0B" : "\u5C55\u5F00\u5DE5\u4F5C\u8FC7\u7A0B";
++      row.title = state.expanded ? "Collapse workflow" : "Expand workflow";
+     }
+     placeProcessedRow(flow, state) {
+       const row = state.row;
+@@ -888,11 +888,11 @@
+         let title = this.mergedTitles.get(host);
+         if (title === void 0) {
+           const first = truncateSummary(stripMarkdown(thinkSummary(rows[0])), 36);
+-          if (first !== "" && first !== "\u601D\u8003") {
++          if (first !== "" && first !== "Thinking") {
+             title = `Think \xB7 ${first}`;
+             this.mergedTitles.set(host, title);
+           } else {
+-            title = "\u601D\u8003";
++            title = "Thinking";
+           }
+         }
+         if (titleEl.textContent !== title) titleEl.textContent = title;
+@@ -1728,6 +1728,8 @@
+     for (const row of el.querySelectorAll("[data-chat-call-id]")) {
+       if (row.closest("[data-subcalls]") !== null) continue;
+       if (row.closest("[data-chat-call-id]") !== row) continue;
++      // Preserve application-owned rows from automatic collapsing.
++      if (row.querySelector("[data-dshcf-preserve]") !== null) continue;
+       rows.push(row);
+     }
+     return rows;
+@@ -1749,7 +1751,7 @@
+       return { kind: "think", label: "Think", summary: thinkSummary(row), state: row.getAttribute("data-state") ?? "ok" };
+     }
+     if (row.getAttribute("data-chat-flow-kind") === "context") {
+-      return { kind: "tool", label: "\u4E0A\u4E0B\u6587\u6CE8\u5165", summary: toolSummary(row), state: "ok" };
++      return { kind: "tool", label: "Context", summary: toolSummary(row), state: "ok" };
+     }
+     const commandSeat = row.closest('[data-chat-flow-kind="command"], [data-chat-flow-kind="manual-compaction"]');
+     if (commandSeat !== null) {
+@@ -1809,7 +1811,7 @@
+       tools,
+       hasError: infos.some((i) => i.state === "error"),
+       hasStopped: infos.some((i) => i.state === "stopped"),
+-      allContext: infos.length > 0 && infos.every((i) => i.label === "\u4E0A\u4E0B\u6587\u6CE8\u5165")
++      allContext: infos.length > 0 && infos.every((i) => i.label === "Context")
+     };
+   }
+   function updateChip(chip, rows, expanded) {
+@@ -1823,16 +1825,16 @@
+     let titleText;
+     let summaryText;
+     if (info.runningTool !== null) {
+-      titleText = "\u6B63\u5728\u8FD0\u884C";
++      titleText = "Running";
+       summaryText = collapsed ? info.runningTool.summary : "";
+     } else if (info.runningThink !== null) {
+-      titleText = "\u6B63\u5728\u601D\u8003";
++      titleText = "Thinking";
+       summaryText = collapsed ? info.runningThink.summary : "";
+     } else if (info.tools.length > 0) {
+-      titleText = info.allContext ? "\u4E0A\u4E0B\u6587\u6CE8\u5165" : info.tools.some((tool) => tool === "Edit" || tool === "Write") ? "\u7F16\u8F91\u4E86\u6587\u4EF6" : "\u8FD0\u884C\u4E86\u547D\u4EE4";
++      titleText = info.allContext ? "Context" : info.tools.some((tool) => tool === "Edit" || tool === "Write") ? "Edited files" : "Ran command";
+       summaryText = "";
+     } else {
+-      titleText = "\u5DF2\u601D\u8003";
++      titleText = "Thought";
+       summaryText = "";
+     }
+     let kind = running !== null ? running.kind : info.allContext ? "context" : info.tools.length > 0 ? "tool" : "think";
+@@ -1856,7 +1858,7 @@
+       chip.dataset.kind = kind;
+       syncLeadingIcon(chip, kind);
+     }
+-    const tip = expanded ? "\u6536\u8D77\u8FD9\u4E9B\u5361\u7247" : "\u5C55\u5F00\u8FD9\u4E9B\u5361\u7247";
++    const tip = expanded ? "Collapse these cards" : "Expand these cards";
+     if (chip.title !== tip) chip.title = tip;
+     setClass(chip, "running", running !== null);
+     setClass(chip, "error", !running && info.hasError);
+@@ -1877,10 +1879,11 @@
+   }
+   function parseTurnDuration(boundary) {
+     const text = boundary.textContent ?? "";
+-    const m = text.match(/用时\s*(\d+)分(\d+)秒|用时\s*(\d+)秒/);
++    const m = text.match(/(?:用时\s*(\d+)分(\d+)秒|用时\s*(\d+)秒|(?:Took|Time)\s*(?:(\d+)m\s*)?(\d+)s)/i);
+     if (m !== null) {
+       if (m[1] !== void 0 && m[2] !== void 0) return Number(m[1]) * 6e4 + Number(m[2]) * 1e3;
+       if (m[3] !== void 0) return Number(m[3]) * 1e3;
++      if (m[5] !== void 0) return (Number(m[4] ?? 0) * 60 + Number(m[5])) * 1e3;
+       return void 0;
+     }
+     const end = parseTimeText(text);
+@@ -1920,23 +1923,23 @@
+     btn.className = "dshcf-processed";
+     btn.setAttribute("aria-expanded", "false");
+     const text = document.createElement("span");
+-    text.textContent = duration !== void 0 ? `\u5DF2\u5904\u7406 ${formatDuration(duration)}` : "\u5DF2\u5904\u7406";
++    text.textContent = duration !== void 0 ? `Processed ${formatDuration(duration)}` : "Processed";
+     const chevron = createChevronIcon("dshcf-processed-chevron");
+     btn.append(text, chevron);
+-    btn.title = "\u5C55\u5F00\u5DE5\u4F5C\u8FC7\u7A0B";
++    btn.title = "Expand workflow";
+     return btn;
+   }
+   function formatDuration(ms) {
+     const s = Math.round(ms / 1e3);
+-    if (s < 60) return `${s}\u79D2`;
++    if (s < 60) return `${s}s`;
+     const h = Math.floor(s / 3600);
+     const m = Math.floor(s % 3600 / 60);
+     const r = s % 60;
+     if (h > 0) {
+-      return m > 0 ? `${h}\u5C0F\u65F6${m}\u5206` : `${h}\u5C0F\u65F6`;
++      return m > 0 ? `${h}h ${m}m` : `${h}h`;
+     }
+-    if (r === 0) return `${m}\u5206`;
+-    return `${m}\u5206${String(r).padStart(2, "0")}\u79D2`;
++    if (r === 0) return `${m}m`;
++    return `${m}m ${String(r).padStart(2, "0")}s`;
+   }
+   function injectStyle() {
+     if (document.getElementById(STYLE_ID) !== null) return;
+@@ -2153,26 +2156,26 @@
+           type: "button",
+           className: "dshcf-settings-header",
+           "aria-expanded": open,
+-          "aria-label": `${open ? "\u6536\u8D77\u8BBE\u7F6E" : "\u5C55\u5F00\u8BBE\u7F6E"}: \u72B6\u6001\u63D0\u793A\u8BCD`,
++          "aria-label": `${open ? "Collapse settings" : "Expand settings"}: Status prompt`,
+           onClick: () => setOpen(!open)
+         },
+         [
+           React.createElement("span", { className: "dshcf-settings-headText" }, [
+-            React.createElement("span", { className: "dshcf-settings-name" }, "\u72B6\u6001\u63D0\u793A\u8BCD"),
+-            React.createElement("span", { className: "dshcf-settings-description" }, "\u81EA\u5B9A\u4E49\u72B6\u6001\u63D0\u793A\u8BCD\uFF0C\u53EF\u4EE5\u66FF\u6362\u539F\u6709\u7684Deep diving...\u4E00\u884C\uFF0C\u7531\u63D2\u4EF6dsh-auto-collapse\u63D0\u4F9B")
++            React.createElement("span", { className: "dshcf-settings-name" }, "Status prompt"),
++            React.createElement("span", { className: "dshcf-settings-description" }, "Customize the status text shown while work is in progress.")
+           ]),
+-          dirty ? React.createElement("span", { className: "dshcf-settings-pending" }, "\u672A\u4FDD\u5B58") : null,
++          dirty ? React.createElement("span", { className: "dshcf-settings-pending" }, "Unsaved") : null,
+           ChevronIcon(open)
+         ]
+       ),
+       open ? React.createElement("div", { className: "dshcf-settings-body" }, [
+-        !writable ? React.createElement("p", { className: "dshcf-settings-readOnly", role: "status" }, "\u672C\u90E8\u7F72\u7684\u8BBE\u7F6E\u4E3A\u53EA\u8BFB\u3002") : null,
++        !writable ? React.createElement("p", { className: "dshcf-settings-readOnly", role: "status" }, "Settings are read-only in this deployment.") : null,
+         React.createElement("div", { className: "dshcf-settings-field" }, [
+           React.createElement("div", { className: "dshcf-settings-fieldHead" }, [
+-            React.createElement("label", { className: "dshcf-settings-fieldLabel", htmlFor: "dshcf-status-text" }, "\u81EA\u5B9A\u4E49\u72B6\u6001\u63D0\u793A\u8BCD"),
++            React.createElement("label", { className: "dshcf-settings-fieldLabel", htmlFor: "dshcf-status-text" }, "Custom status text"),
+             overridden ? React.createElement("span", { className: "dshcf-settings-badges" }, [
+-              React.createElement("span", { className: "dshcf-settings-badge" }, "\u5DF2\u8986\u76D6"),
+-              React.createElement("button", { type: "button", className: "dshcf-settings-reset", disabled: !writable, onClick: resetField }, "\u6062\u590D\u9ED8\u8BA4")
++              React.createElement("span", { className: "dshcf-settings-badge" }, "Overridden"),
++              React.createElement("button", { type: "button", className: "dshcf-settings-reset", disabled: !writable, onClick: resetField }, "Reset")
+             ]) : null
+           ]),
+           React.createElement("input", {
+@@ -2184,12 +2187,12 @@
+             disabled: !writable,
+             onChange: (event) => edit(event.target.value)
+           }),
+-          React.createElement("p", { className: "dshcf-settings-hint" }, "\u4E3A\u7A7A\u65F6\u6062\u590D\u9ED8\u8BA4Deep diving...\u63D0\u793A\u8BCD\u72B6\u6001")
++          React.createElement("p", { className: "dshcf-settings-hint" }, "Leave blank to restore the default Deep diving... status.")
+         ]),
+         React.createElement("div", { className: "dshcf-settings-footer" }, [
+-          failed ? React.createElement("p", { className: "dshcf-settings-failed", role: "status" }, "\u672C\u90E8\u7F72\u6CA1\u6709\u63A5\u53D7\u8FD9\u4E9B\u503C\uFF0C\u5DF2\u4FDD\u7559\u4F9B\u4F60\u4FEE\u6539\u3002") : null,
+-          React.createElement("button", { type: "button", className: "dshcf-settings-discard", disabled: !dirty || saving, onClick: discard }, "\u653E\u5F03\u4FEE\u6539"),
+-          React.createElement("button", { type: "button", className: "dshcf-settings-save", disabled: blocked, onClick: save }, saving ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58")
++          failed ? React.createElement("p", { className: "dshcf-settings-failed", role: "status" }, "These values were not accepted; your edits were kept.") : null,
++          React.createElement("button", { type: "button", className: "dshcf-settings-discard", disabled: !dirty || saving, onClick: discard }, "Discard"),
++          React.createElement("button", { type: "button", className: "dshcf-settings-save", disabled: blocked, onClick: save }, saving ? "Saving…" : "Save")
+         ])
+       ]) : null
+     ]);
