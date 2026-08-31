@@ -92,6 +92,10 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert "splunk_list_data_sources" not in {tool.name for tool in tools}
     assert "splunk_list_indexes" not in {tool.name for tool in tools}
 
+    # The ordinary status tool is intentionally limited to readiness; detailed
+    # endpoint, policy, and LLM configuration is served through the admin plane.
+    assert "detailed configuration" in next(tool for tool in tools if tool.name == "system_get_status").description.lower()
+
     schema_tool = next(tool for tool in tools if tool.name == "get_subscription_schema")
     assert schema_tool.parameters.get("required", []) == []
     preview_tool = next(tool for tool in tools if tool.name == "preview_subscription")

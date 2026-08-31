@@ -1,6 +1,22 @@
 /** Generic unary RPC contracts shared by the Host and Client Connection halves. */
 
 import type { RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
+import type { IncomingMessage } from 'node:http'
+
+/** Server-side authorization callback for privileged Connection methods. */
+export interface ConnectionPrivilegedAuthorizer {
+  authorizePrivilegedRequest(
+    request: IncomingMessage,
+    method: string,
+  ): boolean | Promise<boolean>
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Optional application-owned authorization for privileged transport methods. */
+    connectionAuthorization?: ConnectionPrivilegedAuthorizer
+  }
+}
 
 /** Trust fence applied before a Host RPC channel reaches its handler. */
 export type ConnectionRpcAuthority = 'trusted-host' | 'loopback'

@@ -120,10 +120,10 @@ export type RpcResult<T> = { ok: true; value: T } | { ok: false; error: RpcError
  * @param error - the thrown value from the carrier.
  * @returns the error branch of an RpcResult.
  */
-export function transportError<T>(error: unknown): RpcResult<T> {
+export function transportError<T>(_error: unknown): RpcResult<T> {
   return {
     ok: false,
-    error: { code: 'internal', message: error instanceof Error ? error.message : String(error), details: {} },
+    error: { code: 'internal', message: 'request failed', details: {} },
   }
 }
 

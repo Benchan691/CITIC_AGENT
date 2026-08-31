@@ -39,7 +39,7 @@ def login(payload: dict[str, Any]) -> dict[str, object]:
     if not password:
         raise ValueError("authentication failed")
     store = _store()
-    settings = ServerSettings.from_store(store)
+    settings = ServerSettings.from_env()
     if not settings.zimbra.host:
         raise RuntimeError("Zimbra authentication is not configured")
     try:
@@ -48,7 +48,11 @@ def login(payload: dict[str, Any]) -> dict[str, object]:
         # The submitted password is deliberately never included in this error.
         raise ValueError("authentication failed") from exc
     session = store.create_user_session(email, token)
-    return {"session": public_session(session)}
+    return {
+        "session": public_session(session),
+        "new_device_login": bool(session.replaced_session_ids),
+        "replaced_session_ids": list(session.replaced_session_ids),
+    }
 
 
 def logout(payload: dict[str, Any]) -> dict[str, bool]:
@@ -60,7 +64,7 @@ def _service(payload: dict[str, Any]) -> ZimbraMailService:
     session = store.get_app_session(str(payload.get("session_id", "")))
     if session is None:
         raise ValueError("authentication failed")
-    settings = ServerSettings.from_store(store)
+    settings = ServerSettings.from_env()
     return ZimbraMailService(settings.zimbra, identity=ZimbraIdentity.from_session(session))
 
 

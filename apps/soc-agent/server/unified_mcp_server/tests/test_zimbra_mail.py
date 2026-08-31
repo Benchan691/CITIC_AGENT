@@ -116,7 +116,8 @@ def test_multiple_accounts_require_selection_and_share_global_connection_setting
         "zimbra_password": "two-secret",
         "verify_ssl": False,
         "timeout": 60,
-    }
+        "allow_insecure_http": False,
+        }
     assert service._resolve_account(first.id).email == "one@example.com"
 
 

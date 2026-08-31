@@ -1,6 +1,7 @@
 import html
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 from zimbra_client import ZimbraClient
 from zimbra_client.errors import ZimbraLimitError
@@ -41,10 +42,11 @@ _TOKEN_PASSWORD = "token-authenticated"
 class _TokenClient(ZimbraClient):
     """Use an existing authenticated session without storing credentials."""
 
-    def __init__(self, host, token, *, email="", verify_ssl=False, timeout=60):
-        self._host = host
+    def __init__(self, host, token, *, email="", verify_ssl=True, timeout=60, allow_insecure_http=False):
+        self._allow_insecure_http = _as_bool(allow_insecure_http, False)
+        self._host = _validate_zimbra_host(host, allow_insecure_http=self._allow_insecure_http)
         super().__init__({
-            "host": host,
+            "host": self._host,
             "email": email or _TOKEN_EMAIL,
             "password": _TOKEN_PASSWORD,
             "verify_ssl": verify_ssl,
@@ -60,6 +62,7 @@ class _TokenClient(ZimbraClient):
             self._auth_token if authenticated else "",
             verify_ssl=self.config.verify_ssl,
             timeout=int(self.config.timeout),
+            allow_insecure_http=self._allow_insecure_http,
         )
 
     def _ensure_auth(self):
@@ -78,30 +81,79 @@ def _as_bool(value, default=False):
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _validate_zimbra_host(host, *, allow_insecure_http=False):
+    """Validate the Zimbra authority before any credentialed request."""
+    raw = str(host or "").strip()
+    if not raw:
+        return raw
+    candidate = raw if "://" in raw else f"https://{raw}"
+    try:
+        parsed = urlsplit(candidate)
+        parsed.port
+        hostname = parsed.hostname
+    except ValueError as exc:
+        raise ValueError("ZIMBRA_HOST must be a valid http or https host") from exc
+    if (
+        parsed.scheme.lower() not in {"http", "https"}
+        or not parsed.netloc
+        or not hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
+        raise ValueError("ZIMBRA_HOST must be a valid http or https host without embedded credentials")
+    if parsed.scheme.lower() == "http" and not _as_bool(allow_insecure_http, False):
+        raise ValueError("ZIMBRA_HOST must use HTTPS unless ZIMBRA_ALLOW_INSECURE_HTTP is true")
+    return raw
+
+
 def _connection_options(cfg):
     return {
-        "verify_ssl": _as_bool(cfg.get("verify_ssl"), False),
+        "verify_ssl": _as_bool(cfg.get("verify_ssl"), True),
         "timeout": int(cfg.get("timeout", 60)),
+        "allow_insecure_http": _as_bool(cfg.get("allow_insecure_http"), False),
     }
 
 
-def soap_request(host, body_xml, auth_token="", *, verify_ssl=False, timeout=60):
-    client = _TokenClient(host, auth_token, verify_ssl=verify_ssl, timeout=timeout)
+def soap_request(host, body_xml, auth_token="", *, verify_ssl=True, timeout=60, allow_insecure_http=False):
+    client = _TokenClient(
+        host,
+        auth_token,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
+    )
     body = ET.fromstring(body_xml) if isinstance(body_xml, str) else body_xml
     return client._request_once(body, auth_token=auth_token if auth_token else "")
 
 
 def zimbra_login(cfg):
     require_zimbra_config(cfg)
-    client = ZimbraClient(cfg).login()
+    config = dict(cfg)
+    config["zimbra_host"] = _validate_zimbra_host(
+        zimbra_host(config),
+        allow_insecure_http=_as_bool(config.get("allow_insecure_http"), False),
+    )
+    config["verify_ssl"] = _as_bool(config.get("verify_ssl"), True)
+    config["allow_insecure_http"] = _as_bool(config.get("allow_insecure_http"), False)
+    client = ZimbraClient(config).login()
     token = getattr(client, "_auth_token", "")
     if not token:
         raise RuntimeError("Zimbra login failed: auth token not found")
     return token
 
 
-def _token_client(host, token, *, email="", verify_ssl=False, timeout=60):
-    return _TokenClient(host, token, email=email, verify_ssl=verify_ssl, timeout=timeout)
+def _token_client(host, token, *, email="", verify_ssl=True, timeout=60, allow_insecure_http=False):
+    return _TokenClient(
+        host,
+        token,
+        email=email,
+        verify_ssl=verify_ssl,
+        timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
+    )
 
 
 def _signature_dict(signature):
@@ -113,15 +165,21 @@ def _signature_dict(signature):
     }
 
 
-def zimbra_list_signatures(host, token, *, verify_ssl=False, timeout=60):
+def zimbra_list_signatures(host, token, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
     return [
         _signature_dict(signature)
-        for signature in _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).list_signatures()
+        for signature in _token_client(
+            host, token, verify_ssl=verify_ssl, timeout=timeout,
+            allow_insecure_http=allow_insecure_http,
+        ).list_signatures()
     ]
 
 
-def zimbra_create_signature(host, token, name, text=None, html_content=None, *, verify_ssl=False, timeout=60):
-    signature = _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).create_signature(
+def zimbra_create_signature(host, token, name, text=None, html_content=None, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
+    signature = _token_client(
+        host, token, verify_ssl=verify_ssl, timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
+    ).create_signature(
         name,
         text=text or "",
         html=html_content or "",
@@ -129,8 +187,11 @@ def zimbra_create_signature(host, token, name, text=None, html_content=None, *, 
     return {"id": signature.id, "name": signature.name}
 
 
-def zimbra_delete_signature(host, token, signature_id, *, verify_ssl=False, timeout=60):
-    _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).delete_signature(signature_id)
+def zimbra_delete_signature(host, token, signature_id, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
+    _token_client(
+        host, token, verify_ssl=verify_ssl, timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
+    ).delete_signature(signature_id)
 
 
 def zimbra_send_message(
@@ -143,14 +204,18 @@ def zimbra_send_message(
     cc=None,
     bcc=None,
     body_format="text",
-    verify_ssl=False,
+    verify_ssl=True,
     timeout=60,
+    allow_insecure_http=False,
 ):
     body_format = str(body_format).strip().lower()
     if body_format not in {"text", "html"}:
         raise ValueError("body_format must be text or html")
     kwargs = {"text": str(body)} if body_format == "text" else {"html": str(body)}
-    result = _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).send_message(
+    result = _token_client(
+        host, token, verify_ssl=verify_ssl, timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
+    ).send_message(
         to=recipients,
         cc=cc,
         bcc=bcc,
@@ -160,8 +225,11 @@ def zimbra_send_message(
     return {"message_id": result.message_id}
 
 
-def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=False, timeout=60):
-    _token_client(host, token, verify_ssl=verify_ssl, timeout=timeout).move_message(
+def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
+    _token_client(
+        host, token, verify_ssl=verify_ssl, timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
+    ).move_message(
         message_id,
         str(folder_id),
     )
@@ -176,7 +244,7 @@ def _message_date(value):
         return ""
 
 
-def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl=False, timeout=60):
+def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
     """Search once and normalize the summary metadata returned by Zimbra."""
     query = str(query or "").strip()
     # Zimbra uses is:anywhere for all mail; in:anywhere is parsed as a folder
@@ -194,6 +262,7 @@ def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl
         token,
         verify_ssl=verify_ssl,
         timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
     )
     messages = []
     for msg in root.iter():
@@ -220,13 +289,14 @@ def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl
     return messages
 
 
-def zimbra_get_message(host, token, message_id, *, verify_ssl=False, timeout=60):
+def zimbra_get_message(host, token, message_id, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
     root = soap_request(
         host,
         f'<GetMsgRequest xmlns="urn:zimbraMail"><m id="{html.escape(message_id)}" html="0" needExp="1"/></GetMsgRequest>',
         token,
         verify_ssl=verify_ssl,
         timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
     )
     msg = next((elem for elem in root.iter() if _local_name(elem.tag) == "m" and elem.get("id") == message_id), None)
     if msg is None:
@@ -275,7 +345,7 @@ def zimbra_get_message(host, token, message_id, *, verify_ssl=False, timeout=60)
     }
 
 
-def zimbra_get_message_headers(host, token, message_id, names, *, verify_ssl=False, timeout=60):
+def zimbra_get_message_headers(host, token, message_id, names, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
     """Retrieve selected raw message headers without returning the message body."""
     requested = [str(name).strip() for name in names if str(name).strip()]
     header_xml = "".join(f'<header n="{html.escape(name)}"/>' for name in requested)
@@ -289,6 +359,7 @@ def zimbra_get_message_headers(host, token, message_id, names, *, verify_ssl=Fal
         token,
         verify_ssl=verify_ssl,
         timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
     )
     msg = next((elem for elem in root.iter() if _local_name(elem.tag) == "m" and elem.get("id") == message_id), None)
     if msg is None:
@@ -304,13 +375,14 @@ def zimbra_get_message_headers(host, token, message_id, names, *, verify_ssl=Fal
     return {"message_id": message_id, "headers": headers}
 
 
-def zimbra_list_folders(host, token, *, verify_ssl=False, timeout=60):
+def zimbra_list_folders(host, token, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
     root = soap_request(
         host,
         '<GetFolderRequest xmlns="urn:zimbraMail" visible="1"/>',
         token,
         verify_ssl=verify_ssl,
         timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
     )
     folders = []
     for elem in root.iter():
@@ -329,7 +401,7 @@ def zimbra_list_folders(host, token, *, verify_ssl=False, timeout=60):
     return folders
 
 
-def zimbra_create_folder(host, token, name, parent_id, *, verify_ssl=False, timeout=60):
+def zimbra_create_folder(host, token, name, parent_id, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
     """Create one mailbox folder and return safe normalized folder metadata."""
     root = soap_request(
         host,
@@ -341,6 +413,7 @@ def zimbra_create_folder(host, token, name, parent_id, *, verify_ssl=False, time
         token,
         verify_ssl=verify_ssl,
         timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
     )
     response = next((elem for elem in root.iter() if _local_name(elem.tag) == "CreateFolderResponse"), None)
     folder = next(
@@ -358,7 +431,7 @@ def zimbra_create_folder(host, token, name, parent_id, *, verify_ssl=False, time
     }
 
 
-def zimbra_get_filter_rules(host, token, *, verify_ssl=False, timeout=60):
+def zimbra_get_filter_rules(host, token, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
     """Return the complete incoming filter-rule elements from Zimbra."""
     root = soap_request(
         host,
@@ -366,6 +439,7 @@ def zimbra_get_filter_rules(host, token, *, verify_ssl=False, timeout=60):
         token,
         verify_ssl=verify_ssl,
         timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
     )
     response = next((elem for elem in root.iter() if _local_name(elem.tag) == "GetFilterRulesResponse"), None)
     if response is None:
@@ -385,7 +459,7 @@ def zimbra_get_filter_rules(host, token, *, verify_ssl=False, timeout=60):
     return rules
 
 
-def zimbra_modify_filter_rules(host, token, rules_xml, *, verify_ssl=False, timeout=60):
+def zimbra_modify_filter_rules(host, token, rules_xml, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
     """Replace the complete incoming filter-rule set using typed XML from the filter service."""
     soap_request(
         host,
@@ -393,6 +467,7 @@ def zimbra_modify_filter_rules(host, token, rules_xml, *, verify_ssl=False, time
         token,
         verify_ssl=verify_ssl,
         timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
     )
 
 

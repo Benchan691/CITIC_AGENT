@@ -333,7 +333,8 @@ async def test_send_email_is_gated_validated_and_uses_selected_account(monkeypat
         "body_format": "html",
         "verify_ssl": True,
         "timeout": 60,
-    }
+        "allow_insecure_http": False,
+        }
 
 
 @pytest.mark.asyncio

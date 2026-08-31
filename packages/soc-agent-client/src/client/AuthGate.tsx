@@ -8,12 +8,21 @@ interface AuthUser {
 interface AuthState {
   authenticated: boolean
   user?: AuthUser
+  notice?: string
 }
 
 async function readAuth(): Promise<AuthState> {
   const response = await fetch('/auth/me', { credentials: 'same-origin', cache: 'no-store' })
-  if (!response.ok) return { authenticated: false }
-  const value = await response.json() as AuthState
+  let value: AuthState & { message?: unknown } = { authenticated: false }
+  try {
+    const body: unknown = await response.json()
+    if (body !== null && typeof body === 'object') value = body as AuthState & { message?: unknown }
+  } catch {}
+  if (!response.ok) {
+    return typeof value.message === 'string'
+      ? { authenticated: false, notice: value.message }
+      : { authenticated: false }
+  }
   return value.authenticated === true && typeof value.user?.zimbra_email === 'string'
     ? value
     : { authenticated: false }
@@ -27,13 +36,28 @@ export function AuthGate() {
   const [busy, setBusy] = useState(false)
 
   const refresh = useCallback(async () => {
-    try { setState(await readAuth()) } catch { setState({ authenticated: false }) }
+    try {
+      const next = await readAuth()
+      setState(previous => !next.authenticated && !next.notice && previous?.notice
+        ? { ...next, notice: previous.notice }
+        : next)
+    } catch { setState(previous => previous?.notice ? { authenticated: false, notice: previous.notice } : { authenticated: false }) }
   }, [])
 
   useEffect(() => {
     void refresh()
     const timer = window.setInterval(() => { void refresh() }, 30_000)
-    return () => window.clearInterval(timer)
+    const onFocus = () => { void refresh() }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refresh()
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   }, [refresh])
 
   const login = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -76,6 +100,7 @@ export function AuthGate() {
             <span>Password</span>
             <input className={css.input} type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} required />
           </label>
+          {state.notice && <div className={css.notice} role="status">{state.notice}</div>}
           {error && <div className={css.error} role="alert">{error}</div>}
           <button className={css.button} type="submit" disabled={busy}>Login</button>
         </form>

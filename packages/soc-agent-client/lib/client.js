@@ -31,13 +31,13 @@ window.__ModuleLoader__.load({
 		let react_jsx_runtime = require("react/jsx-runtime");
 		let _deepseek_ai_dsh_client_runtime_client = require("@deepseek-ai/dsh-client-runtime/client");
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/CiticBrand.module.css.mjs
-		const css$7 = ".U2KmSq_wordmark{text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;align-items:center;min-width:0;max-width:100%;font-size:16px;font-weight:700;line-height:24px;display:inline-flex;overflow:hidden}";
-		const tagId$7 = "dsh-soc-agent-client/CiticBrand.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$7) + "]") === null) {
+		const css$8 = ".U2KmSq_wordmark{text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;align-items:center;min-width:0;max-width:100%;font-size:16px;font-weight:700;line-height:24px;display:inline-flex;overflow:hidden}";
+		const tagId$8 = "dsh-soc-agent-client/CiticBrand.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$8) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$7;
-			tag.textContent = css$7;
+			tag.dataset.pluginCss = tagId$8;
+			tag.textContent = css$8;
 			document.head.appendChild(tag);
 		}
 		var CiticBrand_module_css_default = { "wordmark": "U2KmSq_wordmark" };
@@ -93,6 +93,96 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AdminConsole.module.css.mjs
+		const css$7 = ".IhE_MG_page,.IhE_MG_loginPage{color:#edf3f7;background:#0b1014;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}.IhE_MG_page{background:radial-gradient(circle at 12% 0,#1e788a2b,#0000 34rem),radial-gradient(circle at 92% 8%,#ca8e3314,#0000 30rem),#0b1014}.IhE_MG_shell{width:min(1240px,100% - 48px);margin:0 auto;padding:42px 0 72px}.IhE_MG_header{border-bottom:1px solid #a4bec729;justify-content:space-between;align-items:flex-start;gap:32px;padding:0 0 34px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#80c8d0;letter-spacing:.15em;text-transform:uppercase;margin:0 0 9px;font-size:11px;font-weight:700;line-height:1.4}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:#f7fbfc;letter-spacing:-.035em;margin:0}.IhE_MG_title{font-size:clamp(30px,4vw,46px);line-height:1.05}.IhE_MG_subtitle{color:#9aadb5;max-width:600px;margin:13px 0 0;font-size:15px;line-height:1.6}.IhE_MG_headerActions{align-items:center;gap:14px;padding-top:4px;display:flex}.IhE_MG_account{color:#9aadb5;text-overflow:ellipsis;white-space:nowrap;max-width:240px;font-size:12px;overflow:hidden}.IhE_MG_section{margin-top:34px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:16px;display:flex}.IhE_MG_sectionKicker{color:#d3a968;margin-bottom:6px}.IhE_MG_sectionTitle{font-size:22px;line-height:1.2}.IhE_MG_sectionHint{color:#72838b;text-align:right;font-size:12px;line-height:1.5}.IhE_MG_statusGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;display:grid}.IhE_MG_statusCard{background:#141f25c7;border:1px solid #97b9c226;border-radius:15px;gap:13px;min-width:0;padding:17px;display:flex;box-shadow:0 14px 42px #0000001f}.IhE_MG_statusIcon{color:#9edbe0;background:#2b6c7740;border:1px solid #80c8d042;border-radius:10px;flex:0 0 34px;place-items:center;width:34px;height:34px;font-size:14px;font-weight:750;display:grid}.IhE_MG_statusBody{min-width:0}.IhE_MG_statusTopline{justify-content:space-between;align-items:flex-start;gap:8px;display:flex}.IhE_MG_statusTopline h3{color:#eff7f8;margin:1px 0 0;font-size:14px;line-height:1.35}.IhE_MG_statusBody p{color:#82969e;margin:7px 0 0;font-size:12px;line-height:1.45}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;align-items:center;display:inline-flex}.IhE_MG_statusPill{letter-spacing:.02em;border-radius:999px;flex:none;gap:6px;padding:4px 7px;font-size:10px;font-weight:700}.IhE_MG_statusReady{color:#9ce5be;background:#2c895733}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#a9dce0;background:#468d9733}.IhE_MG_statusError{color:#ffb1b1;background:#8932363d}.IhE_MG_statusMuted{color:#9baab0;background:#7e909724}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#778990;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#59d28c;box-shadow:0 0 0 3px #59d28c1f}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#73cbd3;box-shadow:0 0 0 3px #73cbd31f}.IhE_MG_statusError .IhE_MG_statusDot{background:#f77;box-shadow:0 0 0 3px #ff77771f}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success,.IhE_MG_message.IhE_MG_success{color:#91dfb3}.IhE_MG_checkMessage.IhE_MG_error,.IhE_MG_message.IhE_MG_error,.IhE_MG_error{color:#ff9d9d}.IhE_MG_checkMessage.IhE_MG_info,.IhE_MG_message.IhE_MG_info{color:#9bd6df}.IhE_MG_textButton{color:#a9e2e6;cursor:pointer;font:inherit;background:0 0;border:0;margin-top:12px;padding:0;font-size:12px;font-weight:700}.IhE_MG_textButton:hover,.IhE_MG_textButton:focus-visible{color:#e4ffff;text-decoration:underline}.IhE_MG_textButton:disabled{cursor:wait;opacity:.55}.IhE_MG_envManaged{color:#71858d;margin-top:12px;font-size:11px;display:inline-block}.IhE_MG_button,.IhE_MG_dangerButton{color:#d9e7ea;cursor:pointer;min-height:38px;font:inherit;background:#1c2a31bf;border:1px solid #9ab8c038;border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700;transition:border-color .14s,background .14s,transform .14s}.IhE_MG_button:hover:not(:disabled),.IhE_MG_button:focus-visible,.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#274149e6;border-color:#94dbe194}.IhE_MG_button:active:not(:disabled),.IhE_MG_dangerButton:active:not(:disabled){transform:translateY(1px)}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled{cursor:not-allowed;opacity:.48}.IhE_MG_primary{color:#071215;background:#9bdde0;border-color:#0000}.IhE_MG_primary:hover:not(:disabled),.IhE_MG_primary:focus-visible{color:#071215;background:#c0f0ef;border-color:#0000}.IhE_MG_dangerButton{color:#ffb4b4;background:#782d302e;border-color:#e774744d}.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#89323659;border-color:#ff9191a6}.IhE_MG_error{margin:12px 0;font-size:12px;line-height:1.5}.IhE_MG_loading,.IhE_MG_loadingInline{color:#a2b6bc;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_loadingInline{padding:24px 0}.IhE_MG_providerLayout{background:#0f181dd6;border:1px solid #97b9c229;border-radius:17px;grid-template-columns:minmax(230px,280px) minmax(0,1fr);min-height:480px;display:grid;overflow:hidden;box-shadow:0 18px 60px #00000029}.IhE_MG_providerPicker{background:#141f25b3;border-right:1px solid #97b9c221;flex-direction:column;min-width:0;padding:17px 11px 12px;display:flex}.IhE_MG_pickerHeader{color:#b8c8cd;justify-content:space-between;align-items:center;padding:0 8px 11px;font-size:12px;font-weight:700;display:flex}.IhE_MG_countBadge{color:#a9dce0;background:#468d9733;border-radius:999px;justify-content:center;min-width:22px;padding:3px 6px;font-size:10px}.IhE_MG_providerList{scrollbar-color:#82bac080 transparent;scrollbar-width:thin;flex-direction:column;flex:1;gap:3px;min-height:0;max-height:410px;padding-right:4px;display:flex;overflow-y:auto}.IhE_MG_providerOption,.IhE_MG_customOption{color:#bdcbd0;cursor:pointer;width:100%;min-width:0;font:inherit;text-align:left;background:0 0;border:1px solid #0000;border-radius:10px;align-items:center;gap:10px;padding:11px 9px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_providerOption:focus-visible,.IhE_MG_customOption:hover,.IhE_MG_customOption:focus-visible{background:#36545b38;border-color:#7fc2c933}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{color:#f2fbfc;background:#386f7842;border-color:#7ecdd354}.IhE_MG_providerDot{flex:0 0 7px;width:7px;height:7px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:3px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{color:inherit;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700;overflow:hidden}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:#7f949b;text-overflow:ellipsis;white-space:nowrap;font-size:10px;overflow:hidden}.IhE_MG_customTag,.IhE_MG_customBadge{color:#e1bd7f;text-transform:uppercase;background:#a46f281f;border:1px solid #d3a9684d;border-radius:999px;padding:3px 6px;font-size:9px;font-weight:700}.IhE_MG_customOption{border-top:1px solid #97b9c221;border-radius:0;flex:none;margin-top:12px;padding-top:17px}.IhE_MG_addIcon{color:#e1bd7f;border:1px solid #d3a96859;border-radius:7px;flex:0 0 24px;place-items:center;width:24px;height:24px;font-size:17px;font-weight:400;display:grid}.IhE_MG_providerEditor{background:#0b12166b;min-width:0;padding:31px clamp(22px,4vw,48px) 36px}.IhE_MG_editorHeading{border-bottom:1px solid #97b9c221;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:24px;display:flex}.IhE_MG_editorTitle{font-size:25px;line-height:1.15}.IhE_MG_editorCopy{color:#879aa1;max-width:600px;margin:9px 0 0;font-size:13px;line-height:1.55}.IhE_MG_editorForm{flex-direction:column;gap:20px;max-width:720px;padding-top:26px;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_field{color:#c9d7db;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:700;display:flex}.IhE_MG_field em{color:#71858c;margin-left:4px;font-size:10px;font-style:normal;font-weight:500}.IhE_MG_input{box-sizing:border-box;color:#ecf5f6;width:100%;min-width:0;font:inherit;background:#1a272dc7;border:1px solid #97b9c233;border-radius:9px;outline:0;padding:11px 12px;font-size:13px;font-weight:500;transition:border-color .14s,box-shadow .14s}.IhE_MG_input::placeholder{color:#65777e}.IhE_MG_input:focus{border-color:#89d8deb3;box-shadow:0 0 0 3px #5bb7c021}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.56}.IhE_MG_textarea{resize:vertical;min-height:98px;line-height:1.55}.IhE_MG_fieldHint{color:#71858d;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_advanced{background:#19262c5c;border:1px solid #97b9c226;border-radius:11px}.IhE_MG_advanced summary{color:#c4d5d9;cursor:pointer;padding:13px 15px;font-size:12px;font-weight:700;list-style-position:inside}.IhE_MG_advanced summary:hover{color:#e7f5f6}.IhE_MG_advancedBody{flex-direction:column;gap:18px;padding:0 15px 18px;display:flex}.IhE_MG_discoveryRow{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_discovered{flex-wrap:wrap;gap:7px;display:flex}.IhE_MG_modelChip{color:#b6e6e8;cursor:pointer;font:inherit;background:#386f782e;border:1px solid #7ecdd340;border-radius:999px;padding:6px 9px;font-size:11px}.IhE_MG_modelChip:hover,.IhE_MG_modelChip:focus-visible{background:#386f7852;border-color:#7ecdd3a6}.IhE_MG_message{margin:20px 0 0;font-size:12px;line-height:1.5}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:24px;display:flex}.IhE_MG_confirmGroup{color:#d5b0b0;flex-wrap:wrap;align-items:center;gap:8px;font-size:11px;display:inline-flex}.IhE_MG_confirmGroup .IhE_MG_error{flex-basis:100%;margin:0}.IhE_MG_loginPage{box-sizing:border-box;background:radial-gradient(circle at 50% 0,#25747f47,#0000 35rem),linear-gradient(145deg,#0b1115,#101b20 58%,#11181b);place-items:center;min-height:100vh;padding:24px;display:grid}.IhE_MG_loginPanel{box-sizing:border-box;background:#111c22e0;border:1px solid #a4cad033;border-radius:20px;width:min(100%,430px);padding:38px;box-shadow:0 25px 90px #00000059}.IhE_MG_loginMark{color:#071215;background:#9bdde0;border:1px solid #9bdde080;border-radius:13px;place-items:center;width:42px;height:42px;margin-bottom:25px;font-size:22px;font-weight:800;display:grid}.IhE_MG_loginTitle{font-size:32px;line-height:1.08}.IhE_MG_loginCopy{color:#8fa4aa;margin:13px 0 28px;font-size:13px;line-height:1.6}.IhE_MG_form{flex-direction:column;gap:17px;display:flex}.IhE_MG_fullButton{width:100%;margin-top:3px}.IhE_MG_loginFootnote{color:#6f838a;margin:25px 0 0;font-size:11px;line-height:1.5}@media (width<=1000px){.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (width<=760px){.IhE_MG_shell{width:min(100% - 28px,620px);padding-top:28px}.IhE_MG_header,.IhE_MG_sectionHeading{flex-direction:column;align-items:flex-start}.IhE_MG_headerActions{justify-content:space-between;width:100%}.IhE_MG_sectionHint{text-align:left}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-bottom:1px solid #97b9c221;border-right:0}.IhE_MG_providerList{max-height:230px}.IhE_MG_providerEditor{padding:25px 18px 30px}.IhE_MG_fieldGrid{grid-template-columns:1fr}}@media (width<=460px){.IhE_MG_loginPanel{padding:28px 22px}.IhE_MG_account{max-width:170px}.IhE_MG_editorHeading{flex-direction:column}}";
+		const tagId$7 = "dsh-soc-agent-client/AdminConsole.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$7) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "dsh-soc-agent-client";
+			tag.dataset.pluginCss = tagId$7;
+			tag.textContent = css$7;
+			document.head.appendChild(tag);
+		}
+		var AdminConsole_module_css_default = {
+			"account": "IhE_MG_account",
+			"actions": "IhE_MG_actions",
+			"addIcon": "IhE_MG_addIcon",
+			"advanced": "IhE_MG_advanced",
+			"advancedBody": "IhE_MG_advancedBody",
+			"button": "IhE_MG_button",
+			"checkMessage": "IhE_MG_checkMessage",
+			"confirmGroup": "IhE_MG_confirmGroup",
+			"countBadge": "IhE_MG_countBadge",
+			"customBadge": "IhE_MG_customBadge",
+			"customOption": "IhE_MG_customOption",
+			"customOptionSelected": "IhE_MG_customOptionSelected",
+			"customTag": "IhE_MG_customTag",
+			"dangerButton": "IhE_MG_dangerButton",
+			"discovered": "IhE_MG_discovered",
+			"discoveryRow": "IhE_MG_discoveryRow",
+			"editorCopy": "IhE_MG_editorCopy",
+			"editorForm": "IhE_MG_editorForm",
+			"editorHeading": "IhE_MG_editorHeading",
+			"editorTitle": "IhE_MG_editorTitle",
+			"envManaged": "IhE_MG_envManaged",
+			"error": "IhE_MG_error",
+			"eyebrow": "IhE_MG_eyebrow",
+			"field": "IhE_MG_field",
+			"fieldGrid": "IhE_MG_fieldGrid",
+			"fieldHint": "IhE_MG_fieldHint",
+			"form": "IhE_MG_form",
+			"fullButton": "IhE_MG_fullButton",
+			"header": "IhE_MG_header",
+			"headerActions": "IhE_MG_headerActions",
+			"info": "IhE_MG_info",
+			"input": "IhE_MG_input",
+			"loading": "IhE_MG_loading",
+			"loadingInline": "IhE_MG_loadingInline",
+			"loginCopy": "IhE_MG_loginCopy",
+			"loginFootnote": "IhE_MG_loginFootnote",
+			"loginMark": "IhE_MG_loginMark",
+			"loginPage": "IhE_MG_loginPage",
+			"loginPanel": "IhE_MG_loginPanel",
+			"loginTitle": "IhE_MG_loginTitle",
+			"message": "IhE_MG_message",
+			"modelChip": "IhE_MG_modelChip",
+			"page": "IhE_MG_page",
+			"pickerHeader": "IhE_MG_pickerHeader",
+			"primary": "IhE_MG_primary",
+			"providerDot": "IhE_MG_providerDot",
+			"providerDotReady": "IhE_MG_providerDotReady",
+			"providerEditor": "IhE_MG_providerEditor",
+			"providerLayout": "IhE_MG_providerLayout",
+			"providerList": "IhE_MG_providerList",
+			"providerOption": "IhE_MG_providerOption",
+			"providerOptionSelected": "IhE_MG_providerOptionSelected",
+			"providerOptionText": "IhE_MG_providerOptionText",
+			"providerPicker": "IhE_MG_providerPicker",
+			"section": "IhE_MG_section",
+			"sectionHeading": "IhE_MG_sectionHeading",
+			"sectionHint": "IhE_MG_sectionHint",
+			"sectionKicker": "IhE_MG_sectionKicker",
+			"sectionTitle": "IhE_MG_sectionTitle",
+			"shell": "IhE_MG_shell",
+			"statusBody": "IhE_MG_statusBody",
+			"statusCard": "IhE_MG_statusCard",
+			"statusConfigured": "IhE_MG_statusConfigured",
+			"statusDot": "IhE_MG_statusDot",
+			"statusError": "IhE_MG_statusError",
+			"statusGrid": "IhE_MG_statusGrid",
+			"statusIcon": "IhE_MG_statusIcon",
+			"statusInfo": "IhE_MG_statusInfo",
+			"statusMuted": "IhE_MG_statusMuted",
+			"statusPill": "IhE_MG_statusPill",
+			"statusReady": "IhE_MG_statusReady",
+			"statusTopline": "IhE_MG_statusTopline",
+			"subtitle": "IhE_MG_subtitle",
+			"success": "IhE_MG_success",
+			"textButton": "IhE_MG_textButton",
+			"textarea": "IhE_MG_textarea",
+			"title": "IhE_MG_title"
+		};
+		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
 		const css$6 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
 		const tagId$6 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
@@ -130,496 +220,1101 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region src/client/settings-common.ts
-		const CHANNEL$4 = "/soc-agent-config";
-		async function rpc$1(connection, name, payload = {}) {
-			const result = await connection.rpc.call(CHANNEL$4, name, payload);
+		const CHANNEL$3 = "/soc-agent-config";
+		async function rpc(connection, name, payload = {}) {
+			const result = await connection.rpc.call(CHANNEL$3, name, payload);
 			if (!result?.ok) throw new Error(result?.error?.message || `Request failed: ${name}`);
 			return result.value;
 		}
 		function errorText(error) {
 			return error instanceof Error ? error.message : String(error);
 		}
-		function TextInput({ value, onChange, type = "text", placeholder = "" }) {
-			return react.default.createElement("input", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				type,
-				value: value ?? "",
-				placeholder,
-				onChange: (event) => onChange(event.target.value)
+		//#endregion
+		//#region src/client/AdminConsole.tsx
+		const CUSTOM_PROVIDER = "__custom__";
+		const PROVIDER_ROUTE_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+		const SUPPORTED_PROTOCOLS = [
+			{
+				value: "openai-completions",
+				label: "OpenAI Chat Completions"
+			},
+			{
+				value: "openai-responses",
+				label: "OpenAI Responses"
+			},
+			{
+				value: "anthropic-messages",
+				label: "Anthropic Messages"
+			}
+		];
+		function stringValue(value) {
+			return typeof value === "string" ? value : "";
+		}
+		function objectValue(value) {
+			return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+		}
+		function pathValue(value, path) {
+			let current = value;
+			for (const segment of path) current = objectValue(current)[segment];
+			return current;
+		}
+		function providerProfile(namespace, provider) {
+			return objectValue(pathValue(namespace?.value, provider.settingsPath));
+		}
+		function modelEntries(profile) {
+			return Array.isArray(profile.models) ? profile.models.map(objectValue) : [];
+		}
+		function modelIds(profile) {
+			return modelEntries(profile).map((model) => stringValue(model.id).trim()).filter(Boolean);
+		}
+		function mergeModels(profile, ids) {
+			const existing = new Map(modelEntries(profile).map((model) => [stringValue(model.id), model]));
+			return ids.map((id) => ({
+				...existing.get(id) ?? {},
+				id
+			}));
+		}
+		function deriveCredentialRef(provider, profile) {
+			const configuredRef = stringValue(profile.apiKeyEnv).trim();
+			if (configuredRef) return configuredRef;
+			return `${provider.provider.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}_API_KEY`;
+		}
+		function apiValue(response) {
+			if (!response.result.ok) throw new Error(response.result.error?.message || "The request could not be completed.");
+			return response.result.value;
+		}
+		function serviceReady(service) {
+			return service?.status === "ready" || service?.configured === true || service?.available === true;
+		}
+		function AdminConsole({ connection }) {
+			const [auth, setAuth] = (0, react.useState)(null);
+			const [loading, setLoading] = (0, react.useState)(true);
+			const [authError, setAuthError] = (0, react.useState)("");
+			const loadAuth = (0, react.useCallback)(async () => {
+				setLoading(true);
+				setAuthError("");
+				try {
+					setAuth(await (await fetch("/admin/auth/me", { credentials: "same-origin" })).json());
+				} catch (error) {
+					setAuthError(errorText(error));
+				} finally {
+					setLoading(false);
+				}
+			}, []);
+			(0, react.useEffect)(() => {
+				loadAuth();
+			}, [loadAuth]);
+			if (loading) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: AdminConsole_module_css_default.loading,
+				children: "Loading administration…"
+			});
+			if (!auth?.authenticated) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminLogin, {
+				onAuthenticated: loadAuth,
+				error: authError
+			});
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminWorkspace, {
+				connection,
+				email: auth.email || "",
+				onSignedOut: loadAuth
 			});
 		}
-		function SettingRow({ label, value, onChange, onDelete, type = "text", placeholder = "" }) {
-			return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, label), react.default.createElement(TextInput, {
-				value,
-				onChange,
-				type,
-				placeholder
-			}), react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.deleteButton,
-				type: "button",
-				onClick: onDelete
-			}, "Delete"));
-		}
-		function TestStatus({ result }) {
-			if (!result) return null;
-			const className = result.kind === "ok" ? `${SplunkZimbraOverlay_module_css_default.testResult} ${SplunkZimbraOverlay_module_css_default.testOk}` : result.kind === "fail" ? `${SplunkZimbraOverlay_module_css_default.testResult} ${SplunkZimbraOverlay_module_css_default.testFail}` : SplunkZimbraOverlay_module_css_default.testResult;
-			return react.default.createElement("span", {
-				className,
-				role: "status"
-			}, result.text);
-		}
-		//#endregion
-		//#region src/client/SplunkSettings.ts
-		function SplunkSettings({ connection }) {
-			const [settings, setSettings] = (0, react.useState)(null);
-			const [status, setStatus] = (0, react.useState)("Loading...");
-			const [test, setTest] = (0, react.useState)(null);
-			const load = (0, react.useCallback)(async () => {
+		function AdminLogin({ onAuthenticated, error: initialError }) {
+			const [email, setEmail] = (0, react.useState)("");
+			const [password, setPassword] = (0, react.useState)("");
+			const [error, setError] = (0, react.useState)(initialError);
+			const [busy, setBusy] = (0, react.useState)(false);
+			async function signIn(event) {
+				event.preventDefault();
+				setBusy(true);
+				setError("");
 				try {
-					setSettings(await rpc$1(connection, "get-settings"));
-					setStatus("");
-				} catch (error) {
-					setStatus(errorText(error));
+					const response = await fetch("/admin/auth/login", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						credentials: "same-origin",
+						body: JSON.stringify({
+							email,
+							password
+						})
+					});
+					const body = await response.json().catch(() => ({}));
+					if (!response.ok) throw new Error(body.error || "Sign-in failed.");
+					setPassword("");
+					await onAuthenticated();
+				} catch (loginError) {
+					setError(errorText(loginError));
+				} finally {
+					setBusy(false);
+				}
+			}
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("main", {
+				className: AdminConsole_module_css_default.loginPage,
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+					className: AdminConsole_module_css_default.loginPanel,
+					"aria-labelledby": "admin-login-title",
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: AdminConsole_module_css_default.loginMark,
+							children: "C"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.eyebrow,
+							children: "CITICTEL-CPC · SOC AGENT"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
+							id: "admin-login-title",
+							className: AdminConsole_module_css_default.loginTitle,
+							children: "Administration console"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.loginCopy,
+							children: "Manage LLM provider credentials and review the health of connected services."
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+							className: AdminConsole_module_css_default.form,
+							onSubmit: signIn,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Email" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										className: AdminConsole_module_css_default.input,
+										type: "email",
+										value: email,
+										onChange: (event) => setEmail(event.target.value),
+										autoComplete: "username",
+										required: true
+									})]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Password" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										className: AdminConsole_module_css_default.input,
+										type: "password",
+										value: password,
+										onChange: (event) => setPassword(event.target.value),
+										autoComplete: "current-password",
+										required: true
+									})]
+								}),
+								error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+									className: AdminConsole_module_css_default.error,
+									role: "alert",
+									children: error
+								}) : null,
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary} ${AdminConsole_module_css_default.fullButton}`,
+									type: "submit",
+									disabled: busy,
+									children: busy ? "Signing in…" : "Sign in"
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.loginFootnote,
+							children: "Service configuration is managed by the server environment."
+						})
+					]
+				})
+			});
+		}
+		function AdminWorkspace({ connection, email, onSignedOut }) {
+			const [signingOut, setSigningOut] = (0, react.useState)(false);
+			async function signOut() {
+				setSigningOut(true);
+				try {
+					await fetch("/admin/auth/logout", {
+						method: "POST",
+						credentials: "same-origin"
+					});
+					await onSignedOut();
+				} finally {
+					setSigningOut(false);
+				}
+			}
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("main", {
+				className: AdminConsole_module_css_default.page,
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.shell,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", {
+							className: AdminConsole_module_css_default.header,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+									className: AdminConsole_module_css_default.eyebrow,
+									children: "CITICTEL-CPC · SOC AGENT"
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
+									className: AdminConsole_module_css_default.title,
+									children: "Administration console"
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+									className: AdminConsole_module_css_default.subtitle,
+									children: "A clear view of service readiness and LLM provider access."
+								})
+							] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AdminConsole_module_css_default.headerActions,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									className: AdminConsole_module_css_default.account,
+									children: email
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: AdminConsole_module_css_default.button,
+									type: "button",
+									onClick: () => void signOut(),
+									disabled: signingOut,
+									children: signingOut ? "Signing out…" : "Sign out"
+								})]
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ServiceStatusPanel, { connection }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProviderSettings, { connection })
+					]
+				})
+			});
+		}
+		function ServiceStatusPanel({ connection }) {
+			const [settings, setSettings] = (0, react.useState)(null);
+			const [error, setError] = (0, react.useState)("");
+			const [checks, setChecks] = (0, react.useState)({});
+			const [busy, setBusy] = (0, react.useState)(null);
+			const load = (0, react.useCallback)(async () => {
+				setError("");
+				try {
+					setSettings(await rpc(connection, "get-settings"));
+				} catch (loadError) {
+					setError(errorText(loadError));
 				}
 			}, [connection]);
 			(0, react.useEffect)(() => {
 				load();
 			}, [load]);
-			const update = (key, value) => {
-				setSettings((current) => ({
+			async function check(service) {
+				setBusy(service);
+				setChecks((current) => ({
 					...current,
-					splunk: {
-						...current.splunk,
-						[key]: value
+					[service]: {
+						kind: "info",
+						text: "Checking…"
 					}
 				}));
-			};
-			const save = async () => {
 				try {
-					setStatus("Saving...");
-					setSettings(await rpc$1(connection, "update-settings", settings ?? {}));
-					setStatus("Saved");
-				} catch (error) {
-					setStatus(errorText(error));
+					await rpc(connection, service === "splunk" ? "test-splunk" : "test-subscription-server");
+					setChecks((current) => ({
+						...current,
+						[service]: {
+							kind: "success",
+							text: "Connection verified"
+						}
+					}));
+					await load();
+				} catch (checkError) {
+					setChecks((current) => ({
+						...current,
+						[service]: {
+							kind: "error",
+							text: errorText(checkError)
+						}
+					}));
+				} finally {
+					setBusy(null);
 				}
-			};
-			const remove = async (key) => {
-				try {
-					setStatus("Deleting...");
-					setSettings(await rpc$1(connection, "delete-setting", { key }));
-					setStatus("Deleted");
-				} catch (error) {
-					setStatus(errorText(error));
-				}
-			};
-			const testSplunk = async () => {
-				setTest({
-					kind: "pending",
-					text: "Testing…"
-				});
-				try {
-					const value = await rpc$1(connection, "test-splunk");
-					setTest({
-						kind: "ok",
-						text: `Splunk OK (${String(value.index_count ?? 0)} indexes)`
-					});
-				} catch (error) {
-					setTest({
-						kind: "fail",
-						text: errorText(error)
-					});
-				}
-			};
-			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
-			const splunk = settings.splunk;
-			return react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Splunk"), react.default.createElement(SettingRow, {
-				label: "URL",
-				value: String(splunk.url || ""),
-				onChange: (value) => update("url", value),
-				onDelete: () => {
-					remove("splunk.url");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Username",
-				value: String(splunk.username || ""),
-				onChange: (value) => update("username", value),
-				onDelete: () => {
-					remove("splunk.username");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Password",
-				value: "",
-				type: "password",
-				placeholder: splunk.has_password ? "Stored password is set" : "",
-				onChange: (value) => update("password", value),
-				onDelete: () => {
-					remove("splunk.password");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Verify SSL",
-				value: String(splunk.verify_ssl ?? true),
-				onChange: (value) => update("verify_ssl", value === "true"),
-				onDelete: () => {
-					remove("splunk.verify_ssl");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Max events",
-				value: String(splunk.max_events ?? ""),
-				onChange: (value) => update("max_events", Number(value || 0)),
-				onDelete: () => {
-					remove("splunk.max_events");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Risk tolerance",
-				value: String(splunk.risk_tolerance ?? ""),
-				onChange: (value) => update("risk_tolerance", Number(value || 0)),
-				onDelete: () => {
-					remove("splunk.risk_tolerance");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Allow drafts",
-				value: String(splunk.detection_write_enabled ?? false),
-				onChange: (value) => update("detection_write_enabled", value === "true"),
-				onDelete: () => {
-					remove("splunk.detection_write_enabled");
-				}
-			}), react.default.createElement(SettingRow, {
-				label: "Allow enable",
-				value: String(splunk.detection_enable_enabled ?? false),
-				onChange: (value) => update("detection_enable_enabled", value === "true"),
-				onDelete: () => {
-					remove("splunk.detection_enable_enabled");
-				}
-			}), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.primaryButton,
-				type: "button",
-				onClick: () => {
-					save();
-				}
-			}, "Save settings"), react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => {
-					testSplunk();
-				}
-			}, "Test Splunk"), react.default.createElement(TestStatus, { result: test })), status ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.status,
-				role: "status"
-			}, status) : null);
+			}
+			const services = settings?.services || {};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+				className: AdminConsole_module_css_default.section,
+				"aria-labelledby": "service-status-title",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.sectionHeading,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.sectionKicker,
+							children: "Environment services"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
+							id: "service-status-title",
+							className: AdminConsole_module_css_default.sectionTitle,
+							children: "Connection status"
+						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: AdminConsole_module_css_default.sectionHint,
+							children: "Configuration stays in the server .env file."
+						})]
+					}),
+					error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.error,
+						role: "alert",
+						children: error
+					}) : null,
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: AdminConsole_module_css_default.statusGrid,
+						children: [
+							{
+								key: "splunk",
+								name: "Splunk",
+								description: "Security event search and investigation",
+								mark: "S",
+								checkable: true
+							},
+							{
+								key: "zimbra",
+								name: "Zimbra",
+								description: "Mail and identity operations",
+								mark: "Z"
+							},
+							{
+								key: "markitdown",
+								name: "MarkItDown",
+								description: "Attachment and document conversion",
+								mark: "M"
+							},
+							{
+								key: "subscription_server",
+								name: "Subscription server",
+								description: "Subscription and entitlement checks",
+								mark: "↗",
+								checkable: true
+							}
+						].map((card) => {
+							const state = checks[card.key];
+							const ready = serviceReady(services[card.key]);
+							const connectionLabel = state?.kind === "info" ? "Checking…" : state?.kind === "success" ? "Connected" : state?.kind === "error" ? "Unavailable" : ready ? "Configured" : "Not configured";
+							const connectionClass = state?.kind === "info" ? AdminConsole_module_css_default.statusInfo : state?.kind === "success" ? AdminConsole_module_css_default.statusReady : state?.kind === "error" ? AdminConsole_module_css_default.statusError : ready ? AdminConsole_module_css_default.statusConfigured : AdminConsole_module_css_default.statusMuted;
+							return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("article", {
+								className: AdminConsole_module_css_default.statusCard,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									className: AdminConsole_module_css_default.statusIcon,
+									"aria-hidden": "true",
+									children: card.mark
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: AdminConsole_module_css_default.statusBody,
+									children: [
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+											className: AdminConsole_module_css_default.statusTopline,
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", { children: card.name }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+												className: `${AdminConsole_module_css_default.statusPill} ${connectionClass}`,
+												children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+													className: AdminConsole_module_css_default.statusDot,
+													"aria-hidden": "true"
+												}), connectionLabel]
+											})]
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: card.description }),
+										state ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+											className: `${AdminConsole_module_css_default.checkMessage} ${AdminConsole_module_css_default[state.kind]}`,
+											children: state.text
+										}) : null,
+										card.checkable ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+											className: AdminConsole_module_css_default.textButton,
+											type: "button",
+											onClick: () => void check(card.key),
+											disabled: busy === card.key,
+											children: busy === card.key ? "Checking…" : "Check connection"
+										}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: AdminConsole_module_css_default.envManaged,
+											children: "Environment managed"
+										})
+									]
+								})]
+							}, card.key);
+						})
+					})
+				]
+			});
 		}
-		//#endregion
-		//#region src/client/SubscriptionServerSettings.ts
-		function SubscriptionServerSettings({ connection }) {
-			const [settings, setSettings] = (0, react.useState)(null);
-			const [status, setStatus] = (0, react.useState)("Loading...");
-			const [test, setTest] = (0, react.useState)(null);
+		function ProviderSettings({ connection }) {
+			const [data, setData] = (0, react.useState)(null);
+			const [selected, setSelected] = (0, react.useState)(null);
+			const [error, setError] = (0, react.useState)("");
+			const [loading, setLoading] = (0, react.useState)(true);
 			const load = (0, react.useCallback)(async () => {
+				setLoading(true);
+				setError("");
 				try {
-					setSettings(await rpc$1(connection, "get-settings"));
-					setStatus("");
-				} catch (error) {
-					setStatus(errorText(error));
+					const [described, providerResponse] = await Promise.all([connection.api.settings.describe({}), connection.api.llm.providers({})]);
+					const settingsView = apiValue(described);
+					const providerView = apiValue(providerResponse);
+					const settings = settingsView.namespaces;
+					const providers = providerView.providers;
+					const namespaces = new Map(settings.map((namespace) => [namespace.ns, namespace]));
+					const refs = [...new Set(providers.map((provider) => {
+						return deriveCredentialRef(provider, providerProfile(namespaces.get(provider.settingsNs), provider));
+					}))];
+					const credentialsView = apiValue(await connection.api.credentials.describe({ refs }));
+					const credentialMap = new Map(Object.entries(credentialsView.credentials));
+					setData({
+						providers: providers.map((provider) => {
+							const namespace = namespaces.get(provider.settingsNs);
+							const profile = providerProfile(namespace, provider);
+							const credentialRef = deriveCredentialRef(provider, profile);
+							return {
+								provider,
+								namespace,
+								profile,
+								credentialRef,
+								credential: credentialMap.get(credentialRef),
+								configured: Boolean(namespace) && (provider.settingsPath.length === 0 || pathValue(namespace?.value, provider.settingsPath) !== void 0),
+								writable: Boolean(namespace) && settingsView.writable,
+								modelCount: modelIds(profile).length
+							};
+						}),
+						piAiNamespace: namespaces.get("llm-pi-ai"),
+						writable: settingsView.writable
+					});
+				} catch (loadError) {
+					setError(errorText(loadError));
+				} finally {
+					setLoading(false);
 				}
 			}, [connection]);
 			(0, react.useEffect)(() => {
 				load();
 			}, [load]);
-			const testConnection = async () => {
-				setTest({
-					kind: "pending",
-					text: "Testing…"
-				});
-				try {
-					const value = await rpc$1(connection, "test-subscription-server");
-					setTest({
-						kind: "ok",
-						text: `Subscription server OK (${String(value.subscription_count ?? 0)} subscriptions)`
-					});
-				} catch (error) {
-					setTest({
-						kind: "fail",
-						text: errorText(error)
-					});
-				}
-			};
-			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
-			const server = settings.subscription_server ?? {};
-			return react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Subscription server"), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Configured through the server .env file. Credentials are never shown here."), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, `URL: ${String(server.url || "")}`), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, server.configured ? "Credentials configured" : "Credentials not configured"), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => {
-					testConnection();
-				}
-			}, "Test subscription server"), react.default.createElement(TestStatus, { result: test })), status ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.status,
-				role: "status"
-			}, status) : null);
-		}
-		//#endregion
-		//#region src/client/ScheduledTasksForm.ts
-		const CHANNEL$3 = "/soc-agent-schedules";
-		async function rpc(connection, endpoint, payload = {}) {
-			const result = await connection.rpc.call(CHANNEL$3, endpoint, payload);
-			if (!result?.ok) throw new Error(result?.error?.message || `Request failed: ${endpoint}`);
-			return result.value;
-		}
-		function localZone() {
-			return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-		}
-		function readable(value) {
-			return value ? new Date(value).toLocaleString() : "—";
-		}
-		function modelKey(provider, model) {
-			return `${provider}\u0000${model}`;
-		}
-		function taskModelLabel(task) {
-			if (!task.provider || !task.model) return "Default model";
-			return `${task.provider} / ${task.model} · ${task.reasoningEffort || "Provider default"}`;
-		}
-		function SchedulerSettings({ connection, openSession }) {
-			const [tasks, setTasks] = (0, react.useState)([]);
-			const [runs, setRuns] = (0, react.useState)([]);
-			const [schedulerSettings, setSchedulerSettings] = (0, react.useState)({
-				maxConcurrentRuns: 1,
-				runTimeoutMs: 9e5
-			});
-			const [status, setStatus] = (0, react.useState)("Loading...");
-			const [modelStatus, setModelStatus] = (0, react.useState)("Loading models...");
-			const [modelGroups, setModelGroups] = (0, react.useState)([]);
-			const [name, setName] = (0, react.useState)("");
-			const [prompt, setPrompt] = (0, react.useState)("");
-			const [provider, setProvider] = (0, react.useState)("");
-			const [model, setModel] = (0, react.useState)("");
-			const [reasoningEffort, setReasoningEffort] = (0, react.useState)("");
-			const [kind, setKind] = (0, react.useState)("once");
-			const [at, setAt] = (0, react.useState)("");
-			const [cron, setCron] = (0, react.useState)("0 * * * *");
-			const [timeZone, setTimeZone] = (0, react.useState)(localZone);
-			const load = (0, react.useCallback)(async () => {
-				try {
-					const value = await rpc(connection, "list");
-					setTasks(value.tasks ?? []);
-					setRuns(value.runs ?? []);
-					if (value.settings) setSchedulerSettings(value.settings);
-					setStatus("");
-				} catch (error) {
-					setStatus(error instanceof Error ? error.message : String(error));
-				}
-			}, [connection]);
-			const loadModels = (0, react.useCallback)(async () => {
-				setModelStatus("Loading models...");
-				try {
-					const [catalogResponse, hostResponse] = await Promise.all([connection.api.llm.models({}), connection.api.host.describe({}).catch(() => void 0)]);
-					if (!catalogResponse.result.ok) throw new Error(catalogResponse.result.error.message);
-					const groups = catalogResponse.result.value.groups;
-					const choices = groups.flatMap((group) => group.models.map((item) => ({
-						provider: group.id,
-						id: item.id,
-						reasoning: item.reasoning
-					})));
-					setModelGroups(groups);
-					if (choices.length === 0) {
-						setProvider("");
-						setModel("");
-						setReasoningEffort("");
-						setModelStatus("No models are available.");
-						return;
-					}
-					const preferredProvider = hostResponse?.result.ok ? hostResponse.result.value.provider : void 0;
-					const preferredModel = hostResponse?.result.ok ? hostResponse.result.value.model : void 0;
-					const choice = choices.find((item) => item.provider === preferredProvider && item.id === preferredModel) ?? choices[0];
-					setProvider(choice.provider);
-					setModel(choice.id);
-					setReasoningEffort("");
-					setModelStatus(catalogResponse.result.value.failures.length > 0 ? "Some providers could not be loaded." : "");
-				} catch (error) {
-					setModelStatus(error instanceof Error ? error.message : String(error));
-				}
-			}, [connection]);
 			(0, react.useEffect)(() => {
-				load();
-				loadModels();
-			}, [load, loadModels]);
-			const mutate = async (endpoint, payload) => {
-				setStatus("Saving...");
-				try {
-					await rpc(connection, endpoint, payload);
-					await load();
-				} catch (error) {
-					setStatus(error instanceof Error ? error.message : String(error));
-				}
-			};
-			const create = async () => {
-				const payload = {
-					name,
-					prompt,
-					provider,
-					model
-				};
-				if (reasoningEffort) payload.reasoning_effort = reasoningEffort;
-				if (kind === "once") {
-					const [date, time] = at.split("T");
-					payload.at = {
-						date,
-						time: time?.length === 5 ? `${time}:00` : time,
-						time_zone: timeZone
-					};
-				} else {
-					payload.cron = cron;
-					payload.time_zone = timeZone;
-				}
-				await mutate("create", payload);
-				setName("");
-				setPrompt("");
-				setAt("");
-			};
-			const selectedModel = modelGroups.find((group) => group.id === provider)?.models.find((item) => item.id === model);
-			return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.form }, react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Persistent read-only investigations run whenever this DSH host is active."), status ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.status,
-				role: "status"
-			}, status) : null, react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Scheduler limits"), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Concurrent runs"), react.default.createElement("input", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				type: "number",
-				min: 1,
-				max: 8,
-				value: schedulerSettings.maxConcurrentRuns,
-				onChange: (event) => setSchedulerSettings({
-					...schedulerSettings,
-					maxConcurrentRuns: Number(event.target.value)
-				})
-			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Run timeout (seconds)"), react.default.createElement("input", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				type: "number",
-				min: 1,
-				max: 86400,
-				value: schedulerSettings.runTimeoutMs / 1e3,
-				onChange: (event) => setSchedulerSettings({
-					...schedulerSettings,
-					runTimeoutMs: Number(event.target.value) * 1e3
-				})
-			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.primaryButton,
-				type: "button",
-				onClick: () => {
-					mutate("settings", schedulerSettings);
-				}
-			}, "Save limits"))), react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Create task"), react.default.createElement("label", { className: SplunkZimbraOverlay_module_css_default.fieldLabel }, "Name"), react.default.createElement("input", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				value: name,
-				maxLength: 120,
-				onChange: (event) => setName(event.target.value)
-			}), react.default.createElement("label", { className: SplunkZimbraOverlay_module_css_default.fieldLabel }, "Investigation prompt"), react.default.createElement("textarea", {
-				className: SplunkZimbraOverlay_module_css_default.textarea,
-				value: prompt,
-				maxLength: 8e3,
-				rows: 5,
-				onChange: (event) => setPrompt(event.target.value)
-			}), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Model"), react.default.createElement("select", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				value: modelKey(provider, model),
-				disabled: modelGroups.length === 0,
-				onChange: (event) => {
-					const selected = modelGroups.flatMap((group) => group.models.map((item) => ({
-						group,
-						item
-					}))).find(({ group, item }) => modelKey(group.id, item.id) === event.target.value);
-					if (!selected) return;
-					setProvider(selected.group.id);
-					setModel(selected.item.id);
-					setReasoningEffort(selected.item.reasoning?.defaultEffort ?? "");
-				}
-			}, modelGroups.map((group) => react.default.createElement("optgroup", {
-				key: group.id,
-				label: group.name
-			}, group.models.map((item) => react.default.createElement("option", {
-				key: modelKey(group.id, item.id),
-				value: modelKey(group.id, item.id)
-			}, item.name)))))), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Reasoning effort"), react.default.createElement("select", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				value: reasoningEffort,
-				disabled: !provider || !model,
-				onChange: (event) => setReasoningEffort(event.target.value)
-			}, react.default.createElement("option", { value: "" }, "Provider default"), (selectedModel?.reasoning?.efforts ?? []).map((effort) => react.default.createElement("option", {
-				key: effort.id,
-				value: effort.id
-			}, effort.name)))), modelStatus ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.description,
-				role: "status"
-			}, modelStatus) : null, react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Rule"), react.default.createElement("select", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				value: kind,
-				onChange: (event) => setKind(event.target.value)
-			}, react.default.createElement("option", { value: "once" }, "One time"), react.default.createElement("option", { value: "cron" }, "Cron"))), kind === "once" ? react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Local time"), react.default.createElement("input", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				type: "datetime-local",
-				step: 1,
-				value: at,
-				onChange: (event) => setAt(event.target.value)
-			})) : react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "5-field cron"), react.default.createElement("input", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				value: cron,
-				onChange: (event) => setCron(event.target.value)
-			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.row }, react.default.createElement("label", null, "Time zone"), react.default.createElement("input", {
-				className: SplunkZimbraOverlay_module_css_default.input,
-				value: timeZone,
-				onChange: (event) => setTimeZone(event.target.value)
-			})), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.primaryButton,
-				type: "button",
-				disabled: !name.trim() || !prompt.trim() || !provider || !model || modelGroups.length === 0 || kind === "once" && !at,
-				onClick: () => {
-					create();
-				}
-			}, "Create task"))), react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Tasks"), tasks.length === 0 ? react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "No scheduled tasks.") : null, tasks.map((task) => react.default.createElement("article", {
-				className: SplunkZimbraOverlay_module_css_default.account,
-				key: task.id
-			}, react.default.createElement("strong", null, task.name), react.default.createElement("span", { className: SplunkZimbraOverlay_module_css_default.description }, `${task.status} · Next ${readable(task.nextRunAt)} · Last ${readable(task.lastRunAt)}`), react.default.createElement("span", { className: SplunkZimbraOverlay_module_css_default.description }, `Model: ${taskModelLabel(task)}`), react.default.createElement("code", { className: SplunkZimbraOverlay_module_css_default.rule }, task.rule.kind === "once" ? task.rule.at : `${task.rule.expression} (${task.rule.timeZone})`), react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.actions }, task.status === "active" ? react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => {
-					mutate("pause", { id: task.id });
-				}
-			}, "Pause") : null, task.status === "paused" ? react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => {
-					mutate("resume", { id: task.id });
-				}
-			}, "Resume") : null, react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => {
-					mutate("run-now", { id: task.id });
-				}
-			}, "Run now"), react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.deleteButton,
-				type: "button",
-				onClick: () => {
-					if (window.confirm(`Delete scheduled task “${task.name}”?`)) mutate("delete", { id: task.id });
-				}
-			}, "Delete"))))), react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Recent runs"), runs.length === 0 ? react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "No runs yet.") : null, runs.map((run) => react.default.createElement("div", {
-				className: SplunkZimbraOverlay_module_css_default.run,
-				key: run.id
-			}, react.default.createElement("span", null, `${readable(run.scheduledFor)} · ${run.state}${run.errorCode ? ` · ${run.errorCode}` : ""}`), run.sessionId ? react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => openSession(run.sessionId)
-			}, "Open investigation") : null))));
+				if (!data) return;
+				if (selected === CUSTOM_PROVIDER || data.providers.some((row) => row.provider.provider === selected)) return;
+				setSelected(data.providers[0]?.provider.provider || CUSTOM_PROVIDER);
+			}, [data, selected]);
+			const current = (0, react.useMemo)(() => data?.providers.find((row) => row.provider.provider === selected), [data, selected]);
+			const providerKey = current ? `${current.provider.provider}-${current.namespace?.revision ?? 0}` : CUSTOM_PROVIDER;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+				className: AdminConsole_module_css_default.section,
+				"aria-labelledby": "provider-settings-title",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.sectionHeading,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.sectionKicker,
+							children: "LLM access"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
+							id: "provider-settings-title",
+							className: AdminConsole_module_css_default.sectionTitle,
+							children: "Providers and credentials"
+						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: AdminConsole_module_css_default.sectionHint,
+							children: "Keys are write-only and never displayed."
+						})]
+					}),
+					error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.error,
+						role: "alert",
+						children: error
+					}) : null,
+					loading && !data ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.loadingInline,
+						children: "Loading providers…"
+					}) : null,
+					data ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.providerLayout,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
+							className: AdminConsole_module_css_default.providerPicker,
+							"aria-label": "LLM providers",
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: AdminConsole_module_css_default.pickerHeader,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Available providers" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: AdminConsole_module_css_default.countBadge,
+										children: data.providers.length
+									})]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									className: AdminConsole_module_css_default.providerList,
+									role: "listbox",
+									"aria-label": "Choose a provider",
+									children: data.providers.map((row) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+										className: `${AdminConsole_module_css_default.providerOption} ${selected === row.provider.provider ? AdminConsole_module_css_default.providerOptionSelected : ""}`,
+										type: "button",
+										role: "option",
+										"aria-selected": selected === row.provider.provider,
+										onClick: () => setSelected(row.provider.provider),
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+												className: `${AdminConsole_module_css_default.providerDot} ${row.credential?.configured ? AdminConsole_module_css_default.providerDotReady : ""}`,
+												"aria-hidden": "true"
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+												className: AdminConsole_module_css_default.providerOptionText,
+												children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: row.provider.displayName || row.provider.provider }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: row.credential?.configured ? "Credential configured" : row.modelCount ? `${row.modelCount} model${row.modelCount === 1 ? "" : "s"}` : "Setup required" })]
+											}),
+											row.provider.declared === true ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+												className: AdminConsole_module_css_default.customTag,
+												children: "Custom"
+											}) : null
+										]
+									}, row.provider.provider))
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+									className: `${AdminConsole_module_css_default.customOption} ${selected === CUSTOM_PROVIDER ? AdminConsole_module_css_default.customOptionSelected : ""}`,
+									type: "button",
+									onClick: () => setSelected(CUSTOM_PROVIDER),
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: AdminConsole_module_css_default.addIcon,
+										"aria-hidden": "true",
+										children: "+"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Custom provider" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: "OpenAI-compatible or Anthropic" })] })]
+								})
+							]
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: AdminConsole_module_css_default.providerEditor,
+							children: current ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProviderEditor, {
+								connection,
+								row: current,
+								onChanged: load
+							}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CustomProviderEditor, {
+								connection,
+								namespace: data.piAiNamespace,
+								providers: data.providers,
+								writable: data.writable,
+								onChanged: load,
+								onCreated: setSelected
+							})
+						}, providerKey)]
+					}) : null
+				]
+			});
 		}
-		//#endregion
-		//#region src/client/sections.ts
-		const SETTINGS_SECTIONS = [{
-			id: "soc-agent-connections",
-			order: 30,
-			label: "Connections"
-		}, {
-			id: "soc-agent-schedules",
-			order: 40,
-			label: "Scheduled Tasks"
-		}];
+		function ProviderEditor({ connection, row, onChanged }) {
+			const { provider, namespace, profile } = row;
+			const initialModels = modelIds(profile);
+			const [displayName, setDisplayName] = (0, react.useState)(stringValue(profile.displayName));
+			const [baseURL, setBaseURL] = (0, react.useState)(stringValue(profile.baseURL));
+			const [api, setApi] = (0, react.useState)(stringValue(profile.api));
+			const [models, setModels] = (0, react.useState)(initialModels.join("\n"));
+			const [secret, setSecret] = (0, react.useState)("");
+			const [discovered, setDiscovered] = (0, react.useState)([]);
+			const [message, setMessage] = (0, react.useState)(null);
+			const [busy, setBusy] = (0, react.useState)(false);
+			const isCustomProvider = provider.declared === true;
+			const canEditProtocol = provider.settingsNs === "llm-pi-ai" && isCustomProvider;
+			const canRemoveProvider = provider.declared === true && Boolean(namespace) && provider.settingsPath.length > 0;
+			function addDiscoveredModel(id) {
+				const current = models.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+				if (!current.includes(id)) setModels([...current, id].join("\n"));
+			}
+			async function save() {
+				if (!namespace || !row.writable) return;
+				setBusy(true);
+				setMessage(null);
+				try {
+					const ops = [];
+					if (canEditProtocol && displayName.trim() !== stringValue(profile.displayName)) ops.push(displayName.trim() ? {
+						op: "set",
+						path: [...provider.settingsPath, "displayName"],
+						value: displayName.trim()
+					} : {
+						op: "unset",
+						path: [...provider.settingsPath, "displayName"]
+					});
+					const originalBaseURL = stringValue(profile.baseURL);
+					if (baseURL.trim() !== originalBaseURL) ops.push(baseURL.trim() ? {
+						op: "set",
+						path: [...provider.settingsPath, "baseURL"],
+						value: baseURL.trim()
+					} : {
+						op: "unset",
+						path: [...provider.settingsPath, "baseURL"]
+					});
+					if (canEditProtocol && api.trim() !== stringValue(profile.api)) ops.push(api.trim() ? {
+						op: "set",
+						path: [...provider.settingsPath, "api"],
+						value: api.trim()
+					} : {
+						op: "unset",
+						path: [...provider.settingsPath, "api"]
+					});
+					const nextModels = models.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+					if (JSON.stringify(nextModels) !== JSON.stringify(initialModels)) ops.push(nextModels.length ? {
+						op: "set",
+						path: [...provider.settingsPath, "models"],
+						value: mergeModels(profile, nextModels)
+					} : {
+						op: "unset",
+						path: [...provider.settingsPath, "models"]
+					});
+					if (secret.trim() && !stringValue(profile.apiKeyEnv)) ops.push({
+						op: "set",
+						path: [...provider.settingsPath, "apiKeyEnv"],
+						value: row.credentialRef
+					});
+					if (ops.length) apiValue(await connection.api.settings.mutate({
+						ns: namespace.ns,
+						ops,
+						expectedRevision: namespace.revision
+					}));
+					if (secret.trim()) apiValue(await connection.api.credentials.set({
+						ref: row.credentialRef,
+						value: secret.trim()
+					}));
+					setSecret("");
+					setMessage({
+						kind: "success",
+						text: "Provider settings saved."
+					});
+					await onChanged();
+				} catch (saveError) {
+					setMessage({
+						kind: "error",
+						text: errorText(saveError)
+					});
+				} finally {
+					setBusy(false);
+				}
+			}
+			async function removeCredential() {
+				if (!row.credential?.configured || !row.credential.writable) return;
+				setBusy(true);
+				setMessage(null);
+				try {
+					apiValue(await connection.api.credentials.unset({ ref: row.credentialRef }));
+					setMessage({
+						kind: "success",
+						text: "Credential removed."
+					});
+					await onChanged();
+				} catch (removeError) {
+					setMessage({
+						kind: "error",
+						text: errorText(removeError)
+					});
+				} finally {
+					setBusy(false);
+				}
+			}
+			async function discover() {
+				setBusy(true);
+				setMessage(null);
+				try {
+					const result = apiValue(await connection.api.llm.discoverModels({
+						settingsNs: provider.settingsNs,
+						provider: provider.provider,
+						baseURL: baseURL.trim() || void 0,
+						api: canEditProtocol ? api.trim() || void 0 : void 0,
+						apiKey: secret.trim() || void 0
+					}));
+					setDiscovered(result.models);
+					setMessage({
+						kind: "info",
+						text: result.models.length ? "Choose a model to add it to the provider." : "No models were discovered."
+					});
+				} catch (discoverError) {
+					setMessage({
+						kind: "error",
+						text: errorText(discoverError)
+					});
+				} finally {
+					setBusy(false);
+				}
+			}
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.editorHeading,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.sectionKicker,
+							children: "Provider configuration"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
+							className: AdminConsole_module_css_default.editorTitle,
+							children: provider.displayName || provider.provider
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.editorCopy,
+							children: isCustomProvider ? "Configure the provider connection and credential." : "Manage the credential for this provider."
+						})
+					] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+						className: `${AdminConsole_module_css_default.statusPill} ${row.credential?.configured ? AdminConsole_module_css_default.statusReady : AdminConsole_module_css_default.statusMuted}`,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: AdminConsole_module_css_default.statusDot,
+							"aria-hidden": "true"
+						}), row.credential?.configured ? "Credential set" : "Credential needed"]
+					})]
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.editorForm,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+						className: AdminConsole_module_css_default.field,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "API key" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								className: AdminConsole_module_css_default.input,
+								type: "password",
+								value: secret,
+								onChange: (event) => setSecret(event.target.value),
+								placeholder: row.credential?.configured ? "Stored securely · enter a new key to replace it" : "Enter the provider API key",
+								autoComplete: "new-password",
+								disabled: !row.writable || row.credential?.writable === false || busy
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+								className: AdminConsole_module_css_default.fieldHint,
+								children: "The key is stored securely and is never returned to this page."
+							})
+						]
+					}), isCustomProvider ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+						className: AdminConsole_module_css_default.advanced,
+						open: Boolean(baseURL || api || initialModels.length),
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: "Advanced provider settings" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.advancedBody,
+							children: [
+								canEditProtocol ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["Display name ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("em", { children: "optional" })] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										className: AdminConsole_module_css_default.input,
+										value: displayName,
+										onChange: (event) => setDisplayName(event.target.value),
+										placeholder: provider.provider,
+										disabled: !row.writable || busy
+									})]
+								}) : null,
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["Base URL ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("em", { children: "optional" })] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										className: AdminConsole_module_css_default.input,
+										type: "url",
+										value: baseURL,
+										onChange: (event) => setBaseURL(event.target.value),
+										placeholder: "https://api.example.com",
+										disabled: !row.writable || busy
+									})]
+								}),
+								canEditProtocol ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "API protocol" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+										className: AdminConsole_module_css_default.input,
+										value: api,
+										onChange: (event) => setApi(event.target.value),
+										disabled: !row.writable || busy,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+											value: "",
+											children: "Provider default"
+										}), SUPPORTED_PROTOCOLS.map((protocol) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+											value: protocol.value,
+											children: protocol.label
+										}, protocol.value))]
+									})]
+								}) : null,
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["Model IDs ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("em", { children: "one per line" })] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+										className: `${AdminConsole_module_css_default.input} ${AdminConsole_module_css_default.textarea}`,
+										value: models,
+										onChange: (event) => setModels(event.target.value),
+										placeholder: "deepseek-chat",
+										rows: 4,
+										disabled: !row.writable || busy
+									})]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: AdminConsole_module_css_default.discoveryRow,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										className: AdminConsole_module_css_default.button,
+										type: "button",
+										onClick: () => void discover(),
+										disabled: busy || !provider.settingsNs,
+										children: busy ? "Working…" : "Discover models"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: AdminConsole_module_css_default.fieldHint,
+										children: "Uses the draft URL and key when provided."
+									})]
+								}),
+								discovered.length ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									className: AdminConsole_module_css_default.discovered,
+									"aria-label": "Discovered models",
+									children: discovered.map((model) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+										className: AdminConsole_module_css_default.modelChip,
+										type: "button",
+										onClick: () => addDiscoveredModel(model.id),
+										children: [
+											model.id,
+											" ",
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+												"aria-hidden": "true",
+												children: "+"
+											})
+										]
+									}, model.id))
+								}) : null
+							]
+						})]
+					}) : null]
+				}),
+				message ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
+					role: message.kind === "error" ? "alert" : "status",
+					children: message.text
+				}) : null,
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.actions,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+							type: "button",
+							onClick: () => void save(),
+							disabled: !row.writable || busy,
+							children: busy ? "Saving…" : "Save provider"
+						}),
+						row.credential?.configured ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							className: AdminConsole_module_css_default.button,
+							type: "button",
+							onClick: () => void removeCredential(),
+							disabled: !row.credential.writable || busy,
+							children: "Remove credential"
+						}) : null,
+						canRemoveProvider ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CustomProviderRemoval, {
+							connection,
+							row,
+							onChanged,
+							disabled: busy
+						}) : null
+					]
+				})
+			] });
+		}
+		function CustomProviderRemoval({ connection, row, onChanged, disabled }) {
+			const [confirming, setConfirming] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)("");
+			async function remove() {
+				if (!row.namespace) return;
+				setError("");
+				try {
+					if (row.credential?.configured) apiValue(await connection.api.credentials.unset({ ref: row.credentialRef }));
+					apiValue(await connection.api.settings.mutate({
+						ns: row.namespace.ns,
+						ops: [{
+							op: "unset",
+							path: row.provider.settingsPath
+						}],
+						expectedRevision: row.namespace.revision
+					}));
+					await onChanged();
+				} catch (removeError) {
+					setError(errorText(removeError));
+					setConfirming(false);
+				}
+			}
+			if (confirming) return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+				className: AdminConsole_module_css_default.confirmGroup,
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [
+						"Remove ",
+						row.provider.displayName || row.provider.provider,
+						"?"
+					] }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						className: AdminConsole_module_css_default.dangerButton,
+						type: "button",
+						onClick: () => void remove(),
+						disabled,
+						children: "Remove"
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						className: AdminConsole_module_css_default.button,
+						type: "button",
+						onClick: () => setConfirming(false),
+						disabled,
+						children: "Cancel"
+					}),
+					error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+						className: AdminConsole_module_css_default.error,
+						children: error
+					}) : null
+				]
+			});
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+				className: AdminConsole_module_css_default.dangerButton,
+				type: "button",
+				onClick: () => setConfirming(true),
+				disabled,
+				children: "Remove provider"
+			});
+		}
+		function CustomProviderEditor({ connection, namespace, providers, writable, onChanged, onCreated }) {
+			const [route, setRoute] = (0, react.useState)("");
+			const [displayName, setDisplayName] = (0, react.useState)("");
+			const [baseURL, setBaseURL] = (0, react.useState)("");
+			const [api, setApi] = (0, react.useState)("openai-completions");
+			const [model, setModel] = (0, react.useState)("");
+			const [secret, setSecret] = (0, react.useState)("");
+			const [savedRoute, setSavedRoute] = (0, react.useState)("");
+			const [message, setMessage] = (0, react.useState)(null);
+			const [busy, setBusy] = (0, react.useState)(false);
+			const normalizedRoute = route.trim().toLowerCase();
+			const routeTaken = providers.some((row) => row.provider.provider === normalizedRoute);
+			const routeValid = PROVIDER_ROUTE_PATTERN.test(normalizedRoute);
+			const canSave = Boolean(namespace && writable && routeValid && !routeTaken && baseURL.trim() && model.trim());
+			const credentialRef = `${normalizedRoute.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}_API_KEY`;
+			async function save() {
+				if (!namespace || !canSave) return;
+				setBusy(true);
+				setMessage(null);
+				try {
+					if (savedRoute && savedRoute !== normalizedRoute) throw new Error("The route cannot be changed after saving.");
+					if (!savedRoute) {
+						apiValue(await connection.api.settings.mutate({
+							ns: namespace.ns,
+							ops: [{
+								op: "set",
+								path: ["providers", normalizedRoute],
+								value: {
+									...displayName.trim() ? { displayName: displayName.trim() } : {},
+									...secret.trim() ? { apiKeyEnv: credentialRef } : {},
+									api,
+									baseURL: baseURL.trim(),
+									models: [{ id: model.trim() }]
+								}
+							}],
+							expectedRevision: namespace.revision
+						}));
+						setSavedRoute(normalizedRoute);
+					}
+					if (secret.trim()) apiValue(await connection.api.credentials.set({
+						ref: credentialRef,
+						value: secret.trim()
+					}));
+					setSecret("");
+					setMessage({
+						kind: "success",
+						text: "Custom provider saved."
+					});
+					await onChanged();
+					onCreated(normalizedRoute);
+				} catch (saveError) {
+					setMessage({
+						kind: "error",
+						text: errorText(saveError)
+					});
+				} finally {
+					setBusy(false);
+				}
+			}
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.editorHeading,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.sectionKicker,
+							children: "Add provider"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
+							className: AdminConsole_module_css_default.editorTitle,
+							children: "Custom provider"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.editorCopy,
+							children: "Connect an OpenAI-compatible or Anthropic endpoint with its own model name."
+						})
+					] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: AdminConsole_module_css_default.customBadge,
+						children: "Custom"
+					})]
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.editorForm,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.fieldGrid,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.field,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Provider route" }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										className: AdminConsole_module_css_default.input,
+										value: route,
+										onChange: (event) => setRoute(event.target.value),
+										placeholder: "my-provider",
+										disabled: Boolean(savedRoute) || busy,
+										autoComplete: "off"
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+										className: AdminConsole_module_css_default.fieldHint,
+										children: route && !routeValid ? "Use lowercase letters, numbers, and hyphens." : routeTaken ? "That provider already exists." : "This becomes the provider identifier."
+									})
+								]
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.field,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["Display name ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("em", { children: "optional" })] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: AdminConsole_module_css_default.input,
+									value: displayName,
+									onChange: (event) => setDisplayName(event.target.value),
+									placeholder: "My AI provider",
+									disabled: busy
+								})]
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: AdminConsole_module_css_default.field,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Base URL" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								className: AdminConsole_module_css_default.input,
+								type: "url",
+								value: baseURL,
+								onChange: (event) => setBaseURL(event.target.value),
+								placeholder: "https://api.example.com/v1",
+								disabled: busy,
+								required: true
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.fieldGrid,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.field,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "API protocol" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("select", {
+									className: AdminConsole_module_css_default.input,
+									value: api,
+									onChange: (event) => setApi(event.target.value),
+									disabled: busy,
+									children: SUPPORTED_PROTOCOLS.map((protocol) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+										value: protocol.value,
+										children: protocol.label
+									}, protocol.value))
+								})]
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.field,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Model ID" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: AdminConsole_module_css_default.input,
+									value: model,
+									onChange: (event) => setModel(event.target.value),
+									placeholder: "model-name",
+									disabled: busy,
+									required: true
+								})]
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: AdminConsole_module_css_default.field,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["API key ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("em", { children: "optional for provider-native auth" })] }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: AdminConsole_module_css_default.input,
+									type: "password",
+									value: secret,
+									onChange: (event) => setSecret(event.target.value),
+									placeholder: "Enter the provider API key",
+									autoComplete: "new-password",
+									disabled: busy
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+									className: AdminConsole_module_css_default.fieldHint,
+									children: "Stored securely under a provider-derived credential name."
+								})
+							]
+						})
+					]
+				}),
+				message ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
+					role: message.kind === "error" ? "alert" : "status",
+					children: message.text
+				}) : null,
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: AdminConsole_module_css_default.actions,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+						type: "button",
+						onClick: () => void save(),
+						disabled: !canSave || busy,
+						children: busy ? "Saving…" : savedRoute ? "Save credential" : "Add provider"
+					})
+				})
+			] });
+		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AuthGate.module.css.mjs
-		const css$5 = ".e9h_7W_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.e9h_7W_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.e9h_7W_title{margin:0 0 20px;font-size:20px;font-weight:600}.e9h_7W_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.e9h_7W_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.e9h_7W_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.e9h_7W_button:disabled{cursor:wait;opacity:.65}.e9h_7W_error{color:#ffb7b7;margin:10px 0;font-size:13px}.e9h_7W_loading{color:#cbd6e2;font-size:14px}.e9h_7W_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.e9h_7W_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
+		const css$5 = ".e9h_7W_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.e9h_7W_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.e9h_7W_title{margin:0 0 20px;font-size:20px;font-weight:600}.e9h_7W_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.e9h_7W_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.e9h_7W_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.e9h_7W_button:disabled{cursor:wait;opacity:.65}.e9h_7W_error{color:#ffb7b7;margin:10px 0;font-size:13px}.e9h_7W_notice{color:#ffe0a6;margin:10px 0;font-size:13px}.e9h_7W_loading{color:#cbd6e2;font-size:14px}.e9h_7W_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.e9h_7W_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
 		const tagId$5 = "dsh-soc-agent-client/AuthGate.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$5) + "]") === null) {
 			const tag = document.createElement("style");
@@ -638,6 +1333,7 @@ window.__ModuleLoader__.load({
 			"layer": "e9h_7W_layer",
 			"loading": "e9h_7W_loading",
 			"logout": "e9h_7W_logout",
+			"notice": "e9h_7W_notice",
 			"title": "e9h_7W_title"
 		};
 		//#endregion
@@ -647,8 +1343,15 @@ window.__ModuleLoader__.load({
 				credentials: "same-origin",
 				cache: "no-store"
 			});
-			if (!response.ok) return { authenticated: false };
-			const value = await response.json();
+			let value = { authenticated: false };
+			try {
+				const body = await response.json();
+				if (body !== null && typeof body === "object") value = body;
+			} catch {}
+			if (!response.ok) return typeof value.message === "string" ? {
+				authenticated: false,
+				notice: value.message
+			} : { authenticated: false };
 			return value.authenticated === true && typeof value.user?.zimbra_email === "string" ? value : { authenticated: false };
 		}
 		function AuthGate() {
@@ -659,9 +1362,16 @@ window.__ModuleLoader__.load({
 			const [busy, setBusy] = (0, react.useState)(false);
 			const refresh = (0, react.useCallback)(async () => {
 				try {
-					setState(await readAuth());
+					const next = await readAuth();
+					setState((previous) => !next.authenticated && !next.notice && previous?.notice ? {
+						...next,
+						notice: previous.notice
+					} : next);
 				} catch {
-					setState({ authenticated: false });
+					setState((previous) => previous?.notice ? {
+						authenticated: false,
+						notice: previous.notice
+					} : { authenticated: false });
 				}
 			}, []);
 			(0, react.useEffect)(() => {
@@ -669,7 +1379,19 @@ window.__ModuleLoader__.load({
 				const timer = window.setInterval(() => {
 					refresh();
 				}, 3e4);
-				return () => window.clearInterval(timer);
+				const onFocus = () => {
+					refresh();
+				};
+				const onVisibilityChange = () => {
+					if (document.visibilityState === "visible") refresh();
+				};
+				window.addEventListener("focus", onFocus);
+				document.addEventListener("visibilitychange", onVisibilityChange);
+				return () => {
+					window.clearInterval(timer);
+					window.removeEventListener("focus", onFocus);
+					document.removeEventListener("visibilitychange", onVisibilityChange);
+				};
 			}, [refresh]);
 			const login = async (event) => {
 				event.preventDefault();
@@ -744,6 +1466,11 @@ window.__ModuleLoader__.load({
 								onChange: (event) => setPassword(event.target.value),
 								required: true
 							})]
+						}),
+						state.notice && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: AuthGate_module_css_default.notice,
+							role: "status",
+							children: state.notice
 						}),
 						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							className: AuthGate_module_css_default.error,
@@ -954,7 +1681,7 @@ window.__ModuleLoader__.load({
 				setStatus("sending");
 				setSendError(null);
 				try {
-					if ((await rpc$1(connection, "send-email", {
+					if ((await rpc(connection, "send-email", {
 						...draft,
 						body_format: bodyFormat
 					}))?.sent !== true) throw new Error("Zimbra did not confirm that the email was sent.");
@@ -968,7 +1695,7 @@ window.__ModuleLoader__.load({
 				setSignaturePanel(true);
 				setSignatureStatus("Loading signatures…");
 				try {
-					const next = (await rpc$1(connection, "list-signatures")).signatures ?? [];
+					const next = (await rpc(connection, "list-signatures")).signatures ?? [];
 					setSignatures(next);
 					setSignatureId((current) => current || next[0]?.id || "");
 					setSignatureStatus(next.length ? null : "No signatures are configured for this account.");
@@ -2993,6 +3720,100 @@ window.__ModuleLoader__.load({
 		const SOC_ACTION_APPROVAL_NAMESPACE = "soc-action-approval";
 		Schema.object({ autoApproveActions: Schema.array(Schema.string()).default([]) });
 		//#endregion
+		//#region src/client/SplunkSettings.ts
+		function SplunkSettings({ connection }) {
+			const [settings, setSettings] = (0, react.useState)(null);
+			const [status, setStatus] = (0, react.useState)("Loading…");
+			const [test, setTest] = (0, react.useState)("");
+			const [testState, setTestState] = (0, react.useState)("idle");
+			const load = (0, react.useCallback)(async () => {
+				try {
+					setSettings(await rpc(connection, "get-settings"));
+					setStatus("");
+				} catch (error) {
+					setStatus(errorText(error));
+				}
+			}, [connection]);
+			(0, react.useEffect)(() => {
+				load();
+			}, [load]);
+			async function testSplunk() {
+				setTestState("checking");
+				setTest("Checking…");
+				try {
+					await rpc(connection, "test-splunk");
+					setTestState("success");
+					setTest("Connection verified");
+				} catch (error) {
+					setTestState("error");
+					setTest(errorText(error));
+				}
+			}
+			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
+			const ready = testState === "success" || testState !== "error" && settings.services?.splunk?.status === "ready";
+			const label = testState === "checking" ? "Checking…" : testState === "success" ? "Connected" : testState === "error" ? "Unavailable" : ready ? "Configured" : "Not configured";
+			return react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Splunk"), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, label), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Configuration is managed by the server environment."), react.default.createElement("button", {
+				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
+				type: "button",
+				onClick: () => {
+					testSplunk();
+				}
+			}, "Check connection"), test ? react.default.createElement("p", {
+				className: SplunkZimbraOverlay_module_css_default.status,
+				role: "status"
+			}, test) : null, status ? react.default.createElement("p", {
+				className: SplunkZimbraOverlay_module_css_default.status,
+				role: "status"
+			}, status) : null);
+		}
+		//#endregion
+		//#region src/client/SubscriptionServerSettings.ts
+		function SubscriptionServerSettings({ connection }) {
+			const [settings, setSettings] = (0, react.useState)(null);
+			const [status, setStatus] = (0, react.useState)("Loading…");
+			const [test, setTest] = (0, react.useState)("");
+			const [testState, setTestState] = (0, react.useState)("idle");
+			const load = (0, react.useCallback)(async () => {
+				try {
+					setSettings(await rpc(connection, "get-settings"));
+					setStatus("");
+				} catch (error) {
+					setStatus(errorText(error));
+				}
+			}, [connection]);
+			(0, react.useEffect)(() => {
+				load();
+			}, [load]);
+			async function testConnection() {
+				setTestState("checking");
+				setTest("Checking…");
+				try {
+					await rpc(connection, "test-subscription-server");
+					setTestState("success");
+					setTest("Connection verified");
+				} catch (error) {
+					setTestState("error");
+					setTest(errorText(error));
+				}
+			}
+			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
+			const ready = testState === "success" || testState !== "error" && settings.services?.subscription_server?.status === "ready";
+			const label = testState === "checking" ? "Checking…" : testState === "success" ? "Connected" : testState === "error" ? "Unavailable" : ready ? "Configured" : "Not configured";
+			return react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Subscription server"), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, label), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Configuration is managed by the server environment."), react.default.createElement("button", {
+				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
+				type: "button",
+				onClick: () => {
+					testConnection();
+				}
+			}, "Check connection"), test ? react.default.createElement("p", {
+				className: SplunkZimbraOverlay_module_css_default.status,
+				role: "status"
+			}, test) : null, status ? react.default.createElement("p", {
+				className: SplunkZimbraOverlay_module_css_default.status,
+				role: "status"
+			}, status) : null);
+		}
+		//#endregion
 		//#region src/client/index.ts
 		const inject = [
 			"slots",
@@ -3003,6 +3824,14 @@ window.__ModuleLoader__.load({
 		];
 		function apply(ctx) {
 			const connection = ctx.get("connection");
+			const path = typeof window === "undefined" ? "" : window.location.pathname;
+			if (path === "/admin" || path.startsWith("/admin/")) {
+				ctx.slots.inject("root", () => ctx.slots.register({
+					name: "root",
+					priority: -1
+				}, () => react.default.createElement(AdminConsole, { connection })));
+				return;
+			}
 			const api = connection.api;
 			api.folders = void 0;
 			const documents = new MarkItDownDocumentController(connection, ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
@@ -3066,31 +3895,10 @@ window.__ModuleLoader__.load({
 					priority: -1
 				}, CiticBrandMark);
 			})));
-			ctx.slots.inject("settings.section", () => {
-				const connections = ctx.slots.register({
-					name: "settings.section",
-					...SETTINGS_SECTIONS[0],
-					inject: () => ({ connection })
-				}, () => react.default.createElement(react.default.Fragment, null, react.default.createElement(SplunkSettings, { connection }), react.default.createElement(SubscriptionServerSettings, { connection })));
-				const schedules = ctx.slots.register({
-					name: "settings.section",
-					...SETTINGS_SECTIONS[1],
-					inject: () => ({
-						connection,
-						openSession: (id) => {
-							ctx.sessions.open(id);
-						}
-					})
-				}, SchedulerSettings);
-				return () => {
-					schedules();
-					connections();
-				};
-			});
 		}
 		//#endregion
+		exports.AdminConsole = AdminConsole;
 		exports.EmailDraftToolview = EmailDraftToolview;
-		exports.SchedulerSettings = SchedulerSettings;
 		exports.SplunkSettings = SplunkSettings;
 		exports.SubscriptionServerSettings = SubscriptionServerSettings;
 		exports.apply = apply;

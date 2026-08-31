@@ -67,6 +67,7 @@ class AuthenticatedSession:
     zimbra_token: str
     created_at: datetime
     expires_at: datetime
+    replaced_session_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -173,6 +174,16 @@ class PostgresStore:
                     id TEXT PRIMARY KEY,
                     user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
                     zimbra_token_encrypted TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS soc_session_revocations (
+                    session_id TEXT PRIMARY KEY,
+                    reason TEXT NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL,
                     expires_at TIMESTAMPTZ NOT NULL
                 )
@@ -401,12 +412,37 @@ class PostgresStore:
                 (user_id, normalized, created, created),
             )
             row = connection.execute(
-                "SELECT id, zimbra_email FROM soc_users WHERE zimbra_email = %s",
+                "SELECT id, zimbra_email FROM soc_users WHERE zimbra_email = %s FOR UPDATE",
                 (normalized,),
             ).fetchone()
             if row is None:
                 raise RuntimeError("local user creation failed")
             user_id = str(row[0])
+            connection.execute(
+                "DELETE FROM soc_session_revocations WHERE expires_at <= %s",
+                (created,),
+            )
+            replaced_rows = connection.execute(
+                """
+                DELETE FROM soc_app_sessions
+                WHERE user_id = %s AND expires_at > %s
+                RETURNING id
+                """,
+                (user_id, created),
+            ).fetchall()
+            replaced_session_ids = tuple(str(replaced[0]) for replaced in replaced_rows)
+            for replaced_session_id in replaced_session_ids:
+                connection.execute(
+                    """
+                    INSERT INTO soc_session_revocations (session_id, reason, created_at, expires_at)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (session_id) DO UPDATE SET
+                        reason = EXCLUDED.reason,
+                        created_at = EXCLUDED.created_at,
+                        expires_at = EXCLUDED.expires_at
+                    """,
+                    (replaced_session_id, "new_device_login", created, expires),
+                )
             connection.execute(
                 """
                 INSERT INTO soc_app_sessions (id, user_id, zimbra_token_encrypted, created_at, expires_at)
@@ -414,7 +450,15 @@ class PostgresStore:
                 """,
                 (session_id, user_id, self._encrypt_text(token), created, expires),
             )
-        return AuthenticatedSession(session_id, user_id, normalized, token, created, expires)
+        return AuthenticatedSession(
+            session_id,
+            user_id,
+            normalized,
+            token,
+            created,
+            expires,
+            replaced_session_ids,
+        )
 
     def get_user_by_id(self, user_id: str) -> dict[str, str] | None:
         with self._connect() as connection:
@@ -478,75 +522,8 @@ class PostgresStore:
         return self.delete_app_session(session_id)
 
     def migrate_env_config(self, env: Mapping[str, str]) -> None:
-        keys = [
-            "SPLUNK_HOST",
-            "SPLUNK_PORT",
-            "SPLUNK_SCHEME",
-            "SPLUNK_URL",
-            "SPLUNK_TOKEN",
-            "SPLUNK_USERNAME",
-            "SPLUNK_PASSWORD",
-            "SPLUNK_VERIFY_SSL",
-            "SPLUNK_REQUEST_TIMEOUT",
-            "SPLUNK_JOB_TIMEOUT",
-            "SPLUNK_MAX_EVENTS",
-            "SPLUNK_RISK_TOLERANCE",
-            "SPLUNK_SAFE_TIMERANGE",
-            "SPLUNK_SANITIZE_OUTPUT",
-            "SPLUNK_ALLOW_DETECTION_WRITE",
-            "SPLUNK_ALLOW_DETECTION_ENABLE",
-            "SPLUNK_DETECTION_APP",
-            "SPLUNK_DETECTION_OWNER",
-            "SPLUNK_DETECTION_APPROVAL_TTL_SECONDS",
-            "SPLUNK_POLICY_SHORT_SEARCH_SECONDS",
-            "SPLUNK_POLICY_NORMAL_SEARCH_SECONDS",
-            "SPLUNK_POLICY_VERY_LONG_SEARCH_SECONDS",
-            "SPLUNK_POLICY_WILDCARD_INDEX",
-            "SPLUNK_POLICY_NO_INDEX",
-            "SPLUNK_POLICY_LONG_RAW",
-            "SPLUNK_POLICY_VERY_LONG",
-            "SPLUNK_POLICY_ALL_TIME",
-            "SPLUNK_POLICY_EXPENSIVE_COMMAND",
-            "SPLUNK_POLICY_SUBSEARCH",
-            "SPLUNK_POLICY_NESTED_SUBSEARCH",
-            "SPLUNK_POLICY_UNRESOLVED_MACRO",
-            "SPLUNK_POLICY_UNPARSEABLE_TIME",
-            "SPLUNK_POLICY_MAX_SUBSEARCH_DEPTH",
-            "SPLUNK_POLICY_TRUSTED_MACROS",
-            "SPLUNK_SEARCH_GLOBAL_CONCURRENCY",
-            "SPLUNK_SEARCH_PER_PRINCIPAL_CONCURRENCY",
-            "SPLUNK_SEARCH_QUEUE_TIMEOUT_SECONDS",
-            "SPLUNK_SEARCH_MAX_JOBS_PER_MINUTE",
-            "SPLUNK_SEARCH_BUDGET_PER_MINUTE",
-            "SPLUNK_SEARCH_MAX_RUNTIME_LOW",
-            "SPLUNK_SEARCH_MAX_RUNTIME_MEDIUM",
-            "SPLUNK_SEARCH_MAX_RUNTIME_HIGH",
-            "SPLUNK_SEARCH_MAX_LOOKBACK_LOW",
-            "SPLUNK_SEARCH_MAX_LOOKBACK_MEDIUM",
-            "SPLUNK_SEARCH_MAX_LOOKBACK_HIGH",
-            "SPLUNK_SEARCH_MAX_RESULTS_LOW",
-            "SPLUNK_SEARCH_MAX_RESULTS_MEDIUM",
-            "SPLUNK_SEARCH_MAX_RESULTS_HIGH",
-            "SPLUNK_SEARCH_BACKTEST_CONCURRENCY",
-            "SPLUNK_SEARCH_RESTRICTED_DECISION",
-            "SECURITY_QUEUE_MAX_BACKEND_PAGES_PER_REQUEST",
-            "SECURITY_QUEUE_MAX_BACKEND_RECORDS_PER_REQUEST",
-            "SECURITY_QUEUE_STANDARD_CONCURRENCY",
-            "ZIMBRA_HOST",
-            "ZIMBRA_VERIFY_SSL",
-            "ZIMBRA_TIMEOUT",
-            "ZIMBRA_MAX_ATTACHMENT_BYTES",
-            "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS",
-            "MARKITDOWN_LLM_ENABLED",
-            "MARKITDOWN_LLM_BASE_URL",
-            "MARKITDOWN_LLM_MODEL",
-            "MARKITDOWN_LLM_TIMEOUT",
-        ]
-        current = self.list_config()
-        for key in keys:
-            value = str(env.get(key, "")).strip()
-            if value and key not in current:
-                self.set_config(key, value)
+        """Keep the removed service-configuration migration API inert."""
+        del env
 
     def migrate_account_store(self, store: AccountStore | None) -> int:
         if store is None:

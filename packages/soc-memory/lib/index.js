@@ -228,8 +228,9 @@ export const Config = z.object({
   redactSecrets: z.boolean().default(true),
   readOnlyScopes: z.array(z.string()).default([]),
   embeddingBaseURL: z.string().default(''),
-  embeddingApiKey: z.string().default(''),
+  embeddingApiKey: z.string().role('secret').default(''),
   embeddingModel: z.string().default(''),
+  embeddingAllowInsecureHttp: z.boolean().default(false),
   seedFromAgentsMd: z.boolean().default(false),
   autoCapture: z.boolean().default(false),
   captureToolResults: z.boolean().default(false),
@@ -263,6 +264,7 @@ function resolveConfig(config = {}) {
     embeddingBaseURL: typeof merged.embeddingBaseURL === 'string' ? merged.embeddingBaseURL.trim() : '',
     embeddingApiKey: typeof merged.embeddingApiKey === 'string' ? merged.embeddingApiKey.trim() : '',
     embeddingModel: typeof merged.embeddingModel === 'string' ? merged.embeddingModel.trim() : '',
+    embeddingAllowInsecureHttp: merged.embeddingAllowInsecureHttp === true,
     seedFromAgentsMd: merged.seedFromAgentsMd === true,
     autoCapture: merged.autoCapture === true,
     captureToolResults: merged.captureToolResults === true,
@@ -1254,6 +1256,14 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
             fuzzy: true,
             vector,
             includeArchive: true,
+            embedding: resolved.embeddingBaseURL
+              ? {
+                  baseURL: resolved.embeddingBaseURL,
+                  apiKey: resolved.embeddingApiKey,
+                  model: resolved.embeddingModel,
+                  allowInsecureHttp: resolved.embeddingAllowInsecureHttp,
+                }
+              : undefined,
           })
           for (const hit of hits) {
             if (!entryBelongsToRoute(hit.entry, current)) continue

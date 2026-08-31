@@ -338,7 +338,7 @@ async function buildModelCatalog(ctx: Context): Promise<{
       const failure: ModelCatalogFailure = {
         id: provider.id,
         name: provider.name,
-        message: error instanceof Error ? error.message : String(error),
+        message: 'provider model catalog unavailable',
       }
       return { kind: 'failure' as const, failure }
     }
@@ -615,7 +615,7 @@ function directoryError(error: unknown): RpcError {
   if (error instanceof DirectoryPickerError) {
     return { code: error.code, message: error.message, details: { path: error.path } }
   }
-  return { code: 'internal', message: error instanceof Error ? error.message : String(error), details: {} }
+  return { code: 'internal', message: 'directory operation failed', details: {} }
 }
 
 /** Resolved Agent model and project-directory defaults consumed by the API implementation. */
@@ -1896,7 +1896,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
     try {
       await open(path, signal)
       return ok(request, { opened: true as const })
-    } catch (error: unknown) {
+    } catch {
       if (signal.aborted) {
         return err(request, {
           code: 'cancelled',
@@ -1906,7 +1906,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       }
       return err(request, {
         code: 'internal',
-        message: `path open failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: 'path open failed',
         details: {},
       })
     }
@@ -1983,7 +1983,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       }
       return err(request, {
         code: 'settings-rejected',
-        message: error instanceof Error ? error.message : String(error),
+        message: 'settings change rejected',
         details: { ns },
       })
     }
@@ -2988,13 +2988,13 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         try {
           const { workspace, created } = await ensureWorkspace(path)
           return ok(request, { workspace: workspaceView(workspace), created })
-        } catch (error: unknown) {
+        } catch {
           // The registry rejects a path that does not resolve to an existing
           // directory (realpath ENOENT / not-a-directory) — the business
           // error of the typed-path flow, surfaced as a validation failure.
           return err(request, {
             code: 'workspace-invalid-path',
-            message: `cannot create a workspace at "${path}": ${error instanceof Error ? error.message : String(error)}`,
+            message: 'cannot create workspace',
             details: { path },
           })
         }
@@ -3144,7 +3144,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         try {
           const path = await capability.pick(signal)
           return ok(request, { path })
-        } catch (error: unknown) {
+        } catch {
           if (signal.aborted) {
             return err(request, {
               code: 'cancelled',
@@ -3154,7 +3154,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           }
           return err(request, {
             code: 'internal',
-            message: `directory picker failed: ${error instanceof Error ? error.message : String(error)}`,
+            message: 'directory picker failed',
             details: {},
           })
         }
@@ -3498,7 +3498,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           }
           return err(request, {
             code: 'internal',
-            message: `settings document preparation failed: ${error instanceof Error ? error.message : String(error)}`,
+            message: 'settings document preparation failed',
             details: {},
           })
         }
@@ -3548,7 +3548,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         } catch (error: unknown) {
           return err(request, {
             code: 'credential-rejected',
-            message: error instanceof Error ? error.message : String(error),
+            message: 'credential update rejected',
             details: { ref },
           })
         }
@@ -3564,7 +3564,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         } catch (error: unknown) {
           return err(request, {
             code: 'credential-rejected',
-            message: error instanceof Error ? error.message : String(error),
+            message: 'credential removal rejected',
             details: { ref },
           })
         }
@@ -3620,12 +3620,13 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         } catch (error: unknown) {
           // Every failure here is the user's next move, not a transport fault:
           // a wrong endpoint, a rejected key, or a protocol with no listing all
-          // end at the same place — fill the models in by hand. The details
-          // repeat only what the caller already sent, never the credential.
+          // end at the same place — fill the models in by hand. Do not echo the
+          // draft endpoint: callers can put credentials in URL userinfo/query
+          // components, and the error has no need to repeat it.
           return err(request, {
             code: 'model-discovery-failed',
-            message: error instanceof Error ? error.message : String(error),
-            details: { settingsNs, ...baseURL === undefined ? {} : { baseURL } },
+            message: 'model discovery failed',
+            details: { settingsNs },
           })
         }
       },

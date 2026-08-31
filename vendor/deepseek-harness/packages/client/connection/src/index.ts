@@ -6,9 +6,10 @@ import type {} from '@deepseek-ai/dsh-attachment'
 import type { WebRoute, WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
 import { toFetchHandler } from '@deepseek-ai/dsh-host-apiproxy'
 import { API_PATH, HOST_EVENTS_PATH, MUX_EVENTS_PATH } from './api-path.ts'
-import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
-import { assertTrustedAuthority, isTrustedApiRequest } from './api-request-trust.ts'
+import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES, type FetchRequestContext } from './http-bridge.ts'
+import { assertTrustedAuthority, isLoopbackPeer, isTrustedApiRequest } from './api-request-trust.ts'
 import { HostConnectionService } from './rpc-host.ts'
+import type { ConnectionPrivilegedAuthorizer } from './rpc.ts'
 import { rejectWebSocketUpgrade, WebSocketDownlinks } from './websocket-downlink.ts'
 
 export type {
@@ -16,6 +17,7 @@ export type {
   ConnectionRpcEndpointMatcher,
   ConnectionRpcHandler,
   ConnectionRpcHandlerOptions,
+  ConnectionPrivilegedAuthorizer,
   HostConnectionHandle,
   HostConnectionRpc,
 } from './rpc.ts'
@@ -67,16 +69,15 @@ export const Config: z<ConnectionConfig> = z.object({
 })
 
 /**
- * Methods gated to loopback even on a trusted-host deployment. Native dialogs
+ * Methods gated to a verified loopback peer or a server-side authorization callback, even on a trusted-host deployment. Native dialogs
  * act on the host machine; the settings and credential domains mutate the
  * user's configuration and secret store, and READING them is equally
  * privileged — `settings.describe` returns every exposed namespace's
  * configuration and `credentials.describe` reports whether an arbitrary
  * environment-variable name is configured and where from, which is
  * reconnaissance no anonymous caller should have. `trustedHosts` is a
- * DNS-rebinding fence, explicitly not authentication, so the whole
- * configuration plane stays loopback-same-origin until a real authentication
- * layer exists. `llm.discoverModels` belongs to that plane on both counts: it
+ * DNS-rebinding fence, explicitly not authentication; the server-side
+ * authorization callback is the remote authorization path. `llm.discoverModels` belongs to that plane on both counts: it
  * carries a draft credential, and it makes the HOST issue a GET to a URL the
  * caller chose and reports back the status or the parsed body — an anonymous
  * LAN caller would have a probe for whatever the host can reach and the
@@ -86,7 +87,7 @@ export const Config: z<ConnectionConfig> = z.object({
  * it carries provider ids, display names, and model lists — no endpoints,
  * keys, or key state — and a LAN client's model picker legitimately needs it.
  */
-const PRIVILEGED_METHODS = new Set([
+export const PRIVILEGED_METHODS = new Set([
   // A preset composition names the plugins a session runs, so reading one is
   // reconnaissance; copy and remove rearrange what the deployment offers, and
   // openDocument drives the host desktop — all more than the roster beside
@@ -106,6 +107,8 @@ const PRIVILEGED_METHODS = new Set([
   'agentPreset.openDocument',
   'agentPreset.remove',
   'host.pickDirectory',
+  'host.listDirectory',
+  'host.createDirectory',
   'host.openPath',
   'settings.describe',
   'settings.openDocument',
@@ -118,12 +121,28 @@ const PRIVILEGED_METHODS = new Set([
   'llm.discoverModels',
 ])
 
+export function isPrivilegedMethod(method: string): boolean {
+  return PRIVILEGED_METHODS.has(method)
+}
+
+async function privilegedAuthorization(
+  ctx: Context,
+  request: import('node:http').IncomingMessage,
+  method: string,
+): Promise<boolean> {
+  if (isLoopbackPeer(request)) return true
+  const authorizer = ctx.get('connectionAuthorization') as ConnectionPrivilegedAuthorizer | undefined
+  if (authorizer === undefined) return false
+  return Boolean(await authorizer.authorizePrivilegedRequest(request, method))
+}
+
 /**
  * Mounts the API gateway under the browser transport prefix. Every request on
  * the prefix passes the browser-trust fence first (DNS-rebinding and
  * cross-site defense — [api-request-trust](./api-request-trust.ts));
- * privileged methods additionally pass it with an empty trust list, which
- * pins them to loopback.
+ * privileged methods additionally require the actual socket peer to be
+ * loopback or a server-side authorization callback. Host and forwarded
+ * headers are never used as proof of privilege.
  * @param ctx - Host plugin context.
  * @param config - resolved plugin config (schema defaults applied).
  */
@@ -137,14 +156,14 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
   if (ctx.get('apiProxy') !== undefined) assertImageBodyCapacity(ctx, maxRequestBodyBytes)
   const connection = new HostConnectionService(ctx, trustedHosts)
   const fetchHandler = connection.createSharedFetchHandler(API_PATH, {
-    async fetch(request) {
+    async fetch(request, context?: FetchRequestContext) {
       const pathname = new URL(request.url).pathname
       const method = pathname.startsWith(`${API_PATH}/`)
         ? pathname.slice(API_PATH.length + 1)
         : undefined
       if (method !== undefined
-        && PRIVILEGED_METHODS.has(method)
-        && !isTrustedApiRequest(request, [])) {
+        && isPrivilegedMethod(method)
+        && context?.privilegedAllowed !== true) {
         return new Response('forbidden', { status: 403 })
       }
       if (request.method === 'GET' && (pathname === MUX_EVENTS_PATH || pathname === HOST_EVENTS_PATH)) {
@@ -167,7 +186,23 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
         res.end('forbidden')
         return
       }
-      await bridge(req, res, fetchHandler, maxRequestBodyBytes)
+      const pathname = new URL(req.url ?? '/', 'http://dsh.internal').pathname
+      const method = pathname.startsWith(`${API_PATH}/`)
+        ? pathname.slice(API_PATH.length + 1)
+        : undefined
+      const loopbackPeer = isLoopbackPeer(req)
+      const privilegedAllowed = method === undefined || !isPrivilegedMethod(method)
+        ? false
+        : await privilegedAuthorization(ctx, req, method)
+      if (method !== undefined && isPrivilegedMethod(method) && !privilegedAllowed) {
+        res.writeHead(403)
+        res.end('forbidden')
+        return
+      }
+      await bridge(req, res, fetchHandler, maxRequestBodyBytes, {
+        loopbackPeer,
+        privilegedAllowed,
+      })
     },
   }
   ctx.effect(() => ctx.webServer.register(route), 'client-connection: /api route')

@@ -21,6 +21,7 @@ class SocConnection:
     def __init__(self):
         self.users: dict[str, dict[str, object]] = {}
         self.sessions: dict[str, dict[str, object]] = {}
+        self.revocations: dict[str, dict[str, object]] = {}
 
     def __enter__(self):
         return self
@@ -54,6 +55,31 @@ class SocConnection:
             user = next((value for value in self.users.values() if value["email"] == email), None)
             row = None if user is None else (user["id"], user["email"])
             return SimpleNamespace(fetchone=lambda: row, fetchall=lambda: [])
+        if upper.startswith("DELETE FROM SOC_SESSION_REVOCATIONS WHERE EXPIRES_AT <= %S"):
+            expires_at = params[0]
+            for session_id, revocation in list(self.revocations.items()):
+                if revocation["expires_at"] <= expires_at:
+                    del self.revocations[session_id]
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
+        if upper.startswith("DELETE FROM SOC_APP_SESSIONS WHERE USER_ID = %S AND EXPIRES_AT > %S RETURNING ID"):
+            user_id, expires_at = params
+            removed = [
+                session_id
+                for session_id, session in self.sessions.items()
+                if session["user_id"] == user_id and session["expires_at"] > expires_at
+            ]
+            for session_id in removed:
+                del self.sessions[session_id]
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [(session_id,) for session_id in removed])
+        if upper.startswith("INSERT INTO SOC_SESSION_REVOCATIONS"):
+            session_id, reason, created_at, expires_at = params
+            self.revocations[session_id] = {
+                "session_id": session_id,
+                "reason": reason,
+                "created_at": created_at,
+                "expires_at": expires_at,
+            }
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
         if upper.startswith("INSERT INTO SOC_APP_SESSIONS"):
             session_id, user_id, token, created_at, expires_at = params
             self.sessions[session_id] = {
@@ -117,11 +143,15 @@ def test_first_login_creates_one_normalized_user_and_never_returns_password_or_t
     assert len(connection.users) == 1
     assert first["session"]["user"]["id"] == second["session"]["user"]["id"]
     assert first["session"]["session_id"] != second["session"]["session_id"]
+    assert first["new_device_login"] is False
+    assert second["new_device_login"] is True
+    assert database.get_app_session(first["session"]["session_id"]) is None
+    assert second["session"]["session_id"] in connection.sessions
     serialized = json.dumps(first)
     assert "never-store-this" not in serialized
     assert "zimbra-token" not in serialized
     assert all("never-store-this" not in str(row) for row in connection.sessions.values())
-    assert public_session(database.get_app_session(first["session"]["session_id"]))["user"]["zimbra_email"] == "analyst@example.com"
+    assert public_session(database.get_app_session(second["session"]["session_id"]))["user"]["zimbra_email"] == "analyst@example.com"
 
 
 def test_invalid_zimbra_login_is_rejected_without_creating_local_state(store, monkeypatch):

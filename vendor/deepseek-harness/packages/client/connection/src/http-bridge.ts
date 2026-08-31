@@ -11,6 +11,14 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
  * each body in memory, so this cap is also the per-request resident bound. */
 export const DEFAULT_MAX_REQUEST_BODY_BYTES = 300 * 1024 * 1024
 
+/** Server-only facts established by the Node ingress before a Fetch dispatch. */
+export interface FetchRequestContext {
+  /** The socket peer was verified as loopback by the Node transport. */
+  readonly loopbackPeer?: boolean
+  /** The request passed the privileged authorization callback or loopback check. */
+  readonly privilegedAllowed?: boolean
+}
+
 /** Transport-independent request handler consumed by the Host HTTP bridge. */
 export interface FetchHandler {
   /**
@@ -18,7 +26,7 @@ export interface FetchHandler {
    * @param request - request produced by the active transport bridge.
    * @returns complete or streaming Fetch response.
    */
-  fetch(request: Request): Promise<Response>
+  fetch(request: Request, context?: FetchRequestContext): Promise<Response>
 }
 
 /**
@@ -34,6 +42,7 @@ export async function bridge(
   res: ServerResponse,
   apiHandler: FetchHandler,
   maxRequestBodyBytes = DEFAULT_MAX_REQUEST_BODY_BYTES,
+  context: FetchRequestContext = {},
 ): Promise<void> {
   const abort = new AbortController()
   // Client-disconnect detection MUST hang off the response, not the request:
@@ -72,7 +81,7 @@ export async function bridge(
     ...chunks.length > 0 ? { body: Buffer.concat(chunks) } : {},
     signal: abort.signal,
   })
-  const response = await apiHandler.fetch(request)
+  const response = await apiHandler.fetch(request, context)
   res.writeHead(response.status, Object.fromEntries(response.headers.entries()))
   if (response.body === null) {
     res.end()

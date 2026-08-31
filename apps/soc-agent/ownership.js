@@ -1,18 +1,45 @@
 import pg from 'pg'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
-import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { mkdir, realpath } from 'node:fs/promises'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { parseEnv } from 'node:util'
 import { fileURLToPath } from 'node:url'
 
 const { Pool } = pg
 const SESSION_COOKIE = 'soc_session'
 const SESSION_TTL_SECONDS = 24 * 60 * 60
+const SESSION_REPLACED_REASON = 'new_device_login'
+const SESSION_REPLACED_MESSAGE = 'A new device logged in to this account. You have been signed out.'
+const ADMIN_SESSION_COOKIE = 'soc_admin_session'
+const ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60
+const ADMIN_EMAIL_ENV = 'SOC_ADMIN_EMAIL'
+const ADMIN_PASSWORD_ENV = 'SOC_ADMIN_PASSWORD'
 const USERNAME = /^[A-Za-z0-9_-]+$/u
-const PRIVATE_HTTP_PATHS = new Set(['/api'])
+const PRIVATE_HTTP_PATHS = new Set(['/api', '/_dsh/memory/settings'])
 const PRIVATE_UPGRADE_PATHS = new Set(['/api/events.mux', '/api/events.host'])
 const STORAGE_ENV_NAMES = ['APP_POSTGRES_URI', 'LANGGRAPH_POSTGRES_URI', 'POSTGRES_URI']
+const PRIVILEGED_API_METHODS = new Set([
+  'agentPreset.read',
+  'agentPreset.copy',
+  'agentPreset.openDocument',
+  'agentPreset.remove',
+  'host.pickDirectory',
+  'host.listDirectory',
+  'host.createDirectory',
+  'host.openPath',
+  'settings.describe',
+  'settings.openDocument',
+  'settings.update',
+  'settings.replace',
+  'settings.mutate',
+  'credentials.describe',
+  'credentials.set',
+  'credentials.unset',
+  'llm.discoverModels',
+])
+const MIXED_API_METHODS = new Set(['llm.providers', 'llm.models'])
 
 function storageUriFromServerEnv(serverRoot) {
   try {
@@ -29,6 +56,46 @@ export function resolveApplicationStorageUri(env = process.env, serverRoot) {
   if (ambient) return ambient
   const bundleRoot = dirname(fileURLToPath(import.meta.url))
   return storageUriFromServerEnv(serverRoot || env.DSH_SOC_AGENT_SERVER || join(bundleRoot, 'server'))
+}
+
+function adminValuesFromServerEnv(serverRoot) {
+  try {
+    return parseEnv(readFileSync(join(serverRoot, '.env'), 'utf8'))
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+    return {}
+  }
+}
+
+/** Resolve the required static admin identity without ever exposing its values. */
+export function resolveAdminCredentials(env = process.env, serverRoot) {
+  const bundleRoot = dirname(fileURLToPath(import.meta.url))
+  const fileValues = adminValuesFromServerEnv(
+    serverRoot || env.DSH_SOC_AGENT_SERVER || join(bundleRoot, 'server'),
+  )
+  const read = name => {
+    const ambient = env[name]
+    if (typeof ambient === 'string' && ambient.trim()) return ambient
+    return String(fileValues[name] ?? '')
+  }
+  const email = read(ADMIN_EMAIL_ENV).trim().toLowerCase()
+  const password = read(ADMIN_PASSWORD_ENV)
+  if (!email || !password.trim()) {
+    throw new Error(`${ADMIN_EMAIL_ENV} and ${ADMIN_PASSWORD_ENV} are required`)
+  }
+  return { email, password }
+}
+
+function childEnvironment() {
+  const environment = {
+    ...process.env,
+    MCP_SERVER_ROOT: configuredWorkspaceRoot(),
+  }
+  // Static admin credentials are consumed only by this Node host. They must
+  // never cross the process boundary into a Python child.
+  delete environment[ADMIN_EMAIL_ENV]
+  delete environment[ADMIN_PASSWORD_ENV]
+  return environment
 }
 
 const mcpRequestStorage = new AsyncLocalStorage()
@@ -56,6 +123,11 @@ function generalWorkspacePath(userId) {
 
 function isGeneralWorkspacePath(path, userId) {
   return resolve(String(path ?? '')) === resolve(generalWorkspacePath(userId))
+}
+
+function isWithinPath(root, candidate) {
+  const remainder = relative(resolve(root), resolve(candidate))
+  return remainder === '' || (remainder !== '..' && !remainder.startsWith(`..${sep}`) && !isAbsolute(remainder))
 }
 
 function responseError(request, code, message, details = {}) {
@@ -96,6 +168,17 @@ function cookieValue(request) {
   return ''
 }
 
+function requestCookieValue(request, name) {
+  const raw = String(request?.headers?.cookie ?? '')
+  for (const part of raw.split(';')) {
+    const [cookieName, ...rest] = part.trim().split('=')
+    if (cookieName === name) {
+      try { return decodeURIComponent(rest.join('=')) } catch { return '' }
+    }
+  }
+  return ''
+}
+
 function secureCookie(request) {
   const forwarded = String(request?.headers?.['x-forwarded-proto'] ?? '').split(',', 1)[0].trim().toLowerCase()
   return forwarded === 'https' || Boolean(request?.socket?.encrypted)
@@ -104,6 +187,18 @@ function secureCookie(request) {
 function cookieHeader(value, request, maxAge = SESSION_TTL_SECONDS) {
   const parts = [
     `${SESSION_COOKIE}=${encodeURIComponent(value)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${String(maxAge)}`,
+  ]
+  if (secureCookie(request)) parts.push('Secure')
+  return parts.join('; ')
+}
+
+function adminCookieHeader(value, request, maxAge = ADMIN_SESSION_TTL_SECONDS) {
+  const parts = [
+    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(value)}`,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
@@ -159,6 +254,19 @@ function isPrivateHttpRoute(path) {
   return PRIVATE_HTTP_PATHS.has(value) || value.startsWith('/soc-agent-')
 }
 
+function apiMethodFromPath(path) {
+  const value = String(path ?? '')
+  return value.startsWith('/api/') ? value.slice('/api/'.length) : ''
+}
+
+export function isPrivilegedApiPath(path) {
+  return PRIVILEGED_API_METHODS.has(apiMethodFromPath(path))
+}
+
+export function isMixedApiPath(path) {
+  return MIXED_API_METHODS.has(apiMethodFromPath(path))
+}
+
 function isPrivateUpgradeRoute(path) {
   return PRIVATE_UPGRADE_PATHS.has(String(path ?? ''))
 }
@@ -186,6 +294,12 @@ export class SocStateStore {
       );
       CREATE INDEX IF NOT EXISTS soc_app_sessions_user_idx ON soc_app_sessions(user_id);
       CREATE INDEX IF NOT EXISTS soc_app_sessions_expiry_idx ON soc_app_sessions(expires_at);
+      CREATE TABLE IF NOT EXISTS soc_session_revocations (
+        session_id TEXT PRIMARY KEY,
+        reason TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS soc_workspace_owners (
         workspace_id TEXT PRIMARY KEY,
         owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
@@ -249,6 +363,17 @@ export class SocStateStore {
     if (!this.pool || !id) return false
     const result = await this.pool.query('DELETE FROM soc_app_sessions WHERE id = $1 RETURNING id', [id])
     return result.rowCount === 1
+  }
+
+  async consumeSessionRevocation(id) {
+    if (!this.pool || !id) return undefined
+    const result = await this.pool.query(`
+      DELETE FROM soc_session_revocations
+      WHERE session_id = $1 AND expires_at > NOW()
+      RETURNING reason
+    `, [String(id)])
+    const reason = result.rows[0]?.reason
+    return reason ? String(reason) : undefined
   }
 
   async workspaceOwner(id) {
@@ -385,7 +510,7 @@ export async function runAuthCommand(command, payload) {
   return await new Promise((resolvePromise, rejectPromise) => {
     const child = spawn('uv', ['run', 'python', '-m', 'unified_mcp_server.auth_cli', command], {
       cwd: serverRoot,
-      env: { ...process.env, MCP_SERVER_ROOT: workspaceRoot },
+      env: childEnvironment(),
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     let stdout = ''
@@ -513,16 +638,15 @@ export function createScopedApiProxy(api, auth) {
     if (typeof rawPath !== 'string') {
       return {
         response: responseError(request, 'workspace-invalid-path', 'workspace name must be a non-empty single directory name', {
-          path: String(rawPath ?? ''),
+          path: '',
         }),
       }
     }
     const name = rawPath.trim()
-    if (isAbsolute(name)) return { request }
-    if (name === '' || name === '.' || name === '..' || /[/\\\0]/u.test(name)) {
+    if (isAbsolute(name) || name === '' || name === '.' || name === '..' || /[/\\\0]/u.test(name)) {
       return {
-        response: responseError(request, 'workspace-invalid-path', `cannot create a workspace at "${rawPath}": name must be a non-empty single directory name`, {
-          path: rawPath,
+        response: responseError(request, 'workspace-invalid-path', 'workspace path must be a non-empty single directory name', {
+          path: '',
         }),
       }
     }
@@ -531,14 +655,25 @@ export function createScopedApiProxy(api, auth) {
       : join(userWorkspaceRoot(session.userId), name)
     try {
       await mkdir(path, { recursive: true })
-    } catch (error) {
+      const [rootPath, canonicalPath] = await Promise.all([
+        realpath(userWorkspaceRoot(session.userId)),
+        realpath(path),
+      ])
+      if (!isWithinPath(rootPath, canonicalPath) || canonicalPath === rootPath) {
+        return {
+          response: responseError(request, 'workspace-invalid-path', 'workspace path must remain within the private workspace root', {
+            path: '',
+          }),
+        }
+      }
+      return { request: { ...request, payload: { ...payload, path: canonicalPath } } }
+    } catch {
       return {
-        response: responseError(request, 'workspace-invalid-path', `cannot create a workspace at "${rawPath}": ${error instanceof Error ? error.message : String(error)}`, {
-          path: rawPath,
+        response: responseError(request, 'workspace-invalid-path', 'workspace path could not be prepared', {
+          path: '',
         }),
       }
     }
-    return { request: { ...request, payload: { ...payload, path } } }
   }
 
   async function authorize(domain, method, request) {
@@ -724,12 +859,20 @@ export function createScopedApiProxy(api, auth) {
             if (!session) return (async function* () {})()
             return (async function* () {
               let scopedArgs = args
+              const applicationSignal = auth.applicationSessionSignal?.(session.id)
+              if (applicationSignal) {
+                const callerSignal = args[1]
+                const signal = callerSignal && typeof callerSignal.addEventListener === 'function'
+                  ? AbortSignal.any([callerSignal, applicationSignal])
+                  : applicationSignal
+                scopedArgs = [args[0], signal, ...args.slice(2)]
+              }
               const request = args[0]
               const rawSince = request?.payload?.since
               if (String(property) === 'mux' && rawSince && typeof rawSince === 'object' && !Array.isArray(rawSince)) {
                 const allowed = await auth.store.userSessionIds(session.userId)
                 const since = Object.fromEntries(Object.entries(rawSince).filter(([id]) => allowed.has(String(id))))
-                scopedArgs = [{ ...request, payload: { ...request.payload, since } }, ...args.slice(1)]
+                scopedArgs = [{ ...request, payload: { ...request.payload, since } }, ...scopedArgs.slice(1)]
               }
               yield* filteredFrames(
                 Reflect.apply(method, object, scopedArgs),
@@ -807,12 +950,25 @@ export function createScopedApiProxy(api, auth) {
 }
 
 export class SocAuthService {
-  constructor(ctx, store = new SocStateStore()) {
+  constructor(ctx, store = new SocStateStore(), options = {}) {
     this.ctx = ctx
     this.store = store
     this.storage = new AsyncLocalStorage()
+    this.adminStorage = new AsyncLocalStorage()
+    const configuredAdmin = options.adminCredentials ?? resolveAdminCredentials(
+      options.env ?? process.env,
+      options.serverRoot,
+    )
+    this.adminEmail = String(configuredAdmin.email ?? '').trim().toLowerCase()
+    this.adminPassword = String(configuredAdmin.password ?? '')
+    if (!this.adminEmail || !this.adminPassword.trim()) {
+      throw new Error(`${ADMIN_EMAIL_ENV} and ${ADMIN_PASSWORD_ENV} are required`)
+    }
+    this.adminSessions = new Map()
     this.agentSessions = new Map()
     this.pendingResponses = new Map()
+    this.applicationSessionSignals = new Map()
+    this.revokedApplicationSessions = new Map()
     this.proxyCache = new WeakMap()
     this.registry = undefined
     this.persistence = undefined
@@ -826,7 +982,132 @@ export class SocAuthService {
   }
 
   currentSession() {
-    return this.storage.getStore()
+    const session = this.storage.getStore()
+    return session && !this.isApplicationSessionRevoked(session.id) ? session : undefined
+  }
+
+  isApplicationSessionRevoked(sessionId) {
+    const value = String(sessionId ?? '')
+    const expiresAt = this.revokedApplicationSessions.get(value)
+    if (expiresAt === undefined) return false
+    if (expiresAt <= Date.now()) {
+      this.revokedApplicationSessions.delete(value)
+      this.applicationSessionSignals.delete(value)
+      return false
+    }
+    return true
+  }
+
+  applicationSessionSignal(sessionId) {
+    const value = String(sessionId ?? '')
+    if (!value) return undefined
+    const revoked = this.isApplicationSessionRevoked(value)
+    let controller = this.applicationSessionSignals.get(value)
+    if (!controller) {
+      controller = new AbortController()
+      this.applicationSessionSignals.set(value, controller)
+    }
+    if (revoked && !controller.signal.aborted) {
+      controller.abort(new Error('application session revoked'))
+    }
+    return controller.signal
+  }
+
+  revokeApplicationSession(sessionId) {
+    const value = String(sessionId ?? '')
+    if (!value) return
+    this.revokedApplicationSessions.set(value, Date.now() + SESSION_TTL_SECONDS * 1000)
+    const controller = this.applicationSessionSignals.get(value)
+    if (controller && !controller.signal.aborted) controller.abort(new Error('application session revoked'))
+    this.pendingResponses.delete(value)
+  }
+
+  currentAdmin() {
+    const admin = this.adminStorage.getStore()
+    if (!admin || admin.expiresAt.getTime() <= Date.now()) return undefined
+    return admin
+  }
+
+  isAdmin() {
+    return this.currentAdmin() !== undefined
+  }
+
+  requireAdmin() {
+    const admin = this.currentAdmin()
+    if (!admin) throw new Error('admin authentication required')
+    return admin
+  }
+
+  requireSession() {
+    const session = this.currentSession()
+    if (!session) throw new Error('authentication required')
+    return session
+  }
+
+  /** Called by the Connection transport after it has checked the request fence. */
+  authorizePrivilegedRequest() {
+    return this.currentAdmin() !== undefined
+  }
+
+  adminSessionToken() {
+    return randomBytes(32).toString('base64url')
+  }
+
+  adminSessionKey(token) {
+    return createHash('sha256').update(String(token)).digest('base64url')
+  }
+
+  async requestAdmin(request) {
+    await this.ready
+    const token = requestCookieValue(request, ADMIN_SESSION_COOKIE)
+    if (!token) return undefined
+    const key = this.adminSessionKey(token)
+    const session = this.adminSessions.get(key)
+    if (!session || session.expiresAt.getTime() <= Date.now()) {
+      this.adminSessions.delete(key)
+      return undefined
+    }
+    return session
+  }
+
+  withAdmin(admin, callback) {
+    return this.adminStorage.run(admin, callback)
+  }
+
+  requestPath(request, fallback = '') {
+    try {
+      return new URL(request?.url ?? fallback ?? '/', 'http://dsh.internal').pathname
+    } catch {
+      return String(fallback ?? '')
+    }
+  }
+
+  async principalForRequest(request, registeredPath = '') {
+    const path = this.requestPath(request, registeredPath)
+    const adminOnly = path === '/_dsh/memory/settings' || isPrivilegedApiPath(path)
+    const mixed = path.startsWith('/soc-agent-') || isMixedApiPath(path)
+    if (adminOnly) {
+      const admin = await this.requestAdmin(request)
+      if (admin) return { kind: 'admin', value: admin }
+      const session = await this.requestSession(request)
+      return session ? { kind: 'forbidden' } : { kind: 'unauthenticated' }
+    }
+    if (mixed) {
+      const admin = await this.requestAdmin(request)
+      if (admin) return { kind: 'admin', value: admin }
+    }
+    const session = await this.requestSession(request)
+    return session
+      ? { kind: 'session', value: session }
+      : mixed
+        ? { kind: 'unauthenticated' }
+        : { kind: 'unauthenticated' }
+  }
+
+  rejectNodePrincipal(response, kind) {
+    const status = kind === 'forbidden' ? 403 : 401
+    response.writeHead(status, { 'cache-control': 'no-store' })
+    response.end(kind === 'forbidden' ? 'forbidden' : 'authentication required')
   }
 
   async requestSession(request) {
@@ -835,9 +1116,13 @@ export class SocAuthService {
   }
 
   async withRequest(request, callback) {
-    const session = await this.requestSession(request)
-    if (!session) return new Response('authentication required', { status: 401, headers: { 'cache-control': 'no-store' } })
-    return await this.storage.run(session, callback)
+    const principal = await this.principalForRequest(request)
+    if (principal.kind === 'admin') return await this.withAdmin(principal.value, callback)
+    if (principal.kind === 'session') return await this.storage.run(principal.value, callback)
+    return new Response(principal.kind === 'forbidden' ? 'forbidden' : 'authentication required', {
+      status: principal.kind === 'forbidden' ? 403 : 401,
+      headers: { 'cache-control': 'no-store' },
+    })
   }
 
   async upgradeSession(request) {
@@ -848,14 +1133,11 @@ export class SocAuthService {
     return this.storage.run(session, callback)
   }
 
-  async withNodeRequest(request, response, callback) {
-    const session = await this.requestSession(request)
-    if (!session) {
-      response.writeHead(401, { 'cache-control': 'no-store' })
-      response.end('authentication required')
-      return
-    }
-    return await this.withSession(session, callback)
+  async withNodeRequest(request, response, callback, registeredPath = '') {
+    const principal = await this.principalForRequest(request, registeredPath)
+    if (principal.kind === 'admin') return await this.withAdmin(principal.value, callback)
+    if (principal.kind === 'session') return await this.withSession(principal.value, callback)
+    this.rejectNodePrincipal(response, principal.kind)
   }
 
   async withNodeUpgrade(request, socket, callback) {
@@ -901,6 +1183,7 @@ export class SocAuthService {
           request,
           response,
           () => route.handler(request, response),
+          route.path,
         ),
       })
     }
@@ -933,7 +1216,7 @@ export class SocAuthService {
     const responseId = String(rpcId ?? '')
     const targetSessionId = String(sessionId ?? '')
     const ownerSessionId = String(applicationSessionId ?? current?.id ?? '')
-    if (!ownerSessionId || !responseId || !targetSessionId) return
+    if (!ownerSessionId || !responseId || !targetSessionId || this.isApplicationSessionRevoked(ownerSessionId)) return
     let pending = this.pendingResponses.get(ownerSessionId)
     if (!pending) {
       pending = new Map()
@@ -956,8 +1239,11 @@ export class SocAuthService {
   }
 
   mcpRequestMeta(exec) {
+    const ambient = this.storage.getStore()
     const current = this.currentSession()
-    const sessionId = current?.id ?? this.agentSessions.get(sessionIdOf(exec?.agent))
+    const sessionId = ambient && this.isApplicationSessionRevoked(ambient.id)
+      ? ambient.id
+      : current?.id ?? this.agentSessions.get(sessionIdOf(exec?.agent))
     return sessionId ? { soc_session_id: sessionId } : undefined
   }
 
@@ -972,7 +1258,9 @@ export class SocAuthService {
     const current = this.currentSession()
     const agentId = String(sessionId ?? '')
     const ownerSessionId = applicationSessionId ?? current?.id
-    if (ownerSessionId && agentId) this.agentSessions.set(agentId, String(ownerSessionId))
+    if (ownerSessionId && agentId && !this.isApplicationSessionRevoked(ownerSessionId)) {
+      this.agentSessions.set(agentId, String(ownerSessionId))
+    }
   }
 
   unbindAgentSession(sessionId) {
@@ -981,10 +1269,63 @@ export class SocAuthService {
 
   unbindApplicationSession(sessionId) {
     const value = String(sessionId ?? '')
-    this.pendingResponses.delete(value)
+    this.revokeApplicationSession(value)
     for (const [agentId, boundSessionId] of this.agentSessions) {
       if (boundSessionId === value) this.agentSessions.delete(agentId)
     }
+  }
+
+  async stopUserChatSessions(userId, replacedApplicationSessionIds = []) {
+    const ownerUserId = String(userId ?? '')
+    if (!ownerUserId) return 0
+    let agentsService
+    try { agentsService = this.ctx?.agents ?? this.ctx?.get?.('agents') } catch { agentsService = undefined }
+    const agents = typeof agentsService?.list === 'function' ? agentsService.list() : []
+    const byId = new Map(agents.map(agent => [sessionIdOf(agent), agent]))
+    const toStop = new Map()
+    const replaced = new Set(replacedApplicationSessionIds.map(id => String(id ?? '')).filter(Boolean))
+    for (const [agentId, applicationSessionId] of this.agentSessions) {
+      if (replaced.has(applicationSessionId) && byId.has(agentId)) toStop.set(agentId, byId.get(agentId))
+    }
+    const ownedSessionIds = new Set(await this.store.userSessionIds(ownerUserId))
+    for (const agentId of toStop.keys()) ownedSessionIds.add(agentId)
+    let grew = true
+    while (grew) {
+      grew = false
+      for (const [agentId, agent] of byId) {
+        const parentSessionId = String(agent?.session?.header?.parentSession ?? '')
+        if (!ownedSessionIds.has(agentId) && parentSessionId && ownedSessionIds.has(parentSessionId)) {
+          ownedSessionIds.add(agentId)
+          grew = true
+        }
+      }
+    }
+    for (const [agentId, agent] of byId) {
+      if (ownedSessionIds.has(agentId)) toStop.set(agentId, agent)
+    }
+    const stopped = []
+    for (const [agentId, agent] of toStop) {
+      try {
+        agent.cancel({ kind: 'user' }, { keepInbox: false })
+        stopped.push(agent)
+      } catch (error) {
+        try { this.ctx?.logger?.warn?.(`soc auth: could not stop chat session "${agentId}": ${String(error)}`) } catch {}
+      }
+    }
+    let sessionStore
+    try { sessionStore = this.ctx?.sessions ?? this.ctx?.get?.('sessions') } catch { sessionStore = undefined }
+    void Promise.allSettled(stopped.map(async agent => {
+      const agentId = sessionIdOf(agent)
+      try {
+        await agent.whenIdle?.()
+        await sessionStore?.flush?.(agent.session)
+      } catch (error) {
+        try { this.ctx?.logger?.warn?.(`soc auth: chat session "${agentId}" stopped but could not be flushed: ${String(error)}`) } catch {}
+      } finally {
+        this.unbindAgentSession(agentId)
+      }
+    }))
+    return stopped.length
   }
 
   scopedApi(api) {
@@ -1005,6 +1346,76 @@ export class SocAuthService {
     return { workspaceId: String(workspace.id), title: 'General' }
   }
 
+  adminPasswordMatches(password) {
+    const expected = Buffer.from(this.adminPassword)
+    const supplied = Buffer.from(String(password ?? ''))
+    return expected.length === supplied.length && timingSafeEqual(expected, supplied)
+  }
+
+  async handleAdminAuthRoute(kind, request, response) {
+    if (!sameSiteRequest(request)) {
+      sendJson(response, 403, { error: 'forbidden' })
+      return
+    }
+    await this.ready
+    if (kind === 'me') {
+      if (request.method !== 'GET') {
+        sendJson(response, 405, { error: 'method not allowed' }, { allow: 'GET' })
+        return
+      }
+      const admin = await this.requestAdmin(request)
+      if (!admin) {
+        sendJson(response, 401, { authenticated: false })
+        return
+      }
+      sendJson(response, 200, {
+        authenticated: true,
+        admin: { email: admin.email },
+        expires_at: admin.expiresAt.toISOString(),
+      })
+      return
+    }
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { error: 'method not allowed' }, { allow: 'POST' })
+      return
+    }
+    if (kind === 'logout') {
+      const token = requestCookieValue(request, ADMIN_SESSION_COOKIE)
+      if (token) this.adminSessions.delete(this.adminSessionKey(token))
+      sendJson(response, 200, { authenticated: false }, {
+        'set-cookie': adminCookieHeader('', request, 0),
+      })
+      return
+    }
+    if (request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase() !== 'application/json') {
+      sendJson(response, 415, { error: 'content type must be application/json' })
+      return
+    }
+    let payload
+    try { payload = await readJson(request) } catch { sendJson(response, 400, { error: 'invalid request' }); return }
+    const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : ''
+    const password = typeof payload.password === 'string' ? payload.password : ''
+    try {
+      if (email !== this.adminEmail || !this.adminPasswordMatches(password)) {
+        sendJson(response, 401, { error: 'invalid admin credentials' })
+        return
+      }
+      const token = this.adminSessionToken()
+      const session = {
+        email: this.adminEmail,
+        expiresAt: new Date(Date.now() + ADMIN_SESSION_TTL_SECONDS * 1000),
+      }
+      this.adminSessions.set(this.adminSessionKey(token), session)
+      sendJson(response, 200, {
+        authenticated: true,
+        admin: { email: session.email },
+        expires_at: session.expiresAt.toISOString(),
+      }, { 'set-cookie': adminCookieHeader(token, request) })
+    } finally {
+      payload.password = ''
+    }
+  }
+
   async handleAuthRoute(kind, request, response) {
     if (!sameSiteRequest(request)) {
       sendJson(response, 403, { error: 'forbidden' })
@@ -1018,7 +1429,18 @@ export class SocAuthService {
       }
       const session = await this.requestSession(request)
       if (!session) {
-        sendJson(response, 401, { authenticated: false })
+        const revocation = typeof this.store.consumeSessionRevocation === 'function'
+          ? await this.store.consumeSessionRevocation(cookieValue(request))
+          : undefined
+        sendJson(response, 401, revocation === SESSION_REPLACED_REASON
+          ? {
+            authenticated: false,
+            reason: SESSION_REPLACED_REASON,
+            message: SESSION_REPLACED_MESSAGE,
+          }
+          : { authenticated: false }, {
+            'set-cookie': cookieHeader('', request, 0),
+          })
         return
       }
       sendJson(response, 200, { authenticated: true, user: { zimbra_email: session.email }, expires_at: session.expiresAt.toISOString() })
@@ -1063,6 +1485,19 @@ export class SocAuthService {
       sendJson(response, 401, { error: 'invalid email or password' })
       return
     }
+    const replacedSessionIds = Array.isArray(result?.replaced_session_ids)
+      ? result.replaced_session_ids.map(id => String(id ?? '')).filter(Boolean)
+      : []
+    for (const replacedSessionId of replacedSessionIds) this.revokeApplicationSession(replacedSessionId)
+    try {
+      await this.stopUserChatSessions(String(user.id), replacedSessionIds)
+    } catch (error) {
+      try { this.ctx?.logger?.warn?.(`soc auth: could not stop the replaced user's chat sessions: ${String(error)}`) } catch {}
+      await this.store.deleteSession(String(session.session_id))
+      this.unbindApplicationSession(String(session.session_id))
+      sendJson(response, 503, { error: 'authentication service unavailable' })
+      return
+    }
     let workspace
     try {
       workspace = await this.ensureGeneral(String(user.id))
@@ -1085,8 +1520,36 @@ export class SocAuthService {
       path,
       handler: (request, response) => this.handleAuthRoute(kind, request, response),
     })
-    return [register('/auth/login', 'login'), register('/auth/logout', 'logout'), register('/auth/me', 'me')]
+    return [
+      register('/auth/login', 'login'),
+      register('/auth/logout', 'logout'),
+      register('/auth/me', 'me'),
+      webServer.register({
+        kind: 'exact',
+        path: '/admin/auth/login',
+        handler: (request, response) => this.handleAdminAuthRoute('login', request, response),
+      }),
+      webServer.register({
+        kind: 'exact',
+        path: '/admin/auth/logout',
+        handler: (request, response) => this.handleAdminAuthRoute('logout', request, response),
+      }),
+      webServer.register({
+        kind: 'exact',
+        path: '/admin/auth/me',
+        handler: (request, response) => this.handleAdminAuthRoute('me', request, response),
+      }),
+    ]
   }
 }
 
-export { SESSION_COOKIE, SESSION_TTL_SECONDS }
+export {
+  ADMIN_EMAIL_ENV,
+  ADMIN_PASSWORD_ENV,
+  ADMIN_SESSION_COOKIE,
+  ADMIN_SESSION_TTL_SECONDS,
+  SESSION_COOKIE,
+  SESSION_REPLACED_MESSAGE,
+  SESSION_REPLACED_REASON,
+  SESSION_TTL_SECONDS,
+}

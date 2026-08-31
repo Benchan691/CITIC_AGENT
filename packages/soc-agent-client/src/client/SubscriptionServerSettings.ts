@@ -1,50 +1,53 @@
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import React, { useCallback, useEffect, useState } from 'react'
 import css from './SplunkZimbraOverlay.module.css'
-import { errorText, rpc, TestResult, TestStatus } from './settings-common.ts'
+import { errorText, rpc } from './settings-common.ts'
 
-type SubscriptionServerStatus = {
-  url?: string
-  configured?: boolean
-}
-
-type ConnectionSettings = {
-  subscription_server?: SubscriptionServerStatus
+type ServiceSettings = {
+  services?: {
+    subscription_server?: { status?: string }
+  }
 }
 
 export function SubscriptionServerSettings({ connection }: { connection: ConnectionHandle }) {
-  const [settings, setSettings] = useState<ConnectionSettings | null>(null)
-  const [status, setStatus] = useState('Loading...')
-  const [test, setTest] = useState<TestResult | null>(null)
+  const [settings, setSettings] = useState<ServiceSettings | null>(null)
+  const [status, setStatus] = useState('Loading…')
+  const [test, setTest] = useState('')
+  const [testState, setTestState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
 
   const load = useCallback(async () => {
     try {
-      setSettings(await rpc(connection, 'get-settings') as ConnectionSettings)
+      setSettings(await rpc(connection, 'get-settings') as ServiceSettings)
       setStatus('')
-    } catch (error) { setStatus(errorText(error)) }
+    } catch (error) {
+      setStatus(errorText(error))
+    }
   }, [connection])
 
   useEffect(() => { void load() }, [load])
 
-  const testConnection = async () => {
-    setTest({ kind: 'pending', text: 'Testing…' })
+  async function testConnection() {
+    setTestState('checking')
+    setTest('Checking…')
     try {
-      const value = await rpc(connection, 'test-subscription-server') as { subscription_count?: number }
-      setTest({ kind: 'ok', text: `Subscription server OK (${String(value.subscription_count ?? 0)} subscriptions)` })
-    } catch (error) { setTest({ kind: 'fail', text: errorText(error) }) }
+      await rpc(connection, 'test-subscription-server')
+      setTestState('success')
+      setTest('Connection verified')
+    } catch (error) {
+      setTestState('error')
+      setTest(errorText(error))
+    }
   }
 
   if (!settings) return React.createElement('div', { className: css.loading }, status)
-  const server = settings.subscription_server ?? {}
+  const ready = testState === 'success' || (testState !== 'error' && settings.services?.subscription_server?.status === 'ready')
+  const label = testState === 'checking' ? 'Checking…' : testState === 'success' ? 'Connected' : testState === 'error' ? 'Unavailable' : ready ? 'Configured' : 'Not configured'
   return React.createElement('section', { className: css.section },
     React.createElement('h3', null, 'Subscription server'),
-    React.createElement('p', { className: css.description }, 'Configured through the server .env file. Credentials are never shown here.'),
-    React.createElement('p', { className: css.description }, `URL: ${String(server.url || '')}`),
-    React.createElement('p', { className: css.description }, server.configured ? 'Credentials configured' : 'Credentials not configured'),
-    React.createElement('div', { className: css.actions },
-      React.createElement('button', { className: css.secondaryButton, type: 'button', onClick: () => { void testConnection() } }, 'Test subscription server'),
-      React.createElement(TestStatus, { result: test }),
-    ),
+    React.createElement('p', { className: css.description }, label),
+    React.createElement('p', { className: css.description }, 'Configuration is managed by the server environment.'),
+    React.createElement('button', { className: css.secondaryButton, type: 'button', onClick: () => { void testConnection() } }, 'Check connection'),
+    test ? React.createElement('p', { className: css.status, role: 'status' }, test) : null,
     status ? React.createElement('p', { className: css.status, role: 'status' }, status) : null,
   )
 }

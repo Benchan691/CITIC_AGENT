@@ -11,13 +11,13 @@ uv run unified-mcp-server
 uv run pytest
 ```
 
-Configure non-secret Splunk settings in [`spl_config.json`](spl_config.json).
-Keep `SPLUNK_TOKEN` or `SPLUNK_USERNAME`/`SPLUNK_PASSWORD` in the ignored
-`.env` file; credentials supplied in JSON are ignored. Set
-`SPL_CONFIG_FILE=spl_config.local.json` in `.env` to use a different
-non-secret JSON file. Environment credentials remain the source of truth (with
-existing persisted settings retained only as a deployment fallback) and are
-never returned by public status.
+Configure Splunk, Zimbra, MarkItDown, and subscription-server settings in the
+ignored `.env` file. PostgreSQL stores authenticated users, sessions, and
+workspace ownership only; it is not a service-configuration source. The
+`/admin` console shows service status and manages LLM provider credentials, but
+does not expose or edit deployment variables.
+The checked-in `spl_config.json` is retained for legacy reference only and is
+not loaded by the server.
 
 Standalone MCP clients should set `cwd` to this directory and pass `MCP_SERVER_ROOT` when workspace data lives elsewhere (for example the repository root `.data/` directory). The former misspelling `MCP_SEVER_ROOT` remains accepted for compatibility.
 

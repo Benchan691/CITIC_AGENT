@@ -18,8 +18,10 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
 
     assert settings.transport == "stdio"
     assert settings.splunk.verify_ssl is True
+    assert settings.splunk.allow_insecure_http is False
     assert settings.splunk.sanitize_output is True
-    assert settings.zimbra.verify_ssl is False
+    assert settings.zimbra.verify_ssl is True
+    assert settings.zimbra.allow_insecure_http is False
     assert settings.zimbra.allow_filter_write is True
     assert settings.zimbra.allow_filter_redirect is True
     assert settings.zimbra.allow_filter_discard is True
@@ -45,7 +47,7 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.zimbra.max_attachment_text_chars == 200_000
     assert settings.markitdown.llm_enabled is False
     assert settings.markitdown.llm_timeout == 60
-    assert settings.email_server.url == "http://100.114.50.103:9100"
+    assert settings.email_server.url == ""
     assert settings.email_server.configured is False
 
 
@@ -73,138 +75,29 @@ def test_search_resource_settings_are_centralized_and_validated():
         ServerSettings.from_env({"SPLUNK_SEARCH_RESTRICTED_DECISION": "allow"})
 
 
-def test_splunk_json_config_overrides_non_secret_values_and_loads_nested_settings(tmp_path):
-    config_path = tmp_path / "spl_config.json"
-    config_path.write_text(
-        json.dumps(
-            {
-                "host": "json-splunk.example.com",
-                "port": 18089,
-                "scheme": "http",
-                "token": "json-token-must-be-ignored",
-                "username": "json-user-must-be-ignored",
-                "password": "json-password-must-be-ignored",
-                "verify_ssl": False,
-                "job_timeout": 45,
-                "max_events": 321,
-                "allow_detection_write": True,
-                "query_policy": {
-                    "short_search_seconds": 3600,
-                    "trusted_macros": ["company_auth_base", "trusted_scope"],
-                },
-                "search_resource": {
-                    "global_concurrency": 3,
-                    "queue_timeout_seconds": 9,
-                },
-                "security_queue": {
-                    "standard_concurrency": 2,
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    settings = ServerSettings.from_env(
-        {
-            "SPL_CONFIG_FILE": str(config_path),
-            "SPLUNK_HOST": "legacy.example.com",
-            "SPLUNK_TOKEN": "legacy-token",
-            "SPLUNK_USERNAME": "env-user",
-            "SPLUNK_PASSWORD": "env-password",
-            "SPLUNK_MAX_EVENTS": "9",
-        }
-    )
-
-    assert settings.splunk.host == "json-splunk.example.com"
-    assert settings.splunk.port == 18089
-    assert settings.splunk.url == "http://json-splunk.example.com:18089"
-    assert settings.splunk.token == "legacy-token"
-    assert settings.splunk.username == "env-user"
-    assert settings.splunk.password == "env-password"
-    assert settings.splunk.verify_ssl is False
-    assert settings.splunk.job_timeout == 45
-    assert settings.splunk.max_events == 321
-    assert settings.splunk.detection_write_enabled is True
-    assert settings.splunk.query_policy.short_search_seconds == 3600
-    assert settings.splunk.query_policy.trusted_macros == (
-        "company_auth_base",
-        "trusted_scope",
-    )
-    assert settings.splunk.search_resource.global_concurrency == 3
-    assert settings.splunk.search_resource.queue_timeout_seconds == 9
-    assert settings.splunk.security_queue.standard_concurrency == 2
-
-
-def test_credential_free_default_splunk_json_is_an_inactive_template(monkeypatch):
-    monkeypatch.delenv("SPL_CONFIG_FILE", raising=False)
-    monkeypatch.delenv("SPLUNK_CONFIG_FILE", raising=False)
-    monkeypatch.setenv("SPLUNK_HOST", "legacy.example.com")
-    monkeypatch.setenv("SPLUNK_TOKEN", "legacy-token")
-    monkeypatch.setenv("SPLUNK_MAX_EVENTS", "17")
-
-    settings = ServerSettings.from_env()
-
-    assert settings.splunk.host == "legacy.example.com"
-    assert settings.splunk.token == "legacy-token"
-    assert settings.splunk.max_events == 17
-
-
-def test_splunk_json_cannot_supply_credentials(tmp_path):
-    config_path = tmp_path / "spl_config.json"
-    config_path.write_text(
-        json.dumps(
-            {
-                "host": "json-splunk.example.com",
-                "token": "json-token",
-                "username": "json-user",
-                "password": "json-password",
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    settings = ServerSettings.from_env({"SPL_CONFIG_FILE": str(config_path)})
-
-    assert settings.splunk.host == "json-splunk.example.com"
-    assert settings.splunk.token == ""
-    assert settings.splunk.username == ""
-    assert settings.splunk.password == ""
-    assert settings.splunk.configured is False
-
-
-def test_splunk_json_config_rejects_malformed_or_wrongly_typed_files(tmp_path):
-    malformed_path = tmp_path / "malformed.json"
-    malformed_path.write_text("{not-json", encoding="utf-8")
-    with pytest.raises(ValueError, match="Splunk configuration JSON"):
-        ServerSettings.from_env({"SPL_CONFIG_FILE": str(malformed_path)})
-
-    wrong_type_path = tmp_path / "wrong-type.json"
-    wrong_type_path.write_text(
-        json.dumps({"host": "splunk.example.com", "search_resource": []}),
-        encoding="utf-8",
-    )
-    with pytest.raises(ValueError, match="search_resource"):
-        ServerSettings.from_env({"SPL_CONFIG_FILE": str(wrong_type_path)})
-
-
-def test_splunk_json_config_overrides_persisted_splunk_settings(tmp_path):
-    config_path = tmp_path / "spl_config.json"
-    config_path.write_text(
-        json.dumps({"host": "json.example.com", "token": "json-token-must-be-ignored"}),
-        encoding="utf-8",
-    )
+def test_service_configuration_comes_from_environment_only(tmp_path):
+    ignored_path = tmp_path / "ignored.json"
+    ignored_path.write_text("{not-json", encoding="utf-8")
 
     class Store:
         def list_config(self):
-            return {
-                "SPLUNK_HOST": "stored.example.com",
-                "SPLUNK_TOKEN": "stored-token",
-            }
+            raise AssertionError("service configuration must not read persisted settings")
 
-    settings = ServerSettings.from_store(Store(), {"SPL_CONFIG_FILE": str(config_path)})
+    settings = ServerSettings.from_store(
+        Store(),
+        {
+            "SPL_CONFIG_FILE": str(ignored_path),
+            "SPLUNK_URL": "https://env.example.com:8089",
+            "SPLUNK_TOKEN": "env-token",
+            "SPLUNK_MAX_EVENTS": "9",
+            "ZIMBRA_HOST": "https://mail.example.com",
+        },
+    )
 
-    assert settings.splunk.host == "json.example.com"
-    assert settings.splunk.token == "stored-token"
+    assert settings.splunk.host == "env.example.com"
+    assert settings.splunk.token == "env-token"
+    assert settings.splunk.max_events == 9
+    assert settings.zimbra.host == "https://mail.example.com"
 
 
 def test_security_queue_limits_are_centralized_and_validated():
@@ -225,12 +118,10 @@ def test_security_queue_limits_are_centralized_and_validated():
         ServerSettings.from_env({"SECURITY_QUEUE_STANDARD_CONCURRENCY": "0"})
 
 
-def test_environment_overrides_persisted_configuration():
+def test_from_store_does_not_use_persisted_configuration():
     class Store:
         def list_config(self):
-            return {
-                "ZIMBRA_HOST": "stored.example.com",
-            }
+            raise AssertionError("service configuration must not read persisted settings")
 
     settings = ServerSettings.from_store(
         Store(),
@@ -254,6 +145,7 @@ def test_global_zimbra_environment_settings_load_as_connection_defaults():
         {
             "ZIMBRA_HOST": "https://zmailbox.citictel-cpc.com/",
             "ZIMBRA_VERIFY_SSL": "false",
+            "ZIMBRA_ALLOW_INSECURE_HTTP": "false",
             "ZIMBRA_TIMEOUT": "60",
             "ZIMBRA_MAX_ATTACHMENT_BYTES": "10000000",
             "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS": "200000",
@@ -267,8 +159,9 @@ def test_global_zimbra_environment_settings_load_as_connection_defaults():
     assert settings.zimbra.max_attachment_text_chars == 200_000
     assert settings.public_status()["zimbra"] == {
         "configured": True,
-        "host": "https://zmailbox.citictel-cpc.com/",
+        "host": "https://zmailbox.citictel-cpc.com",
         "verify_ssl": False,
+        "allow_insecure_http": False,
         "filter_write_enabled": True,
         "filter_redirect_enabled": True,
         "filter_discard_enabled": True,
@@ -281,16 +174,14 @@ def test_global_zimbra_environment_settings_load_as_connection_defaults():
     }
 
 
-def test_persisted_configuration_remains_a_fallback_for_unset_environment_values():
+def test_persisted_configuration_is_not_a_fallback():
     class Store:
         def list_config(self):
-            return {
-                "ZIMBRA_HOST": "stored.example.com",
-            }
+            raise AssertionError("service configuration must not read persisted settings")
 
     settings = ServerSettings.from_store(Store(), {})
 
-    assert settings.zimbra.host == "stored.example.com"
+    assert settings.zimbra.host == ""
 
 
 def test_status_redacts_credentials_and_does_not_include_mailbox_identity():
@@ -311,6 +202,63 @@ def test_status_redacts_credentials_and_does_not_include_mailbox_identity():
     assert "account_count" not in status
 
 
+def test_public_status_redacts_credential_bearing_endpoint_parts():
+    settings = ServerSettings.from_env(
+        {
+            "SPLUNK_URL": "https://splunk.example.com:8089",
+            "ZIMBRA_HOST": "https://mail.example.com/",
+            "MARKITDOWN_LLM_BASE_URL": "https://llm.example.com/v1?api_key=llm-query-secret",
+            "SUBSCRIPTION_SERVER_URL": "https://email.example.com/api?password=email-query-secret",
+            "SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP": "false",
+        }
+    )
+
+    status = json.dumps(settings.public_status())
+    assert "llm-query-secret" not in status
+    assert "email-query-secret" not in status
+
+
+def test_credential_bearing_splunk_and_zimbra_endpoints_are_rejected():
+    with pytest.raises(ValueError, match="SPLUNK_URL"):
+        ServerSettings.from_env({
+            "SPLUNK_URL": "https://user:password@splunk.example.com:8089",
+        })
+    with pytest.raises(ValueError, match="ZIMBRA_HOST"):
+        ServerSettings.from_env({
+            "ZIMBRA_HOST": "https://user:password@mail.example.com/",
+        })
+
+
+def test_public_status_does_not_echo_non_url_llm_endpoint_values():
+    settings = ServerSettings.from_env(
+        {
+            "MARKITDOWN_LLM_BASE_URL": "llm-endpoint-secret",
+        }
+    )
+
+    assert "llm-endpoint-secret" not in json.dumps(settings.public_status())
+
+
+def test_public_readiness_contains_no_endpoint_or_llm_configuration():
+    settings = ServerSettings.from_env(
+        {
+            "SPLUNK_HOST": "splunk.example.com",
+            "ZIMBRA_HOST": "mail.example.com",
+            "MARKITDOWN_LLM_ENABLED": "true",
+            "MARKITDOWN_LLM_API_KEY": "llm-secret",
+            "MARKITDOWN_LLM_MODEL": "private-model",
+        }
+    )
+
+    readiness = json.dumps(settings.public_readiness())
+    assert "splunk.example.com" not in readiness
+    assert "mail.example.com" not in readiness
+    assert "llm-secret" not in readiness
+    assert "private-model" not in readiness
+    assert "llm_enabled" not in readiness
+    assert "configured" in readiness
+
+
 def test_email_server_credentials_load_without_exposing_password_in_status():
     settings = ServerSettings.from_env(
         {
@@ -318,13 +266,38 @@ def test_email_server_credentials_load_without_exposing_password_in_status():
             "SUBSCRIPTION_SERVER_USER": "operator",
             "SUBSCRIPTION_SERVER_PASSWORD": "email-secret",
             "SUBSCRIPTION_SERVER_TIMEOUT": "45",
+            "SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP": "true",
         }
     )
 
     assert settings.email_server.url == "http://email.example.com"
     assert settings.email_server.timeout == 45
+    assert settings.email_server.allow_insecure_http is True
     assert settings.email_server.configured is True
     assert "email-secret" not in json.dumps(settings.public_status())
+
+
+def test_subscription_server_requires_https_by_default_and_allows_explicit_http_opt_out():
+    with pytest.raises(ValueError, match="HTTPS"):
+        ServerSettings.from_env({"SUBSCRIPTION_SERVER_URL": "http://email.example.com"})
+
+    settings = ServerSettings.from_env(
+        {
+            "SUBSCRIPTION_SERVER_URL": "http://email.example.com",
+            "SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP": "true",
+        }
+    )
+    assert settings.email_server.allow_insecure_http is True
+
+
+@pytest.mark.parametrize("url", [
+    "ftp://email.example.com",
+    "https://user:password@email.example.com",
+    "https://email.example.com/path#fragment",
+])
+def test_subscription_server_rejects_unsafe_urls(url):
+    with pytest.raises(ValueError):
+        ServerSettings.from_env({"SUBSCRIPTION_SERVER_URL": url})
 
 
 def test_markitdown_llm_settings_are_opt_in_and_redacted_from_status():
@@ -374,6 +347,7 @@ def test_splunk_url_preserves_scheme_and_port():
     settings = ServerSettings.from_env(
         {
             "SPLUNK_URL": "http://127.0.0.1:8089",
+            "SPLUNK_ALLOW_INSECURE_HTTP": "true",
             "SPLUNK_USERNAME": "admin",
             "SPLUNK_PASSWORD": "secret",
         }
@@ -382,6 +356,24 @@ def test_splunk_url_preserves_scheme_and_port():
     assert settings.splunk.host == "127.0.0.1"
     assert settings.splunk.port == 8089
     assert settings.splunk.client_config()["splunk_url"] == "http://127.0.0.1:8089"
+
+
+def test_splunk_and_zimbra_http_require_explicit_opt_out():
+    with pytest.raises(ValueError, match="SPLUNK_URL"):
+        ServerSettings.from_env({"SPLUNK_URL": "http://splunk.example.com:8089"})
+    with pytest.raises(ValueError, match="ZIMBRA_HOST"):
+        ServerSettings.from_env({"ZIMBRA_HOST": "http://mail.example.com"})
+
+    splunk = ServerSettings.from_env({
+        "SPLUNK_URL": "http://splunk.example.com:8089",
+        "SPLUNK_ALLOW_INSECURE_HTTP": "true",
+    })
+    zimbra = ServerSettings.from_env({
+        "ZIMBRA_HOST": "http://mail.example.com",
+        "ZIMBRA_ALLOW_INSECURE_HTTP": "true",
+    })
+    assert splunk.splunk.allow_insecure_http is True
+    assert zimbra.zimbra.allow_insecure_http is True
 
 
 def test_detection_write_flags_are_explicit_and_visible_without_secrets():

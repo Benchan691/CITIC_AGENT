@@ -17,7 +17,7 @@ const mcpSdkEsmEntry = mcpSdkCjsEntry.replace(/[/\\]dist[/\\]cjs[/\\]/u, match =
 const { Client } = await import(pathToFileURL(mcpSdkEsmEntry).href)
 
 export const name = 'soc-agent-auth-host'
-export const inject = ['webServer', 'apiProxy', 'tools']
+export const inject = ['webServer', 'apiProxy', 'tools', 'agents', 'sessions']
 
 function installMcpSessionMetadata() {
   const prototype = Client.prototype
@@ -60,7 +60,12 @@ function installMcpSessionMetadata() {
 }
 
 export function apply(ctx) {
-  const auth = new SocAuthService(ctx, new SocStateStore())
+  const testCredentials = (() => {
+    try { return ctx.get?.('socAdminCredentials') } catch { return undefined }
+  })()
+  const auth = new SocAuthService(ctx, new SocStateStore(), {
+    ...(testCredentials ? { adminCredentials: testCredentials } : {}),
+  })
   const disposeTransport = auth.installTransport(ctx.webServer, ctx.apiProxy)
   const disposeMcpMetadata = installMcpSessionMetadata()
   ctx.effect(() => () => {
@@ -74,6 +79,9 @@ export function apply(ctx) {
     return await withMcpRequestSession(sessionId, next)
   }, { global: true, prepend: true })
   ctx.provide('socAuth', auth)
+  ctx.provide('connectionAuthorization', {
+    authorizePrivilegedRequest: () => auth.authorizePrivilegedRequest(),
+  })
   ctx.inject(['workspaceRegistry', 'sessionPersistence'], workspaceCtx => {
     auth.attachWorkspaceServices(workspaceCtx)
   })

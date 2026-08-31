@@ -65,6 +65,12 @@
   font-size: 13px;
 }
 
+.notice {
+  margin: 10px 0;
+  color: #ffe0a6;
+  font-size: 13px;
+}
+
 .loading {
   color: #cbd6e2;
   font-size: 14px;

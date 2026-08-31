@@ -96,7 +96,7 @@ def test_postgres_store_round_trips_config_and_accounts(monkeypatch):
     assert store.count_accounts() == 1
 
 
-def test_server_settings_reads_postgres_overrides(monkeypatch):
+def test_server_settings_ignores_postgres_service_configuration(monkeypatch):
     connection = FakeConnection()
     monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri: connection))
     store = PostgresStore("postgresql://example.test/settings", "test-encryption-key")
@@ -114,11 +114,11 @@ def test_server_settings_reads_postgres_overrides(monkeypatch):
 
     settings = ServerSettings.from_store(store, {"MCP_TRANSPORT": "stdio"})
 
-    assert settings.splunk.host == "splunk.internal"
-    assert settings.splunk.password == "secret"
-    assert settings.splunk.verify_ssl is False
-    assert settings.zimbra.host == "mail.internal"
-    assert settings.zimbra.verify_ssl is False
+    assert settings.splunk.host == ""
+    assert settings.splunk.password == ""
+    assert settings.splunk.verify_ssl is True
+    assert settings.zimbra.host == ""
+    assert settings.zimbra.verify_ssl is True
 
 
 def test_postgres_store_migrates_file_accounts(monkeypatch, tmp_path):

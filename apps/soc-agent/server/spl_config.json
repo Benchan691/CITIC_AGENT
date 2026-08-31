@@ -3,7 +3,7 @@
   "port": 8089,
   "scheme": "https",
   "url": "https://localhost:8089",
-  "verify_ssl": false,
+  "verify_ssl": true,
   "request_timeout": 30,
   "job_timeout": 120,
   "max_events": 1000,

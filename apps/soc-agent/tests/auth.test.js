@@ -1,12 +1,21 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import test from 'node:test'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CallToolResultSchema } from '../../../vendor/deepseek-harness/packages/mcp/mcp-client/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js'
 import { Client as HarnessMcpClient } from '../../../vendor/deepseek-harness/packages/mcp/mcp-client/node_modules/@modelcontextprotocol/sdk/dist/esm/client/index.js'
 import { apply as applyAuthHost } from '../auth-host.js'
-import { createScopedApiProxy, resolveApplicationStorageUri, SocAuthService, SocStateStore } from '../ownership.js'
+import {
+  ADMIN_SESSION_COOKIE,
+  createScopedApiProxy,
+  resolveAdminCredentials,
+  resolveApplicationStorageUri,
+  SocAuthService,
+  SocStateStore,
+  SESSION_REPLACED_MESSAGE,
+  SESSION_REPLACED_REASON,
+} from '../ownership.js'
 
 function response(request, value) {
   return { rpcId: request?.rpcId, result: { ok: true, value } }
@@ -68,6 +77,33 @@ function nodeResponse() {
   }
 }
 
+function nodeRequest({ method = 'GET', url = '/', headers = {}, body = '', socket = {} } = {}) {
+  return {
+    method,
+    url,
+    headers,
+    socket,
+    async *[Symbol.asyncIterator]() {
+      if (body) yield Buffer.from(body)
+    },
+  }
+}
+
+function jsonBody(response) {
+  return JSON.parse(response.body)
+}
+
+function adminCookie(response) {
+  return response.headers['set-cookie'].split(';', 1)[0]
+}
+
+function adminStore() {
+  return {
+    async ensureSchema() {},
+    async session() { return undefined },
+  }
+}
+
 test('SOC auth store reads only its PostgreSQL URI from the server environment file', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'soc-auth-env-'))
   try {
@@ -80,6 +116,238 @@ test('SOC auth store reads only its PostgreSQL URI from the server environment f
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+test('SOC admin credentials are required at startup and are never included in the failure', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'soc-admin-env-'))
+  try {
+    await writeFile(join(directory, '.env'), 'SOC_ADMIN_EMAIL=\nSOC_ADMIN_PASSWORD=\n')
+    assert.throws(
+      () => resolveAdminCredentials({}, directory),
+      error => error instanceof Error
+        && error.message === 'SOC_ADMIN_EMAIL and SOC_ADMIN_PASSWORD are required'
+        && !error.message.includes('admin-secret'),
+    )
+    assert.throws(
+      () => new SocAuthService({}, adminStore(), {
+        env: { SOC_ADMIN_EMAIL: 'admin@example.com', SOC_ADMIN_PASSWORD: ' ' },
+        serverRoot: directory,
+      }),
+      /SOC_ADMIN_EMAIL and SOC_ADMIN_PASSWORD are required/,
+    )
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('SOC admin login, expiry, logout, and restart invalidation use an opaque cookie session', async () => {
+  const auth = new SocAuthService({}, adminStore(), {
+    adminCredentials: { email: 'Admin@Example.com', password: 'admin-secret' },
+  })
+  const routes = new Map()
+  const webServer = {
+    register(route) {
+      routes.set(route.path, route.handler)
+      return () => routes.delete(route.path)
+    },
+  }
+  const disposers = auth.registerRoutes(webServer)
+  const loginRequest = nodeRequest({
+    method: 'POST',
+    url: '/admin/auth/login',
+    headers: { host: '127.0.0.1', 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'ADMIN@example.com', password: 'admin-secret' }),
+  })
+  const loginResponse = nodeResponse()
+  await routes.get('/admin/auth/login')(loginRequest, loginResponse)
+  assert.equal(loginResponse.statusCode, 200)
+  assert.match(loginResponse.headers['set-cookie'], new RegExp(`${ADMIN_SESSION_COOKIE}=`))
+  assert.match(loginResponse.headers['set-cookie'], /HttpOnly/)
+  assert.match(loginResponse.headers['set-cookie'], /SameSite=Lax/)
+  assert.equal(loginRequest.body, undefined)
+  assert.equal(JSON.stringify(loginResponse).includes('admin-secret'), false)
+
+  const cookie = adminCookie(loginResponse)
+  const meResponse = nodeResponse()
+  await routes.get('/admin/auth/me')(nodeRequest({ url: '/admin/auth/me', headers: { host: '127.0.0.1', cookie } }), meResponse)
+  assert.equal(meResponse.statusCode, 200)
+  assert.deepEqual(jsonBody(meResponse), { authenticated: true, admin: { email: 'admin@example.com' }, expires_at: jsonBody(meResponse).expires_at })
+
+  const token = cookie.slice(`${ADMIN_SESSION_COOKIE}=`.length)
+  const key = auth.adminSessionKey(token)
+  auth.adminSessions.get(key).expiresAt = new Date(Date.now() - 1)
+  const expired = nodeResponse()
+  await routes.get('/admin/auth/me')(nodeRequest({ url: '/admin/auth/me', headers: { host: '127.0.0.1', cookie } }), expired)
+  assert.equal(expired.statusCode, 401)
+  assert.equal(auth.adminSessions.has(key), false)
+
+  const secondLogin = nodeResponse()
+  await routes.get('/admin/auth/login')(nodeRequest({
+    method: 'POST',
+    url: '/admin/auth/login',
+    headers: { host: '127.0.0.1', 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@example.com', password: 'admin-secret' }),
+  }), secondLogin)
+  const secondCookie = adminCookie(secondLogin)
+  const logout = nodeResponse()
+  await routes.get('/admin/auth/logout')(nodeRequest({ method: 'POST', url: '/admin/auth/logout', headers: { host: '127.0.0.1', cookie: secondCookie } }), logout)
+  assert.equal(logout.statusCode, 200)
+  assert.match(logout.headers['set-cookie'], /Max-Age=0/)
+  const afterLogout = nodeResponse()
+  await routes.get('/admin/auth/me')(nodeRequest({ url: '/admin/auth/me', headers: { host: '127.0.0.1', cookie: secondCookie } }), afterLogout)
+  assert.equal(afterLogout.statusCode, 401)
+  for (const dispose of disposers) dispose()
+})
+
+test('an invalidated regular session reports that a new device signed it out', async () => {
+  const store = {
+    async ensureSchema() {},
+    async session() { return undefined },
+    async consumeSessionRevocation(id) {
+      return id === 'old-app-session' ? SESSION_REPLACED_REASON : undefined
+    },
+  }
+  const auth = new SocAuthService({}, store, {
+    adminCredentials: { email: 'admin@example.com', password: 'admin-secret' },
+  })
+  const routes = new Map()
+  const webServer = {
+    register(route) {
+      routes.set(route.path, route.handler)
+      return () => routes.delete(route.path)
+    },
+  }
+  const disposers = auth.registerRoutes(webServer)
+  const output = nodeResponse()
+  await routes.get('/auth/me')(nodeRequest({
+    url: '/auth/me',
+    headers: { host: '127.0.0.1', cookie: 'soc_session=old-app-session' },
+  }), output)
+  assert.equal(output.statusCode, 401)
+  assert.deepEqual(jsonBody(output), {
+    authenticated: false,
+    reason: SESSION_REPLACED_REASON,
+    message: SESSION_REPLACED_MESSAGE,
+  })
+  for (const dispose of disposers) dispose()
+})
+
+test('replacing a login cancels all of that user\'s live chat agents and flushes history', async () => {
+  const cancelled = []
+  const flushed = []
+  const agents = ['chat-a', 'chat-b', 'chat-other'].map(id => ({
+    id,
+    session: { id },
+    cancel(cause, options) { cancelled.push({ id, cause, options }) },
+    async whenIdle() {},
+  }))
+  const store = {
+    async ensureSchema() {},
+    async userSessionIds(userId) {
+      assert.equal(userId, 'user-a')
+      return new Set(['chat-a', 'chat-b'])
+    },
+  }
+  const auth = new SocAuthService({
+    agents: { list: () => agents },
+    sessions: { async flush(session) { flushed.push(session.id) } },
+  }, store, { adminCredentials: { email: 'admin@example.com', password: 'admin-secret' } })
+  assert.equal(await auth.stopUserChatSessions('user-a', ['old-app-session']), 2)
+  assert.deepEqual(cancelled, [
+    { id: 'chat-a', cause: { kind: 'user' }, options: { keepInbox: false } },
+    { id: 'chat-b', cause: { kind: 'user' }, options: { keepInbox: false } },
+  ])
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(flushed.sort(), ['chat-a', 'chat-b'])
+})
+
+test('revoking an application session aborts its event stream and fences MCP work', async () => {
+  const auth = new SocAuthService({}, {
+    async ensureSchema() {},
+    async userSessionIds() { return new Set(['session-a']) },
+  }, {
+    adminCredentials: { email: 'admin@example.com', password: 'admin-secret' },
+  })
+  const api = {
+    events: {
+      mux(_request, signal) {
+        return (async function* () {
+          await new Promise(resolve => {
+            if (signal.aborted) resolve()
+            else signal.addEventListener('abort', resolve, { once: true })
+          })
+        })()
+      },
+    },
+  }
+  const scoped = createScopedApiProxy(api, auth)
+  const session = { id: 'old-app-session', userId: 'user-a', email: 'a@example.com' }
+  const pending = auth.withSession(session, () => scoped.events.mux({
+    rpcId: 'mux',
+    payload: { since: { 'session-a': 4, 'foreign-session': 9 } },
+  }, new AbortController().signal).next())
+  auth.revokeApplicationSession(session.id)
+  assert.equal(auth.applicationSessionSignal(session.id).aborted, true)
+  assert.deepEqual(auth.withSession(session, () => auth.mcpRequestMeta({ agent: { id: 'chat-a' } })), {
+    soc_session_id: 'old-app-session',
+  })
+  assert.deepEqual(await pending, { done: true, value: undefined })
+})
+
+test('admin cookies cannot authorize chat APIs, while regular users cannot authorize settings APIs', async () => {
+  const store = adminStore()
+  store.session = async id => id === 'user-session' ? {
+    id,
+    userId: 'user-a',
+    email: 'user@example.com',
+    expiresAt: new Date(Date.now() + 60_000),
+  } : undefined
+  const auth = new SocAuthService({}, store, {
+    adminCredentials: { email: 'admin@example.com', password: 'admin-secret' },
+  })
+  const adminToken = auth.adminSessionToken()
+  auth.adminSessions.set(auth.adminSessionKey(adminToken), {
+    email: 'admin@example.com',
+    expiresAt: new Date(Date.now() + 60_000),
+  })
+  const routes = new Map()
+  const webServer = {
+    register(route) {
+      routes.set(`${route.kind}:${route.path}`, route)
+      return () => routes.delete(`${route.kind}:${route.path}`)
+    },
+    registerUpgrade() { return () => {} },
+  }
+  const dispose = auth.installTransport(webServer, {})
+  let called = 0
+  webServer.register({
+    kind: 'prefix',
+    path: '/api',
+    handler: (_request, response) => { called += 1; response.writeHead(200); response.end('ok') },
+  })
+  const route = routes.get('prefix:/api')
+  const adminChat = nodeResponse()
+  await route.handler(nodeRequest({ url: '/api/session.list', headers: { host: '127.0.0.1', cookie: `${ADMIN_SESSION_COOKIE}=${adminToken}` }, socket: { remoteAddress: '127.0.0.1' } }), adminChat)
+  assert.equal(adminChat.statusCode, 401)
+  const regularSettings = nodeResponse()
+  await route.handler(nodeRequest({ url: '/api/settings.describe', headers: { host: '127.0.0.1', cookie: 'soc_session=user-session' }, socket: { remoteAddress: '127.0.0.1' } }), regularSettings)
+  assert.equal(regularSettings.statusCode, 403)
+  const adminSettings = nodeResponse()
+  await route.handler(nodeRequest({ url: '/api/settings.describe', headers: { host: '127.0.0.1', cookie: `${ADMIN_SESSION_COOKIE}=${adminToken}` }, socket: { remoteAddress: '127.0.0.1' } }), adminSettings)
+  assert.equal(adminSettings.statusCode, 200)
+  const regularDescribe = nodeResponse()
+  await route.handler(nodeRequest({ url: '/api/host.describe', headers: { host: '127.0.0.1', cookie: 'soc_session=user-session' }, socket: { remoteAddress: '127.0.0.1' } }), regularDescribe)
+  assert.equal(regularDescribe.statusCode, 200)
+  for (const method of ['host.listDirectory', 'host.createDirectory']) {
+    const regular = nodeResponse()
+    await route.handler(nodeRequest({ url: `/api/${method}`, headers: { host: '127.0.0.1', cookie: 'soc_session=user-session' }, socket: { remoteAddress: '127.0.0.1' } }), regular)
+    assert.equal(regular.statusCode, 403)
+    const admin = nodeResponse()
+    await route.handler(nodeRequest({ url: `/api/${method}`, headers: { host: '127.0.0.1', cookie: `${ADMIN_SESSION_COOKIE}=${adminToken}` }, socket: { remoteAddress: '127.0.0.1' } }), admin)
+    assert.equal(admin.statusCode, 200)
+  }
+  assert.equal(called, 4)
+  dispose()
 })
 
 test('scoped API prevents cross-user workspace/session IDOR and filters queries', async () => {
@@ -176,7 +444,7 @@ test('SOC relative workspace names create private directories and reject travers
     }
     const scoped = createScopedApiProxy(api, auth)
     const created = await scoped.workspace.create({ rpcId: 'workspace-create', payload: { path: 'Test' } })
-    const expected = join(root, '.data', 'soc-workspaces', 'user-a', 'Test')
+    const expected = await realpath(join(root, '.data', 'soc-workspaces', 'user-a', 'Test'))
     assert.equal(created.result.ok, true)
     assert.equal(requests[0].payload.path, expected)
     assert.equal((await stat(expected)).isDirectory(), true)
@@ -186,6 +454,9 @@ test('SOC relative workspace names create private directories and reject travers
       assert.equal(rejected.result.ok, false)
       assert.equal(rejected.result.error.code, 'workspace-invalid-path')
     }
+    const absolute = await scoped.workspace.create({ rpcId: 'invalid-absolute', payload: { path: join(root, 'outside') } })
+    assert.equal(absolute.result.ok, false)
+    assert.equal(absolute.result.error.code, 'workspace-invalid-path')
     assert.equal(requests.length, 1)
   } finally {
     if (previousRoot === undefined) delete process.env.MCP_SERVER_ROOT
@@ -241,7 +512,7 @@ test('ensureGeneral repairs a missing legacy General workspace on reload', async
       async ensureSchema() {},
       async claimWorkspace() { return true },
     }
-    const auth = new SocAuthService({}, store)
+    const auth = new SocAuthService({}, store, { adminCredentials: { email: 'admin@example.com', password: 'admin-secret' } })
     auth.registry = {
       async resolveByPath(path) { return records.find(workspace => workspace.path === path) },
       async create(path, title) {
@@ -366,7 +637,7 @@ test('scoped response handling cannot cancel another user\'s pending request by 
 
 test('MCP metadata carries only an opaque app session reference', async () => {
   const store = { async ensureSchema() {} }
-  const auth = new SocAuthService({}, store)
+  const auth = new SocAuthService({}, store, { adminCredentials: { email: 'admin@example.com', password: 'admin-secret' } })
   const session = {
     id: 'app-session-a',
     userId: 'user-a',
@@ -389,7 +660,7 @@ test('SOC auth plugin gates Harness transport and scopes the shared API proxy', 
   }
   store.ensureSchema = async () => {}
   store.session = async id => id === applicationSession.id ? applicationSession : undefined
-  const auth = new SocAuthService({}, store)
+  const auth = new SocAuthService({}, store, { adminCredentials: { email: 'admin@example.com', password: 'admin-secret' } })
   const routes = new Map()
   const webServer = {
     register(route) {
@@ -434,6 +705,39 @@ test('SOC auth plugin gates Harness transport and scopes the shared API proxy', 
   assert.equal(accepted.statusCode, 200)
   assert.equal(seenSession.id, applicationSession.id)
 
+  let memoryHandlerCalled = false
+  webServer.register({
+    kind: 'exact',
+    path: '/_dsh/memory/settings',
+    handler: (_request, res) => {
+      memoryHandlerCalled = true
+      res.writeHead(200)
+      res.end('memory')
+    },
+  })
+  const memoryRoute = routes.get('exact:/_dsh/memory/settings')
+  for (const method of ['GET', 'POST']) {
+    const memoryDenied = nodeResponse()
+    await memoryRoute.handler({ method, headers: { cookie: 'soc_session=invalid' }, socket: {} }, memoryDenied)
+    assert.equal(memoryDenied.statusCode, 401)
+  }
+  assert.equal(memoryHandlerCalled, false)
+
+  const memoryAccepted = nodeResponse()
+  await memoryRoute.handler({ method: 'GET', headers: { cookie: 'soc_session=app-session-a' }, socket: {} }, memoryAccepted)
+  assert.equal(memoryAccepted.statusCode, 403)
+  assert.equal(memoryHandlerCalled, false)
+
+  const adminToken = auth.adminSessionToken()
+  auth.adminSessions.set(auth.adminSessionKey(adminToken), {
+    email: 'admin@example.com',
+    expiresAt: new Date(Date.now() + 60_000),
+  })
+  const memoryAdmin = nodeResponse()
+  await memoryRoute.handler({ method: 'GET', headers: { cookie: `soc_admin_session=${adminToken}` }, socket: {} }, memoryAdmin)
+  assert.equal(memoryAdmin.statusCode, 200)
+  assert.equal(memoryHandlerCalled, true)
+
   const scoped = await auth.withSession(applicationSession, () => api.workspace.list({ payload: {} }))
   assert.deepEqual(scoped.result.value.items.map(item => item.workspaceId), ['workspace-a'])
   assert.deepEqual(scoped.result.value.items[0].sessionIds, ['session-a'])
@@ -460,6 +764,11 @@ test('SOC auth plugin attaches session metadata to the Harness MCP client withou
       registerUpgrade() { return () => {} },
     },
     apiProxy: {},
+    get(name) {
+      return name === 'socAdminCredentials'
+        ? { email: 'admin@example.com', password: 'admin-secret' }
+        : undefined
+    },
     provide(name, value) {
       if (name === 'socAuth') providedAuth = value
     },

@@ -33,12 +33,12 @@ function send(socket: WebSocket, frame: RpcRequest<Frame>): Promise<void> {
   })
 }
 
-function failureFrame(error: unknown): RpcRequest<Frame> {
+function failureFrame(): RpcRequest<Frame> {
   return {
     rpcId: RpcId(randomUUID()),
     payload: {
       type: 'stream/error',
-      error: { code: 'internal', message: String(error), details: {} },
+      error: { code: 'internal', message: 'event stream unavailable', details: {} },
     },
   }
 }
@@ -122,10 +122,10 @@ export class WebSocketDownlinks {
   ): Promise<void> {
     try {
       for await (const frame of frames) await send(socket, frame)
-    } catch (error) {
+    } catch {
       if (!abort.signal.aborted) {
         try {
-          await send(socket, failureFrame(error))
+          await send(socket, failureFrame())
         } catch {
           // Socket loss won the race; no downstream remains to receive the failure frame.
         }

@@ -35,24 +35,30 @@ function fakeHttpServer(
   }
 }
 
+function peerFor(headers: Record<string, string>): string {
+  return /^127(?:\.|$)|^localhost(?::|$)|^\[::1\]/iu.test(headers.host ?? '')
+    ? '127.0.0.1'
+    : '192.0.2.10'
+}
+
 /** Bodyless GET carrying the given headers (enough for the trust fence + bridge). */
-function fakeRequest(headers: Record<string, string>, url = `${API_PATH}/session.list`): IncomingMessage {
+function fakeRequest(headers: Record<string, string>, url = `${API_PATH}/session.list`, remoteAddress = peerFor(headers)): IncomingMessage {
   const request = Readable.from([]) as unknown as IncomingMessage
-  Object.assign(request, { url, method: 'GET', headers })
+  Object.assign(request, { url, method: 'GET', headers, socket: { remoteAddress } })
   return request
 }
 
 /** JSON POST carrying a complete client-request envelope. */
-function fakePost(headers: Record<string, string>, url: string, body: unknown): IncomingMessage {
+function fakePost(headers: Record<string, string>, url: string, body: unknown, remoteAddress = peerFor(headers)): IncomingMessage {
   const request = Readable.from([Buffer.from(JSON.stringify(body))]) as unknown as IncomingMessage
-  Object.assign(request, { url, method: 'POST', headers: { 'content-type': 'application/json', ...headers } })
+  Object.assign(request, { url, method: 'POST', headers: { 'content-type': 'application/json', ...headers }, socket: { remoteAddress } })
   return request
 }
 
 /** Raw POST for malformed-body and media-type boundary cases. */
-function fakeRawPost(headers: Record<string, string>, url: string, body: string): IncomingMessage {
+function fakeRawPost(headers: Record<string, string>, url: string, body: string, remoteAddress = peerFor(headers)): IncomingMessage {
   const request = Readable.from([Buffer.from(body)]) as unknown as IncomingMessage
-  Object.assign(request, { url, method: 'POST', headers })
+  Object.assign(request, { url, method: 'POST', headers, socket: { remoteAddress } })
   return request
 }
 
@@ -75,7 +81,7 @@ function fakeResponse(): { response: ServerResponse; state: { status?: number; b
   return { response, state }
 }
 
-async function mounted(config?: { trustedHosts?: string[] }): Promise<{
+async function mounted(config?: { trustedHosts?: string[]; authorizePrivileged?: boolean }): Promise<{
   routes: WebRoute[]
   upgrades: WebUpgradeRoute[]
   dispose: () => Promise<void>
@@ -85,6 +91,11 @@ async function mounted(config?: { trustedHosts?: string[] }): Promise<{
   const upgrades: WebUpgradeRoute[] = []
   ctx.provide('webServer', fakeHttpServer(routes, upgrades) as WebServer)
   ctx.provide('apiProxy', {} as unknown as ApiProxy)
+  if (config?.authorizePrivileged) {
+    ctx.provide('connectionAuthorization', {
+      authorizePrivilegedRequest: () => true,
+    })
+  }
   const fiber = ctx.plugin({ inject: [...inject], apply }, config)
   await fiber.await()
   return { routes, upgrades, dispose: () => fiber.dispose() }
@@ -175,7 +186,7 @@ describe('connection node half', () => {
     // ordinary reads (carrier-level 404 from the empty proxy proves the fence
     // passed), but each privileged method stays loopback-only and 403s.
     for (const method of [
-      'host.pickDirectory', 'host.openPath',
+      'host.pickDirectory', 'host.listDirectory', 'host.createDirectory', 'host.openPath',
       'settings.describe', 'settings.openDocument', 'settings.update', 'settings.replace', 'settings.mutate',
       'credentials.describe', 'credentials.set', 'credentials.unset',
       'llm.discoverModels',
@@ -196,6 +207,26 @@ describe('connection node half', () => {
     await routes[0]!.handler(fakeRequest({ host: 'harness.example' }), read.response)
     expect(read.state.status).not.toBe(403)
     await dispose()
+  })
+
+  it('does not treat a spoofed loopback Host as a local peer, but accepts a verified server authorization callback', async () => {
+    const deniedMount = await mounted({ trustedHosts: ['harness.example'] })
+    const denied = fakeResponse()
+    await deniedMount.routes[0]!.handler(
+      fakeRequest({ host: '127.0.0.1' }, `${API_PATH}/settings.describe`, '192.0.2.10'),
+      denied.response,
+    )
+    expect(denied.state).toMatchObject({ status: 403, body: 'forbidden' })
+    await deniedMount.dispose()
+
+    const allowedMount = await mounted({ trustedHosts: ['harness.example'], authorizePrivileged: true })
+    const allowed = fakeResponse()
+    await allowedMount.routes[0]!.handler(
+      fakeRequest({ host: '127.0.0.1' }, `${API_PATH}/settings.describe`, '192.0.2.10'),
+      allowed.response,
+    )
+    expect(allowed.state.status).toBe(404)
+    await allowedMount.dispose()
   })
 
   it('passes loopback and declared-authority requests through to the bridge', async () => {
@@ -401,7 +432,7 @@ describe('connection node half', () => {
     await route.handler(fakePost({ host: 'harness.example' }, '/rpc/fail', {
       type: 'client-request', rpcId: 'rpc-fail', method: 'fail', payload: {},
     }), failed.response)
-    expect(failed.state).toMatchObject({ status: 500, body: 'handler failure: Error: handler broke' })
+    expect(failed.state).toMatchObject({ status: 500, body: 'handler failure' })
 
     expect(() => connection.rpc.handle('/api', async () => ({ ok: true, value: null }), {
       authority: 'loopback',
@@ -459,11 +490,10 @@ describe('connection node half over a real HTTP server', () => {
     })
   }
 
-  it('answers a declared LAN authority with 403 on every configuration method, over real HTTP', async () => {
+  it('answers a declared LAN authority and permits configuration over real loopback HTTP', async () => {
     // The fence's input is a real IncomingMessage parsed by Node from the
-    // wire, not a hand-assembled object: the Host header a LAN browser sends
-    // is exactly what decides loopback-only here, so the boundary is asserted
-    // against the parse the server actually performs.
+    // wire. This server is deliberately bound to loopback, so the actual peer
+    // is local even when the Host names a declared deployment authority.
     const { routes, dispose } = await mounted({ trustedHosts: ['harness.example'] })
     const { port, close } = await serve(routes)
     try {
@@ -472,13 +502,13 @@ describe('connection node half over a real HTTP server', () => {
       for (const method of [
         'settings.describe', 'settings.openDocument', 'settings.update', 'settings.replace', 'settings.mutate',
         'credentials.describe', 'credentials.set', 'credentials.unset',
-        'host.pickDirectory', 'host.openPath',
+        'host.pickDirectory', 'host.listDirectory', 'host.createDirectory', 'host.openPath',
         // Carries a draft credential and turns the host into a fetcher for a
         // URL the caller picked: an anonymous LAN caller must not reach it.
         'llm.discoverModels',
         'agentPreset.read', 'agentPreset.copy', 'agentPreset.openDocument', 'agentPreset.remove',
       ]) {
-        expect([method, await call(port, method, 'harness.example')]).toEqual([method, 403])
+        expect([method, await call(port, method, 'harness.example')]).toEqual([method, 404])
       }
       // The model catalog stays reachable for the same authority: a LAN
       // client's model picker needs it, and it carries no key or endpoint

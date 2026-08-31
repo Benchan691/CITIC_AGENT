@@ -6,7 +6,6 @@ from contextvars import ContextVar
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from os import environ
 from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -124,7 +123,7 @@ class Runtime:
 
         if self.postgres is None:
             return
-        updated = ServerSettings.from_store(self.postgres)
+        updated = ServerSettings.from_env()
         if updated.splunk != self.settings.splunk:
             await self.splunk.close()
             self.splunk = SplunkService(updated.splunk)
@@ -141,10 +140,8 @@ class Runtime:
 
 def create_server(settings: ServerSettings | None = None) -> FastMCP:
     postgres_store = PostgresStore.from_env()
-    settings = settings or ServerSettings.from_store(postgres_store)
+    settings = settings or ServerSettings.from_env()
 
-    if postgres_store is not None:
-        postgres_store.migrate_env_config(environ)
     # Normal operation never reads or writes the legacy stored-account table.
     # A no-op adapter keeps the compatibility service constructors simple while
     # ensuring an MCP caller cannot select a persisted mailbox credential.
@@ -202,7 +199,10 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
                 details=exc.details,
             )
         except Exception:
-            logger.exception("Unexpected %s.%s failure", service, operation)
+            # Third-party exception strings can contain URLs, request bodies,
+            # or credentials. Keep the operational log stable and credential-
+            # free; the caller receives the same generic failure envelope.
+            logger.error("Unexpected %s.%s failure", service, operation)
             return failure(service, operation, "internal_error", "The MCP server encountered an unexpected error.")
 
     def runtime(ctx: Context) -> Runtime:
@@ -231,9 +231,9 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
 
     @server.tool()
     async def system_get_status(ctx: Context) -> dict[str, Any]:
-        """Show non-secret server configuration and service readiness."""
+        """Show non-sensitive service readiness; detailed configuration is administrator-only."""
         current = await fresh_runtime(ctx)
-        return success("system", "get_status", current.settings.public_status())
+        return success("system", "get_status", current.settings.public_readiness())
 
     register_search_tools(
         server,

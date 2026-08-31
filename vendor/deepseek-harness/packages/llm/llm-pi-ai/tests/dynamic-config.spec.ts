@@ -76,6 +76,28 @@ describe('login flows in a real composition', () => {
 })
 
 describe('request-level dynamic profiles', () => {
+  it('redacts every provider header value from settings descriptions', async () => {
+    const ctx = await boot(await home(), {
+      providers: {
+        openai: {
+          headers: {
+            Authorization: 'header-secret-value',
+            'X-Private-Header': 'private-header-value',
+          },
+        },
+      },
+    })
+
+    const descriptor = ctx.settings.describe({ redactSecrets: true }).find(row => row.ns === NS)
+    expect(JSON.stringify(descriptor)).not.toContain('header-secret-value')
+    expect(JSON.stringify(descriptor)).not.toContain('private-header-value')
+    expect(descriptor?.value).toMatchObject({ providers: { openai: { headers: {} } } })
+    expect(descriptor?.secrets?.map(secret => secret.path.join('.'))).toEqual(expect.arrayContaining([
+      'providers.openai.headers.Authorization',
+      'providers.openai.headers.X-Private-Header',
+    ]))
+  })
+
   it('mounts bare and dormant, then registers routes the moment settings supply providers', async () => {
     vi.stubEnv('PI_DYNAMIC_KEY', '')
     const dir = await home()

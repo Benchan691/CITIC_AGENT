@@ -719,18 +719,40 @@ export function searchEntries(entries, query, { tags = [], mode = 'all', limit =
 }
 
 export async function requestEmbeddings(texts, config = {}) {
-  const baseURL = String(config.baseURL || '').replace(/\/+$/, '')
-  if (baseURL.length === 0) throw new Error('embedding baseURL is empty')
+  const rawBaseURL = String(config.baseURL || '').trim()
+  if (rawBaseURL.length === 0) throw new Error('embedding baseURL is empty')
+  let parsed
+  try { parsed = new URL(rawBaseURL) } catch { throw new Error('embedding endpoint is invalid') }
+  const allowInsecureHttp = config.allowInsecureHttp === true
+  if (
+    !['http:', 'https:'].includes(parsed.protocol)
+    || parsed.hostname.length === 0
+    || parsed.username
+    || parsed.password
+    || parsed.search
+    || parsed.hash
+  ) throw new Error('embedding endpoint is invalid')
+  if (parsed.protocol === 'http:' && !allowInsecureHttp) {
+    throw new Error('embedding endpoint must use HTTPS unless insecure HTTP is explicitly enabled')
+  }
+  const baseURL = parsed.toString().replace(/\/+$/, '')
   const headers = { 'content-type': 'application/json' }
   if (config.apiKey) headers.authorization = `Bearer ${config.apiKey}`
-  const response = await fetch(`${baseURL}/embeddings`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ model: config.model || 'text-embedding-3-small', input: texts }),
-    signal: config.signal
-  })
+  const safeTexts = (Array.isArray(texts) ? texts : [texts]).map((text) => redactSecrets(String(text ?? '')))
+  let response
+  try {
+    response = await fetch(`${baseURL}/embeddings`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ model: config.model || 'text-embedding-3-small', input: safeTexts }),
+      signal: config.signal
+    })
+  } catch (error) {
+    throw new Error('embedding request failed')
+  }
   if (!response.ok) throw new Error(`embedding request failed: ${response.status}`)
-  const payload = await response.json()
+  let payload
+  try { payload = await response.json() } catch { throw new Error('embedding response is invalid') }
   if (!Array.isArray(payload.data)) throw new Error('embedding response missing data')
   return payload.data
     .slice()

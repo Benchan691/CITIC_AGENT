@@ -14,17 +14,35 @@
  */
 
 import type { IncomingHttpHeaders } from 'node:http'
+import { isIP } from 'node:net'
 import { isLoopbackHostname } from './loopback-hostname.ts'
 
 /** The request facts the fence reads from either HTTP representation. */
-interface ApiTrustRequest {
+export interface ApiTrustRequest {
   headers: IncomingHttpHeaders | Headers
+  /** Server-observed socket metadata; never populated from request headers. */
+  socket?: { remoteAddress?: string | undefined }
 }
 
 function header(headers: IncomingHttpHeaders | Headers, name: string): string | undefined {
   if (headers instanceof Headers) return headers.get(name) ?? undefined
   const value = headers[name]
   return typeof value === 'string' ? value : undefined
+}
+
+/**
+ * Check the actual network peer of a Node request. Forwarded headers and Host
+ * are deliberately not considered: they describe the request, not the socket
+ * that delivered it.
+ */
+export function isLoopbackPeer(request: Pick<ApiTrustRequest, 'socket'>): boolean {
+  const address = String(request.socket?.remoteAddress ?? '').toLowerCase()
+  if (!address) return false
+  if (address === '::1') return true
+  const mapped = address.startsWith('::ffff:') ? address.slice('::ffff:'.length) : address
+  if (isIP(mapped) !== 4) return false
+  const first = Number(mapped.split('.', 1)[0])
+  return Number.isInteger(first) && first === 127
 }
 
 /** Normalized URL of a Host-header authority (hostname lowercased, default port stripped, IPv6 bracketed), or undefined when unparsable. */

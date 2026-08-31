@@ -1,4 +1,4 @@
-"""Administrative CLI for PostgreSQL-backed MCP settings."""
+"""Administrative CLI for status checks and protected SOC operations."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ import base64
 import json
 import sys
 from collections.abc import Mapping
-from os import environ
 from typing import Any
 
 from .config import ServerSettings
@@ -21,63 +20,6 @@ from .splunk_service import SplunkService
 
 load_server_env()
 
-CONFIG_KEYS = {
-    "splunk.url": ("SPLUNK_URL",),
-    "splunk.username": ("SPLUNK_USERNAME",),
-    "splunk.password": ("SPLUNK_PASSWORD",),
-    "splunk.verify_ssl": ("SPLUNK_VERIFY_SSL",),
-    "splunk.max_events": ("SPLUNK_MAX_EVENTS",),
-    "splunk.risk_tolerance": ("SPLUNK_RISK_TOLERANCE",),
-    "splunk.detection_write_enabled": ("SPLUNK_ALLOW_DETECTION_WRITE",),
-    "splunk.detection_enable_enabled": ("SPLUNK_ALLOW_DETECTION_ENABLE",),
-    "splunk.detection_approval_ttl_seconds": ("SPLUNK_DETECTION_APPROVAL_TTL_SECONDS",),
-    "splunk.query_policy.short_search_seconds": ("SPLUNK_POLICY_SHORT_SEARCH_SECONDS",),
-    "splunk.query_policy.normal_search_seconds": ("SPLUNK_POLICY_NORMAL_SEARCH_SECONDS",),
-    "splunk.query_policy.very_long_search_seconds": ("SPLUNK_POLICY_VERY_LONG_SEARCH_SECONDS",),
-    "splunk.query_policy.wildcard_index_decision": ("SPLUNK_POLICY_WILDCARD_INDEX",),
-    "splunk.query_policy.no_index_decision": ("SPLUNK_POLICY_NO_INDEX",),
-    "splunk.query_policy.long_raw_decision": ("SPLUNK_POLICY_LONG_RAW",),
-    "splunk.query_policy.very_long_decision": ("SPLUNK_POLICY_VERY_LONG",),
-    "splunk.query_policy.all_time_decision": ("SPLUNK_POLICY_ALL_TIME",),
-    "splunk.query_policy.expensive_command_decision": ("SPLUNK_POLICY_EXPENSIVE_COMMAND",),
-    "splunk.query_policy.subsearch_decision": ("SPLUNK_POLICY_SUBSEARCH",),
-    "splunk.query_policy.nested_subsearch_decision": ("SPLUNK_POLICY_NESTED_SUBSEARCH",),
-    "splunk.query_policy.unresolved_macro_decision": ("SPLUNK_POLICY_UNRESOLVED_MACRO",),
-    "splunk.query_policy.unparseable_time_decision": ("SPLUNK_POLICY_UNPARSEABLE_TIME",),
-    "splunk.query_policy.max_subsearch_depth": ("SPLUNK_POLICY_MAX_SUBSEARCH_DEPTH",),
-    "splunk.query_policy.trusted_macros": ("SPLUNK_POLICY_TRUSTED_MACROS",),
-    "splunk.search_resource.global_concurrency": ("SPLUNK_SEARCH_GLOBAL_CONCURRENCY",),
-    "splunk.search_resource.per_principal_concurrency": ("SPLUNK_SEARCH_PER_PRINCIPAL_CONCURRENCY",),
-    "splunk.search_resource.queue_timeout_seconds": ("SPLUNK_SEARCH_QUEUE_TIMEOUT_SECONDS",),
-    "splunk.search_resource.max_jobs_per_minute": ("SPLUNK_SEARCH_MAX_JOBS_PER_MINUTE",),
-    "splunk.search_resource.budget_per_minute": ("SPLUNK_SEARCH_BUDGET_PER_MINUTE",),
-    "splunk.search_resource.max_runtime_low": ("SPLUNK_SEARCH_MAX_RUNTIME_LOW",),
-    "splunk.search_resource.max_runtime_medium": ("SPLUNK_SEARCH_MAX_RUNTIME_MEDIUM",),
-    "splunk.search_resource.max_runtime_high": ("SPLUNK_SEARCH_MAX_RUNTIME_HIGH",),
-    "splunk.search_resource.max_lookback_low": ("SPLUNK_SEARCH_MAX_LOOKBACK_LOW",),
-    "splunk.search_resource.max_lookback_medium": ("SPLUNK_SEARCH_MAX_LOOKBACK_MEDIUM",),
-    "splunk.search_resource.max_lookback_high": ("SPLUNK_SEARCH_MAX_LOOKBACK_HIGH",),
-    "splunk.search_resource.max_results_low": ("SPLUNK_SEARCH_MAX_RESULTS_LOW",),
-    "splunk.search_resource.max_results_medium": ("SPLUNK_SEARCH_MAX_RESULTS_MEDIUM",),
-    "splunk.search_resource.max_results_high": ("SPLUNK_SEARCH_MAX_RESULTS_HIGH",),
-    "splunk.search_resource.backtest_concurrency": ("SPLUNK_SEARCH_BACKTEST_CONCURRENCY",),
-    "splunk.search_resource.restricted_decision": ("SPLUNK_SEARCH_RESTRICTED_DECISION",),
-    "splunk.security_queue.max_backend_pages_per_request": ("SECURITY_QUEUE_MAX_BACKEND_PAGES_PER_REQUEST",),
-    "splunk.security_queue.max_backend_records_per_request": ("SECURITY_QUEUE_MAX_BACKEND_RECORDS_PER_REQUEST",),
-    "splunk.security_queue.standard_concurrency": ("SECURITY_QUEUE_STANDARD_CONCURRENCY",),
-    "zimbra.host": ("ZIMBRA_HOST",),
-    "zimbra.verify_ssl": ("ZIMBRA_VERIFY_SSL",),
-    "zimbra.timeout": ("ZIMBRA_TIMEOUT",),
-    "zimbra.allow_send": ("ZIMBRA_ALLOW_SEND",),
-    "zimbra.max_attachment_bytes": ("ZIMBRA_MAX_ATTACHMENT_BYTES",),
-    "zimbra.max_attachment_text_chars": ("ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS",),
-    "markitdown.llm_enabled": ("MARKITDOWN_LLM_ENABLED",),
-    "markitdown.llm_base_url": ("MARKITDOWN_LLM_BASE_URL",),
-    "markitdown.llm_model": ("MARKITDOWN_LLM_MODEL",),
-    "markitdown.llm_timeout": ("MARKITDOWN_LLM_TIMEOUT",),
-}
-
-
 def _store() -> PostgresStore:
     store = PostgresStore.from_env()
     if store is None:
@@ -85,48 +27,19 @@ def _store() -> PostgresStore:
     return store
 
 
-def _settings(store: PostgresStore) -> ServerSettings:
-    return ServerSettings.from_store(store)
+def _settings(_store: PostgresStore) -> ServerSettings:
+    """Read service configuration from the server environment only."""
+    return ServerSettings.from_env()
 
 
 def _public_settings(store: PostgresStore) -> dict[str, Any]:
     settings = _settings(store)
-    config = store.list_config()
     return {
-        "splunk": {
-            "url": settings.splunk.url,
-            "username": settings.splunk.username,
-            "configured": settings.splunk.configured,
-            "has_password": bool(config.get("SPLUNK_PASSWORD") or settings.splunk.password),
-            "verify_ssl": settings.splunk.verify_ssl,
-            "max_events": settings.splunk.max_events,
-            "risk_tolerance": settings.splunk.risk_tolerance,
-            "detection_write_enabled": settings.splunk.detection_write_enabled,
-            "detection_enable_enabled": settings.splunk.detection_enable_enabled,
-            "detection_approval_ttl_seconds": settings.splunk.detection_approval_ttl_seconds,
-            "query_policy": settings.splunk.query_policy.to_dict(),
-            "search_resource": settings.splunk.search_resource.to_dict(),
-            "security_queue": settings.splunk.security_queue.to_dict(),
-        },
-        "zimbra": {
-            "host": settings.zimbra.host,
-            "configured": bool(settings.zimbra.host),
-            "verify_ssl": settings.zimbra.verify_ssl,
-            "timeout": settings.zimbra.timeout,
-            "max_attachment_bytes": settings.zimbra.max_attachment_bytes,
-            "max_attachment_text_chars": settings.zimbra.max_attachment_text_chars,
-            "send_enabled": settings.zimbra.allow_send,
-        },
-        "markitdown": {
-            "llm_enabled": settings.markitdown.llm_enabled,
-            "llm_base_url": settings.markitdown.llm_base_url,
-            "llm_model": settings.markitdown.llm_model,
-            "llm_timeout": settings.markitdown.llm_timeout,
-            "has_api_key": bool(config.get("MARKITDOWN_LLM_API_KEY") or settings.markitdown.llm_api_key),
-        },
-        "subscription_server": {
-            "url": settings.email_server.url,
-            "configured": settings.email_server.configured,
+        "services": {
+            "splunk": {"status": "ready" if settings.splunk.configured else "not_configured"},
+            "zimbra": {"status": "ready" if settings.zimbra.configured else "not_configured"},
+            "markitdown": {"status": "ready"},
+            "subscription_server": {"status": "ready" if settings.email_server.configured else "not_configured"},
         },
     }
 
@@ -141,45 +54,22 @@ def _read_payload() -> dict[str, Any]:
     return payload
 
 
-def _string_bool(value: Any) -> str:
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (list, tuple)):
-        return ",".join(str(item).strip() for item in value if str(item).strip())
-    return str(value).strip()
-
-
 def update_settings(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
-    writes: dict[str, str] = {}
-    for path, env_keys in CONFIG_KEYS.items():
-        cursor: Any = payload
-        for key in path.split("."):
-            if not isinstance(cursor, Mapping) or key not in cursor:
-                cursor = None
-                break
-            cursor = cursor[key]
-        if cursor is None:
-            continue
-        writes[env_keys[0]] = _string_bool(cursor)
-    for key, value in writes.items():
-        store.set_config(key, value)
-    return _public_settings(store)
+    del store, payload
+    raise RuntimeError("Service configuration is managed by the server .env file.")
 
 
 def delete_setting(store: PostgresStore, key: str) -> dict[str, Any]:
-    env_keys = CONFIG_KEYS.get(key)
-    if env_keys is None:
-        raise RuntimeError(f"Unknown setting key: {key}")
-    store.delete_config(env_keys[0])
-    return _public_settings(store)
+    del store, key
+    raise RuntimeError("Service configuration is managed by the server .env file.")
 
 
 async def test_splunk(store: PostgresStore) -> dict[str, Any]:
     settings = _settings(store)
     service = SplunkService(settings.splunk)
     try:
-        result = await service.test_connection()
-        return {"ok": True, "index_count": result["index_count"], "host": settings.splunk.host}
+        await service.test_connection()
+        return {"ok": True}
     finally:
         await service.close()
 
@@ -188,7 +78,8 @@ async def test_subscription_server(store: PostgresStore) -> dict[str, Any]:
     settings = _settings(store)
     service = EmailSubscriptionService(settings.email_server)
     try:
-        return await service.test_connection()
+        await service.test_connection()
+        return {"ok": True}
     finally:
         await service.close()
 
@@ -246,8 +137,35 @@ def delete_account(store: PostgresStore, account_id: str) -> dict[str, Any]:
 
 
 def migrate(store: PostgresStore) -> dict[str, Any]:
-    store.migrate_env_config(environ)
-    return {"ok": True, "imported_accounts": 0}
+    del store
+    return {"ok": True}
+
+
+def _safe_error_details(error: ServiceError) -> dict[str, Any]:
+    details = error.details if isinstance(error.details, Mapping) else {}
+    safe: dict[str, Any] = {}
+    status_code = details.get("status_code")
+    if isinstance(status_code, int) and not isinstance(status_code, bool):
+        safe["status_code"] = status_code
+    runtime_limit = details.get("runtime_limit_seconds")
+    if isinstance(runtime_limit, (int, float)) and not isinstance(runtime_limit, bool):
+        safe["runtime_limit_seconds"] = runtime_limit
+    missing = details.get("missing_environment_variables")
+    if isinstance(missing, list) and all(isinstance(item, str) for item in missing):
+        safe["missing_environment_variables"] = missing[:20]
+    return safe
+
+
+def _write_service_error(error: ServiceError) -> None:
+    payload = {
+        "code": str(error.code)[:80],
+        "message": str(error.message or "The requested operation failed.").strip()[:400],
+        "details": _safe_error_details(error),
+    }
+    # Keep the diagnostic as one complete stderr record.  The Node host reads
+    # stderr line-by-line so it can ignore launcher noise and preserve this
+    # actionable service message for the admin console.
+    sys.stderr.write(json.dumps(payload) + "\n")
 
 
 def main() -> None:
@@ -291,10 +209,18 @@ def main() -> None:
         else:
             raise RuntimeError(f"Unknown command: {command}")
     except ServiceError as error:
-        if command != "convert-attachment":
-            raise
-        sys.stderr.write(json.dumps({"code": error.code, "message": error.message}))
+        _write_service_error(error)
         raise SystemExit(2) from error
+    except ValueError:
+        if command not in {"get-settings", "test-splunk", "test-subscription-server"}:
+            raise
+        payload = {
+            "code": "admin_configuration_error",
+            "message": "The server environment configuration is invalid. Check the server .env file.",
+            "details": {},
+        }
+        sys.stderr.write(json.dumps(payload) + "\n")
+        raise SystemExit(2)
     sys.stdout.write(dump_json(result))
 
 

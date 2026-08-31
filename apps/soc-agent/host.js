@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process'
+import { createRequire } from 'node:module'
+import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS } from './policy.js'
@@ -15,7 +17,7 @@ import { detectSecrets, normalizeTags, validateContent } from '../../packages/so
 import { runAuthCommand } from './ownership.js'
 
 export const name = 'soc-agent-host'
-export const inject = ['agents', 'connection', 'tools', 'socAuth', 'sessions', 'settings']
+export const inject = ['agents', 'connection', 'tools', 'socAuth', 'sessions', 'settings', 'webServer']
 
 const CHANNEL = '/soc-agent-config'
 const ACTION_POLICY_NAMESPACE = 'soc-action-approval'
@@ -26,6 +28,62 @@ const HARD_MARKDOWN_CHARS = 2_000_000
 export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS }
 
 const ACTION_NAMES = new Set(ACTION_TOOLS)
+const nodeRequire = createRequire(import.meta.url)
+
+function requireAdmin(ctx) {
+  const auth = ctx.get?.('socAuth')
+  if (!auth || typeof auth.requireAdmin !== 'function') throw new Error('admin authentication required')
+  return auth.requireAdmin()
+}
+
+function requireUser(ctx) {
+  const auth = ctx.get?.('socAuth')
+  if (!auth || typeof auth.requireSession !== 'function') throw new Error('authentication required')
+  return auth.requireSession()
+}
+
+async function serveAdminPage(request, response, webServer) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    response.writeHead(405, { allow: 'GET, HEAD' })
+    response.end()
+    return
+  }
+  let indexPath
+  try {
+    // The product package is loaded from a sibling workspace and does not
+    // necessarily have the web frontend in its own dependency directory.
+    // Resolve it through the maintained web-app package, just like the web
+    // bundle does, then fall back to the checked-out workspace path.
+    indexPath = nodeRequire.resolve(
+      '@deepseek-ai/dsh-web-frontend/dist/index.html',
+      { paths: [join(workspaceRoot(), 'vendor/deepseek-harness/packages/bundle/web-app')] },
+    )
+  } catch {
+    indexPath = join(workspaceRoot(), 'vendor/deepseek-harness/apps/web/dist/index.html')
+  }
+  if (!indexPath) {
+    response.writeHead(503, { 'cache-control': 'no-store' })
+    response.end('admin interface unavailable')
+    return
+  }
+  try {
+    const html = await readFile(indexPath, 'utf8')
+    const rendered = typeof webServer?.renderIndex === 'function'
+      ? webServer.renderIndex(html)
+      : html
+    const data = Buffer.from(await rendered)
+    response.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'content-length': data.length,
+    })
+    if (request.method === 'HEAD') response.end()
+    else response.end(data)
+  } catch {
+    response.writeHead(500, { 'cache-control': 'no-store' })
+    response.end('admin interface unavailable')
+  }
+}
 
 class ActionPolicyError extends Error {
   constructor(code, message) {
@@ -184,13 +242,49 @@ function internalError(message) {
   return { ok: false, error: { code: 'internal', message, details: {} } }
 }
 
-function adminFailureMessage(command, stderr, exitCode) {
-  const lines = String(stderr).split(/\r?\n/).map(line => line.trim()).filter(Boolean)
-  const exception = [...lines].reverse().find(line => /^[\w.$]+(?:Error|Exception):\s*/.test(line))
-  const detail = (exception ?? lines.at(-1) ?? `process exited with code ${String(exitCode)}`)
-    .replace(/^[\w.$]+(?:Error|Exception):\s*/, '')
-  const label = command === 'test-splunk' ? 'Splunk connection test failed' : `Admin operation "${command}" failed`
-  return `${label}: ${detail}`
+function parseAdminFailure(stderr) {
+  const lines = String(stderr || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+  for (const line of lines.reverse()) {
+    const candidates = [line]
+    const start = line.indexOf('{')
+    const end = line.lastIndexOf('}')
+    if (start >= 0 && end > start && (start > 0 || end < line.length - 1)) candidates.push(line.slice(start, end + 1))
+    for (const candidate of candidates) {
+      try {
+        const value = JSON.parse(candidate)
+        if (value && typeof value === 'object' && typeof value.message === 'string' && typeof value.code === 'string') return value
+      } catch { /* ignore traceback and launcher noise */ }
+    }
+  }
+  return undefined
+}
+
+function adminFailureMessage(command, stderr = '') {
+  const label = command === 'test-splunk'
+    ? 'Splunk connection test failed'
+    : command === 'test-subscription-server'
+      ? 'Subscription server connection test failed'
+      : `Admin operation "${command}" failed`
+  const failure = parseAdminFailure(stderr)
+  if (!failure) {
+    return command === 'test-splunk' || command === 'test-subscription-server'
+      ? `${label}: The test process did not return a diagnostic. Check the server .env configuration and server logs.`
+      : `${label}: The requested operation failed.`
+  }
+  const message = failure.message.replace(/\s+/g, ' ').trim().slice(0, 400)
+  if (!message) {
+    return command === 'test-splunk' || command === 'test-subscription-server'
+      ? `${label}: The test process returned an empty diagnostic. Check the server logs.`
+      : `${label}: The requested operation failed.`
+  }
+  const details = failure.details && typeof failure.details === 'object' ? failure.details : {}
+  const extra = []
+  if (Number.isInteger(details.status_code)) extra.push(`HTTP status ${details.status_code}`)
+  if (Array.isArray(details.missing_environment_variables)) {
+    const missing = details.missing_environment_variables.filter(value => typeof value === 'string').slice(0, 20)
+    if (missing.length) extra.push(`missing configuration: ${missing.join(', ')}`)
+  }
+  return `${label}: ${message}${extra.length ? ` (${extra.join('; ')})` : ''}`
 }
 
 function runAdmin(command, arg, payload, signal) {
@@ -199,7 +293,12 @@ function runAdmin(command, arg, payload, signal) {
     if (arg !== undefined && arg !== '') args.push(arg)
     const child = spawn('uv', args, {
       cwd: serverRoot(),
-      env: { ...process.env, MCP_SERVER_ROOT: workspaceRoot() },
+      env: (() => {
+        const environment = { ...process.env, MCP_SERVER_ROOT: workspaceRoot() }
+        delete environment.SOC_ADMIN_EMAIL
+        delete environment.SOC_ADMIN_PASSWORD
+        return environment
+      })(),
     })
     let stdout = ''
     let stderr = ''
@@ -220,7 +319,7 @@ function runAdmin(command, arg, payload, signal) {
     child.on('error', error => {
       if (settled) return
       settled = true
-      rejectPromise(new Error(adminFailureMessage(command, error.message, -1)))
+      rejectPromise(new Error(adminFailureMessage(command)))
     })
     child.on('close', code => {
       if (settled) return
@@ -238,7 +337,7 @@ function runAdmin(command, arg, payload, signal) {
           rejectPromise(new Error('attachment_conversion_failed: The attachment conversion failed.'))
           return
         }
-        rejectPromise(new Error(adminFailureMessage(command, stderr, code)))
+        rejectPromise(new Error(adminFailureMessage(command, stderr)))
         return
       }
       try {
@@ -322,13 +421,15 @@ export function clearMemoryContext(ctx, agent) {
 
 async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
   switch (endpoint) {
-    case 'get-action-catalog': return ok({ actions: ACTION_CATALOG })
+    case 'get-action-catalog': requireUser(ctx); return ok({ actions: ACTION_CATALOG })
     case 'get-action-policy': {
+      requireUser(ctx)
       const sessionId = payload?.session_id ?? payload?.sessionId
       resolveOwnedSession(ctx, sessionId)
       return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
     }
     case 'set-session-action-policy': {
+      requireUser(ctx)
       const sessionId = payload?.session_id ?? payload?.sessionId
       resolveOwnedSession(ctx, sessionId)
       const actions = actionSet(payload?.auto_approve_actions ?? payload?.autoApproveActions, { strict: true })
@@ -336,42 +437,60 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
     }
     case 'reset-session-action-policy': {
+      requireUser(ctx)
       const sessionId = payload?.session_id ?? payload?.sessionId
       resolveOwnedSession(ctx, sessionId)
       sessionPolicies.delete(String(sessionId))
       return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
     }
-    case 'get-settings': return ok(await runAdmin('get-settings'))
-    case 'update-settings': return ok(await runAdmin('update-settings', undefined, payload))
-    case 'delete-setting': return ok(await runAdmin('delete-setting', payload?.key ?? ''))
+    case 'get-settings': requireAdmin(ctx); return ok(await runAdmin('get-settings'))
+    case 'update-settings': requireAdmin(ctx); return badRequest('Service configuration is managed by the server environment.')
+    case 'delete-setting': requireAdmin(ctx); return badRequest('Service configuration is managed by the server environment.')
     case 'list-accounts': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'add-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'update-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'delete-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'test-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'send-email': {
-      const session = ctx.get('socAuth')?.currentSession?.()
-      if (!session) throw new Error('authentication required')
+      const session = requireUser(ctx)
       return ok(await runAuthCommand('send-email', { ...payload, session_id: session.id }))
     }
     case 'list-signatures': {
-      const session = ctx.get('socAuth')?.currentSession?.()
-      if (!session) throw new Error('authentication required')
+      const session = requireUser(ctx)
       return ok(await runAuthCommand('list-signatures', { session_id: session.id }))
     }
-    case 'test-splunk': return ok(await runAdmin('test-splunk'))
-    case 'test-subscription-server': return ok(await runAdmin('test-subscription-server'))
+    case 'test-splunk': requireAdmin(ctx); return ok(await runAdmin('test-splunk'))
+    case 'test-subscription-server': requireAdmin(ctx); return ok(await runAdmin('test-subscription-server'))
     case 'convert-attachment': {
+      requireAdmin(ctx)
       const request = validateAttachmentPayload(payload)
       return ok(await runAdmin('convert-attachment', undefined, request, signal))
     }
-    case 'migrate': return ok(await runAdmin('migrate'))
+    case 'migrate': requireAdmin(ctx); return ok(await runAdmin('migrate'))
     default: return badRequest(`Unknown endpoint: ${endpoint}`)
   }
 }
 
 export function apply(ctx) {
   const sessionPolicies = new Map()
+  if (typeof ctx.effect === 'function' && typeof ctx.webServer?.register === 'function') {
+    ctx.effect(() => {
+      const admin = ctx.webServer.register({
+        kind: 'exact',
+        path: '/admin',
+        handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
+      })
+      const trailing = ctx.webServer.register({
+        kind: 'exact',
+        path: '/admin/',
+        handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
+      })
+      return () => {
+        admin?.()
+        trailing?.()
+      }
+    }, 'soc-agent-host: admin web surface')
+  }
   let memoryContext = ctx.get?.('socMemoryContext')
   if (memoryContext === undefined) {
     memoryContext = createMemoryContextRegistry()
@@ -420,27 +539,56 @@ export function apply(ctx) {
       try {
         return await handleEndpoint(endpoint, payload ?? {}, signal, ctx, sessionPolicies)
       } catch (error) {
+        if (error instanceof Error && error.message === 'admin authentication required') {
+          return {
+            ok: false,
+            error: {
+              code: 'admin-authentication-required',
+              message: 'administrator authentication required',
+              details: {},
+            },
+          }
+        }
+        if (error instanceof Error && error.message === 'authentication required') {
+          return {
+            ok: false,
+            error: {
+              code: 'authentication-required',
+              message: 'authentication required',
+              details: {},
+            },
+          }
+        }
         if (endpoint === 'convert-attachment') {
           const message = error instanceof Error ? error.message : 'attachment_conversion_failed'
-          const [code, ...rest] = message.split(': ')
+          const [code] = message.split(': ')
           const stableCodes = new Set(['attachment_invalid_request', 'attachment_invalid_filename', 'attachment_invalid_mime', 'attachment_too_large', 'attachment_invalid_limits', 'attachment_conversion_cancelled', 'attachment_unsupported', 'attachment_converter_unavailable', 'attachment_malformed', 'attachment_encrypted', 'attachment_too_complex', 'attachment_conversion_failed'])
           const reason = stableCodes.has(code) ? code : 'attachment_conversion_failed'
           return {
             ok: false,
             error: {
               code: 'attachment-error',
-              message: reason === code && rest.length > 0 ? rest.join(': ') : 'The attachment conversion failed.',
+              message: 'The attachment conversion failed.',
               details: { reason },
             },
           }
+        }
+        if (endpoint === 'test-splunk' || endpoint === 'test-subscription-server') {
+          const command = endpoint
+          const prefix = command === 'test-splunk'
+            ? 'Splunk connection test failed:'
+            : 'Subscription server connection test failed:'
+          const message = error instanceof Error ? error.message.trim() : ''
+          if (message.startsWith(prefix)) return internalError(message)
+          return internalError(`${prefix} ${message || 'The test process did not return a diagnostic. Check the server .env configuration and server logs.'}`)
         }
         if (endpoint === 'get-action-policy' || endpoint === 'set-session-action-policy' || endpoint === 'reset-session-action-policy') {
           const sessionId = payload?.session_id ?? payload?.sessionId
           return policyError(error, sessionId)
         }
-        return internalError(error instanceof Error ? error.message : String(error))
+        return internalError('The requested operation failed.')
       }
     },
-    { authority: 'loopback' },
+    { authority: 'trusted-host' },
   )
 }

@@ -11,8 +11,8 @@ import {
   type RpcId as RpcIdType,
   type ServerResponse as RpcServerResponse,
 } from '@deepseek-ai/dsh-host-apiproxy/api'
-import { bridge, type FetchHandler } from './http-bridge.ts'
-import { isTrustedApiRequest } from './api-request-trust.ts'
+import { bridge, type FetchHandler, type FetchRequestContext } from './http-bridge.ts'
+import { isLoopbackPeer, isTrustedApiRequest } from './api-request-trust.ts'
 import { API_PATH } from './api-path.ts'
 import type {
   ConnectionRpcEndpointMatcher,
@@ -73,16 +73,16 @@ export class HostConnectionService extends Service implements HostConnectionHand
     fallback: FetchHandler,
   ): FetchHandler {
     return {
-      fetch: (request) => {
+      fetch: (request, context?: FetchRequestContext) => {
         const endpoint = endpointFromPath(channel, new URL(request.url).pathname)
         const interceptor = this.interceptors.get(channel)
         if (endpoint === undefined || interceptor === undefined || !interceptor.matches(endpoint)) {
-          return fallback.fetch(request)
+          return fallback.fetch(request, context)
         }
-        if (interceptor.options.authority === 'loopback' && !isTrustedApiRequest(request, [])) {
+        if (interceptor.options.authority === 'loopback' && context?.loopbackPeer !== true) {
           return Promise.resolve(new Response('forbidden', { status: 403 }))
         }
-        return interceptor.fetchHandler.fetch(request)
+        return interceptor.fetchHandler.fetch(request, context)
       },
     }
   }
@@ -100,12 +100,18 @@ export class HostConnectionService extends Service implements HostConnectionHand
       kind: 'prefix',
       path: channel,
       handler: async (req, res) => {
-        if (!isTrustedApiRequest(req, trustedHosts)) {
+        const allowed = options.authority === 'loopback'
+          ? isLoopbackPeer(req)
+          : isTrustedApiRequest(req, trustedHosts)
+        if (!allowed) {
           res.writeHead(403)
           res.end('forbidden')
           return
         }
-        await bridge(req, res, fetchHandler)
+        await bridge(req, res, fetchHandler, undefined, {
+          loopbackPeer: isLoopbackPeer(req),
+          privilegedAllowed: allowed,
+        })
       },
     }
     return owner.effect(
@@ -180,8 +186,10 @@ function rpcFetchHandler(
       try {
         const result = await handler(endpoint, message.payload, request.signal)
         return fullResponse(message.rpcId, result)
-      } catch (error) {
-        return new Response(`handler failure: ${String(error)}`, { status: 500 })
+      } catch {
+        // Handler errors may contain credentials, URLs, or other sensitive
+        // configuration. Keep the wire response deliberately generic.
+        return new Response('handler failure', { status: 500 })
       }
     },
   }

@@ -306,10 +306,19 @@ async def test_search_job_rejects_missing_sid_and_dispatch_errors():
     assert len(missing_sid.post_calls) == 1
 
     message_error = JobHTTP(
-        dispatch_payload={"messages": [{"type": "ERROR", "text": "bad SPL"}]}
+        dispatch_payload={"messages": [{"type": "ERROR", "text": "secret upstream diagnostic"}]}
     )
-    with pytest.raises(SplunkAPIError, match="bad SPL"):
+    with pytest.raises(SplunkAPIError, match="Splunk returned an error") as error:
         await make_client(message_error).run_search_job("index=main")
+    assert "secret upstream diagnostic" not in str(error.value)
+
+
+def test_splunk_error_payloads_are_not_returned_to_callers():
+    secret = "upstream-secret-diagnostic"
+    with pytest.raises(SplunkAPIError) as error:
+        SplunkClient._raise_message_errors({"error": secret}, "search")
+    assert secret not in str(error.value)
+    assert secret not in str(error.value.details)
 
 
 @pytest.mark.asyncio

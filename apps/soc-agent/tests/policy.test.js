@@ -10,6 +10,11 @@ import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 import { createMemoryContextRegistry } from '../../../packages/soc-memory/lib/tenant.js'
 
+const policyAuth = {
+  requireSession: () => ({ id: 'policy-user' }),
+  requireAdmin: () => ({ email: 'admin@example.com' }),
+}
+
 test('interactive analyst policy exposes the exact product tool set', () => {
   assert.equal(DOMAIN_TOOLS.size, 58)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
@@ -157,6 +162,7 @@ test('SOC action approval defaults fail closed and session overrides are live', 
   apply({
     get(name) {
       if (name === 'settings') return { get: () => saved }
+      if (name === 'socAuth') return policyAuth
       return undefined
     },
     on(event, handler) { handlers.set(event, handler) },
@@ -217,6 +223,7 @@ test('detection changes cannot be auto-approved by action name', async () => {
   apply({
     get(name) {
       if (name === 'settings') return { get: () => saved }
+      if (name === 'socAuth') return policyAuth
       return undefined
     },
     on(event, handler) { handlers.set(event, handler) },
@@ -238,6 +245,9 @@ test('detection changes cannot be auto-approved by action name', async () => {
 test('host RPC failures use the shared result error contract', async () => {
   let rpcHandler
   apply({
+    get(name) {
+      return name === 'socAuth' ? policyAuth : undefined
+    },
     on() {},
     agents: { roots: () => [] },
     connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
@@ -255,7 +265,7 @@ test('host RPC failures use the shared result error contract', async () => {
     assert.equal(result.ok, false)
     assert.equal(result.error.code, 'internal')
     assert.deepEqual(result.error.details, {})
-    assert.match(result.error.message, /^Admin operation "get-settings" failed: /)
+    assert.equal(result.error.message, 'The requested operation failed.')
     assert.equal(result.error.message.includes('Traceback'), false)
   } finally {
     if (previousServer === undefined) delete process.env.DSH_SOC_AGENT_SERVER

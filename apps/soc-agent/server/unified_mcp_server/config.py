@@ -9,200 +9,38 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from .env_loader import load_splunk_config, workspace_root
+from .env_loader import workspace_root
 from .postgres_store import PostgresStore
 from .splunk.query_policy import QueryPolicyConfig
 from .splunk.search.resource_policy import SearchResourceConfig
 from .splunk.security_queue.model import SecurityQueueConfig
 
 
-_SPLUNK_JSON_FIELDS = {
-    "host": "SPLUNK_HOST",
-    "host_for_docker": "SPLUNK_HOST_FOR_DOCKER",
-    "port": "SPLUNK_PORT",
-    "scheme": "SPLUNK_SCHEME",
-    "url": "SPLUNK_URL",
-    "verify_ssl": "SPLUNK_VERIFY_SSL",
-    "request_timeout": "SPLUNK_REQUEST_TIMEOUT",
-    "job_timeout": "SPLUNK_JOB_TIMEOUT",
-    "max_events": "SPLUNK_MAX_EVENTS",
-    "risk_tolerance": "SPLUNK_RISK_TOLERANCE",
-    "safe_timerange": "SPLUNK_SAFE_TIMERANGE",
-    "sanitize_output": "SPLUNK_SANITIZE_OUTPUT",
-    "allow_detection_write": "SPLUNK_ALLOW_DETECTION_WRITE",
-    "detection_write_enabled": "SPLUNK_ALLOW_DETECTION_WRITE",
-    "allow_detection_enable": "SPLUNK_ALLOW_DETECTION_ENABLE",
-    "detection_enable_enabled": "SPLUNK_ALLOW_DETECTION_ENABLE",
-    "detection_app": "SPLUNK_DETECTION_APP",
-    "detection_owner": "SPLUNK_DETECTION_OWNER",
-    "detection_approval_ttl_seconds": "SPLUNK_DETECTION_APPROVAL_TTL_SECONDS",
-    "search_planner_max_refinements": "SPLUNK_SEARCH_PLANNER_MAX_REFINEMENTS",
-}
-
-_SPLUNK_SECRET_FIELDS = frozenset({
-    "SPLUNK_TOKEN",
-    "SPLUNK_USERNAME",
-    "SPLUNK_PASSWORD",
-})
-_SPLUNK_SECRET_JSON_NAMES = frozenset({"token", "username", "password"})
-
-_SPLUNK_JSON_SECTIONS = {
-    "query_policy": {
-        "short_search_seconds": "SPLUNK_POLICY_SHORT_SEARCH_SECONDS",
-        "normal_search_seconds": "SPLUNK_POLICY_NORMAL_SEARCH_SECONDS",
-        "very_long_search_seconds": "SPLUNK_POLICY_VERY_LONG_SEARCH_SECONDS",
-        "wildcard_index_decision": "SPLUNK_POLICY_WILDCARD_INDEX",
-        "no_index_decision": "SPLUNK_POLICY_NO_INDEX",
-        "long_raw_decision": "SPLUNK_POLICY_LONG_RAW",
-        "very_long_decision": "SPLUNK_POLICY_VERY_LONG",
-        "all_time_decision": "SPLUNK_POLICY_ALL_TIME",
-        "expensive_command_decision": "SPLUNK_POLICY_EXPENSIVE_COMMAND",
-        "subsearch_decision": "SPLUNK_POLICY_SUBSEARCH",
-        "nested_subsearch_decision": "SPLUNK_POLICY_NESTED_SUBSEARCH",
-        "unresolved_macro_decision": "SPLUNK_POLICY_UNRESOLVED_MACRO",
-        "unparseable_time_decision": "SPLUNK_POLICY_UNPARSEABLE_TIME",
-        "max_subsearch_depth": "SPLUNK_POLICY_MAX_SUBSEARCH_DEPTH",
-        "trusted_macros": "SPLUNK_POLICY_TRUSTED_MACROS",
-    },
-    "search_resource": {
-        "global_concurrency": "SPLUNK_SEARCH_GLOBAL_CONCURRENCY",
-        "per_principal_concurrency": "SPLUNK_SEARCH_PER_PRINCIPAL_CONCURRENCY",
-        "queue_timeout_seconds": "SPLUNK_SEARCH_QUEUE_TIMEOUT_SECONDS",
-        "max_jobs_per_minute": "SPLUNK_SEARCH_MAX_JOBS_PER_MINUTE",
-        "budget_per_minute": "SPLUNK_SEARCH_BUDGET_PER_MINUTE",
-        "max_runtime_low": "SPLUNK_SEARCH_MAX_RUNTIME_LOW",
-        "max_runtime_medium": "SPLUNK_SEARCH_MAX_RUNTIME_MEDIUM",
-        "max_runtime_high": "SPLUNK_SEARCH_MAX_RUNTIME_HIGH",
-        "max_lookback_low": "SPLUNK_SEARCH_MAX_LOOKBACK_LOW",
-        "max_lookback_medium": "SPLUNK_SEARCH_MAX_LOOKBACK_MEDIUM",
-        "max_lookback_high": "SPLUNK_SEARCH_MAX_LOOKBACK_HIGH",
-        "max_results_low": "SPLUNK_SEARCH_MAX_RESULTS_LOW",
-        "max_results_medium": "SPLUNK_SEARCH_MAX_RESULTS_MEDIUM",
-        "max_results_high": "SPLUNK_SEARCH_MAX_RESULTS_HIGH",
-        "backtest_concurrency": "SPLUNK_SEARCH_BACKTEST_CONCURRENCY",
-        "restricted_decision": "SPLUNK_SEARCH_RESTRICTED_DECISION",
-    },
-    "security_queue": {
-        "max_backend_pages_per_request": "SECURITY_QUEUE_MAX_BACKEND_PAGES_PER_REQUEST",
-        "max_backend_records_per_request": "SECURITY_QUEUE_MAX_BACKEND_RECORDS_PER_REQUEST",
-        "standard_concurrency": "SECURITY_QUEUE_STANDARD_CONCURRENCY",
-    },
-}
-
-_SPLUNK_CONNECTION_FIELDS = {
-    "SPLUNK_HOST",
-    "SPLUNK_HOST_FOR_DOCKER",
-    "SPLUNK_URL",
-    "SPLUNK_TOKEN",
-    "SPLUNK_USERNAME",
-    "SPLUNK_PASSWORD",
-}
-
-
-def _json_text(name: str, value: Any) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, str):
-        return value
-    if isinstance(value, list):
-        items: list[str] = []
-        for item in value:
-            if isinstance(item, (Mapping, list, tuple)):
-                raise ValueError(f"Splunk configuration value {name} must contain scalar items")
-            if item is not None and str(item).strip():
-                items.append(str(item).strip())
-        return ",".join(items)
-    raise ValueError(f"Splunk configuration value {name} must be a scalar or list")
-
-
-def _json_target(name: object, fields: Mapping[str, str]) -> str | None:
-    key = str(name)
-    if key in _SPLUNK_SECRET_FIELDS:
-        return None
-    if key in fields:
-        return fields[key]
-    if key.startswith("SPLUNK_") or key.startswith("SECURITY_QUEUE_"):
-        return key
-    return None
-
-
-def _json_values(payload: Mapping[str, Any], *, require_connection: bool) -> dict[str, str]:
-    source: dict[str, Any]
-    if "splunk" in payload:
-        wrapped = payload["splunk"]
-        if not isinstance(wrapped, Mapping):
-            raise ValueError("Splunk configuration 'splunk' section must be an object")
-        source = dict(payload)
-        source.pop("splunk", None)
-        source.update(wrapped)
-    else:
-        source = dict(payload)
-
-    enabled = source.get("enabled")
-    if enabled is not None and not isinstance(enabled, bool):
-        raise ValueError("Splunk configuration 'enabled' must be true or false")
-
-    values: dict[str, str] = {}
-    for name, raw_value in source.items():
-        if name in {"enabled", "config_version"} or str(name).casefold() in _SPLUNK_SECRET_JSON_NAMES:
-            continue
-        section_fields = _SPLUNK_JSON_SECTIONS.get(str(name))
-        if section_fields is not None:
-            if not isinstance(raw_value, Mapping):
-                raise ValueError(f"Splunk configuration section {name} must be an object")
-            for nested_name, nested_value in raw_value.items():
-                target = _json_target(nested_name, section_fields)
-                if target is None:
-                    continue
-                text = _json_text(f"{name}.{nested_name}", nested_value)
-                if text is not None and (text or not isinstance(nested_value, str)):
-                    values[target] = text
-            continue
-
-        target = _json_target(name, _SPLUNK_JSON_FIELDS)
-        if target is None:
-            continue
-        text = _json_text(str(name), raw_value)
-        # Empty strings mean "use the existing fallback". This lets the
-        # checked-in credential-free template coexist with old deployments.
-        if text is not None and (text or not isinstance(raw_value, str)):
-            values[target] = text
-
-    if enabled is False:
-        return {}
-    if require_connection and enabled is not True:
-        if not any(values.get(key, "").strip() for key in _SPLUNK_CONNECTION_FIELDS):
-            return {}
-    return values
-
-
-def _merge_splunk_config(
-    env: Mapping[str, str],
-    *,
-    load_default: bool,
-) -> dict[str, str]:
-    merged = dict(env)
-    explicit_path = _value(merged, "SPL_CONFIG_FILE") or _value(merged, "SPLUNK_CONFIG_FILE")
-    if not load_default and not explicit_path:
-        return merged
-    payload = load_splunk_config(merged if explicit_path else None)
-    json_values = _json_values(payload, require_connection=not bool(explicit_path))
-    if explicit_path:
-        merged.update(json_values)
-    else:
-        # The checked-in JSON is a credential-free deployment template. Keep
-        # explicitly supplied legacy environment values authoritative when it
-        # is being used as a fallback, especially a host versus template URL.
-        has_env_host = any(_value(merged, key) for key in ("SPLUNK_HOST", "SPLUNK_HOST_FOR_DOCKER"))
-        for key, value in json_values.items():
-            if _value(merged, key) or (key == "SPLUNK_URL" and has_env_host):
-                continue
-            merged[key] = value
-    return merged
+def redact_endpoint(value: str, *, allow_bare_host: bool = False) -> str:
+    """Return an endpoint suitable for public status without secret URL parts."""
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    has_scheme = "://" in raw
+    if not has_scheme and not allow_bare_host:
+        return "[configured endpoint]"
+    candidate = raw if has_scheme else f"//{raw}"
+    try:
+        parsed = urlsplit(candidate)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return "[invalid endpoint]"
+    if not hostname:
+        return "[invalid endpoint]"
+    rendered_host = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
+    netloc = rendered_host if port is None else f"{rendered_host}:{port}"
+    if "://" in raw:
+        # Paths can carry opaque tenant names, tokens, or credentials just as
+        # readily as query strings.  Public projections only need the
+        # authority to identify the configured service.
+        return f"{parsed.scheme.lower()}://{netloc}"
+    return netloc
 
 
 def _value(env: Mapping[str, str], name: str, default: str = "") -> str:
@@ -218,6 +56,40 @@ def _boolean(env: Mapping[str, str], name: str, default: bool) -> bool:
     if raw.lower() in {"0", "false", "no", "off"}:
         return False
     raise ValueError(f"{name} must be true or false")
+
+
+def _validate_http_endpoint(
+    value: str,
+    name: str,
+    *,
+    allow_bare_host: bool = False,
+    allow_insecure_http: bool = False,
+    allow_path: bool = True,
+) -> None:
+    """Validate a configured service endpoint without echoing its value."""
+    raw = str(value or "").strip()
+    if not raw:
+        return
+    candidate = raw if "://" in raw else (f"https://{raw}" if allow_bare_host else raw)
+    try:
+        parsed = urlsplit(candidate)
+        parsed.port
+        hostname = parsed.hostname
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a valid http or https endpoint") from exc
+    if (
+        parsed.scheme.lower() not in {"http", "https"}
+        or not parsed.netloc
+        or not hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or (not allow_path and parsed.path not in {"", "/"})
+    ):
+        raise ValueError(f"{name} must be a valid http or https endpoint without embedded credentials")
+    if parsed.scheme.lower() == "http" and not allow_insecure_http:
+        raise ValueError(f"{name} must use HTTPS unless its explicit insecure HTTP setting is true")
 
 
 def _integer(env: Mapping[str, str], name: str, default: int, minimum: int, maximum: int) -> int:
@@ -287,6 +159,15 @@ class SplunkSettings:
     search_resource: SearchResourceConfig = field(default_factory=SearchResourceConfig)
     security_queue: SecurityQueueConfig = field(default_factory=SecurityQueueConfig)
     search_planner_max_refinements: int = 2
+    allow_insecure_http: bool = False
+
+    def __post_init__(self) -> None:
+        _validate_http_endpoint(
+            self.url or self.host,
+            "SPLUNK_URL" if self.url else "SPLUNK_HOST",
+            allow_bare_host=not bool(self.url),
+            allow_insecure_http=self.allow_insecure_http,
+        )
 
     @property
     def configured(self) -> bool:
@@ -308,6 +189,7 @@ class SplunkSettings:
             "splunk_password": self.password,
             "splunk_token": self.token,
             "verify_ssl": self.verify_ssl,
+            "allow_insecure_http": self.allow_insecure_http,
             "request_timeout": self.request_timeout,
             "job_timeout": self.job_timeout,
         }
@@ -332,6 +214,16 @@ class ZimbraSettings:
     allow_folder_write: bool = True
     allow_move: bool = True
     allow_signature_write: bool = True
+    allow_insecure_http: bool = False
+
+    def __post_init__(self) -> None:
+        _validate_http_endpoint(
+            self.host,
+            "ZIMBRA_HOST",
+            allow_bare_host=True,
+            allow_insecure_http=self.allow_insecure_http,
+            allow_path=False,
+        )
 
     @property
     def configured(self) -> bool:
@@ -349,6 +241,7 @@ class ZimbraSettings:
             "zimbra_username": username,
             "zimbra_password": password,
             "verify_ssl": self.verify_ssl,
+            "allow_insecure_http": self.allow_insecure_http,
             "timeout": self.timeout,
         }
 
@@ -374,6 +267,26 @@ class EmailServerSettings:
     username: str
     password: str
     timeout: int
+    allow_insecure_http: bool = False
+
+    def __post_init__(self) -> None:
+        value = str(self.url or '').strip()
+        if not value:
+            return
+        try:
+            parsed = urlsplit(value)
+            parsed.port
+            hostname = parsed.hostname
+        except ValueError as exc:
+            raise ValueError('SUBSCRIPTION_SERVER_URL must be an http or https URL without embedded credentials') from exc
+        if parsed.scheme not in {'http', 'https'} or not parsed.netloc or parsed.username or parsed.password:
+            raise ValueError('SUBSCRIPTION_SERVER_URL must be an http or https URL without embedded credentials')
+        if not hostname:
+            raise ValueError('SUBSCRIPTION_SERVER_URL must include a valid host')
+        if parsed.fragment:
+            raise ValueError('SUBSCRIPTION_SERVER_URL must not contain a fragment')
+        if parsed.scheme == 'http' and not self.allow_insecure_http:
+            raise ValueError('SUBSCRIPTION_SERVER_URL must use HTTPS unless SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP is true')
 
     @property
     def configured(self) -> bool:
@@ -406,10 +319,10 @@ class ServerSettings:
 
     @classmethod
     def from_env(cls, values: Mapping[str, str] | None = None) -> "ServerSettings":
-        env = _merge_splunk_config(
-            dict(environ if values is None else values),
-            load_default=values is None,
-        )
+        # Service configuration is deployment-owned.  Read it from the
+        # process environment (including the server .env loaded at startup),
+        # never from the database or a browser-editable document.
+        env = dict(environ if values is None else values)
         transport = _value(env, "MCP_TRANSPORT", _value(env, "TRANSPORT", "stdio")).lower()
         transport = "streamable-http" if transport == "http" else transport
         if transport not in {"stdio", "sse", "streamable-http"}:
@@ -481,8 +394,14 @@ class ServerSettings:
             else _value(env, "SPLUNK_HOST")
         )
         splunk_port = _integer(env, "SPLUNK_PORT", 8089, 1, 65535)
+        splunk_allow_insecure_http = _boolean(env, "SPLUNK_ALLOW_INSECURE_HTTP", False)
         splunk_url = _value(env, "SPLUNK_URL")
         if splunk_url:
+            _validate_http_endpoint(
+                splunk_url,
+                "SPLUNK_URL",
+                allow_insecure_http=splunk_allow_insecure_http,
+            )
             parsed_splunk_url = urlsplit(splunk_url)
             splunk_host = parsed_splunk_url.hostname or splunk_host
             splunk_port = parsed_splunk_url.port or splunk_port
@@ -491,6 +410,11 @@ class ServerSettings:
             if scheme not in {"http", "https"}:
                 raise ValueError("SPLUNK_SCHEME must be http or https")
             splunk_url = f"{scheme}://{splunk_host}:{splunk_port}"
+            _validate_http_endpoint(
+                splunk_url,
+                "SPLUNK_URL",
+                allow_insecure_http=splunk_allow_insecure_http,
+            )
         splunk = SplunkSettings(
             host=splunk_host,
             port=splunk_port,
@@ -516,10 +440,21 @@ class ServerSettings:
             search_resource=search_resource,
             security_queue=security_queue,
             search_planner_max_refinements=search_planner_max_refinements,
+            allow_insecure_http=splunk_allow_insecure_http,
         )
+        zimbra_host = _value(env, "ZIMBRA_HOST")
+        zimbra_allow_insecure_http = _boolean(env, "ZIMBRA_ALLOW_INSECURE_HTTP", False)
+        if zimbra_host:
+            _validate_http_endpoint(
+                zimbra_host,
+                "ZIMBRA_HOST",
+                allow_bare_host=True,
+                allow_insecure_http=zimbra_allow_insecure_http,
+                allow_path=False,
+            )
         zimbra = ZimbraSettings(
-            host=_value(env, "ZIMBRA_HOST"),
-            verify_ssl=_boolean(env, "ZIMBRA_VERIFY_SSL", False),
+            host=zimbra_host,
+            verify_ssl=_boolean(env, "ZIMBRA_VERIFY_SSL", True),
             timeout=_integer(env, "ZIMBRA_TIMEOUT", 60, 1, 600),
             allow_send=_boolean(env, "ZIMBRA_ALLOW_SEND", True),
             allow_filter_write=_boolean(env, "ZIMBRA_ALLOW_FILTER_WRITE", True),
@@ -537,6 +472,7 @@ class ServerSettings:
             # the SOC host never constructs a normal runtime from them.
             email=_value(env, "ZIMBRA_EMAIL"),
             password=_value(env, "ZIMBRA_PASSWORD"),
+            allow_insecure_http=zimbra_allow_insecure_http,
         )
         markitdown = MarkItDownSettings(
             llm_enabled=_boolean(env, "MARKITDOWN_LLM_ENABLED", False),
@@ -546,10 +482,11 @@ class ServerSettings:
             llm_timeout=_integer(env, "MARKITDOWN_LLM_TIMEOUT", 60, 1, 600),
         )
         email_server = EmailServerSettings(
-            url=_value(env, "SUBSCRIPTION_SERVER_URL", "http://100.114.50.103:9100").rstrip("/"),
+            url=_value(env, "SUBSCRIPTION_SERVER_URL").rstrip("/"),
             username=_value(env, "SUBSCRIPTION_SERVER_USER"),
             password=_value(env, "SUBSCRIPTION_SERVER_PASSWORD"),
             timeout=_integer(env, "SUBSCRIPTION_SERVER_TIMEOUT", 30, 1, 600),
+            allow_insecure_http=_boolean(env, "SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP", False),
         )
         return cls(
             name=_value(env, "MCP_SERVER_NAME", "SOC Agent MCP"),
@@ -570,24 +507,19 @@ class ServerSettings:
         store: PostgresStore | None,
         values: Mapping[str, str] | None = None,
     ) -> "ServerSettings":
-        env = dict(environ if values is None else values)
-        if store is None:
-            return cls.from_env(values)
-        # PostgreSQL supplies the persisted baseline, while explicit
-        # environment values remain the deployment override.
-        persisted = store.list_config()
-        persisted.update({key: value for key, value in env.items() if str(value).strip()})
-        env = _merge_splunk_config(persisted, load_default=values is None)
-        return cls.from_env(env)
+        """Compatibility entry point; service settings are never store-backed."""
+        del store
+        return cls.from_env(values)
 
     def public_status(self) -> dict[str, object]:
         return {
             "server": {"name": self.name, "transport": self.transport},
             "splunk": {
                 "configured": self.splunk.configured,
-                "host": self.splunk.host,
+                "host": redact_endpoint(self.splunk.host, allow_bare_host=True),
                 "port": self.splunk.port,
                 "verify_ssl": self.splunk.verify_ssl,
+                "allow_insecure_http": self.splunk.allow_insecure_http,
                 "max_events": self.splunk.max_events,
                 "risk_tolerance": self.splunk.risk_tolerance,
                 "sanitize_output": self.splunk.sanitize_output,
@@ -602,8 +534,9 @@ class ServerSettings:
             },
             "zimbra": {
                 "configured": self.zimbra.configured,
-                "host": self.zimbra.host,
+                "host": redact_endpoint(self.zimbra.host, allow_bare_host=True),
                 "verify_ssl": self.zimbra.verify_ssl,
+                "allow_insecure_http": self.zimbra.allow_insecure_http,
                 "filter_write_enabled": self.zimbra.allow_filter_write,
                 "filter_redirect_enabled": self.zimbra.allow_filter_redirect,
                 "filter_discard_enabled": self.zimbra.allow_filter_discard,
@@ -616,12 +549,25 @@ class ServerSettings:
             },
             "markitdown": {
                 "llm_enabled": self.markitdown.llm_enabled,
-                "llm_base_url": self.markitdown.llm_base_url,
+                "llm_base_url": redact_endpoint(self.markitdown.llm_base_url),
                 "llm_model": self.markitdown.llm_model,
                 "llm_timeout": self.markitdown.llm_timeout,
             },
             "email_server": {
                 "configured": self.email_server.configured,
-                "url": self.email_server.url,
+                "url": redact_endpoint(self.email_server.url),
+                "allow_insecure_http": self.email_server.allow_insecure_http,
+            },
+        }
+
+    def public_readiness(self) -> dict[str, object]:
+        """Return non-configuration service readiness for ordinary SOC users."""
+        return {
+            "server": {"name": self.name},
+            "services": {
+                "splunk": {"configured": self.splunk.configured},
+                "zimbra": {"configured": self.zimbra.configured},
+                "markitdown": {"available": True},
+                "subscription_server": {"configured": self.email_server.configured},
             },
         }

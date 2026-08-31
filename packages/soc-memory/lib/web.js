@@ -13,6 +13,25 @@ function settingsIsRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function redactMemoryEndpoint(value) {
+  const raw = String(value ?? '').trim()
+  if (raw.length === 0) return ''
+  try {
+    const parsed = new URL(raw)
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.hostname.length === 0) return '[configured endpoint]'
+    return `${parsed.protocol}//${parsed.host}`
+  } catch {
+    return '[configured endpoint]'
+  }
+}
+
+function redactMemorySettingsValue(value) {
+  if (!settingsIsRecord(value)) return value
+  const copy = { ...value }
+  if (Object.hasOwn(copy, 'embeddingBaseURL')) copy.embeddingBaseURL = redactMemoryEndpoint(copy.embeddingBaseURL)
+  return copy
+}
+
 function settingsResponseJson(res, status, body) {
   const bytes = Buffer.from(JSON.stringify(body))
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -69,24 +88,47 @@ function parseSettingsRequest(value) {
 }
 
 function settingsPublicMessage(error) {
-  return error instanceof Error ? error.message : String(error)
+  // Settings providers may include submitted values in their exception text.
+  // The web route only needs a stable, non-sensitive diagnostic class.
+  return 'Memory settings request failed'
 }
 
-/** Read the memory namespace descriptor straight from the settings seam (no secrets to redact). */
+function memorySecretMetadata(settings, descriptor) {
+  const secrets = descriptor.secrets ?? []
+  const rawDescriptor = settings.describe().find((row) => String(row.ns) === 'memory')
+  const rawValue = rawDescriptor?.value
+  const embeddingApiKey = settingsIsRecord(rawValue) ? rawValue.embeddingApiKey : undefined
+  const embeddingConfigured = typeof embeddingApiKey === 'string' && embeddingApiKey.trim().length > 0
+  return secrets.map((secret) => secret.path.length === 1 && secret.path[0] === 'embeddingApiKey'
+    ? { ...secret, set: embeddingConfigured }
+    : secret)
+}
+
+/** Read the memory namespace descriptor through the redacted settings seam. */
 export function memorySettingsSnapshot(settings) {
-  const descriptor = settings.describe().find((row) => String(row.ns) === 'memory')
+  const descriptor = settings.describe({ redactSecrets: true }).find((row) => String(row.ns) === 'memory')
   if (descriptor === undefined) throw new Error('memory settings namespace is not registered')
   return {
     schemaVersion: 1,
     writable: settings.writable,
     settings: {
-      value: descriptor.value,
-      ...descriptor.base === undefined ? {} : { base: descriptor.base },
-      ...descriptor.user === undefined ? {} : { user: descriptor.user },
+      value: redactMemorySettingsValue(descriptor.value),
+      ...descriptor.base === undefined ? {} : { base: redactMemorySettingsValue(descriptor.base) },
+      ...descriptor.user === undefined ? {} : { user: redactMemorySettingsValue(descriptor.user) },
+      secrets: memorySecretMetadata(settings, descriptor),
       revision: descriptor.revision,
       applies: 'live'
     }
   }
+}
+
+/** Preserve a write-only secret when a redacted settings form saves other fields. */
+function preserveOmittedMemorySecret(settings, value) {
+  if (Object.prototype.hasOwnProperty.call(value, 'embeddingApiKey')) return value
+  const descriptor = settings.describe().find((row) => String(row.ns) === 'memory')
+  const user = descriptor?.user
+  if (!settingsIsRecord(user) || !Object.prototype.hasOwnProperty.call(user, 'embeddingApiKey')) return value
+  return { ...value, embeddingApiKey: user.embeddingApiKey }
 }
 
 /**
@@ -125,7 +167,7 @@ export function memorySettingsRouteHandler(ctx, settings) {
     }
     try {
       if (!settings.writable) throw new Error('settings provider is read-only')
-      await settings.replace('memory', parsed.value, parsed.expectedRevision)
+      await settings.replace('memory', preserveOmittedMemorySecret(settings, parsed.value), parsed.expectedRevision)
       settingsResponseJson(res, 200, { ok: true, value: memorySettingsSnapshot(settings) })
     } catch (error) {
       const conflict = typeof error === 'object' && error !== null && error.code === SETTINGS_CONFLICT_CODE

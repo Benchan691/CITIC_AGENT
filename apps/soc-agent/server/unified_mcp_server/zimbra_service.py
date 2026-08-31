@@ -535,7 +535,13 @@ class ZimbraService:
 
     def _list_folders(self, account: StoredAccount) -> dict[str, Any]:
         token = self._token(account)
-        folders = zimbra_list_folders(self.settings.host, token, verify_ssl=self.settings.verify_ssl, timeout=self.settings.timeout)
+        folders = zimbra_list_folders(
+            self.settings.host,
+            token,
+            verify_ssl=self.settings.verify_ssl,
+            timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
+        )
         return {"count": len(folders), "folders": folders}
 
     def _list_signatures(self, account: StoredAccount) -> list[dict[str, Any]]:
@@ -545,6 +551,7 @@ class ZimbraService:
             token,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )
 
     def _create_signature(
@@ -555,7 +562,11 @@ class ZimbraService:
         html: str | None,
     ) -> dict[str, Any]:
         token = self._token(account)
-        options = {"verify_ssl": self.settings.verify_ssl, "timeout": self.settings.timeout}
+        options = {
+            "verify_ssl": self.settings.verify_ssl,
+            "timeout": self.settings.timeout,
+            "allow_insecure_http": self.settings.allow_insecure_http,
+        }
         existing = zimbra_list_signatures(self.settings.host, token, **options)
         if any(str(item.get("name", "")).casefold() == name.casefold() for item in existing):
             raise ServiceError("already_exists", "A Zimbra signature with that name already exists.")
@@ -570,7 +581,11 @@ class ZimbraService:
 
     def _delete_signature(self, account: StoredAccount, signature_id: str) -> dict[str, Any]:
         token = self._token(account)
-        options = {"verify_ssl": self.settings.verify_ssl, "timeout": self.settings.timeout}
+        options = {
+            "verify_ssl": self.settings.verify_ssl,
+            "timeout": self.settings.timeout,
+            "allow_insecure_http": self.settings.allow_insecure_http,
+        }
         existing = zimbra_list_signatures(self.settings.host, token, **options)
         signature = next((item for item in existing if item["id"] == signature_id), None)
         if signature is None:
@@ -602,6 +617,7 @@ class ZimbraService:
             body_format=body_format,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )
 
     def _search_emails(self, account: StoredAccount, query: str, limit: int, offset: int) -> list[dict[str, Any]]:
@@ -614,11 +630,19 @@ class ZimbraService:
             offset,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )
 
     def _get_email(self, account: StoredAccount, message_id: str) -> dict[str, Any] | None:
         token = self._token(account)
-        return zimbra_get_message(self.settings.host, token, message_id, verify_ssl=self.settings.verify_ssl, timeout=self.settings.timeout)
+        return zimbra_get_message(
+            self.settings.host,
+            token,
+            message_id,
+            verify_ssl=self.settings.verify_ssl,
+            timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
+        )
 
     def _get_email_headers(
         self,
@@ -634,11 +658,16 @@ class ZimbraService:
             names,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )
 
     def _move_email(self, account: StoredAccount, message_id: str, folder_id: str) -> dict[str, Any]:
         token = self._token(account)
-        options = {"verify_ssl": self.settings.verify_ssl, "timeout": self.settings.timeout}
+        options = {
+            "verify_ssl": self.settings.verify_ssl,
+            "timeout": self.settings.timeout,
+            "allow_insecure_http": self.settings.allow_insecure_http,
+        }
         folders = zimbra_list_folders(self.settings.host, token, **options)
         destination = next((folder for folder in folders if str(folder.get("id", "")) == folder_id), None)
         if destination is None:
@@ -685,6 +714,7 @@ class ZimbraService:
             message_id,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )
         if message is None:
             raise ServiceError("not_found", "Zimbra message was not found.")

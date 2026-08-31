@@ -50,6 +50,7 @@ class SplunkClient:
         
     async def connect(self):
         """Create and configure the HTTP client."""
+        self._validate_base_url()
         # Setup authentication - prefer token over basic auth
         auth = None
         headers = {}
@@ -65,9 +66,35 @@ class SplunkClient:
             base_url=self.base_url,
             auth=auth,
             headers=headers,
-            verify=self.config.get("verify_ssl", False),
+            verify=self.config.get("verify_ssl", True),
             timeout=float(self.config.get("request_timeout", 30))
         )
+
+    def _validate_base_url(self):
+        """Fail closed before sending credentials to an unsafe endpoint."""
+        try:
+            parsed = urlsplit(self.base_url)
+            parsed.port
+            hostname = parsed.hostname
+        except ValueError as exc:
+            raise SplunkAPIError("Splunk URL is invalid.") from exc
+        if (
+            parsed.scheme.lower() not in {"http", "https"}
+            or not parsed.netloc
+            or not hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise SplunkAPIError("Splunk URL is invalid.")
+        allow_insecure_http = self.config.get("allow_insecure_http", False)
+        if isinstance(allow_insecure_http, str):
+            allow_insecure_http = allow_insecure_http.strip().lower() in {"1", "true", "yes", "on"}
+        if parsed.scheme.lower() == "http" and not allow_insecure_http:
+            raise SplunkAPIError(
+                "Splunk URL must use HTTPS unless SPLUNK_ALLOW_INSECURE_HTTP is true."
+            )
         
     async def disconnect(self):
         """Close the HTTP client."""
@@ -102,7 +129,7 @@ class SplunkClient:
     def _raise_message_errors(payload: dict[str, Any], operation: str) -> None:
         error = payload.get("error")
         if error:
-            raise SplunkAPIError(f"Splunk returned an error for {operation}: {error}.")
+            raise SplunkAPIError(f"Splunk returned an error for {operation}.")
         messages = payload.get("messages", [])
         if messages is None:
             return
@@ -112,9 +139,7 @@ class SplunkClient:
             if not isinstance(message, dict):
                 raise SplunkAPIError(f"Splunk returned malformed {operation} messages.")
             if str(message.get("type", "")).upper() in {"ERROR", "FATAL"}:
-                text = message.get("text") or message.get("message")
-                suffix = f": {text}" if text else ""
-                raise SplunkAPIError(f"Splunk returned an error for {operation}{suffix}.")
+                raise SplunkAPIError(f"Splunk returned an error for {operation}.")
 
     @staticmethod
     def _resource_items(payload: dict[str, Any], operation: str) -> list[dict[str, Any]]:
@@ -677,10 +702,9 @@ class SplunkClient:
         except SplunkAPIError:
             raise
         except httpx.HTTPStatusError as e:
-            raise SplunkAPIError(f"Search failed", status_code=e.response.status_code, 
-                               details={"error": e.response.text})
+            raise SplunkAPIError("Search failed.", status_code=e.response.status_code) from e
         except Exception as e:
-            raise SplunkAPIError(f"Search failed: {str(e)}")
+            raise SplunkAPIError("Search failed.") from e
             
     async def get_indexes(self) -> List[Dict[str, Any]]:
         """Get list of all indexes with detailed information.
@@ -725,14 +749,11 @@ class SplunkClient:
             raise SplunkAPIError(
                 f"Splunk rejected the index request (HTTP {e.response.status_code}). Check the credentials and index permissions.",
                 status_code=e.response.status_code,
-                details={"error": e.response.text},
             ) from e
         except httpx.RequestError as e:
-            raise SplunkAPIError(
-                f"The request to Splunk failed. Check the URL and network access: {str(e)}"
-            ) from e
+            raise SplunkAPIError("The request to Splunk failed. Check the URL and network access.") from e
         except Exception as e:
-            raise SplunkAPIError(f"Splunk returned an invalid index response: {str(e)}") from e
+            raise SplunkAPIError("Splunk returned an invalid index response.") from e
 
     async def get_fired_alerts(self, *, limit: int = 50, offset: int = 0) -> dict[str, Any]:
         """Read the bounded catalog of standard Splunk fired alerts."""
@@ -785,10 +806,9 @@ class SplunkClient:
             raise SplunkAPIError(
                 "Failed to get lookup-table files",
                 status_code=e.response.status_code,
-                details={"error": e.response.text},
-            )
+            ) from e
         except Exception as e:
-            raise SplunkAPIError(f"Failed to get lookup-table files: {str(e)}")
+            raise SplunkAPIError("Failed to get lookup-table files.") from e
             
     async def get_saved_searches(self, name: str = "", app: str = "", count: int = 50) -> List[Dict[str, Any]]:
         """Get list of all saved searches.
@@ -840,10 +860,9 @@ class SplunkClient:
             
             return saved_searches
         except httpx.HTTPStatusError as e:
-            raise SplunkAPIError(f"Failed to get saved searches", status_code=e.response.status_code,
-                               details={"error": e.response.text})
+            raise SplunkAPIError("Failed to get saved searches.", status_code=e.response.status_code) from e
         except Exception as e:
-            raise SplunkAPIError(f"Failed to get saved searches: {str(e)}")
+            raise SplunkAPIError("Failed to get saved searches.") from e
 
     async def get_saved_search(self, search_name: str, app: str = "", owner: str = "") -> Dict[str, Any]:
         """Retrieve one saved search, including its ACL and schedule fields."""
@@ -860,10 +879,9 @@ class SplunkClient:
                 "links": entry.get("links", {}),
             }
         except httpx.HTTPStatusError as e:
-            raise SplunkAPIError("Failed to get saved search", status_code=e.response.status_code,
-                                 details={"error": e.response.text})
+            raise SplunkAPIError("Failed to get saved search.", status_code=e.response.status_code) from e
         except Exception as e:
-            raise SplunkAPIError(f"Failed to get saved search: {str(e)}")
+            raise SplunkAPIError("Failed to get saved search.") from e
 
     async def create_saved_search(self, fields: Dict[str, Any]) -> Dict[str, Any]:
         """Create a saved search using the standard Splunk REST fields."""
@@ -879,10 +897,9 @@ class SplunkClient:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            raise SplunkAPIError("Failed to create saved search", status_code=e.response.status_code,
-                                 details={"error": e.response.text})
+            raise SplunkAPIError("Failed to create saved search.", status_code=e.response.status_code) from e
         except Exception as e:
-            raise SplunkAPIError(f"Failed to create saved search: {str(e)}")
+            raise SplunkAPIError("Failed to create saved search.") from e
 
     async def update_saved_search(self, search_name: str, fields: Dict[str, Any]) -> Dict[str, Any]:
         """Update fields on an existing saved search."""
@@ -899,10 +916,9 @@ class SplunkClient:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            raise SplunkAPIError("Failed to update saved search", status_code=e.response.status_code,
-                                 details={"error": e.response.text})
+            raise SplunkAPIError("Failed to update saved search.", status_code=e.response.status_code) from e
         except Exception as e:
-            raise SplunkAPIError(f"Failed to update saved search: {str(e)}")
+            raise SplunkAPIError("Failed to update saved search.") from e
             
     async def run_saved_search(
         self,

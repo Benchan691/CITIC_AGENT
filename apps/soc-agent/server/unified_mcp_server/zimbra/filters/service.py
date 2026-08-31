@@ -115,6 +115,7 @@ class ZimbraFilterService:
             token,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )
         return [EmailFilter.from_zimbra(element, order=index) for index, element in enumerate(elements, 1)]
 
@@ -124,6 +125,7 @@ class ZimbraFilterService:
             token,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )
 
     def _read_filters_and_folders_with_token(
@@ -369,6 +371,7 @@ class ZimbraFilterService:
             serialize_filter_rules(rules),
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )
         return self._fingerprint(self._normalized_rules(rules))
 

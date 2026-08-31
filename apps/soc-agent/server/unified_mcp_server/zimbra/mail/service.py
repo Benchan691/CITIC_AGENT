@@ -79,6 +79,7 @@ class ZimbraMailService(ZimbraService):
             token,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )
         if not any(str(folder.get("id", "")) == parent_id for folder in folders):
             raise ServiceError("folder_parent_not_found", "The selected parent folder was not found.")
@@ -89,4 +90,5 @@ class ZimbraMailService(ZimbraService):
             parent_id,
             verify_ssl=self.settings.verify_ssl,
             timeout=self.settings.timeout,
+            allow_insecure_http=self.settings.allow_insecure_http,
         )

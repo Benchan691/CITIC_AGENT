@@ -8,10 +8,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import React from 'react'
 import { CiticBrandMark, CiticBrandName } from './CiticBrand.tsx'
-import { SplunkSettings } from './SplunkSettings.ts'
-import { SubscriptionServerSettings } from './SubscriptionServerSettings.ts'
-import { SchedulerSettings } from './ScheduledTasksForm.ts'
-import { SETTINGS_SECTIONS } from './sections.ts'
+import { AdminConsole } from './AdminConsole.tsx'
 import { AuthGate } from './AuthGate.tsx'
 import { installEmailDraftToolview } from './EmailDraftToolview.tsx'
 import { MarkItDownDocumentController } from './markitdownAttachments.ts'
@@ -26,11 +23,22 @@ export const inject = ['slots', 'connection', 'conversation', 'commandUi', 'sett
 
 export { SplunkSettings } from './SplunkSettings.ts'
 export { SubscriptionServerSettings } from './SubscriptionServerSettings.ts'
-export { SchedulerSettings } from './ScheduledTasksForm.ts'
+export { AdminConsole } from './AdminConsole.tsx'
 export { EmailDraftToolview } from './EmailDraftToolview.tsx'
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle
+  const path = typeof window === 'undefined' ? '' : window.location.pathname
+  if (path === '/admin' || path.startsWith('/admin/')) {
+    // The admin console shadows the shell's root entry at a lower priority.
+    // No conversation, workspace, sidebar, or regular-auth UI is mounted in
+    // this branch; the server still enforces the boundary for every request.
+    ctx.slots.inject('root', () => ctx.slots.register({
+      name: 'root',
+      priority: -1,
+    }, () => React.createElement(AdminConsole, { connection })))
+    return
+  }
   // SOC workspaces are the per-user filesystem workspaces guarded by the
   // server-side ownership proxy. Harness logical folders are process-global,
   // so keep that optional client surface disabled; WorkspaceRuntime then uses
@@ -99,23 +107,4 @@ export function apply(ctx: ClientContext): void {
         yield ctx.slots.register({ name: 'sidebar.brand.name', priority: -1 }, CiticBrandName)
         yield ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -1 }, CiticBrandMark)
       })))
-  ctx.slots.inject('settings.section', () => {
-    const connections = ctx.slots.register({
-      name: 'settings.section',
-      ...SETTINGS_SECTIONS[0],
-      inject: () => ({ connection }),
-    }, () => React.createElement(React.Fragment, null,
-      React.createElement(SplunkSettings, { connection }),
-      React.createElement(SubscriptionServerSettings, { connection }),
-    ))
-    const schedules = ctx.slots.register({
-      name: 'settings.section',
-      ...SETTINGS_SECTIONS[1],
-      inject: () => ({ connection, openSession: (id: string) => { ctx.sessions.open(id as never) } }),
-    }, SchedulerSettings)
-    return () => {
-      schedules()
-      connections()
-    }
-  })
 }

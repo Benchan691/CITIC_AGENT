@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { SETTINGS_SECTIONS } from '../src/client/sections.ts'
 
-test('registers focused connection and scheduled-task settings sections', () => {
-  assert.deepEqual(SETTINGS_SECTIONS, [
-    { id: 'soc-agent-connections', order: 30, label: 'Connections' },
-    { id: 'soc-agent-schedules', order: 40, label: 'Scheduled Tasks' },
-  ])
+test('removes scheduled-task management from settings while keeping prompt-driven creation', () => {
+  const clientSource = readFileSync(new URL('../src/client/index.ts', import.meta.url), 'utf8')
+  const schedulerSource = readFileSync(new URL('../../soc-agent-scheduler/index.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(clientSource, /ScheduledTasksForm|settings\.section|soc-agent-schedules/)
+  assert.match(schedulerSource, /tool\('scheduled_task_create'/)
 })
 
 test('exports independent SOC settings components', () => {
@@ -15,7 +14,6 @@ test('exports independent SOC settings components', () => {
     ['SplunkSettings.ts', 'SplunkSettings'],
     ['SubscriptionServerSettings.ts', 'SubscriptionServerSettings'],
     ['ZimbraSettings.ts', 'ZimbraSettings'],
-    ['ScheduledTasksForm.ts', 'SchedulerSettings'],
   ]) {
     const source = readFileSync(new URL(`../src/client/${file}`, import.meta.url), 'utf8')
     assert.match(source, new RegExp(`export function ${symbol}`))
@@ -25,9 +23,40 @@ test('exports independent SOC settings components', () => {
 test('subscription server connection test stays environment-configured and read-only', () => {
   const source = readFileSync(new URL('../src/client/SubscriptionServerSettings.ts', import.meta.url), 'utf8')
   assert.match(source, /test-subscription-server/)
-  assert.match(source, /Test subscription server/)
-  assert.match(source, /server \.env file/)
-  assert.doesNotMatch(source, /SUBSCRIPTION_SERVER_PASSWORD/)
+  assert.match(source, /Check connection/)
+  assert.match(source, /Unavailable/)
+  assert.match(source, /Configuration is managed by the server environment/)
+  assert.doesNotMatch(source, /update-settings|delete-setting|allow_insecure_http/)
+})
+
+test('admin console uses provider selection and write-only credentials', () => {
+  const source = readFileSync(new URL('../src/client/AdminConsole.tsx', import.meta.url), 'utf8')
+  assert.match(source, /role="listbox"/)
+  assert.match(source, /Custom provider/)
+  assert.match(source, /credentials\.set/)
+  assert.match(source, /credentials\.unset/)
+  assert.match(source, /connection\.api\.settings\.describe/)
+  assert.match(source, /connection\.api\.credentials\.describe/)
+  assert.match(source, /Manage the credential for this provider/)
+  assert.match(source, /isCustomProvider \? \(/)
+  assert.doesNotMatch(source, /rpc\(connection,\s*['"]settings\.describe/)
+  assert.doesNotMatch(source, /SplunkSettings|SubscriptionServerSettings/)
+  assert.doesNotMatch(source, /update-settings|delete-setting/)
+})
+
+test('failed service checks replace configured status with an unavailable state', () => {
+  const source = readFileSync(new URL('../src/client/AdminConsole.tsx', import.meta.url), 'utf8')
+  assert.match(source, /state\?\.kind === 'error'/)
+  assert.match(source, /Unavailable/)
+  assert.match(source, /state\.text/)
+})
+
+test('configuration controls are mounted only by the standalone admin console', () => {
+  const source = readFileSync(new URL('../src/client/index.ts', import.meta.url), 'utf8')
+  assert.match(source, /window\.location\.pathname/)
+  assert.match(source, /AdminConsole/)
+  assert.match(source, /return$/m)
+  assert.doesNotMatch(source, /soc-agent-connections/)
 })
 
 test('does not expose stored Zimbra-account controls in settings', () => {

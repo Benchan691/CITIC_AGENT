@@ -594,7 +594,7 @@ describe('settings domain', () => {
     const unknown = expectErr(await api.settings.update(request({ ns: 'unknown-ns', patch: {} })))
     const malformed = expectErr(await api.settings.update(request({ ns: 'Not A Namespace', patch: {} })))
     expect(unknown.code).toBe('settings-rejected')
-    expect(unknown.message).toContain('is not registered')
+    expect(unknown.message).toBe('settings change rejected')
     expect(malformed.code).toBe(unknown.code)
   })
 
@@ -606,7 +606,7 @@ describe('settings domain', () => {
     expect(value.writable).toBe(false)
     const error = expectErr(await api.settings.update(request({ ns: 'llm-deepseek', patch: {} })))
     expect(error.code).toBe('settings-rejected')
-    expect(error.message).toContain('read-only')
+    expect(error.message).toBe('settings change rejected')
   })
 })
 
@@ -687,7 +687,7 @@ describe('llm domain', () => {
         { id: 'deepseek-v4-pro', name: 'deepseek-v4-pro' },
       ],
     }])
-    expect(value.failures).toEqual([{ id: 'broken', name: 'Broken', message: 'catalog backend down' }])
+    expect(value.failures).toEqual([{ id: 'broken', name: 'Broken', message: 'provider model catalog unavailable' }])
   })
 
   it('forwards llm/adapters-updated at every topology commit point', async () => {
@@ -791,9 +791,25 @@ describe('llm.discoverModels', () => {
     })))
 
     expect(error.code).toBe('model-discovery-failed')
-    expect(error.message).toContain('answered 401; check the API key')
-    expect(error.details).toEqual({ settingsNs: 'llm-pi-ai', baseURL: 'https://gateway.acme.example/v1' })
+    expect(error.message).toBe('model discovery failed')
+    expect(error.details).toEqual({ settingsNs: 'llm-pi-ai' })
     expect(JSON.stringify(error)).not.toContain('wrong')
+  })
+
+  it('does not echo a credential-bearing draft endpoint on failure', async () => {
+    const ctx = await harness()
+    ctx.llm.registerModelDiscovery('llm-pi-ai', () =>
+      Promise.reject(new Error('provider unavailable')))
+    const api = createApiProxy(ctx, DEFAULTS)
+
+    const error = expectErr(await api.llm.discoverModels(request({
+      settingsNs: 'llm-pi-ai',
+      baseURL: 'https://user:password@gateway.acme.example/v1?api_key=query-secret',
+    })))
+
+    expect(error.details).toEqual({ settingsNs: 'llm-pi-ai' })
+    expect(JSON.stringify(error)).not.toContain('password')
+    expect(JSON.stringify(error)).not.toContain('query-secret')
   })
 
   it('reports a namespace no adapter family serves', async () => {
@@ -806,6 +822,6 @@ describe('llm.discoverModels', () => {
     })))
 
     expect(error.code).toBe('model-discovery-failed')
-    expect(error.message).toContain('no model discovery is registered')
+    expect(error.message).toBe('model discovery failed')
   })
 })

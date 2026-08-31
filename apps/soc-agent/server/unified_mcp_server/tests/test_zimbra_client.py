@@ -77,6 +77,26 @@ def test_login_uses_zimbra_client_and_returns_its_token(monkeypatch):
 
     assert token == "login-token"
     assert captured["config"]["zimbra_email"] == "user@example.com"
+    assert captured["config"]["verify_ssl"] is True
+
+
+def test_low_level_zimbra_client_requires_https_unless_explicitly_allowed(monkeypatch):
+    with pytest.raises(ValueError, match="must use HTTPS"):
+        zimbra._token_client("http://mail.example.com", "token")
+
+    captured = {}
+
+    def fake_request(_client, body, auth_token=""):
+        captured.update(body=body, token=auth_token)
+        return ET.Element("Response")
+
+    monkeypatch.setattr(zimbra._TokenClient, "_request_once", fake_request)
+    zimbra._token_client(
+        "http://mail.example.com",
+        "token",
+        allow_insecure_http=True,
+    ).request("<NoOpRequest/>")
+    assert captured["token"] == "token"
 
 
 def test_typed_signature_and_message_operations_keep_legacy_shapes(monkeypatch):
@@ -156,7 +176,12 @@ def test_download_attachment_maps_package_size_limit(monkeypatch):
             10,
         )
 
-    assert captured["kwargs"] == {"email": "user@example.com", "verify_ssl": True, "timeout": 9}
+    assert captured["kwargs"] == {
+        "email": "user@example.com",
+        "verify_ssl": True,
+        "timeout": 9,
+        "allow_insecure_http": False,
+    }
 
 
 def test_send_message_rejects_unknown_body_format():

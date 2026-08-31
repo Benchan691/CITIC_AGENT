@@ -8,6 +8,7 @@ import {
   MemoryStore,
   detectSecrets,
   isActiveEntry,
+  requestEmbeddings,
   socScopedStoreDir,
 } from '../lib/store.js'
 import {
@@ -85,6 +86,33 @@ test('store security primitives detect secrets, stale entries, and restrictive p
     assert.equal(entry.content, 'A small typed fact.')
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('remote embeddings require HTTPS and redact secret-like memory content', async () => {
+  const originalFetch = globalThis.fetch
+  let captured
+  globalThis.fetch = async (_url, init) => {
+    captured = JSON.parse(init.body)
+    return {
+      ok: true,
+      async json() {
+        return { data: captured.input.map((_, index) => ({ index, embedding: [index + 1] })) }
+      },
+    }
+  }
+  try {
+    await assert.rejects(
+      requestEmbeddings(['password: embedding-secret-value'], { baseURL: 'http://embedding.example.test' }),
+      /must use HTTPS/,
+    )
+    await requestEmbeddings(
+      ['password: embedding-secret-value'],
+      { baseURL: 'http://embedding.example.test', allowInsecureHttp: true },
+    )
+    assert.equal(JSON.stringify(captured).includes('embedding-secret-value'), false)
+  } finally {
+    globalThis.fetch = originalFetch
   }
 })
 

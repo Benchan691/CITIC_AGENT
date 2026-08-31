@@ -8,16 +8,18 @@ from urllib.parse import quote
 
 import httpx
 
-from ..config import EmailServerSettings
+from ..config import EmailServerSettings, redact_endpoint
 from ..errors import ConfigurationError, ServiceError
 
 
 class EmailSubscriptionService:
+    MAX_REDIRECTS = 5
+
     def __init__(self, settings: EmailServerSettings, client: httpx.AsyncClient | None = None) -> None:
         self.settings = settings
         self._client = client or httpx.AsyncClient(
             base_url=settings.url,
-            follow_redirects=True,
+            follow_redirects=False,
             timeout=settings.timeout,
         )
         self._owns_client = client is None
@@ -30,11 +32,97 @@ class EmailSubscriptionService:
     def _require_configuration(self) -> None:
         if not self.settings.configured:
             raise ConfigurationError("Email server", self.settings.missing)
+        try:
+            parsed = httpx.URL(self.settings.url)
+        except httpx.InvalidURL as exc:
+            raise ConfigurationError("Email server", ["SUBSCRIPTION_SERVER_URL"]) from exc
+        if parsed.scheme not in {"http", "https"} or not parsed.host:
+            raise ConfigurationError("Email server", ["SUBSCRIPTION_SERVER_URL"])
+        if parsed.scheme == "http" and not self.settings.allow_insecure_http:
+            raise ConfigurationError(
+                "Email server",
+                ["SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP"],
+            )
+
+    @staticmethod
+    def _effective_port(url: httpx.URL) -> int | None:
+        if url.port is not None:
+            return url.port
+        return {"http": 80, "https": 443}.get(url.scheme)
+
+    def _validate_redirect(self, current: httpx.URL, target: httpx.URL) -> None:
+        if target.scheme not in {"http", "https"} or not target.host:
+            raise ServiceError(
+                "email_server_redirect_rejected",
+                "The email webserver returned an unsupported redirect.",
+            )
+        if target.username or target.password:
+            raise ServiceError(
+                "email_server_redirect_rejected",
+                "The email webserver returned a redirect with embedded credentials.",
+            )
+        same_authority = (
+            current.host.casefold() == target.host.casefold()
+            and self._effective_port(current) == self._effective_port(target)
+        )
+        if not same_authority:
+            raise ServiceError(
+                "email_server_redirect_rejected",
+                "The email webserver returned a cross-authority redirect.",
+            )
+        if current.scheme == "https" and target.scheme != "https":
+            raise ServiceError(
+                "email_server_redirect_rejected",
+                "The email webserver returned an insecure redirect.",
+            )
+
+    async def _request_with_redirects(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
+        try:
+            response = await self._client.request(
+                method,
+                path,
+                follow_redirects=False,
+                **kwargs,
+            )
+        except httpx.InvalidURL as exc:
+            raise ServiceError(
+                "email_server_redirect_rejected",
+                "The email webserver returned a malformed redirect.",
+            ) from exc
+        redirects = 0
+        while response.status_code in {301, 302, 303, 307, 308}:
+            if redirects >= self.MAX_REDIRECTS:
+                raise ServiceError(
+                    "email_server_redirect_rejected",
+                    "The email webserver returned too many redirects.",
+                )
+            try:
+                next_request = getattr(response, "next_request", None)
+            except (httpx.InvalidURL, RuntimeError, ValueError):
+                next_request = None
+            if next_request is None:
+                raise ServiceError(
+                    "email_server_redirect_rejected",
+                    "The email webserver returned a malformed redirect.",
+                )
+            self._validate_redirect(response.url, next_request.url)
+            await response.aread()
+            await response.aclose()
+            try:
+                response = await self._client.send(next_request, follow_redirects=False)
+            except httpx.InvalidURL as exc:
+                raise ServiceError(
+                    "email_server_redirect_rejected",
+                    "The email webserver returned a malformed redirect.",
+                ) from exc
+            redirects += 1
+        return response
 
     async def _login(self) -> None:
         self._require_configuration()
         try:
-            response = await self._client.post(
+            response = await self._request_with_redirects(
+                "POST",
                 "/login",
                 data={
                     "username": self.settings.username,
@@ -62,13 +150,8 @@ class EmailSubscriptionService:
 
     @staticmethod
     def _remote_message(response: httpx.Response) -> str:
-        if "application/json" in response.headers.get("content-type", ""):
-            try:
-                payload = response.json()
-            except ValueError:
-                payload = None
-            if isinstance(payload, Mapping) and isinstance(payload.get("error"), str):
-                return payload["error"]
+        # Remote response bodies are untrusted and may reflect submitted
+        # credentials. Keep them out of the local error surface entirely.
         return "The email webserver rejected the request."
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
@@ -76,11 +159,11 @@ class EmailSubscriptionService:
         if not self._authenticated:
             await self._login()
         try:
-            response = await self._client.request(method, path, **kwargs)
+            response = await self._request_with_redirects(method, path, **kwargs)
             if response.status_code == 401:
                 self._authenticated = False
                 await self._login()
-                response = await self._client.request(method, path, **kwargs)
+                response = await self._request_with_redirects(method, path, **kwargs)
         except httpx.TimeoutException as exc:
             raise ServiceError(
                 "email_server_unavailable",
@@ -133,7 +216,7 @@ class EmailSubscriptionService:
         result = await self.list_subscriptions()
         return {
             "ok": True,
-            "url": self.settings.url,
+            "url": redact_endpoint(self.settings.url),
             "subscription_count": len(result["subscriptions"]),
         }
 

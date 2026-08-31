@@ -134,16 +134,24 @@ class SplunkCore:
     @staticmethod
     def _service_error(exc: SplunkAPIError) -> ServiceError:
         status = exc.status_code
-        details = dict(exc.details) if isinstance(exc.details, dict) else {}
+        details = {}
+        if isinstance(exc.details, dict):
+            for key in ("status_code", "runtime_limit_seconds"):
+                if key in exc.details:
+                    details[key] = exc.details[key]
         if status:
             details.setdefault("status_code", status)
-        # Only client-generated lifecycle codes are allowed through.  Splunk
-        # response text remains an API error and is never treated as a caller
-        # controlled service code.
+        # Only bounded client-generated details cross the MCP boundary.  The
+        # low-level client supplies actionable, secret-free messages for
+        # connection failures; never forward a Splunk response body.
         code = exc.error_code if exc.error_code in {"runtime_limit_exceeded"} else "splunk_api_error"
+        candidate = str(exc.message or "").strip()
+        if not candidate or len(candidate) > 240:
+            candidate = "The Splunk operation failed."
+        message = "Splunk search exceeded its runtime limit." if code == "runtime_limit_exceeded" else candidate
         return ServiceError(
             code,
-            exc.message,
+            message,
             retryable=(status is None or status >= 500) if code == "splunk_api_error" else False,
             details=details,
         )

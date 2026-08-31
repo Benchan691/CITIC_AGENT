@@ -7,14 +7,14 @@ from unified_mcp_server.errors import ConfigurationError, ServiceError
 
 
 def settings():
-    return EmailServerSettings("http://email.example.test", "operator", "secret", 10)
+    return EmailServerSettings("http://email.example.test", "operator", "secret", 10, True)
 
 
-def client_for(handler):
+def client_for(handler, base_url="http://email.example.test"):
     return httpx.AsyncClient(
         transport=httpx.MockTransport(handler),
-        base_url="http://email.example.test",
-        follow_redirects=True,
+        base_url=base_url,
+        follow_redirects=False,
     )
 
 
@@ -105,7 +105,7 @@ async def test_connection_returns_safe_subscription_count():
 @pytest.mark.asyncio
 async def test_missing_credentials_fail_before_network_request():
     service = EmailSubscriptionService(
-        EmailServerSettings(settings().url, "", "", 10),
+        EmailServerSettings(settings().url, "", "", 10, True),
         client_for(lambda _: httpx.Response(500)),
     )
     with pytest.raises(ConfigurationError) as error:
@@ -126,7 +126,7 @@ async def test_remote_errors_are_sanitized_and_outages_retryable():
         return httpx.Response(400, json={"error": "Subscription already exists."})
 
     service = EmailSubscriptionService(settings(), client_for(rejected))
-    with pytest.raises(ServiceError, match="Subscription already exists") as error:
+    with pytest.raises(ServiceError, match="email webserver rejected") as error:
         await service.create_subscription("a@example.com", "SOC")
     assert "secret" not in str(error.value)
     await service.close()
@@ -143,4 +143,50 @@ async def test_remote_errors_are_sanitized_and_outages_retryable():
         await service.list_subscriptions()
     assert error.value.code == "email_server_unavailable"
     assert error.value.retryable is True
+    await service.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("location", [
+    "https://other.example.test/subscriptions",
+    "https://email.example.test:444/subscriptions",
+    "https://user:password@email.example.test/subscriptions",
+    "http://email.example.test/subscriptions",
+    "ftp://email.example.test/subscriptions",
+    "http://",
+])
+async def test_login_rejects_unsafe_redirects_without_following_them(location):
+    requests = []
+
+    async def handler(request):
+        requests.append(request)
+        return httpx.Response(302, headers={"location": location})
+
+    service = EmailSubscriptionService(
+        EmailServerSettings("https://email.example.test", "operator", "secret", 10),
+        client_for(handler, "https://email.example.test"),
+    )
+    with pytest.raises(ServiceError, match="redirect") as error:
+        await service.list_subscriptions()
+    assert error.value.code == "email_server_redirect_rejected"
+    assert len(requests) == 1
+    assert all(request.url.host == "email.example.test" for request in requests)
+    await service.close()
+
+
+@pytest.mark.asyncio
+async def test_redirect_limit_is_bounded():
+    requests = []
+
+    async def handler(request):
+        requests.append(request)
+        return httpx.Response(302, headers={"location": "/same-authority"})
+
+    service = EmailSubscriptionService(
+        EmailServerSettings("https://email.example.test", "operator", "secret", 10),
+        client_for(handler, "https://email.example.test"),
+    )
+    with pytest.raises(ServiceError, match="too many redirects"):
+        await service.list_subscriptions()
+    assert len(requests) == EmailSubscriptionService.MAX_REDIRECTS + 1
     await service.close()
