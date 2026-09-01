@@ -393,9 +393,9 @@ class ServerSettings:
             if _value(env, "RUNNING_INSIDE_DOCKER") == "1"
             else _value(env, "SPLUNK_HOST")
         )
-        splunk_port = _integer(env, "SPLUNK_PORT", 8089, 1, 65535)
         splunk_allow_insecure_http = _boolean(env, "SPLUNK_ALLOW_INSECURE_HTTP", False)
         splunk_url = _value(env, "SPLUNK_URL")
+        splunk_port = 8089
         if splunk_url:
             _validate_http_endpoint(
                 splunk_url,
@@ -406,6 +406,7 @@ class ServerSettings:
             splunk_host = parsed_splunk_url.hostname or splunk_host
             splunk_port = parsed_splunk_url.port or splunk_port
         elif splunk_host:
+            splunk_port = _integer(env, "SPLUNK_PORT", 8089, 1, 65535)
             scheme = _value(env, "SPLUNK_SCHEME", "https").lower()
             if scheme not in {"http", "https"}:
                 raise ValueError("SPLUNK_SCHEME must be http or https")

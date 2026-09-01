@@ -347,6 +347,7 @@ def test_splunk_url_preserves_scheme_and_port():
     settings = ServerSettings.from_env(
         {
             "SPLUNK_URL": "http://127.0.0.1:8089",
+            "SPLUNK_PORT": "",
             "SPLUNK_ALLOW_INSECURE_HTTP": "true",
             "SPLUNK_USERNAME": "admin",
             "SPLUNK_PASSWORD": "secret",
@@ -356,6 +357,27 @@ def test_splunk_url_preserves_scheme_and_port():
     assert settings.splunk.host == "127.0.0.1"
     assert settings.splunk.port == 8089
     assert settings.splunk.client_config()["splunk_url"] == "http://127.0.0.1:8089"
+
+
+def test_splunk_port_is_only_required_for_hostname_configuration():
+    settings = ServerSettings.from_env(
+        {
+            "SPLUNK_URL": "https://splunk.example.com:9443",
+            "SPLUNK_PORT": "not-used",
+            "SPLUNK_TOKEN": "token",
+        }
+    )
+
+    assert settings.splunk.host == "splunk.example.com"
+    assert settings.splunk.port == 9443
+
+    with pytest.raises(ValueError, match="SPLUNK_PORT"):
+        ServerSettings.from_env(
+            {
+                "SPLUNK_HOST": "splunk.example.com",
+                "SPLUNK_PORT": "",
+            }
+        )
 
 
 def test_splunk_and_zimbra_http_require_explicit_opt_out():
