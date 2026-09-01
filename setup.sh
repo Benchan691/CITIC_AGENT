@@ -1382,17 +1382,10 @@ case "${1:-}" in
   --plugins)
     echo "${B}SOC Agent setup doctor — install, build, repair, wire${N}"
     run_prereq_checks
-    setup_failed=0
-    ensure_python_server || setup_failed=1
-    ensure_harness_ready || setup_failed=1
-    if ! ensure_external_plugins; then
-      setup_failed=1
-    fi
-    ensure_soc_bundle || setup_failed=1
-    if [ "$setup_failed" -ne 0 ]; then
-      bad "setup did not complete — fix the failures above and re-run ./setup.sh"
-      exit 1
-    fi
+    ensure_python_server
+    ensure_harness_ready
+    ensure_external_plugins
+    ensure_soc_bundle
     exit 0
     ;;
   "")
@@ -1400,17 +1393,10 @@ case "${1:-}" in
     run_prereq_checks
     collect_parameters
     write_files
-    setup_failed=0
-    ensure_python_server || setup_failed=1
-    ensure_harness_ready || setup_failed=1
-    if ! ensure_external_plugins; then
-      setup_failed=1
-    fi
-    ensure_soc_bundle || setup_failed=1
-    if [ "$setup_failed" -ne 0 ]; then
-      bad "setup did not complete — fix the failures above and re-run ./setup.sh"
-      exit 1
-    fi
+    ensure_python_server
+    ensure_harness_ready
+    ensure_external_plugins
+    ensure_soc_bundle
     echo
     summary
     ;;
