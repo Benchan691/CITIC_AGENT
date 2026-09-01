@@ -1,49 +1,54 @@
 # CITIC SOC Agent
 
-Self-contained daily SOC operations agent built on DeepSeek Harness
-`dsh-v0.1.1-rc.2`. Application source, SOC packages, skills, and the pinned
-harness source all remain inside this repository; no sibling checkout or Git
-submodule is required.
+Self-contained SOC operations agent built on DeepSeek Harness. The repository
+contains the application, SOC packages, investigation skills, Python MCP
+server, and pinned harness source.
 
-The repository is organized by ownership:
+## Repository layout
 
-- `apps/soc-agent` — host policy, MCP server, scheduler wiring, and product tests
-- `packages/soc-agent-client` — browser settings and tool-view plugin
-- `packages/soc-agent-scheduler` — durable read-only investigation scheduling
-- `vendor/deepseek-harness` — in-repository harness source and runtime
-- `skills` — concise SOC operating playbooks
+- `apps/soc-agent` — application host, policy, scheduler, and MCP server
+- `packages` — SOC client, scheduler, and tenant-isolated memory packages
+- `vendor/deepseek-harness` — JavaScript workspace and web runtime
+- `skills` — SOC operating playbooks
 - `docs` — project structure and operating notes
 
-See [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) for commands and
-dependency boundaries.
+## First-time setup
 
-All JavaScript apps and local plugins share the DeepSeek Harness pnpm
-workspace. Run JavaScript dependency commands from `vendor/deepseek-harness`;
-do not install dependencies separately inside `apps/` or `packages/`.
-
-## Update the server deployment
-
-The active deployment at `~/CITIC_AGENT/current` is a Git checkout. To update
-the code on the server:
+From the repository root, run:
 
 ```bash
-cd ~/CITIC_AGENT/current
-git pull --ff-only
-
-cd vendor/deepseek-harness
-pnpm install --frozen-lockfile
-pnpm run build
+./setup.sh
 ```
 
-Restart the web app in its tmux session
+The setup process collects missing configuration, installs dependencies, builds
+the harness, and wires the SOC product into the web profile. Use
+`./setup.sh --check` to audit the installation without changing it.
 
-The server intentionally listens only on `127.0.0.1`. Access it from another
-device through an SSH tunnel:
+## Update from GitHub
+
+Keep the checkout clean, then run:
+
+```bash
+./update.sh
+```
+
+The update script fast-forwards the current branch from its configured
+upstream and runs `setup.sh --plugins` to refresh dependencies, builds, and
+profile wiring. It never stashes or discards local changes. If the web app is
+already running, restart it manually after the update.
+
+To start the web app:
+
+```bash
+cd vendor/deepseek-harness
+pnpm dsh web --no-open
+```
+
+Open `http://127.0.0.1:3080`, or use an SSH tunnel for remote access:
 
 ```bash
 ssh -L 3080:127.0.0.1:3080 usr@ip
 ```
 
-Runtime configuration and data (`.env`, `.data`, PostgreSQL, and `~/.dsh`) are
-outside Git. Keep secrets out of commits and preserve those files when
-updating the code.
+Runtime configuration and data, including `.env`, `.data`, PostgreSQL, and
+`~/.dsh`, are kept outside Git and preserved during updates.
