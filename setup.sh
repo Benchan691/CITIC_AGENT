@@ -738,31 +738,22 @@ ensure_python_server() {
 ensure_harness_ready() {
   echo "${B}Harness build${N}"
 
-  if [ ! -d "$HARNESS_DIR/node_modules" ]; then
-    echo "Installing harness dependencies — this can take a few minutes…"
-    if (cd "$HARNESS_DIR" && pnpm install --frozen-lockfile); then
-      ok "harness dependencies installed"
-    else
-      bad "pnpm install failed — fix the error above and re-run ./setup.sh"
-      PREREQ_WARNINGS+=("harness build")
-      return 1
-    fi
+  echo "Installing/verifying harness dependencies — this can take a few minutes…"
+  if (cd "$HARNESS_DIR" && pnpm install --frozen-lockfile); then
+    ok "harness dependencies ready"
   else
-    ok "harness dependencies present"
+    bad "pnpm install failed — fix the error above and re-run ./setup.sh"
+    PREREQ_WARNINGS+=("harness build")
+    return 1
   fi
 
-  if [ -f "$HARNESS_DIR/vendor/schemastery/lib/index.cjs" ] \
-    && [ -f "$HARNESS_DIR/apps/web/dist/index.html" ]; then
-    ok "framework build present"
+  echo "Building the harness (framework libs, client bundles, and web dist) — this can take several minutes…"
+  if (cd "$HARNESS_DIR" && pnpm run build); then
+    ok "framework build complete"
   else
-    echo "Building the harness (framework libs, schemastery, web dist) — this can take several minutes…"
-    if (cd "$HARNESS_DIR" && pnpm run build); then
-      ok "framework build complete"
-    else
-      bad "pnpm run build failed — fix the error above and re-run ./setup.sh"
-      PREREQ_WARNINGS+=("harness build")
-      return 1
-    fi
+    bad "pnpm run build failed — fix the error above and re-run ./setup.sh"
+    PREREQ_WARNINGS+=("harness build")
+    return 1
   fi
 
   local need_repair=0 violations
@@ -1391,12 +1382,17 @@ case "${1:-}" in
   --plugins)
     echo "${B}SOC Agent setup doctor — install, build, repair, wire${N}"
     run_prereq_checks
-    ensure_python_server || true
-    ensure_harness_ready || true
+    setup_failed=0
+    ensure_python_server || setup_failed=1
+    ensure_harness_ready || setup_failed=1
     if ! ensure_external_plugins; then
+      setup_failed=1
+    fi
+    ensure_soc_bundle || setup_failed=1
+    if [ "$setup_failed" -ne 0 ]; then
+      bad "setup did not complete — fix the failures above and re-run ./setup.sh"
       exit 1
     fi
-    ensure_soc_bundle || true
     exit 0
     ;;
   "")
@@ -1404,12 +1400,17 @@ case "${1:-}" in
     run_prereq_checks
     collect_parameters
     write_files
-    ensure_python_server || true
-    ensure_harness_ready || true
+    setup_failed=0
+    ensure_python_server || setup_failed=1
+    ensure_harness_ready || setup_failed=1
     if ! ensure_external_plugins; then
+      setup_failed=1
+    fi
+    ensure_soc_bundle || setup_failed=1
+    if [ "$setup_failed" -ne 0 ]; then
+      bad "setup did not complete — fix the failures above and re-run ./setup.sh"
       exit 1
     fi
-    ensure_soc_bundle || true
     echo
     summary
     ;;
