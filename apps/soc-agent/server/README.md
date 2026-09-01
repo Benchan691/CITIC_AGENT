@@ -45,6 +45,7 @@ server-side for 24 hours; it never stores the submitted password. Workspaces
 and Harness sessions are owned by the authenticated local user, and the first
 successful login creates that user's `General` workspace.
 
-Attachment conversion is local by default. Install `uv sync --extra test --extra
-markitdown-llm` and set the `MARKITDOWN_LLM_*` variables only when
-OpenAI-compatible OCR or image descriptions are explicitly required.
+Attachment conversion is local by default. Set `MARKITDOWN_LLM_ENABLED=true`
+with the `MARKITDOWN_LLM_*` variables when OpenAI-compatible OCR or image
+descriptions are explicitly required; `setup.sh` installs the optional
+`markitdown-llm` dependencies automatically.

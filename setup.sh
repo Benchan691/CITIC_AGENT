@@ -709,16 +709,27 @@ client_external_violations() {
 }
 
 ensure_python_server() {
-  echo "${B}Python MCP server environment${N}"
-  if [ -d "$SERVER_DIR/.venv" ]; then
-    ok "Python environment present"
-    return 0
+  local markitdown_enabled exported_markitdown
+  exported_markitdown="$(env_value MARKITDOWN_LLM_ENABLED)"
+  if [ -n "$exported_markitdown" ]; then
+    markitdown_enabled="$exported_markitdown"
+  elif [ -n "${VALUES[MARKITDOWN_LLM_ENABLED]+x}" ]; then
+    markitdown_enabled="${VALUES[MARKITDOWN_LLM_ENABLED]}"
+  else
+    markitdown_enabled="$(lookup MARKITDOWN_LLM_ENABLED)"
   fi
-  echo "Syncing Python dependencies (uv sync --python 3.12) — this can take a few minutes…"
-  if (cd "$SERVER_DIR" && uv sync --python 3.12); then
+
+  local -a sync_args=(sync --python 3.12)
+  case "${markitdown_enabled,,}" in
+    1|y|yes|true|on) sync_args+=(--extra markitdown-llm) ;;
+  esac
+
+  echo "${B}Python MCP server environment${N}"
+  echo "Syncing Python dependencies (uv ${sync_args[*]}) — this can take a few minutes…"
+  if (cd "$SERVER_DIR" && uv "${sync_args[@]}"); then
     ok "Python environment ready"
   else
-    bad "uv sync failed — run: cd apps/soc-agent/server && uv sync --python 3.12"
+    bad "uv sync failed — run: cd apps/soc-agent/server && uv ${sync_args[*]}"
     PREREQ_WARNINGS+=("Python MCP environment")
     return 1
   fi
