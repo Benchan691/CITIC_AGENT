@@ -16,7 +16,12 @@ from .approval import (
     canonical_json,
     compute_proposal_hash,
 )
-from .model import DetectionDraft, validate_detection
+from .model import (
+    DetectionDraft,
+    canonical_alert_fields,
+    public_alert_fields,
+    validate_detection,
+)
 from unified_mcp_server.errors import ServiceError
 
 
@@ -47,9 +52,6 @@ class SplunkDetectionService:
 
     @staticmethod
     def _fingerprint(detection: dict[str, Any]) -> str:
-        # Keep the established optimistic-concurrency fingerprint stable for
-        # existing callers. Proposal hashes bind the additional review-only
-        # metadata separately.
         fields = {
             key: detection.get(key)
             for key in (
@@ -57,6 +59,7 @@ class SplunkDetectionService:
                 "cron_schedule", "is_scheduled", "disabled", "actions", "app", "owner",
             )
         }
+        fields.update(public_alert_fields(detection))
         encoded = json.dumps(fields, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
         return hashlib.sha256(encoded).hexdigest()
 
@@ -156,6 +159,33 @@ class SplunkDetectionService:
         return state
 
     @staticmethod
+    def _merge_detection_payload(
+        current: dict[str, Any],
+        payload: dict[str, Any],
+        *,
+        name: str,
+    ) -> dict[str, Any]:
+        try:
+            alert_fields = canonical_alert_fields(payload)
+        except ValueError as exc:
+            raise ServiceError("invalid_input", str(exc)) from exc
+        merged = {**current, **payload, "name": name, "enabled": False}
+        # Apply canonical values after the shallow merge so an alias such as
+        # earliest_time or counttype cannot be masked by the current raw REST
+        # field. Empty canonical values intentionally clear the setting.
+        merged.update(alert_fields)
+        return merged
+
+    @staticmethod
+    def _actions_changed(before: dict[str, Any], after: dict[str, Any]) -> bool:
+        keys = set(public_alert_fields(before)) | set(public_alert_fields(after))
+        return any(
+            (key == "actions" or key.startswith("action."))
+            for key in keys
+            if before.get(key) != after.get(key)
+        )
+
+    @staticmethod
     def _proposal_response(proposal: DetectionChangeProposal, **extra: Any) -> dict[str, Any]:
         public = proposal.public()
         return {
@@ -186,6 +216,7 @@ class SplunkDetectionService:
         if not isinstance(content, dict):
             content = {}
         acl = result.get("acl", {}) if isinstance(result, dict) and isinstance(result.get("acl"), dict) else {}
+        alert_fields = public_alert_fields(content)
         detection = {
             "name": result.get("name", name) if isinstance(result, dict) else name,
             "description": content.get("description", ""),
@@ -196,10 +227,28 @@ class SplunkDetectionService:
             "is_scheduled": self._flag(content.get("is_scheduled", False)),
             "disabled": self._flag(content.get("disabled", False)),
             "actions": content.get("actions", ""),
-            "app": acl.get("app") or self.core.settings.detection_app,
-            "owner": acl.get("owner") or self.core.settings.detection_owner,
+            # The request is scoped to these configured values; never let a
+            # response ACL redirect a later approved write elsewhere.
+            "app": self.core.settings.detection_app,
+            "owner": self.core.settings.detection_owner,
             "sharing": acl.get("sharing", ""),
         }
+        detection.update(alert_fields)
+        # Keep the legacy aliases in reads while exposing the raw REST names
+        # beside them. The raw values are the canonical source for proposals.
+        detection["earliest_time"] = alert_fields.get(
+            "dispatch.earliest_time", detection["earliest_time"]
+        )
+        detection["latest_time"] = alert_fields.get(
+            "dispatch.latest_time", detection["latest_time"]
+        )
+        detection["cron_schedule"] = alert_fields.get(
+            "cron_schedule", detection["cron_schedule"]
+        )
+        detection["is_scheduled"] = self._flag(
+            alert_fields.get("is_scheduled", detection["is_scheduled"])
+        )
+        detection["actions"] = alert_fields.get("actions", detection["actions"]) or ""
         detection["fingerprint"] = self._fingerprint(detection)
         return detection
 
@@ -265,14 +314,37 @@ class SplunkDetectionService:
             "description": state.get("description", ""),
             "is_scheduled": "1" if state.get("is_scheduled") else "0",
             "cron_schedule": state.get("cron_schedule", ""),
-            "dispatch.earliest_time": state.get("earliest_time", "-10m"),
-            "dispatch.latest_time": state.get("latest_time", "now"),
+            "dispatch.earliest_time": state.get(
+                "dispatch.earliest_time", state.get("earliest_time", "-10m")
+            ),
+            "dispatch.latest_time": state.get(
+                "dispatch.latest_time", state.get("latest_time", "now")
+            ),
             "disabled": "1",
             "app": state["app"],
             "owner": state["owner"],
         }
+        try:
+            fields.update(canonical_alert_fields(state))
+        except ValueError as exc:
+            raise ServiceError("proposal_payload_mismatch", "The detection state contains an invalid alert field.") from exc
+        # These fields are always explicit so update writes cannot accidentally
+        # leave a stale timing or enabled value in Splunk.
+        fields.update(
+            {
+                "is_scheduled": "1" if state.get("is_scheduled") else "0",
+                "cron_schedule": state.get("cron_schedule", ""),
+                "dispatch.earliest_time": state.get(
+                    "dispatch.earliest_time", state.get("earliest_time", "-10m")
+                ),
+                "dispatch.latest_time": state.get(
+                    "dispatch.latest_time", state.get("latest_time", "now")
+                ),
+                "disabled": "1",
+            }
+        )
         if creating:
-            fields["actions"] = ""
+            fields.setdefault("actions", "")
         return fields
 
     def _require_write(self, *, enabling: bool = False) -> None:
@@ -297,17 +369,12 @@ class SplunkDetectionService:
         self._require_write()
         if not isinstance(payload, dict):
             raise ServiceError("invalid_input", "detection must be a JSON object")
-        if "actions" in payload and str(payload.get("actions", "")).strip():
-            raise ServiceError(
-                "invalid_input",
-                "New detection drafts are created without alert actions; configure actions separately before enabling.",
-            )
         validation = self.validate_detection({**payload, "enabled": False})
         if not validation["valid"]:
             raise ServiceError("detection_invalid", "Detection validation failed.", details=validation)
         draft = DetectionDraft.from_payload({**payload, "enabled": False})
         state = self._state_from_source(
-            {**draft.as_dict(), "actions": ""},
+            draft.as_dict(),
             app=self.core.settings.detection_app,
             owner=self.core.settings.detection_owner,
             disabled=True,
@@ -324,7 +391,7 @@ class SplunkDetectionService:
             proposal,
             enabled=False,
             review_only_metadata=self._review_only_metadata(draft),
-            requires_action_configuration=True,
+            requires_action_configuration=not bool(str(state.get("actions", "")).strip()),
         )
 
     async def update_detection_draft(
@@ -341,12 +408,7 @@ class SplunkDetectionService:
             raise ServiceError("invalid_input", "detection must be a JSON object")
         current = await self.get_detection(name)
         self._require_expected(expected_fingerprint, current)
-        if "actions" in payload and str(payload.get("actions", "")) != str(current.get("actions", "")):
-            raise ServiceError(
-                "invalid_input",
-                "Alert actions are preserved by detection draft updates and cannot be changed here.",
-            )
-        merged = {**current, **payload, "name": name, "enabled": False}
+        merged = self._merge_detection_payload(current, payload, name=name)
         validation = self.validate_detection(merged)
         if not validation["valid"]:
             raise ServiceError("detection_invalid", "Detection validation failed.", details=validation)
@@ -360,13 +422,12 @@ class SplunkDetectionService:
             {
                 **merged,
                 **draft.as_dict(),
-                "actions": current.get("actions", ""),
-                "is_scheduled": bool(str(draft.cron_schedule).strip()),
             },
             app=self.core.settings.detection_app,
             owner=self.core.settings.detection_owner,
             disabled=True,
         )
+        actions_changed = self._actions_changed(before, after)
         proposal = self.approval_store.create_proposal(
             operation="update",
             target_id=name,
@@ -379,7 +440,8 @@ class SplunkDetectionService:
             proposal,
             enabled=False,
             review_only_metadata=self._review_only_metadata(draft),
-            actions_preserved=True,
+            actions_preserved=not actions_changed,
+            actions_updated=actions_changed,
         )
 
     async def set_detection_enabled(
@@ -397,7 +459,24 @@ class SplunkDetectionService:
         current = await self.get_detection(name)
         self._require_expected(expected_fingerprint, current)
         if enabled:
-            if not current.get("is_scheduled") or not str(current.get("cron_schedule", "")).strip():
+            if not current.get("is_scheduled"):
+                raise ServiceError(
+                    "detection_not_runnable",
+                    "The persisted Splunk detection must be scheduled before it can be enabled.",
+                )
+            earliest = str(
+                current.get("dispatch.earliest_time", current.get("earliest_time", ""))
+            ).strip().lower()
+            latest = str(
+                current.get("dispatch.latest_time", current.get("latest_time", ""))
+            ).strip().lower()
+            realtime = earliest.startswith("rt") or latest.startswith("rt")
+            if realtime and not (earliest.startswith("rt") and latest.startswith("rt")):
+                raise ServiceError(
+                    "detection_not_runnable",
+                    "Real-time detections must have rt-prefixed earliest and latest times.",
+                )
+            if not realtime and not str(current.get("cron_schedule", "")).strip():
                 raise ServiceError(
                     "detection_not_runnable",
                     "The persisted Splunk detection must have an active schedule before it can be enabled.",
@@ -407,15 +486,18 @@ class SplunkDetectionService:
                     "detection_not_runnable",
                     "The persisted Splunk detection must have at least one alert action before it can be enabled.",
                 )
-            validation = self.validate_detection({
-                "name": current["name"],
-                "spl": current["spl"],
-                "description": current.get("description", ""),
-                "earliest_time": current.get("earliest_time") or "-10m",
-                "latest_time": current.get("latest_time") or "now",
-                "cron_schedule": current.get("cron_schedule", ""),
-                "enabled": False,
-            })
+            validation_payload = {**current, "enabled": False}
+            # Splunk may omit these optional dispatch values. Preserve the
+            # legacy defaults used by the enable guard in that case.
+            if not validation_payload.get("earliest_time"):
+                validation_payload["earliest_time"] = "-10m"
+                if "dispatch.earliest_time" in validation_payload:
+                    validation_payload["dispatch.earliest_time"] = "-10m"
+            if not validation_payload.get("latest_time"):
+                validation_payload["latest_time"] = "now"
+                if "dispatch.latest_time" in validation_payload:
+                    validation_payload["dispatch.latest_time"] = "now"
+            validation = self.validate_detection(validation_payload)
             if not validation["valid"]:
                 raise ServiceError("detection_invalid", "Detection validation failed.", details=validation)
         before = self._state_from_source(
@@ -580,12 +662,16 @@ class SplunkDetectionService:
                         raise ServiceError("operation_mismatch", "The approved detection operation is not supported.")
                     persisted = await self.get_detection(proposal.target_id or "")
                     if proposal.operation == "update":
+                        actions_changed = self._actions_changed(
+                            dict(proposal.before or {}), dict(proposal.after or {})
+                        )
                         result_payload = {
                             "updated": True,
                             "enabled": False,
                             "detection": persisted,
                             "review_only_metadata": self._review_only_metadata_from_state(dict(proposal.after)),
-                            "actions_preserved": True,
+                            "actions_preserved": not actions_changed,
+                            "actions_updated": actions_changed,
                         }
                     else:
                         result_payload = {

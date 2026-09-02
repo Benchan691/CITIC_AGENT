@@ -37,6 +37,47 @@ upstream and runs `setup.sh --plugins` to refresh dependencies, builds, and
 profile wiring. It never stashes or discards local changes. If the web app is
 already running, restart it manually after the update.
 
+## Configure Splunk alerts
+
+Use the Splunk detection MCP workflow to validate, propose, approve, and apply
+saved-search alert settings. For example, a scheduled alert can include:
+
+```json
+{
+  "name": "Example error alert",
+  "spl": "index=main error",
+  "is_scheduled": true,
+  "cron_schedule": "*/15 * * * *",
+  "dispatch.earliest_time": "-15m",
+  "dispatch.latest_time": "now",
+  "alert_type": "number of events",
+  "alert_comparator": "greater than",
+  "alert_threshold": 0,
+  "alert.digest_mode": true,
+  "alert.suppress": false,
+  "alert.expires": "24h",
+  "alert.track": true,
+  "actions": "email",
+  "action.email.to": "soc@example.invalid"
+}
+```
+
+Real-time alerts use `is_scheduled: true` with `rt...` dispatch time values;
+`alert_type` describes the trigger condition, not the timing mode. Omitted
+settings remain unchanged on updates, while empty or `null` values clear
+non-secret settings. New and updated detections remain disabled until a
+separate enable approval is applied; credential-like action settings are
+preserved by Splunk and are not returned or accepted for replacement.
+
+## Splunk background context
+
+The CITIC SOC agent loads the repository-root `BACKGROUND.md` once with the
+initial session context, before Splunk tools are used. It provides generic
+Splunk background; it is reference context only and does not
+grant access or override `AGENTS.md`, authentication, or approval controls.
+Start a new SOC session after editing the file so the updated context is
+loaded.
+
 To start the web app:
 
 ```bash

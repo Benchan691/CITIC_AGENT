@@ -545,6 +545,113 @@ def test_detection_validation_reports_metadata_findings():
     assert result["detection"]["enabled"] is False
 
 
+def test_detection_validation_supports_realtime_alerts_and_input_aliases():
+    service = SplunkService(settings())
+
+    result = service.validate_detection({
+        "name": "Realtime error alert",
+        "spl": "index=main error",
+        "is_scheduled": True,
+        "dispatch.earliest_time": "rt-5m",
+        "dispatch.latest_time": "rt",
+        "counttype": "number of events",
+        "relation": "greater than",
+        "quantity": 0,
+        "alert.digest_mode": True,
+        "alert.suppress": False,
+        "actions": "email",
+        "action.email": True,
+        "action.email.to": "soc@example.invalid",
+    })
+
+    assert result["valid"] is True
+    assert result["query_validation"]["decision"] == "allow"
+    assert result["detection"]["alert_type"] == "number of events"
+    assert result["detection"]["alert_comparator"] == "greater than"
+    assert result["detection"]["alert_threshold"] == "0"
+    assert result["detection"]["dispatch.earliest_time"] == "rt-5m"
+    assert result["detection"]["dispatch.latest_time"] == "rt"
+    assert result["detection"]["action.email"] == "1"
+    assert any("real-time" in warning for warning in result["warnings"])
+
+
+def test_detection_validation_supports_custom_condition_per_result_throttle_and_expiry():
+    service = SplunkService(settings())
+
+    result = service.validate_detection({
+        "name": "Custom throttled alert",
+        "spl": "index=main error",
+        "alert_type": "custom",
+        "alert_condition": "severity=critical",
+        "alert.digest_mode": False,
+        "alert.suppress": True,
+        "alert.suppress.period": "15m",
+        "alert.suppress.fields": "host, user",
+        "alert.suppress.group_name": "critical-errors",
+        "alert.expires": "24h",
+        "alert.track": True,
+        "dispatch.rt_maximum_span": "5m",
+        "actions": "webhook",
+        "action.webhook": True,
+        "action.webhook.param.url": "https://example.invalid/hook",
+    })
+
+    assert result["valid"] is True
+    assert result["detection"]["alert_condition"] == "severity=critical"
+    assert result["detection"]["alert.digest_mode"] == "0"
+    assert result["detection"]["alert.suppress.fields"] == "host, user"
+    assert result["detection"]["dispatch.rt_maximum_span"] == "5m"
+
+
+@pytest.mark.parametrize(
+    "alert_fields",
+    [
+        {
+            "is_scheduled": True,
+            "dispatch.earliest_time": "rt-5m",
+            "dispatch.latest_time": "now",
+        },
+        {
+            "alert_type": "number of events",
+            "alert_comparator": "rises by perc",
+            "alert_threshold": "101%",
+        },
+        {
+            "alert_type": "number of events",
+            "alert_comparator": "greater than",
+            "alert_threshold": 0,
+            "alert.digest_mode": False,
+            "alert.suppress": True,
+            "alert.suppress.period": "15m",
+        },
+    ],
+)
+def test_detection_validation_rejects_invalid_alert_combinations(alert_fields):
+    service = SplunkService(settings())
+    result = service.validate_detection({
+        "name": "Invalid alert",
+        "spl": "index=main error",
+        **alert_fields,
+    })
+
+    assert result["valid"] is False
+    assert result["errors"]
+
+
+def test_detection_validation_rejects_non_scalar_action_parameters():
+    service = SplunkService(settings())
+
+    with pytest.raises(ServiceError) as error:
+        service.validate_detection({
+            "name": "Invalid action",
+            "spl": "index=main error",
+            "actions": "webhook",
+            "action.webhook.param.url": ["https://example.invalid/hook"],
+        })
+
+    assert error.value.code == "invalid_input"
+
+
 @pytest.mark.asyncio
 async def test_backtest_and_writes_are_guarded_and_structured():
     service = SplunkService(settings(), FakeClient)
@@ -622,7 +729,7 @@ async def test_detection_update_preserves_actions_and_enable_requires_runnable_s
     )
     assert updated["actions_preserved"] is True
     assert updated["detection"]["actions"] == "notable"
-    assert "actions" not in client.updated_fields[1]
+    assert client.updated_fields[1]["actions"] == "notable"
 
     enable_proposal = await service.set_detection_enabled(
         "x", True, updated["detection"]["fingerprint"], actor_id="test-analyst"

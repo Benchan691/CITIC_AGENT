@@ -25,12 +25,12 @@ def _principal_id(get_runtime, ctx: Context) -> str:
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success, failure, service_error) -> None:
     @server.tool()
     async def splunk_get_detection(ctx: Context, name: str) -> dict[str, Any]:
-        """Retrieve one saved search as a detection-review record without running it."""
+        """Retrieve one saved search with alert timing, trigger, throttle, and action fields; secret-like fields are omitted."""
         return await execute(ctx, "splunk", "get_detection", lambda: get_runtime(ctx).splunk_detection.get_detection(name))
 
     @server.tool()
     async def splunk_validate_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Validate a detection draft locally, including SPL safety and schedule metadata."""
+        """Validate SPL safety plus saved-search timing, trigger, throttle, expiry, and action settings."""
         try:
             current = await fresh_runtime(ctx)
             return success("splunk", "validate_detection", current.splunk_detection.validate_detection(detection))
@@ -44,17 +44,17 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
 
     @server.tool()
     async def splunk_create_detection_draft(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Propose an exact disabled detection draft; approval is required before it can be applied."""
+        """Propose an exact disabled detection and alert configuration; approval is required before applying it."""
         return await execute(ctx, "splunk", "create_detection_draft", lambda: get_runtime(ctx).splunk_detection.create_detection_draft(detection, actor_id=_authenticated_actor(get_runtime, ctx)))
 
     @server.tool()
     async def splunk_update_detection_draft(ctx: Context, name: str, detection: dict[str, Any], expected_fingerprint: str) -> dict[str, Any]:
-        """Propose an exact disabled detection update; approval is required before it can be applied."""
+        """Propose an exact disabled detection and alert-configuration update; omitted fields stay unchanged."""
         return await execute(ctx, "splunk", "update_detection_draft", lambda: get_runtime(ctx).splunk_detection.update_detection_draft(name, detection, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))
 
     @server.tool()
     async def splunk_enable_detection(ctx: Context, name: str, expected_fingerprint: str) -> dict[str, Any]:
-        """Propose enabling one exact scheduled detection; approval is required before it can be applied."""
+        """Propose enabling one exact scheduled or real-time detection after its alert action is configured."""
         return await execute(ctx, "splunk", "enable_detection", lambda: get_runtime(ctx).splunk_detection.set_detection_enabled(name, True, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))
 
     @server.tool()

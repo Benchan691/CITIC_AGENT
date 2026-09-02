@@ -629,6 +629,12 @@ def parse_splunk_time(value: Any, *, now: datetime | None = None, earliest: bool
         return _ParsedTime(raw, None, False)
     current = now or datetime.now(timezone.utc)
     lowered = raw.casefold()
+    if lowered == "rt":
+        return _ParsedTime(raw, current.timestamp(), True)
+    if lowered.startswith("rt"):
+        realtime_value = raw[2:]
+        parsed = parse_splunk_time(realtime_value, now=current, earliest=earliest)
+        return _ParsedTime(raw, parsed.timestamp, parsed.known, parsed.all_time)
     if earliest and lowered in {"0", "all", "alltime"}:
         return _ParsedTime(raw, None, True, True)
     if lowered in {"now", "latest"}:

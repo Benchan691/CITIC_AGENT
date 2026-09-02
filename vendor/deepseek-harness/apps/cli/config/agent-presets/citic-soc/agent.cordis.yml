@@ -19,6 +19,10 @@
   name: '@deepseek-ai/dsh-agent-instructions'
   config:
     maxBytes: 65536
+    instructionFileCandidates:
+      - AGENTS.md
+      - CLAUDE.md
+      - BACKGROUND.md
 
 # SOC procedures are skills; the loader exposes only discovered, applicable
 # guidance and avoids baking long workflows into the permanent prompt.

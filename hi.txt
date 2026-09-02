@@ -1,0 +1,3 @@
+{Ticketnumber="$result.Fix_Ticketnumber$" TriggerTime="$result.Fix_TriggerTime$" DateTime="$result.Event_Date Time$" ThreatType="$result.Event_Threat Type$" Index="$result.Fix_Index$" SourceType="$result.Fix_Source Type$" Hostname="$result.Event_Hostname$"
+AffectedHost="$result.Event_Affected Host$"
+SourceIP="$result.Event_Source IP$" DestinationIP="$result.Event_Destination IP$" ConsoleUrl="$result.Event_Console URL$" Signature="$result.Event_Signature$" ApplicationPath="$result.Event_Application Path$" Action="$result.Event_Action$" FileHash="$result.Event_File Hash$"}

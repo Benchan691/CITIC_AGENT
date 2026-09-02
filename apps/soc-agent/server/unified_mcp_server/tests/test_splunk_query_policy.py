@@ -65,6 +65,13 @@ def test_relative_time_ranges_use_explicit_scope_policy(earliest, expected):
     assert result.estimated_lookback_seconds is not None
 
 
+def test_real_time_ranges_are_parsed_as_bounded_windows():
+    result = fixed_policy().evaluate("index=main", "rt-5m", "rt")
+
+    assert result.decision == "allow"
+    assert result.estimated_lookback_seconds == 300
+
+
 def test_absolute_time_and_calendar_rounding_are_interpreted():
     absolute = fixed_policy().evaluate(
         "index=main", "04/19/2025:00:00:00", "04/20/2025:00:00:00"

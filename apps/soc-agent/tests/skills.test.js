@@ -21,6 +21,24 @@ test('Harness patch enables the filesystem skill and plan review layers', () => 
   assert.match(patch, /- id: session-folders\n  disabled: true/)
 })
 
+test('CITIC SOC loads the generic Splunk background once with session instructions', () => {
+  const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
+  const presetRoot = join(repoRoot, 'vendor/deepseek-harness/apps/cli/config/agent-presets')
+  const citicPreset = readFileSync(join(presetRoot, 'citic-soc/agent.cordis.yml'), 'utf8')
+  const background = readFileSync(join(repoRoot, 'BACKGROUND.md'), 'utf8')
+
+  assert.match(citicPreset, /instructionFileCandidates:\n\s+- AGENTS\.md\n\s+- CLAUDE\.md\n\s+- BACKGROUND\.md/)
+  assert.equal((citicPreset.match(/BACKGROUND\.md/g) ?? []).length, 1)
+  assert.match(background, /reference context/i)
+  assert.match(background, /REST API/i)
+  assert.match(background, /approval workflow/i)
+
+  for (const preset of ['standard', 'code', 'cordis']) {
+    const content = readFileSync(join(presetRoot, preset, 'agent.cordis.yml'), 'utf8')
+    assert.doesNotMatch(content, /BACKGROUND\.md/, preset)
+  }
+})
+
 test('SOC profile disables native shell and permission controls', () => {
   const productRoot = fileURLToPath(new URL('..', import.meta.url))
   const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
