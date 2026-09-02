@@ -16,6 +16,17 @@ def fixed_policy(**overrides):
     )
 
 
+OUTPUTCSV_SPL = '''index=main error
+| outputcsv [
+    | stats count
+    | addinfo
+    | eval rulename="RULE_NUMBER"
+    | eval search=strftime(now(), "%Y%m%d%H%M")
+    | eval casename="CASE_PREFIX"."".search."".rulename
+    | return $casename
+]'''
+
+
 @pytest.mark.parametrize(
     "query",
     ["index=*", "index = *", "INDEX=*", "INDEX = *", 'index="*"'],
@@ -114,6 +125,42 @@ def test_dangerous_commands_are_denied_at_any_subsearch_depth():
     assert result.has_subsearch is True
     assert result.subsearch_depth == 2
     assert blocked_spl_commands(query) == ["outputlookup"]
+
+
+def test_outputcsv_is_only_allowed_for_saved_search_definitions():
+    strict = fixed_policy().evaluate(OUTPUTCSV_SPL)
+    definition = fixed_policy().evaluate(OUTPUTCSV_SPL, allow_outputcsv=True)
+
+    assert strict.decision == "deny"
+    assert strict.dangerous_commands == ["outputcsv"]
+    assert definition.decision == "allow"
+    assert definition.dangerous_commands == ["outputcsv"]
+    assert definition.allowed_commands == ["outputcsv"]
+    assert definition.has_subsearch is True
+    assert not any("no explicit maxout" in reason for reason in definition.reasons)
+    assert any("disabled saved-search definition" in reason for reason in definition.reasons)
+
+
+def test_saved_search_outputcsv_context_does_not_allow_other_side_effects():
+    result = fixed_policy().evaluate(
+        "index=main | outputcsv [| stats count | return $filename] | outputlookup results.csv",
+        allow_outputcsv=True,
+    )
+
+    assert result.decision == "deny"
+    assert result.dangerous_commands == ["outputcsv", "outputlookup"]
+
+
+def test_return_filename_subsearch_is_bounded_only_to_one_result():
+    bounded = fixed_policy().evaluate(OUTPUTCSV_SPL, allow_outputcsv=True)
+    unbounded = fixed_policy().evaluate(
+        OUTPUTCSV_SPL.replace("return $casename", "return 2 $casename"),
+        allow_outputcsv=True,
+    )
+
+    assert bounded.decision == "allow"
+    assert unbounded.decision == "require_approval"
+    assert any("subsearch has no explicit" in reason for reason in unbounded.reasons)
 
 
 @pytest.mark.parametrize("command", ["sendalert", "runshellscript", "dboutput"])

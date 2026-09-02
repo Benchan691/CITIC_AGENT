@@ -4,52 +4,99 @@
 > authorization, does not replace `AGENTS.md`, and must not override system,
 > developer, user, authentication, or approval controls.
 
-## What Splunk is
+## Confirmed rule-naming convention
 
-Splunk collects and searches machine data such as logs, security events, and
-operational records. An event is a single observed record. An index is a
-logical storage area, a sourcetype describes the kind of data, and fields are
-the searchable name/value attributes extracted from events.
+A read-only review of the configured Splunk `Ruleset.csv` lookup found 1,782
+rows at the time of this review. Only one current `RuleName_EN` value starts
+with a bracketed customer prefix; 1,781 are unbracketed and three rows have no
+rule name. The lookup is therefore a rule catalog, not a complete customer
+short-name roster. The `GID` value is overwhelmingly `Default`, so `GID` must
+not be treated as a customer abbreviation.
 
-Search Processing Language (SPL) describes searches and transformations. A
-search can filter events, select fields, aggregate with commands such as
-`stats` or `tstats`, sort results, and limit the returned sample. Search scope
-and time range are part of the evidence: a zero-result search means no match
-was observed in that scope, not that the activity never occurred.
+For a customer-specific detection, the confirmed naming form is:
 
-## How the SOC Agent uses Splunk
+```text
+[COMPANY_SHORT] detection alert name
+```
 
-The agent uses authenticated, bounded Splunk searches for security
-investigation and detection engineering. Investigations should start with the
-smallest useful time range and result set. Use known or verified indexes and
-sourcetypes; never invent them. Prefer aggregation for counts and trends, and
-request only fields needed for the current question.
+Use the verified, canonical company short term inside the brackets, followed
+by exactly one space and the detection alert name. Existing numeric rule
+identifiers may remain part of the alert name, for example
+`<RuleNum>_<alert title>`, but a new identifier must not be invented. Do not
+derive a customer short term from `Ruleset.csv`, `GID`, a hostname, or a
+customer's events alone; verify it from authoritative customer or team
+context first. One actual catalog example, retained to make the convention
+concrete, is:
 
-Saved searches are named Splunk searches that can be reused. A detection is a
-saved search used to identify security-relevant activity. Alert configuration
-controls when a detection runs, what condition triggers it, how often it can
-trigger, how it is throttled or expires, and which actions are configured.
+```text
+[Fubon] 7732_Malicious File/Exploit Download_Checkpoint FW
+```
 
-Scheduled and real-time alerts are represented by Splunk timing fields. The
-alert trigger condition is separate from the timing mode: fields such as
-`alert_type`, comparator, and threshold describe the condition, while dispatch
-time values describe the search window. Alert actions can notify or integrate
-with other systems, but configuring an action is not the same as executing it.
+This is a naming example, not a customer roster, authorization, or a mapping
+to apply to another customer. Apart from this explicitly retained example,
+customer names and mappings are not persisted in this shared background file.
 
-## Splunk Web UI and REST API
+The catalog should be rechecked when a current customer roster or exact rule
+inventory is required, because its contents can change independently of this
+document.
 
-The Splunk Web UI is a presentation and workflow layer over Splunk services.
-The MCP server communicates with Splunk through its REST API, especially the
-saved-search endpoints. The UI may group fields, provide controls, defaults,
-or visual workflows that are not represented as one REST field. Conversely,
-the REST API exposes the underlying field names and values used for precise
-reads and writes.
+## Usual detection creation workflow
 
-Therefore, a setting visible in Splunk Web is not automatically supported by
-an MCP tool. The MCP tool schema, validation, configured app/owner scope, and
-approval workflow are authoritative for MCP operations. Secret-like values
-such as passwords, tokens, secrets, and private keys are intentionally not
-returned or replaced through the agent.
+When creating a new customer detection, the usual sequence is:
+
+1. Review `Ruleset.csv` and select a rule number that is not already used in
+   the four-digit range `0000`–`9999`.
+2. Create the corresponding row and fill in its required rule information,
+   using the verified `[COMPANY_SHORT] detection alert name` convention.
+3. Complete every item in the alert configuration checklist below.
+4. Create the Splunk detection rule using the completed rule information.
+
+Every new rule must explicitly record the following settings:
+
+- Alert type: choose Scheduled or Real-time. Scheduled alerts use
+  `is_scheduled=true`, non-real-time dispatch bounds, and a cron expression.
+  Real-time alerts use `is_scheduled=true`, `rt...` for both dispatch bounds,
+  and no cron expression.
+- Time range: set `dispatch.earliest_time` and `dispatch.latest_time`.
+- Cron expression: required for Scheduled alerts.
+- Expires: set a positive `alert.expires` duration.
+- Trigger Conditions: define `alert_type`/`counttype`, comparator/`relation`,
+  threshold/`quantity`, or a custom `alert_condition`.
+- Trigger: choose once for the result set or once per result with
+  `alert.digest_mode=true` or `false`.
+- Throttle: explicitly choose whether `alert.suppress` is enabled and, when
+  enabled, set its period, fields, and group name as applicable.
+- Trigger Actions / When triggered: enable Add to Triggered Alerts with
+  `alert.track=true` and Log Event with `actions=logevent` plus
+  `action.logevent=1` by default. Record any approved deviation explicitly.
+  Add email actions only when the rule is intended to email a client.
+
+For a client-email rule, append the following team convention at the end of
+the SPL. Replace the placeholders with the assigned rule number and case
+prefix; do not copy the example values into a real rule:
+
+```spl
+... | outputcsv [
+    | stats count
+    | addinfo
+    | eval rulename="RULE_NUMBER"
+    | eval search=strftime(now(), "%Y%m%d%H%M")
+    | eval casename="CASE_PREFIX"."".search."".rulename
+    | return $casename
+]
+```
+
+`outputcsv` is a file-writing command. It is permitted here only as part of
+the exact, disabled, approval-gated saved-search definition and runs later in
+Splunk's alert runtime. Never use it for investigation or backtesting. It
+writes on the local search head and is not available on Splunk Cloud; use the
+supported email CSV attachment action there. See the [Splunk outputcsv
+documentation](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.3/search-commands/outputcsv).
+
+Recheck the catalog immediately before the change because another rule may
+use the selected number in the meantime. The catalog-row change and detection
+creation still require the approved workflow; this document is not
+authorization.
 
 ## Operating boundaries
 

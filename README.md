@@ -69,12 +69,22 @@ non-secret settings. New and updated detections remain disabled until a
 separate enable approval is applied; credential-like action settings are
 preserved by Splunk and are not returned or accepted for replacement.
 
+For new rules, complete the alert workflow checklist in `BACKGROUND.md`:
+alert type, time range, cron (when scheduled), expiry, trigger conditions,
+trigger behavior, throttle, and trigger actions. The team defaults are Add to
+Triggered Alerts (`alert.track=true`) and Log Event (`actions=logevent` plus
+`action.logevent=1`). Client-email rules may append the documented `outputcsv`
+filename subsearch. MCP keeps `outputcsv` blocked for ordinary searches and
+backtests; it is accepted only inside an exact disabled detection proposal and
+does not execute until a separate enable approval.
+
 ## Splunk background context
 
 The CITIC SOC agent loads the repository-root `BACKGROUND.md` once with the
 initial session context, before Splunk tools are used. It provides generic
-Splunk background; it is reference context only and does not
-grant access or override `AGENTS.md`, authentication, or approval controls.
+Splunk background and the confirmed customer-rule naming pattern; it is
+reference context only and does not grant access or override `AGENTS.md`,
+authentication, or approval controls.
 Start a new SOC session after editing the file so the updated context is
 loaded.
 

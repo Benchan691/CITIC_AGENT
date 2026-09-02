@@ -260,12 +260,22 @@ class SplunkDetectionService:
                 return None
             raise
 
-    def validate_detection(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def validate_detection(
+        self,
+        payload: dict[str, Any],
+        *,
+        allow_outputcsv: bool = True,
+    ) -> dict[str, Any]:
         try:
             draft = DetectionDraft.from_payload(payload)
         except ValueError as exc:
             raise ServiceError("invalid_input", str(exc)) from exc
-        query_validation = self.core.validate_query(draft.spl, draft.earliest_time, draft.latest_time)
+        query_validation = self.core.validate_query(
+            draft.spl,
+            draft.earliest_time,
+            draft.latest_time,
+            allow_outputcsv=allow_outputcsv,
+        )
         return validate_detection(draft, query_validation=query_validation)
 
     async def backtest_detection(
@@ -280,7 +290,10 @@ class SplunkDetectionService:
     ) -> dict[str, Any]:
         if not isinstance(payload, dict):
             raise ServiceError("invalid_input", "detection must be a JSON object")
-        validation = self.validate_detection({**payload, "earliest_time": earliest_time, "latest_time": latest_time})
+        validation = self.validate_detection(
+            {**payload, "earliest_time": earliest_time, "latest_time": latest_time},
+            allow_outputcsv=False,
+        )
         if not validation["valid"]:
             raise ServiceError("detection_invalid", "Detection validation failed.", details=validation)
         query = payload.get("spl", payload.get("search", ""))
@@ -392,6 +405,7 @@ class SplunkDetectionService:
             enabled=False,
             review_only_metadata=self._review_only_metadata(draft),
             requires_action_configuration=not bool(str(state.get("actions", "")).strip()),
+            validation_warnings=validation["warnings"],
         )
 
     async def update_detection_draft(
@@ -442,6 +456,7 @@ class SplunkDetectionService:
             review_only_metadata=self._review_only_metadata(draft),
             actions_preserved=not actions_changed,
             actions_updated=actions_changed,
+            validation_warnings=validation["warnings"],
         )
 
     async def set_detection_enabled(

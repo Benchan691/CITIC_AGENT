@@ -41,13 +41,20 @@ class SplunkCore:
         query: str,
         earliest_time: str = "-24h",
         latest_time: str = "now",
+        *,
+        allow_outputcsv: bool = False,
     ) -> dict[str, Any]:
         if not isinstance(query, str) or not query.strip():
             raise ServiceError("invalid_input", "query cannot be empty")
         if not isinstance(earliest_time, str) or not isinstance(latest_time, str):
             raise ServiceError("invalid_input", "earliest_time and latest_time must be strings")
         query = query.strip()
-        policy = self.query_policy.evaluate(query, earliest_time, latest_time)
+        policy = self.query_policy.evaluate(
+            query,
+            earliest_time,
+            latest_time,
+            allow_outputcsv=allow_outputcsv,
+        )
         policy_data = policy.to_dict()
         result = {
             "query": query,
@@ -56,7 +63,12 @@ class SplunkCore:
             "risk_score": policy.risk_score,
             "risk_message": policy.risk_message,
             "risk_tolerance": self.settings.risk_tolerance,
-            "blocked_commands": policy.dangerous_commands,
+            "blocked_commands": [
+                command
+                for command in policy.dangerous_commands
+                if command not in policy.allowed_commands
+            ],
+            "allowed_commands": policy.allowed_commands,
             "decision": policy.decision,
             "would_execute": policy.decision == "allow",
             "policy": policy_data,

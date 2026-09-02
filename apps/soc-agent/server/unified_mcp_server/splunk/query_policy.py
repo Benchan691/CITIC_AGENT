@@ -113,6 +113,7 @@ class QueryPolicyResult:
     commands: list[str]
     expensive_commands: list[str]
     dangerous_commands: list[str]
+    allowed_commands: list[str]
     has_subsearch: bool
     subsearch_depth: int
     macros: list[str]
@@ -139,6 +140,7 @@ class QueryPolicyResult:
             "commands": list(self.commands),
             "expensive_commands": list(self.expensive_commands),
             "dangerous_commands": list(self.dangerous_commands),
+            "allowed_commands": list(self.allowed_commands),
             "has_subsearch": self.has_subsearch,
             "subsearch_depth": self.subsearch_depth,
             "macros": list(self.macros),
@@ -705,6 +707,8 @@ class SplunkQueryPolicy:
         query: str,
         earliest_time: str = "-24h",
         latest_time: str = "now",
+        *,
+        allow_outputcsv: bool = False,
     ) -> QueryPolicyResult:
         if not isinstance(query, str):
             query = ""
@@ -753,6 +757,11 @@ class SplunkQueryPolicy:
 
         expensive_commands = [command for command in scan.commands if command in _EXPENSIVE_COMMANDS]
         dangerous_commands = [command for command in scan.commands if command in _DANGEROUS_COMMANDS]
+        allowed_commands = (
+            ["outputcsv"]
+            if allow_outputcsv and "outputcsv" in dangerous_commands
+            else []
+        )
         unresolved_macros = [
             macro for macro in scan.macros if macro.casefold() not in set(self.config.trusted_macros)
         ]
@@ -768,6 +777,12 @@ class SplunkQueryPolicy:
         if scan.malformed:
             add("deny", "SPL structure is malformed or unbalanced.")
         for command in dangerous_commands:
+            if command in allowed_commands:
+                reasons.append(
+                    "Dangerous command 'outputcsv' is permitted only in an exact, "
+                    "disabled saved-search definition and is not executable as a read-only search."
+                )
+                continue
             add("deny", f"Dangerous command '{command}' is not allowed for read-only searches.")
 
         if wildcard_indexes:
@@ -870,6 +885,7 @@ class SplunkQueryPolicy:
             commands=scan.commands,
             expensive_commands=_unique(expensive_commands),
             dangerous_commands=_unique(dangerous_commands),
+            allowed_commands=_unique(allowed_commands),
             has_subsearch=bool(scan.subsearches),
             subsearch_depth=scan.max_depth,
             macros=scan.macros,
@@ -888,6 +904,7 @@ class SplunkQueryPolicy:
                 "estimated_lookback_seconds": result.estimated_lookback_seconds,
                 "expensive_commands": result.expensive_commands,
                 "dangerous_commands": result.dangerous_commands,
+                "allowed_commands": result.allowed_commands,
                 "subsearch_depth": result.subsearch_depth,
                 "macros": result.macros,
             },
@@ -900,7 +917,20 @@ class SplunkQueryPolicy:
 
     @staticmethod
     def _has_subsearch_limit(value: str) -> bool:
-        return bool(re.search(r"\b(?:maxout|maxresults)\s*=", value, re.IGNORECASE))
+        if re.search(r"\b(?:maxout|maxresults)\s*=", value, re.IGNORECASE):
+            return True
+        inner = value.strip()
+        if inner.startswith("[") and inner.endswith("]"):
+            inner = inner[1:-1]
+        # Splunk's terminal return command defaults to the first row, which is
+        # the bounded filename subsearch used by outputcsv definitions.
+        return bool(
+            re.search(
+                r"(?:^|\|)\s*return(?:\s+1)?\s+\$?[A-Za-z_][A-Za-z0-9_]*\s*$",
+                inner,
+                re.IGNORECASE,
+            )
+        )
 
     @staticmethod
     def _risk_score(

@@ -575,6 +575,46 @@ def test_detection_validation_supports_realtime_alerts_and_input_aliases():
     assert any("real-time" in warning for warning in result["warnings"])
 
 
+def test_detection_validation_allows_outputcsv_only_as_a_saved_search_definition():
+    service = SplunkService(settings())
+    result = service.validate_detection({
+        "name": "Client CSV alert",
+        "spl": """index=main error
+| outputcsv [
+    | stats count
+    | addinfo
+    | eval rulename=\"RULE_NUMBER\"
+    | eval search=strftime(now(), \"%Y%m%d%H%M\")
+    | eval casename=\"CASE_PREFIX\".\"\".search.\"\".rulename
+    | return $casename
+]""",
+        "is_scheduled": True,
+        "cron_schedule": "*/15 * * * *",
+        "dispatch.earliest_time": "-15m",
+        "dispatch.latest_time": "now",
+    })
+
+    assert result["valid"] is True
+    assert result["query_validation"]["decision"] == "allow"
+    assert result["query_validation"]["allowed_commands"] == ["outputcsv"]
+    assert any("outputcsv" in warning for warning in result["warnings"])
+
+
+@pytest.mark.asyncio
+async def test_backtest_rejects_outputcsv_before_execution():
+    service = SplunkService(
+        settings(),
+        lambda _: pytest.fail("outputcsv backtest must not create a client"),
+    )
+    with pytest.raises(ServiceError) as error:
+        await service.backtest_detection({
+            "name": "Client CSV alert",
+            "spl": "index=main error | outputcsv [| stats count | return $filename]",
+        }, earliest_time="-15m", latest_time="now")
+
+    assert error.value.code == "detection_invalid"
+
+
 def test_detection_validation_supports_custom_condition_per_result_throttle_and_expiry():
     service = SplunkService(settings())
 

@@ -30,7 +30,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
 
     @server.tool()
     async def splunk_validate_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Validate SPL safety plus saved-search timing, trigger, throttle, expiry, and action settings."""
+        """Validate saved-search settings; outputcsv is definition-only and is never executed here."""
         try:
             current = await fresh_runtime(ctx)
             return success("splunk", "validate_detection", current.splunk_detection.validate_detection(detection))
@@ -39,17 +39,17 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
 
     @server.tool()
     async def splunk_backtest_detection(ctx: Context, detection: dict[str, Any], earliest_time: str = "-7d", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
-        """Run a bounded read-only detection sample with optional field projection."""
+        """Run a bounded read-only detection sample; outputcsv and other writes are rejected."""
         return await execute(ctx, "splunk", "backtest_detection", lambda: get_runtime(ctx).splunk_detection.backtest_detection(detection, earliest_time, latest_time, max_count, fields, principal_id=_principal_id(get_runtime, ctx)))
 
     @server.tool()
     async def splunk_create_detection_draft(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Propose an exact disabled detection and alert configuration; approval is required before applying it."""
+        """Propose an exact disabled detection; outputcsv is allowed only here under approval and is not executed."""
         return await execute(ctx, "splunk", "create_detection_draft", lambda: get_runtime(ctx).splunk_detection.create_detection_draft(detection, actor_id=_authenticated_actor(get_runtime, ctx)))
 
     @server.tool()
     async def splunk_update_detection_draft(ctx: Context, name: str, detection: dict[str, Any], expected_fingerprint: str) -> dict[str, Any]:
-        """Propose an exact disabled detection and alert-configuration update; omitted fields stay unchanged."""
+        """Propose an exact disabled update; outputcsv is allowed only under approval and omitted fields stay unchanged."""
         return await execute(ctx, "splunk", "update_detection_draft", lambda: get_runtime(ctx).splunk_detection.update_detection_draft(name, detection, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))
 
     @server.tool()

@@ -349,6 +349,11 @@ def validate_detection(draft: DetectionDraft, *, query_validation: dict[str, Any
         errors.append("SPL requires approval before execution")
     elif decision != "allow":
         errors.append("SPL policy could not establish safe execution")
+    if "outputcsv" in query_validation.get("allowed_commands", []):
+        warnings.append(
+            "outputcsv is permitted only in this exact disabled detection proposal "
+            "and runs only after separate enable approval"
+        )
     if "index=" not in draft.spl.lower():
         warnings.append("SPL does not name an index; confirm the data scope before deployment")
     if "| tstats" not in draft.spl.lower() and "| datamodel" not in draft.spl.lower():

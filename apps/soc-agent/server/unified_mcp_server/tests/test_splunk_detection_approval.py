@@ -358,6 +358,56 @@ async def test_create_is_disabled_and_enable_requires_a_separate_approval():
 
 
 @pytest.mark.asyncio
+async def test_outputcsv_proposal_is_approved_and_written_disabled_without_execution():
+    class EmptyClient(MutableClient):
+        def __init__(self, config):
+            super().__init__(config)
+            self.exists = False
+
+    spl = """index=main error
+| outputcsv [
+    | stats count
+    | addinfo
+    | eval rulename="RULE_NUMBER"
+    | eval search=strftime(now(), "%Y%m%d%H%M")
+    | eval casename="CASE_PREFIX"."".search."".rulename
+    | return $casename
+]"""
+    service = SplunkService(settings(), EmptyClient)
+    proposal = await service.create_detection_draft(
+        {
+            "name": "client-csv-rule",
+            "spl": spl,
+            "is_scheduled": True,
+            "cron_schedule": "*/15 * * * *",
+            "dispatch.earliest_time": "-15m",
+            "dispatch.latest_time": "now",
+            "alert.track": True,
+            "actions": "logevent",
+            "action.logevent": True,
+        },
+        actor_id="analyst-a",
+    )
+
+    assert proposal["status"] == "approval_required"
+    assert proposal["enabled"] is False
+    assert any("outputcsv" in warning for warning in proposal["validation_warnings"])
+    assert service.core._client is None
+
+    approval = await service.approve_detection_change(
+        proposal["proposal_id"], proposal["proposal_hash"], actor_id="analyst-a"
+    )
+    result = await service.apply_approved_detection_change(
+        approval["approval_id"], actor_id="analyst-a"
+    )
+
+    assert result["created"] is True
+    assert result["enabled"] is False
+    assert service.core._client.writes[0][1]["search"] == spl
+    assert service.core._client.writes[0][1]["disabled"] == "1"
+
+
+@pytest.mark.asyncio
 async def test_real_time_detection_enablement_uses_rt_bounds_without_a_cron_schedule():
     service = SplunkService(settings(), MutableClient)
     await service.get_detection("rule")
