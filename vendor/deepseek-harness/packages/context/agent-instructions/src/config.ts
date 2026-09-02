@@ -34,6 +34,13 @@ export interface Config {
    * under the same per-directory trimmed-content dedup; empty disables the overlay.
    */
   localInstructionFileCandidates?: string[]
+  /**
+   * Ordered same-directory candidates loaded only after a configured model-visible
+   * tool prefix activates deferred context for the session.
+   */
+  deferredInstructionFileCandidates?: string[]
+  /** Model-visible tool-name prefixes that activate deferred instruction files. */
+  deferredToolNamePrefixes?: string[]
 }
 
 export const Config: z<Config> = z.object({
@@ -43,6 +50,8 @@ export const Config: z<Config> = z.object({
   maxSourceBytes: z.number().step(1).min(1).default(DEFAULT_MAX_SOURCE_BYTES),
   instructionFileCandidates: z.array(z.string()).default([...DEFAULT_INSTRUCTION_FILE_CANDIDATES]),
   localInstructionFileCandidates: z.array(z.string()).default([...DEFAULT_LOCAL_INSTRUCTION_FILE_CANDIDATES]),
+  deferredInstructionFileCandidates: z.array(z.string()).default([]),
+  deferredToolNamePrefixes: z.array(z.string()).default([]),
 })
 
 /** Normalized instruction discovery configuration. */
@@ -51,6 +60,8 @@ export interface ResolvedDiscoveryConfig {
   projectRootMarkers: string[]
   instructionFileCandidates: string[]
   localInstructionFileCandidates: string[]
+  deferredInstructionFileCandidates: string[]
+  deferredToolNamePrefixes: string[]
 }
 
 /** Normalized configuration used by discovery and reconciliation. */
@@ -78,6 +89,8 @@ export function workspaceBaselineIdentity(
     maxSourceBytes: config.maxSourceBytes,
     instructionFileCandidates: config.instructionFileCandidates,
     localInstructionFileCandidates: config.localInstructionFileCandidates,
+    deferredInstructionFileCandidates: config.deferredInstructionFileCandidates,
+    deferredToolNamePrefixes: config.deferredToolNamePrefixes,
   })
 }
 
@@ -100,7 +113,7 @@ export function resolveConfig(config: Config): ResolvedConfig {
  * @returns normalized home, root markers, and instruction candidates.
  */
 export function resolveDiscoveryConfig(
-  config: Pick<Config, 'dshHome' | 'projectRootMarkers' | 'instructionFileCandidates' | 'localInstructionFileCandidates'>,
+  config: Pick<Config, 'dshHome' | 'projectRootMarkers' | 'instructionFileCandidates' | 'localInstructionFileCandidates' | 'deferredInstructionFileCandidates' | 'deferredToolNamePrefixes'>,
 ): ResolvedDiscoveryConfig {
   return {
     dshHome: resolveDshHome(config.dshHome),
@@ -113,6 +126,11 @@ export function resolveDiscoveryConfig(
       config.localInstructionFileCandidates,
       DEFAULT_LOCAL_INSTRUCTION_FILE_CANDIDATES,
     ),
+    deferredInstructionFileCandidates: resolveInstructionFileCandidates(
+      config.deferredInstructionFileCandidates,
+      [],
+    ),
+    deferredToolNamePrefixes: resolveToolNamePrefixes(config.deferredToolNamePrefixes),
   }
 }
 
@@ -120,4 +138,8 @@ function resolveInstructionFileCandidates(candidates: string[] | undefined, fall
   return (candidates ?? [...fallback]).filter(candidate => (
     !RESERVED_PATH_SEGMENTS.has(candidate) && !/[\\/]/.test(candidate)
   ))
+}
+
+function resolveToolNamePrefixes(prefixes: string[] | undefined): string[] {
+  return [...new Set(prefixes ?? [])].filter(prefix => prefix.length > 0)
 }

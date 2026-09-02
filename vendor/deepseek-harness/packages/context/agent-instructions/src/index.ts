@@ -1,8 +1,9 @@
 /**
  * Workspace instruction loader for AGENTS.md-compatible files.
  *
- * Baseline instructions enter durable context before the first request; successful fs
- * tool touches project nested, changed, and removed instructions into the inbox.
+ * Baseline instructions enter durable context before the first request; configured
+ * deferred files enter once immediately before a request with a matching visible tool.
+ * Successful fs tool touches project nested, changed, and removed instructions into the inbox.
  * Plugin lifecycle reads use the optional `ctx.fs` provider, so providerless products
  * mount it as a no-op.
  *
@@ -80,6 +81,7 @@ function filePathFromExecution(exec: ToolExecution): string | undefined {
 export function apply(ctx: Context, config: Config): void {
   const resolved: ResolvedConfig = resolveConfig(config)
   const instructionVersions: InstructionVersionCache = new WeakMap()
+  const deferredSessions = new WeakSet<Session>()
   const baselinePreparations = new WeakMap<Session, {
     identity: string
     excludedScopes: ReadonlySet<string>
@@ -108,6 +110,7 @@ export function apply(ctx: Context, config: Config): void {
     claimed: readonly UserMessage[],
     pending: readonly UserMessage[],
     touchedPaths: readonly string[] = [],
+    deferredEnabled = deferredSessions.has(agent.session),
   ): Promise<UserMessage | undefined> => {
     signal.throwIfAborted()
     if (resolved.maxBytes <= 0 || !Number.isFinite(resolved.maxBytes)) {
@@ -115,7 +118,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     const fileSystem = ctx.get('fs')
     if (fileSystem === undefined) return undefined
-    if (touchedPaths.length === 0 && pending.length > 0) return pending[0]
+    if (touchedPaths.length === 0 && pending.length > 0 && !deferredEnabled) return pending[0]
     const content: UserMessage['content'][number][] = []
     const changes: AgentInstructionChange[] = []
     let desiredBaseline = false
@@ -193,6 +196,7 @@ export function apply(ctx: Context, config: Config): void {
         authorityMessages,
         scopeMessages: pending,
         includeBaselineScopes: keepVisibleBaseline,
+        includeDeferredScopes: deferredEnabled,
         ...keepVisibleBaseline ? { excludedBaselineScopes } : {},
         touchedPaths,
         projectRoot,
@@ -279,6 +283,22 @@ export function apply(ctx: Context, config: Config): void {
     while ((projection = projectionTails.get(agent)) !== undefined) await projection
   }
 
+  const hasVisibleDeferredTool = (agent: Agent): boolean => {
+    if (resolved.deferredToolNamePrefixes.length === 0) return false
+    try {
+      const tools = ctx.get('tools')
+      if (tools === undefined) return false
+      const schemas = tools.schemas(agent)
+      return schemas.some(schema => resolved.deferredToolNamePrefixes.some(prefix => (
+        schema.name.startsWith(prefix)
+      )))
+    } catch {
+      // A product may mount this plugin without the tool registry. Deferred
+      // context must fail closed until a visible tool can be inspected.
+      return false
+    }
+  }
+
   const stepIsOpen = (session: Session): boolean => {
     const known = openSteps.get(session)
     if (known !== undefined) return known
@@ -325,8 +345,15 @@ export function apply(ctx: Context, config: Config): void {
   ): Promise<PreStepDecision> => {
     const decision = await next()
     await waitForProjections(agent)
+    const deferredToolVisible = hasVisibleDeferredTool(agent)
+    if (decision.kind === 'enter'
+      && decision.messages.length > 0
+      && deferredToolVisible) {
+      deferredSessions.add(agent.session)
+    }
     const pending = agent.inbox.nextStep.filter(isWorkspaceContext)
-    const desired = await compose(agent, signal, messages, pending)
+    const deferredEnabled = deferredSessions.has(agent.session) && deferredToolVisible
+    const desired = await compose(agent, signal, messages, pending, [], deferredEnabled)
     signal.throwIfAborted()
     // An empty first entry owns a no-step turn; keep context pending instead
     // of turning it into a standalone request. Later entries may be tool continuations.

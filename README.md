@@ -80,13 +80,15 @@ does not execute until a separate enable approval.
 
 ## Splunk background context
 
-The CITIC SOC agent loads the repository-root `BACKGROUND.md` once with the
-initial session context, before Splunk tools are used. It provides generic
-Splunk background and the confirmed customer-rule naming pattern; it is
-reference context only and does not grant access or override `AGENTS.md`,
-authentication, or approval controls.
+The CITIC SOC agent loads the repository-root `BACKGROUND.md` just in time:
+once at `agent/pre-step`, immediately before the first model request that has
+a visible `mcp__soc_agent__splunk_` tool. It is not loaded for non-Splunk
+requests, is not fetched through MCP, and is retained for later Splunk steps
+without being repeated. The file provides generic Splunk background and the
+confirmed customer-rule naming pattern; it is reference context only and does
+not grant access or override `AGENTS.md`, authentication, or approval controls.
 Start a new SOC session after editing the file so the updated context is
-loaded.
+available.
 
 To start the web app:
 

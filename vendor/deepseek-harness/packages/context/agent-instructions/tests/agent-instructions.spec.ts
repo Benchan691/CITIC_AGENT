@@ -291,6 +291,34 @@ function expectNoDerivedMessages(agent: Agent): void {
   expect(composedPrefixes.get(agent) ?? []).toEqual([])
 }
 
+function deferredConfig(home: string): workspaceContext.Config {
+  return {
+    dshHome: home,
+    maxBytes: 65536,
+    instructionFileCandidates: ['AGENTS.md', 'CLAUDE.md'],
+    deferredInstructionFileCandidates: ['BACKGROUND.md'],
+    deferredToolNamePrefixes: ['mcp__soc_agent__splunk_'],
+  }
+}
+
+function registerVisibleTool(ctx: Context, name: string): void {
+  ctx.tools.register(defineContentToolFixture({
+    name,
+    description: 'agent-instructions test tool',
+    parameters: {},
+    async execute() {
+      return [{ type: 'text', text: 'ok' }]
+    },
+  }))
+}
+
+function appendEnteredMessages(ctx: Context, agent: Agent, messages: readonly UserMessage[]): void {
+  for (const message of messages) {
+    const event = agent.session.append('user/message', message, { surfaceOp: 'append' })
+    ctx.emit('session/event', agent.session, event)
+  }
+}
+
 describe('workspace context instruction discovery', () => {
   it('treats ENOTDIR while probing a host candidate as confirmed absence', async () => {
     const root = await tempRepo()
@@ -1576,6 +1604,316 @@ describe('workspace context request injection', () => {
       expect(blocksText(decision.messages[1]?.content)).toContain('Instructions from: AGENTS.md')
       expect(agent.inbox.nextStep).toHaveLength(0)
     } finally {
+      await rm(root, { recursive: true, force: true })
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  it('does not load deferred instructions for a non-Splunk visible tool', async () => {
+    const root = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      const backgroundPath = join(root, 'BACKGROUND.md')
+      await ctx.plugin(RecordingFileSystem)
+      const fs = ctx.fs as RecordingFileSystem
+      fs.entries.set(join(root, '.git'), { type: 'directory' })
+      fs.entries.set(join(root, 'AGENTS.md'), { type: 'file', content: 'repo rule' })
+      fs.entries.set(backgroundPath, { type: 'file', content: 'deferred Splunk background' })
+      await ctx.plugin(SystemPrompt)
+      await ctx.plugin(ToolRuntime)
+      registerVisibleTool(ctx, 'ordinary_search')
+      await ctx.plugin(workspaceContext, deferredConfig(home))
+      const agent = stubAgent(root)
+      const prompt = createUserMessage({
+        content: [{ type: 'text', text: 'ordinary request' }],
+        source: { kind: 'user' },
+      })
+
+      const decision = await agentEvents(ctx, agent).waterfall(
+        'agent/pre-step',
+        { messages: [prompt], turn: 1, step: 1, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [prompt] }),
+      )
+
+      if (decision.kind !== 'enter') throw new Error('ordinary request was rejected')
+      expect(fs.readTargets).toEqual([join(root, 'AGENTS.md')])
+      expect(decision.messages.some(message => blocksText(message.content).includes('deferred Splunk background'))).toBe(false)
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  it('injects deferred instructions in the first Splunk-capable request batch', async () => {
+    const root = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      await ctx.plugin(RecordingFileSystem)
+      const fs = ctx.fs as RecordingFileSystem
+      fs.entries.set(join(root, '.git'), { type: 'directory' })
+      fs.entries.set(join(root, 'AGENTS.md'), { type: 'file', content: 'repo rule' })
+      fs.entries.set(join(root, 'BACKGROUND.md'), { type: 'file', content: 'deferred Splunk background' })
+      await ctx.plugin(SystemPrompt)
+      await ctx.plugin(ToolRuntime)
+      registerVisibleTool(ctx, 'mcp__soc_agent__splunk_search')
+      await ctx.plugin(workspaceContext, deferredConfig(home))
+      const agent = stubAgent(root)
+      const prompt = createUserMessage({
+        content: [{ type: 'text', text: 'investigate in Splunk' }],
+        source: { kind: 'user' },
+      })
+
+      const decision = await agentEvents(ctx, agent).waterfall(
+        'agent/pre-step',
+        { messages: [prompt], turn: 1, step: 1, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [prompt] }),
+      )
+
+      if (decision.kind !== 'enter') throw new Error('Splunk request was rejected')
+      expect(fs.readTargets).toEqual([join(root, 'AGENTS.md'), join(root, 'BACKGROUND.md')])
+      expect(decision.messages[0]).toBe(prompt)
+      expect(blocksText(decision.messages[1]?.content)).toContain('deferred Splunk background')
+      expect(decision.messages[1]?.source).toMatchObject({
+        kind: 'agent-instructions',
+        baseline: true,
+        changes: [
+          { action: 'set', path: 'AGENTS.md' },
+          { action: 'set', path: 'BACKGROUND.md' },
+        ],
+      })
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  it('injects deferred instructions once and retains them for later Splunk steps', async () => {
+    const root = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      await ctx.plugin(RecordingFileSystem)
+      const fs = ctx.fs as RecordingFileSystem
+      fs.entries.set(join(root, '.git'), { type: 'directory' })
+      fs.entries.set(join(root, 'AGENTS.md'), { type: 'file', content: 'repo rule' })
+      fs.entries.set(join(root, 'BACKGROUND.md'), { type: 'file', content: 'deferred Splunk background' })
+      await ctx.plugin(SystemPrompt)
+      await ctx.plugin(ToolRuntime)
+      registerVisibleTool(ctx, 'mcp__soc_agent__splunk_search')
+      await ctx.plugin(workspaceContext, deferredConfig(home))
+      const agent = stubAgent(root)
+      const firstPrompt = createUserMessage({
+        content: [{ type: 'text', text: 'first Splunk request' }],
+        source: { kind: 'user' },
+      })
+      const first = await agentEvents(ctx, agent).waterfall(
+        'agent/pre-step',
+        { messages: [firstPrompt], turn: 1, step: 1, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [firstPrompt] }),
+      )
+      if (first.kind !== 'enter') throw new Error('first Splunk request was rejected')
+      appendEnteredMessages(ctx, agent, first.messages)
+
+      const secondPrompt = createUserMessage({
+        content: [{ type: 'text', text: 'continue the Splunk request' }],
+        source: { kind: 'user' },
+      })
+      const second = await agentEvents(ctx, agent).waterfall(
+        'agent/pre-step',
+        { messages: [secondPrompt], turn: 1, step: 2, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [secondPrompt] }),
+      )
+      if (second.kind !== 'enter') throw new Error('second Splunk request was rejected')
+
+      expect(fs.readTargets).toEqual([join(root, 'AGENTS.md'), join(root, 'BACKGROUND.md')])
+      expect(second.messages).toEqual([secondPrompt])
+      expect(agent.session.deriveMessages().map(message => blocksText(message.content)).join('\n'))
+        .toContain('deferred Splunk background')
+      expect(agent.session.events.filter(event => event.type === 'user/message'
+        && event.data.source.kind === 'agent-instructions')).toHaveLength(1)
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  it('activates deferred instructions when a Splunk tool becomes visible later', async () => {
+    const root = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      await ctx.plugin(RecordingFileSystem)
+      const fs = ctx.fs as RecordingFileSystem
+      fs.entries.set(join(root, '.git'), { type: 'directory' })
+      fs.entries.set(join(root, 'AGENTS.md'), { type: 'file', content: 'repo rule' })
+      fs.entries.set(join(root, 'BACKGROUND.md'), { type: 'file', content: 'deferred Splunk background' })
+      await ctx.plugin(SystemPrompt)
+      await ctx.plugin(ToolRuntime)
+      await ctx.plugin(workspaceContext, deferredConfig(home))
+      const agent = stubAgent(root)
+      const firstPrompt = createUserMessage({
+        content: [{ type: 'text', text: 'request before MCP is ready' }],
+        source: { kind: 'user' },
+      })
+      const first = await agentEvents(ctx, agent).waterfall(
+        'agent/pre-step',
+        { messages: [firstPrompt], turn: 1, step: 1, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [firstPrompt] }),
+      )
+      if (first.kind !== 'enter') throw new Error('initial request was rejected')
+      appendEnteredMessages(ctx, agent, first.messages)
+      expect(fs.readTargets).toEqual([join(root, 'AGENTS.md')])
+
+      registerVisibleTool(ctx, 'mcp__soc_agent__splunk_search')
+      const secondPrompt = createUserMessage({
+        content: [{ type: 'text', text: 'now investigate in Splunk' }],
+        source: { kind: 'user' },
+      })
+      const second = await agentEvents(ctx, agent).waterfall(
+        'agent/pre-step',
+        { messages: [secondPrompt], turn: 2, step: 1, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [secondPrompt] }),
+      )
+
+      if (second.kind !== 'enter') throw new Error('delayed Splunk request was rejected')
+      expect(fs.readTargets).toEqual([join(root, 'AGENTS.md'), join(root, 'BACKGROUND.md')])
+      expect(blocksText(second.messages.at(-1)?.content)).toContain('deferred Splunk background')
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  it('restores deferred instructions after compaction for a resumed Splunk request', async () => {
+    const root = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      await ctx.plugin(RecordingFileSystem)
+      const fs = ctx.fs as RecordingFileSystem
+      fs.entries.set(join(root, '.git'), { type: 'directory' })
+      fs.entries.set(join(root, 'AGENTS.md'), { type: 'file', content: 'repo rule' })
+      fs.entries.set(join(root, 'BACKGROUND.md'), { type: 'file', content: 'deferred Splunk background' })
+      await ctx.plugin(SystemPrompt)
+      await ctx.plugin(ToolRuntime)
+      registerVisibleTool(ctx, 'mcp__soc_agent__splunk_search')
+      await ctx.plugin(workspaceContext, deferredConfig(home))
+      const original = stubAgent(root)
+      const prompt = createUserMessage({
+        content: [{ type: 'text', text: 'initial Splunk request' }],
+        source: { kind: 'user' },
+      })
+      const initial = await agentEvents(ctx, original).waterfall(
+        'agent/pre-step',
+        { messages: [prompt], turn: 1, step: 1, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [prompt] }),
+      )
+      if (initial.kind !== 'enter') throw new Error('initial request was rejected')
+      appendEnteredMessages(ctx, original, initial.messages)
+      const injected = original.session.events.find(event => event.type === 'user/message'
+        && event.data.source.kind === 'agent-instructions'
+        && event.data.source.changes.some(change => change.path === 'BACKGROUND.md'))
+      expect(injected?.type).toBe('user/message')
+
+      original.session.append('user/message', createUserMessage({
+        content: [{ type: 'text', text: 'compacted summary' }],
+        source: { kind: 'plugin', plugin: 'compact' },
+      }), {
+        surfaceOp: { op: 'replace', start: injected!.seq, end: injected!.seq },
+        sourceEventSeqs: [injected!.seq],
+      })
+
+      const resumed = stubAgent(root, [...original.session.events])
+      const resumedPrompt = createUserMessage({
+        content: [{ type: 'text', text: 'resume Splunk work' }],
+        source: { kind: 'user' },
+      })
+      const resumedDecision = await agentEvents(ctx, resumed).waterfall(
+        'agent/pre-step',
+        { messages: [resumedPrompt], turn: 2, step: 1, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [resumedPrompt] }),
+      )
+
+      if (resumedDecision.kind !== 'enter') throw new Error('resumed request was rejected')
+      expect(fs.readTargets).toEqual([
+        join(root, 'AGENTS.md'),
+        join(root, 'BACKGROUND.md'),
+        join(root, 'AGENTS.md'),
+        join(root, 'BACKGROUND.md'),
+      ])
+      expect(blocksText(resumedDecision.messages.at(-1)?.content)).toContain('deferred Splunk background')
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  it('does not restore deferred instructions after compaction before a non-Splunk request', async () => {
+    const root = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      await ctx.plugin(RecordingFileSystem)
+      const fs = ctx.fs as RecordingFileSystem
+      fs.entries.set(join(root, '.git'), { type: 'directory' })
+      fs.entries.set(join(root, 'AGENTS.md'), { type: 'file', content: 'repo rule' })
+      fs.entries.set(join(root, 'BACKGROUND.md'), { type: 'file', content: 'deferred Splunk background' })
+      await ctx.plugin(SystemPrompt)
+      const toolsFiber = await ctx.plugin(ToolRuntime)
+      registerVisibleTool(ctx, 'mcp__soc_agent__splunk_search')
+      await ctx.plugin(workspaceContext, deferredConfig(home))
+      const agent = stubAgent(root)
+      const prompt = createUserMessage({
+        content: [{ type: 'text', text: 'initial Splunk request' }],
+        source: { kind: 'user' },
+      })
+      const initial = await agentEvents(ctx, agent).waterfall(
+        'agent/pre-step',
+        { messages: [prompt], turn: 1, step: 1, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [prompt] }),
+      )
+      if (initial.kind !== 'enter') throw new Error('initial request was rejected')
+      appendEnteredMessages(ctx, agent, initial.messages)
+      const injected = agent.session.events.find(event => event.type === 'user/message'
+        && event.data.source.kind === 'agent-instructions'
+        && event.data.source.changes.some(change => change.path === 'BACKGROUND.md'))
+      expect(injected?.type).toBe('user/message')
+
+      agent.session.append('user/message', createUserMessage({
+        content: [{ type: 'text', text: 'compacted summary' }],
+        source: { kind: 'plugin', plugin: 'compact' },
+      }), {
+        surfaceOp: { op: 'replace', start: injected!.seq, end: injected!.seq },
+        sourceEventSeqs: [injected!.seq],
+      })
+      await toolsFiber.dispose()
+
+      const nextPrompt = createUserMessage({
+        content: [{ type: 'text', text: 'non-Splunk follow-up' }],
+        source: { kind: 'user' },
+      })
+      const next = await agentEvents(ctx, agent).waterfall(
+        'agent/pre-step',
+        { messages: [nextPrompt], turn: 2, step: 1, signal: AbortSignal.timeout(1000) },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [nextPrompt] }),
+      )
+
+      if (next.kind !== 'enter') throw new Error('non-Splunk request was rejected')
+      expect(fs.readTargets).toEqual([
+        join(root, 'AGENTS.md'),
+        join(root, 'BACKGROUND.md'),
+        join(root, 'AGENTS.md'),
+      ])
+      expect(next.messages.some(message => blocksText(message.content).includes('deferred Splunk background'))).toBe(false)
+    } finally {
+      await ctx.fiber.dispose()
       await rm(root, { recursive: true, force: true })
       await rm(home, { recursive: true, force: true })
     }
