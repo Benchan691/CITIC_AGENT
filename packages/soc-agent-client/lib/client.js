@@ -31,13 +31,13 @@ window.__ModuleLoader__.load({
 		let react_jsx_runtime = require("react/jsx-runtime");
 		let _deepseek_ai_dsh_client_runtime_client = require("@deepseek-ai/dsh-client-runtime/client");
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/CiticBrand.module.css.mjs
-		const css$8 = ".U2KmSq_wordmark{text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;align-items:center;min-width:0;max-width:100%;font-size:16px;font-weight:700;line-height:24px;display:inline-flex;overflow:hidden}";
-		const tagId$8 = "dsh-soc-agent-client/CiticBrand.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$8) + "]") === null) {
+		const css$9 = ".U2KmSq_wordmark{text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;align-items:center;min-width:0;max-width:100%;font-size:16px;font-weight:700;line-height:24px;display:inline-flex;overflow:hidden}";
+		const tagId$9 = "dsh-soc-agent-client/CiticBrand.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$9) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$8;
-			tag.textContent = css$8;
+			tag.dataset.pluginCss = tagId$9;
+			tag.textContent = css$9;
 			document.head.appendChild(tag);
 		}
 		var CiticBrand_module_css_default = { "wordmark": "U2KmSq_wordmark" };
@@ -94,13 +94,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AdminConsole.module.css.mjs
-		const css$7 = ".IhE_MG_page,.IhE_MG_loginPage{color:#edf3f7;background:#0b1014;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}.IhE_MG_page{background:radial-gradient(circle at 12% 0,#1e788a2b,#0000 34rem),radial-gradient(circle at 92% 8%,#ca8e3314,#0000 30rem),#0b1014}.IhE_MG_shell{width:min(1240px,100% - 48px);margin:0 auto;padding:42px 0 72px}.IhE_MG_header{border-bottom:1px solid #a4bec729;justify-content:space-between;align-items:flex-start;gap:32px;padding:0 0 34px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#80c8d0;letter-spacing:.15em;text-transform:uppercase;margin:0 0 9px;font-size:11px;font-weight:700;line-height:1.4}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:#f7fbfc;letter-spacing:-.035em;margin:0}.IhE_MG_title{font-size:clamp(30px,4vw,46px);line-height:1.05}.IhE_MG_subtitle{color:#9aadb5;max-width:600px;margin:13px 0 0;font-size:15px;line-height:1.6}.IhE_MG_headerActions{align-items:center;gap:14px;padding-top:4px;display:flex}.IhE_MG_account{color:#9aadb5;text-overflow:ellipsis;white-space:nowrap;max-width:240px;font-size:12px;overflow:hidden}.IhE_MG_section{margin-top:34px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:16px;display:flex}.IhE_MG_sectionKicker{color:#d3a968;margin-bottom:6px}.IhE_MG_sectionTitle{font-size:22px;line-height:1.2}.IhE_MG_sectionHint{color:#72838b;text-align:right;font-size:12px;line-height:1.5}.IhE_MG_statusGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;display:grid}.IhE_MG_statusCard{background:#141f25c7;border:1px solid #97b9c226;border-radius:15px;gap:13px;min-width:0;padding:17px;display:flex;box-shadow:0 14px 42px #0000001f}.IhE_MG_statusIcon{color:#9edbe0;background:#2b6c7740;border:1px solid #80c8d042;border-radius:10px;flex:0 0 34px;place-items:center;width:34px;height:34px;font-size:14px;font-weight:750;display:grid}.IhE_MG_statusBody{min-width:0}.IhE_MG_statusTopline{justify-content:space-between;align-items:flex-start;gap:8px;display:flex}.IhE_MG_statusTopline h3{color:#eff7f8;margin:1px 0 0;font-size:14px;line-height:1.35}.IhE_MG_statusBody p{color:#82969e;margin:7px 0 0;font-size:12px;line-height:1.45}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;align-items:center;display:inline-flex}.IhE_MG_statusPill{letter-spacing:.02em;border-radius:999px;flex:none;gap:6px;padding:4px 7px;font-size:10px;font-weight:700}.IhE_MG_statusReady{color:#9ce5be;background:#2c895733}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#a9dce0;background:#468d9733}.IhE_MG_statusError{color:#ffb1b1;background:#8932363d}.IhE_MG_statusMuted{color:#9baab0;background:#7e909724}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#778990;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#59d28c;box-shadow:0 0 0 3px #59d28c1f}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#73cbd3;box-shadow:0 0 0 3px #73cbd31f}.IhE_MG_statusError .IhE_MG_statusDot{background:#f77;box-shadow:0 0 0 3px #ff77771f}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success,.IhE_MG_message.IhE_MG_success{color:#91dfb3}.IhE_MG_checkMessage.IhE_MG_error,.IhE_MG_message.IhE_MG_error,.IhE_MG_error{color:#ff9d9d}.IhE_MG_checkMessage.IhE_MG_info,.IhE_MG_message.IhE_MG_info{color:#9bd6df}.IhE_MG_textButton{color:#a9e2e6;cursor:pointer;font:inherit;background:0 0;border:0;margin-top:12px;padding:0;font-size:12px;font-weight:700}.IhE_MG_textButton:hover,.IhE_MG_textButton:focus-visible{color:#e4ffff;text-decoration:underline}.IhE_MG_textButton:disabled{cursor:wait;opacity:.55}.IhE_MG_envManaged{color:#71858d;margin-top:12px;font-size:11px;display:inline-block}.IhE_MG_button,.IhE_MG_dangerButton{color:#d9e7ea;cursor:pointer;min-height:38px;font:inherit;background:#1c2a31bf;border:1px solid #9ab8c038;border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700;transition:border-color .14s,background .14s,transform .14s}.IhE_MG_button:hover:not(:disabled),.IhE_MG_button:focus-visible,.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#274149e6;border-color:#94dbe194}.IhE_MG_button:active:not(:disabled),.IhE_MG_dangerButton:active:not(:disabled){transform:translateY(1px)}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled{cursor:not-allowed;opacity:.48}.IhE_MG_primary{color:#071215;background:#9bdde0;border-color:#0000}.IhE_MG_primary:hover:not(:disabled),.IhE_MG_primary:focus-visible{color:#071215;background:#c0f0ef;border-color:#0000}.IhE_MG_dangerButton{color:#ffb4b4;background:#782d302e;border-color:#e774744d}.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#89323659;border-color:#ff9191a6}.IhE_MG_error{margin:12px 0;font-size:12px;line-height:1.5}.IhE_MG_loading,.IhE_MG_loadingInline{color:#a2b6bc;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_loadingInline{padding:24px 0}.IhE_MG_providerLayout{background:#0f181dd6;border:1px solid #97b9c229;border-radius:17px;grid-template-columns:minmax(230px,280px) minmax(0,1fr);min-height:480px;display:grid;overflow:hidden;box-shadow:0 18px 60px #00000029}.IhE_MG_providerPicker{background:#141f25b3;border-right:1px solid #97b9c221;flex-direction:column;min-width:0;padding:17px 11px 12px;display:flex}.IhE_MG_pickerHeader{color:#b8c8cd;justify-content:space-between;align-items:center;padding:0 8px 11px;font-size:12px;font-weight:700;display:flex}.IhE_MG_countBadge{color:#a9dce0;background:#468d9733;border-radius:999px;justify-content:center;min-width:22px;padding:3px 6px;font-size:10px}.IhE_MG_providerList{scrollbar-color:#82bac080 transparent;scrollbar-width:thin;flex-direction:column;flex:1;gap:3px;min-height:0;max-height:410px;padding-right:4px;display:flex;overflow-y:auto}.IhE_MG_providerOption,.IhE_MG_customOption{color:#bdcbd0;cursor:pointer;width:100%;min-width:0;font:inherit;text-align:left;background:0 0;border:1px solid #0000;border-radius:10px;align-items:center;gap:10px;padding:11px 9px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_providerOption:focus-visible,.IhE_MG_customOption:hover,.IhE_MG_customOption:focus-visible{background:#36545b38;border-color:#7fc2c933}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{color:#f2fbfc;background:#386f7842;border-color:#7ecdd354}.IhE_MG_providerDot{flex:0 0 7px;width:7px;height:7px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:3px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{color:inherit;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700;overflow:hidden}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:#7f949b;text-overflow:ellipsis;white-space:nowrap;font-size:10px;overflow:hidden}.IhE_MG_customTag,.IhE_MG_customBadge{color:#e1bd7f;text-transform:uppercase;background:#a46f281f;border:1px solid #d3a9684d;border-radius:999px;padding:3px 6px;font-size:9px;font-weight:700}.IhE_MG_customOption{border-top:1px solid #97b9c221;border-radius:0;flex:none;margin-top:12px;padding-top:17px}.IhE_MG_addIcon{color:#e1bd7f;border:1px solid #d3a96859;border-radius:7px;flex:0 0 24px;place-items:center;width:24px;height:24px;font-size:17px;font-weight:400;display:grid}.IhE_MG_providerEditor{background:#0b12166b;min-width:0;padding:31px clamp(22px,4vw,48px) 36px}.IhE_MG_editorHeading{border-bottom:1px solid #97b9c221;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:24px;display:flex}.IhE_MG_editorTitle{font-size:25px;line-height:1.15}.IhE_MG_editorCopy{color:#879aa1;max-width:600px;margin:9px 0 0;font-size:13px;line-height:1.55}.IhE_MG_editorForm{flex-direction:column;gap:20px;max-width:720px;padding-top:26px;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_field{color:#c9d7db;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:700;display:flex}.IhE_MG_field em{color:#71858c;margin-left:4px;font-size:10px;font-style:normal;font-weight:500}.IhE_MG_input{box-sizing:border-box;color:#ecf5f6;width:100%;min-width:0;font:inherit;background:#1a272dc7;border:1px solid #97b9c233;border-radius:9px;outline:0;padding:11px 12px;font-size:13px;font-weight:500;transition:border-color .14s,box-shadow .14s}.IhE_MG_input::placeholder{color:#65777e}.IhE_MG_input:focus{border-color:#89d8deb3;box-shadow:0 0 0 3px #5bb7c021}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.56}.IhE_MG_textarea{resize:vertical;min-height:98px;line-height:1.55}.IhE_MG_fieldHint{color:#71858d;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_advanced{background:#19262c5c;border:1px solid #97b9c226;border-radius:11px}.IhE_MG_advanced summary{color:#c4d5d9;cursor:pointer;padding:13px 15px;font-size:12px;font-weight:700;list-style-position:inside}.IhE_MG_advanced summary:hover{color:#e7f5f6}.IhE_MG_advancedBody{flex-direction:column;gap:18px;padding:0 15px 18px;display:flex}.IhE_MG_discoveryRow{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_discovered{flex-wrap:wrap;gap:7px;display:flex}.IhE_MG_modelChip{color:#b6e6e8;cursor:pointer;font:inherit;background:#386f782e;border:1px solid #7ecdd340;border-radius:999px;padding:6px 9px;font-size:11px}.IhE_MG_modelChip:hover,.IhE_MG_modelChip:focus-visible{background:#386f7852;border-color:#7ecdd3a6}.IhE_MG_message{margin:20px 0 0;font-size:12px;line-height:1.5}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:24px;display:flex}.IhE_MG_confirmGroup{color:#d5b0b0;flex-wrap:wrap;align-items:center;gap:8px;font-size:11px;display:inline-flex}.IhE_MG_confirmGroup .IhE_MG_error{flex-basis:100%;margin:0}.IhE_MG_loginPage{box-sizing:border-box;background:radial-gradient(circle at 50% 0,#25747f47,#0000 35rem),linear-gradient(145deg,#0b1115,#101b20 58%,#11181b);place-items:center;min-height:100vh;padding:24px;display:grid}.IhE_MG_loginPanel{box-sizing:border-box;background:#111c22e0;border:1px solid #a4cad033;border-radius:20px;width:min(100%,430px);padding:38px;box-shadow:0 25px 90px #00000059}.IhE_MG_loginMark{color:#071215;background:#9bdde0;border:1px solid #9bdde080;border-radius:13px;place-items:center;width:42px;height:42px;margin-bottom:25px;font-size:22px;font-weight:800;display:grid}.IhE_MG_loginTitle{font-size:32px;line-height:1.08}.IhE_MG_loginCopy{color:#8fa4aa;margin:13px 0 28px;font-size:13px;line-height:1.6}.IhE_MG_form{flex-direction:column;gap:17px;display:flex}.IhE_MG_fullButton{width:100%;margin-top:3px}.IhE_MG_loginFootnote{color:#6f838a;margin:25px 0 0;font-size:11px;line-height:1.5}@media (width<=1000px){.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (width<=760px){.IhE_MG_shell{width:min(100% - 28px,620px);padding-top:28px}.IhE_MG_header,.IhE_MG_sectionHeading{flex-direction:column;align-items:flex-start}.IhE_MG_headerActions{justify-content:space-between;width:100%}.IhE_MG_sectionHint{text-align:left}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-bottom:1px solid #97b9c221;border-right:0}.IhE_MG_providerList{max-height:230px}.IhE_MG_providerEditor{padding:25px 18px 30px}.IhE_MG_fieldGrid{grid-template-columns:1fr}}@media (width<=460px){.IhE_MG_loginPanel{padding:28px 22px}.IhE_MG_account{max-width:170px}.IhE_MG_editorHeading{flex-direction:column}}";
-		const tagId$7 = "dsh-soc-agent-client/AdminConsole.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$7) + "]") === null) {
+		const css$8 = ".IhE_MG_page,.IhE_MG_loginPage{color:#edf3f7;background:#0b1014;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}.IhE_MG_page{background:radial-gradient(circle at 12% 0,#1e788a2b,#0000 34rem),radial-gradient(circle at 92% 8%,#ca8e3314,#0000 30rem),#0b1014}.IhE_MG_shell{width:min(1240px,100% - 48px);margin:0 auto;padding:42px 0 72px}.IhE_MG_header{border-bottom:1px solid #a4bec729;justify-content:space-between;align-items:flex-start;gap:32px;padding:0 0 34px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#80c8d0;letter-spacing:.15em;text-transform:uppercase;margin:0 0 9px;font-size:11px;font-weight:700;line-height:1.4}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:#f7fbfc;letter-spacing:-.035em;margin:0}.IhE_MG_title{font-size:clamp(30px,4vw,46px);line-height:1.05}.IhE_MG_subtitle{color:#9aadb5;max-width:600px;margin:13px 0 0;font-size:15px;line-height:1.6}.IhE_MG_headerActions{align-items:center;gap:14px;padding-top:4px;display:flex}.IhE_MG_account{color:#9aadb5;text-overflow:ellipsis;white-space:nowrap;max-width:240px;font-size:12px;overflow:hidden}.IhE_MG_section{margin-top:34px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:16px;display:flex}.IhE_MG_sectionKicker{color:#d3a968;margin-bottom:6px}.IhE_MG_sectionTitle{font-size:22px;line-height:1.2}.IhE_MG_sectionHint{color:#72838b;text-align:right;font-size:12px;line-height:1.5}.IhE_MG_statusGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;display:grid}.IhE_MG_statusCard{background:#141f25c7;border:1px solid #97b9c226;border-radius:15px;gap:13px;min-width:0;padding:17px;display:flex;box-shadow:0 14px 42px #0000001f}.IhE_MG_statusIcon{color:#9edbe0;background:#2b6c7740;border:1px solid #80c8d042;border-radius:10px;flex:0 0 34px;place-items:center;width:34px;height:34px;font-size:14px;font-weight:750;display:grid}.IhE_MG_statusBody{min-width:0}.IhE_MG_statusTopline{justify-content:space-between;align-items:flex-start;gap:8px;display:flex}.IhE_MG_statusTopline h3{color:#eff7f8;margin:1px 0 0;font-size:14px;line-height:1.35}.IhE_MG_statusBody p{color:#82969e;margin:7px 0 0;font-size:12px;line-height:1.45}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;align-items:center;display:inline-flex}.IhE_MG_statusPill{letter-spacing:.02em;border-radius:999px;flex:none;gap:6px;padding:4px 7px;font-size:10px;font-weight:700}.IhE_MG_statusReady{color:#9ce5be;background:#2c895733}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#a9dce0;background:#468d9733}.IhE_MG_statusError{color:#ffb1b1;background:#8932363d}.IhE_MG_statusMuted{color:#9baab0;background:#7e909724}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#778990;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#59d28c;box-shadow:0 0 0 3px #59d28c1f}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#73cbd3;box-shadow:0 0 0 3px #73cbd31f}.IhE_MG_statusError .IhE_MG_statusDot{background:#f77;box-shadow:0 0 0 3px #ff77771f}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success,.IhE_MG_message.IhE_MG_success{color:#91dfb3}.IhE_MG_checkMessage.IhE_MG_error,.IhE_MG_message.IhE_MG_error,.IhE_MG_error{color:#ff9d9d}.IhE_MG_checkMessage.IhE_MG_info,.IhE_MG_message.IhE_MG_info{color:#9bd6df}.IhE_MG_textButton{color:#a9e2e6;cursor:pointer;font:inherit;background:0 0;border:0;margin-top:12px;padding:0;font-size:12px;font-weight:700}.IhE_MG_textButton:hover,.IhE_MG_textButton:focus-visible{color:#e4ffff;text-decoration:underline}.IhE_MG_textButton:disabled{cursor:wait;opacity:.55}.IhE_MG_envManaged{color:#71858d;margin-top:12px;font-size:11px;display:inline-block}.IhE_MG_button,.IhE_MG_dangerButton{color:#d9e7ea;cursor:pointer;min-height:38px;font:inherit;background:#1c2a31bf;border:1px solid #9ab8c038;border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700;transition:border-color .14s,background .14s,transform .14s}.IhE_MG_button:hover:not(:disabled),.IhE_MG_button:focus-visible,.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#274149e6;border-color:#94dbe194}.IhE_MG_button:active:not(:disabled),.IhE_MG_dangerButton:active:not(:disabled){transform:translateY(1px)}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled{cursor:not-allowed;opacity:.48}.IhE_MG_primary{color:#071215;background:#9bdde0;border-color:#0000}.IhE_MG_primary:hover:not(:disabled),.IhE_MG_primary:focus-visible{color:#071215;background:#c0f0ef;border-color:#0000}.IhE_MG_dangerButton{color:#ffb4b4;background:#782d302e;border-color:#e774744d}.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#89323659;border-color:#ff9191a6}.IhE_MG_error{margin:12px 0;font-size:12px;line-height:1.5}.IhE_MG_loading,.IhE_MG_loadingInline{color:#a2b6bc;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_loadingInline{padding:24px 0}.IhE_MG_providerLayout{background:#0f181dd6;border:1px solid #97b9c229;border-radius:17px;grid-template-columns:minmax(230px,280px) minmax(0,1fr);min-height:480px;display:grid;overflow:hidden;box-shadow:0 18px 60px #00000029}.IhE_MG_providerPicker{background:#141f25b3;border-right:1px solid #97b9c221;flex-direction:column;min-width:0;padding:17px 11px 12px;display:flex}.IhE_MG_pickerHeader{color:#b8c8cd;justify-content:space-between;align-items:center;padding:0 8px 11px;font-size:12px;font-weight:700;display:flex}.IhE_MG_countBadge{color:#a9dce0;background:#468d9733;border-radius:999px;justify-content:center;min-width:22px;padding:3px 6px;font-size:10px}.IhE_MG_providerList{scrollbar-color:#82bac080 transparent;scrollbar-width:thin;flex-direction:column;flex:1;gap:3px;min-height:0;max-height:410px;padding-right:4px;display:flex;overflow-y:auto}.IhE_MG_providerOption,.IhE_MG_customOption{color:#bdcbd0;cursor:pointer;width:100%;min-width:0;font:inherit;text-align:left;background:0 0;border:1px solid #0000;border-radius:10px;align-items:center;gap:10px;padding:11px 9px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_providerOption:focus-visible,.IhE_MG_customOption:hover,.IhE_MG_customOption:focus-visible{background:#36545b38;border-color:#7fc2c933}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{color:#f2fbfc;background:#386f7842;border-color:#7ecdd354}.IhE_MG_providerDot{flex:0 0 7px;width:7px;height:7px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:3px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{color:inherit;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700;overflow:hidden}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:#7f949b;text-overflow:ellipsis;white-space:nowrap;font-size:10px;overflow:hidden}.IhE_MG_customTag,.IhE_MG_customBadge{color:#e1bd7f;text-transform:uppercase;background:#a46f281f;border:1px solid #d3a9684d;border-radius:999px;padding:3px 6px;font-size:9px;font-weight:700}.IhE_MG_customOption{border-top:1px solid #97b9c221;border-radius:0;flex:none;margin-top:12px;padding-top:17px}.IhE_MG_addIcon{color:#e1bd7f;border:1px solid #d3a96859;border-radius:7px;flex:0 0 24px;place-items:center;width:24px;height:24px;font-size:17px;font-weight:400;display:grid}.IhE_MG_providerEditor{background:#0b12166b;min-width:0;padding:31px clamp(22px,4vw,48px) 36px}.IhE_MG_editorHeading{border-bottom:1px solid #97b9c221;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:24px;display:flex}.IhE_MG_editorTitle{font-size:25px;line-height:1.15}.IhE_MG_editorCopy{color:#879aa1;max-width:600px;margin:9px 0 0;font-size:13px;line-height:1.55}.IhE_MG_editorForm{flex-direction:column;gap:20px;max-width:720px;padding-top:26px;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_field{color:#c9d7db;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:700;display:flex}.IhE_MG_field em{color:#71858c;margin-left:4px;font-size:10px;font-style:normal;font-weight:500}.IhE_MG_input{box-sizing:border-box;color:#ecf5f6;width:100%;min-width:0;font:inherit;background:#1a272dc7;border:1px solid #97b9c233;border-radius:9px;outline:0;padding:11px 12px;font-size:13px;font-weight:500;transition:border-color .14s,box-shadow .14s}.IhE_MG_input::placeholder{color:#65777e}.IhE_MG_input:focus{border-color:#89d8deb3;box-shadow:0 0 0 3px #5bb7c021}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.56}.IhE_MG_textarea{resize:vertical;min-height:98px;line-height:1.55}.IhE_MG_fieldHint{color:#71858d;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_advanced{background:#19262c5c;border:1px solid #97b9c226;border-radius:11px}.IhE_MG_advanced summary{color:#c4d5d9;cursor:pointer;padding:13px 15px;font-size:12px;font-weight:700;list-style-position:inside}.IhE_MG_advanced summary:hover{color:#e7f5f6}.IhE_MG_advancedBody{flex-direction:column;gap:18px;padding:0 15px 18px;display:flex}.IhE_MG_discoveryRow{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_discovered{flex-wrap:wrap;gap:7px;display:flex}.IhE_MG_modelChip{color:#b6e6e8;cursor:pointer;font:inherit;background:#386f782e;border:1px solid #7ecdd340;border-radius:999px;padding:6px 9px;font-size:11px}.IhE_MG_modelChip:hover,.IhE_MG_modelChip:focus-visible{background:#386f7852;border-color:#7ecdd3a6}.IhE_MG_message{margin:20px 0 0;font-size:12px;line-height:1.5}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:24px;display:flex}.IhE_MG_confirmGroup{color:#d5b0b0;flex-wrap:wrap;align-items:center;gap:8px;font-size:11px;display:inline-flex}.IhE_MG_confirmGroup .IhE_MG_error{flex-basis:100%;margin:0}.IhE_MG_loginPage{box-sizing:border-box;background:radial-gradient(circle at 50% 0,#25747f47,#0000 35rem),linear-gradient(145deg,#0b1115,#101b20 58%,#11181b);place-items:center;min-height:100vh;padding:24px;display:grid}.IhE_MG_loginPanel{box-sizing:border-box;background:#111c22e0;border:1px solid #a4cad033;border-radius:20px;width:min(100%,430px);padding:38px;box-shadow:0 25px 90px #00000059}.IhE_MG_loginMark{color:#071215;background:#9bdde0;border:1px solid #9bdde080;border-radius:13px;place-items:center;width:42px;height:42px;margin-bottom:25px;font-size:22px;font-weight:800;display:grid}.IhE_MG_loginTitle{font-size:32px;line-height:1.08}.IhE_MG_loginCopy{color:#8fa4aa;margin:13px 0 28px;font-size:13px;line-height:1.6}.IhE_MG_form{flex-direction:column;gap:17px;display:flex}.IhE_MG_fullButton{width:100%;margin-top:3px}.IhE_MG_loginFootnote{color:#6f838a;margin:25px 0 0;font-size:11px;line-height:1.5}@media (width<=1000px){.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (width<=760px){.IhE_MG_shell{width:min(100% - 28px,620px);padding-top:28px}.IhE_MG_header,.IhE_MG_sectionHeading{flex-direction:column;align-items:flex-start}.IhE_MG_headerActions{justify-content:space-between;width:100%}.IhE_MG_sectionHint{text-align:left}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-bottom:1px solid #97b9c221;border-right:0}.IhE_MG_providerList{max-height:230px}.IhE_MG_providerEditor{padding:25px 18px 30px}.IhE_MG_fieldGrid{grid-template-columns:1fr}}@media (width<=460px){.IhE_MG_loginPanel{padding:28px 22px}.IhE_MG_account{max-width:170px}.IhE_MG_editorHeading{flex-direction:column}}";
+		const tagId$8 = "dsh-soc-agent-client/AdminConsole.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$8) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$7;
-			tag.textContent = css$7;
+			tag.dataset.pluginCss = tagId$8;
+			tag.textContent = css$8;
 			document.head.appendChild(tag);
 		}
 		var AdminConsole_module_css_default = {
@@ -184,13 +184,13 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
-		const css$6 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
-		const tagId$6 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$6) + "]") === null) {
+		const css$7 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
+		const tagId$7 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$7) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$6;
-			tag.textContent = css$6;
+			tag.dataset.pluginCss = tagId$7;
+			tag.textContent = css$7;
 			document.head.appendChild(tag);
 		}
 		var SplunkZimbraOverlay_module_css_default = {
@@ -1314,13 +1314,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AuthGate.module.css.mjs
-		const css$5 = ".e9h_7W_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.e9h_7W_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.e9h_7W_title{margin:0 0 20px;font-size:20px;font-weight:600}.e9h_7W_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.e9h_7W_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.e9h_7W_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.e9h_7W_button:disabled{cursor:wait;opacity:.65}.e9h_7W_error{color:#ffb7b7;margin:10px 0;font-size:13px}.e9h_7W_notice{color:#ffe0a6;margin:10px 0;font-size:13px}.e9h_7W_loading{color:#cbd6e2;font-size:14px}.e9h_7W_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.e9h_7W_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
-		const tagId$5 = "dsh-soc-agent-client/AuthGate.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$5) + "]") === null) {
+		const css$6 = ".e9h_7W_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.e9h_7W_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.e9h_7W_title{margin:0 0 20px;font-size:20px;font-weight:600}.e9h_7W_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.e9h_7W_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.e9h_7W_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.e9h_7W_button:disabled{cursor:wait;opacity:.65}.e9h_7W_error{color:#ffb7b7;margin:10px 0;font-size:13px}.e9h_7W_notice{color:#ffe0a6;margin:10px 0;font-size:13px}.e9h_7W_loading{color:#cbd6e2;font-size:14px}.e9h_7W_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.e9h_7W_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
+		const tagId$6 = "dsh-soc-agent-client/AuthGate.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$6) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$5;
-			tag.textContent = css$5;
+			tag.dataset.pluginCss = tagId$6;
+			tag.textContent = css$6;
 			document.head.appendChild(tag);
 		}
 		var AuthGate_module_css_default = {
@@ -1502,13 +1502,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/EmailDraftToolview.module.css.mjs
-		const css$4 = "._2F_7Mq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}._2F_7Mq_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}._2F_7Mq_title{font-weight:600}._2F_7Mq_account{color:var(--dsw-alias-text-l2);font-size:12px}._2F_7Mq_content{gap:9px;padding:12px;display:grid}._2F_7Mq_field{gap:4px;display:grid}._2F_7Mq_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}._2F_7Mq_input,._2F_7Mq_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}._2F_7Mq_textarea{resize:vertical;min-height:180px;line-height:1.45}._2F_7Mq_input:focus,._2F_7Mq_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}._2F_7Mq_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}._2F_7Mq_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}._2F_7Mq_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}._2F_7Mq_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}._2F_7Mq_primary:hover{background:#1d4ed8;border-color:#1d4ed8}._2F_7Mq_danger{color:#fff;background:#dc2626;border-color:#dc2626}._2F_7Mq_danger:hover{background:#b91c1c;border-color:#b91c1c}._2F_7Mq_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}._2F_7Mq_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}._2F_7Mq_button:disabled{cursor:wait;opacity:.6}._2F_7Mq_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}._2F_7Mq_error{color:var(--dsw-alias-danger,#b42318)}";
-		const tagId$4 = "dsh-soc-agent-client/EmailDraftToolview.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$4) + "]") === null) {
+		const css$5 = "._2F_7Mq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}._2F_7Mq_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}._2F_7Mq_title{font-weight:600}._2F_7Mq_account{color:var(--dsw-alias-text-l2);font-size:12px}._2F_7Mq_content{gap:9px;padding:12px;display:grid}._2F_7Mq_field{gap:4px;display:grid}._2F_7Mq_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}._2F_7Mq_input,._2F_7Mq_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}._2F_7Mq_textarea{resize:vertical;min-height:180px;line-height:1.45}._2F_7Mq_input:focus,._2F_7Mq_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}._2F_7Mq_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}._2F_7Mq_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}._2F_7Mq_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}._2F_7Mq_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}._2F_7Mq_primary:hover{background:#1d4ed8;border-color:#1d4ed8}._2F_7Mq_danger{color:#fff;background:#dc2626;border-color:#dc2626}._2F_7Mq_danger:hover{background:#b91c1c;border-color:#b91c1c}._2F_7Mq_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}._2F_7Mq_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}._2F_7Mq_button:disabled{cursor:wait;opacity:.6}._2F_7Mq_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}._2F_7Mq_error{color:var(--dsw-alias-danger,#b42318)}";
+		const tagId$5 = "dsh-soc-agent-client/EmailDraftToolview.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$5) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$4;
-			tag.textContent = css$4;
+			tag.dataset.pluginCss = tagId$5;
+			tag.textContent = css$5;
 			document.head.appendChild(tag);
 		}
 		var EmailDraftToolview_module_css_default = {
@@ -1548,12 +1548,12 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region src/client/EmailDraftToolview.tsx
-		function resultText(block) {
+		function resultText$1(block) {
 			if (!("kind" in block)) return "";
 			return block.content.filter((item) => item.type === "text").map((item) => item.text).join("");
 		}
 		function parseEnvelope(block) {
-			const text = resultText(block);
+			const text = resultText$1(block);
 			if (!text) return null;
 			try {
 				const value = JSON.parse(text);
@@ -1917,6 +1917,792 @@ window.__ModuleLoader__.load({
 		};
 		function installEmailDraftToolview(ctx) {
 			ctx.plugin(emailDraftToolview);
+		}
+		//#endregion
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkDetectionToolview.module.css.mjs
+		const css$4 = ".J-m--q_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}.J-m--q_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;display:flex}.J-m--q_title{font-weight:700}.J-m--q_subtitle,.J-m--q_message,.J-m--q_hint{color:var(--dsw-alias-text-l2);font-size:12px}.J-m--q_content{gap:10px;padding:14px;display:grid}.J-m--q_notice{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:var(--dsw-alias-text-l2);border-radius:7px;padding:9px 11px;font-size:13px}.J-m--q_section{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;overflow:hidden}.J-m--q_section summary{cursor:pointer;background:var(--dsw-alias-surface-l2,transparent);padding:9px 11px;font-weight:700}.J-m--q_sectionBody{gap:9px;padding:11px;display:grid}.J-m--q_field{gap:4px;display:grid}.J-m--q_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}.J-m--q_input,.J-m--q_textarea,.J-m--q_select{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}.J-m--q_textarea{resize:vertical;min-height:82px;line-height:1.45}.J-m--q_spl{tab-size:2;min-height:250px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}.J-m--q_input:focus,.J-m--q_textarea:focus,.J-m--q_select:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.J-m--q_input[readonly]{opacity:.75}.J-m--q_grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;display:grid}.J-m--q_toggle{min-height:34px;color:inherit;align-items:center;gap:8px;font-size:13px;display:flex}.J-m--q_toggle input{width:16px;height:16px;accent-color:var(--dsw-alias-primary,#2563eb)}.J-m--q_actionRows{gap:7px;display:grid}.J-m--q_actionRow{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:center;gap:7px;display:grid}.J-m--q_managed{background:var(--dsw-alias-surface-l2,transparent);color:var(--dsw-alias-text-l2);border-radius:6px;padding:8px 9px;font-size:12px}.J-m--q_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}.J-m--q_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:8px 13px}.J-m--q_button:hover{filter:brightness(1.08)}.J-m--q_primary{color:#fff;background:#198754;border-color:#198754}.J-m--q_secondary{color:#fff;background:#4b5563;border-color:#4b5563}.J-m--q_button:disabled{cursor:wait;opacity:.6}.J-m--q_message{padding:10px 12px;font-size:13px}.J-m--q_error{color:var(--dsw-alias-danger,#b42318)}.J-m--q_success{color:var(--dsw-alias-success,#16803c)}.J-m--q_savedSummary{border:1px solid var(--dsw-alias-border-l2);border-radius:7px;gap:7px;padding:10px 11px;display:grid}.J-m--q_savedSummary>div{grid-template-columns:140px minmax(0,1fr);gap:10px;display:grid}.J-m--q_savedLabel{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}.J-m--q_savedSpl{gap:5px;display:grid}.J-m--q_savedSpl pre{background:var(--dsw-alias-surface-l2,transparent);white-space:pre-wrap;border-radius:7px;max-height:180px;margin:0;padding:10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:auto}@media (width<=700px){.J-m--q_grid,.J-m--q_actionRow,.J-m--q_savedSummary>div{grid-template-columns:1fr}}";
+		const tagId$4 = "dsh-soc-agent-client/SplunkDetectionToolview.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$4) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "dsh-soc-agent-client";
+			tag.dataset.pluginCss = tagId$4;
+			tag.textContent = css$4;
+			document.head.appendChild(tag);
+		}
+		var SplunkDetectionToolview_module_css_default = {
+			"actionRow": "J-m--q_actionRow",
+			"actionRows": "J-m--q_actionRows",
+			"actions": "J-m--q_actions",
+			"button": "J-m--q_button",
+			"card": "J-m--q_card",
+			"content": "J-m--q_content",
+			"error": "J-m--q_error",
+			"field": "J-m--q_field",
+			"grid": "J-m--q_grid",
+			"header": "J-m--q_header",
+			"hint": "J-m--q_hint",
+			"input": "J-m--q_input",
+			"label": "J-m--q_label",
+			"managed": "J-m--q_managed",
+			"message": "J-m--q_message",
+			"notice": "J-m--q_notice",
+			"primary": "J-m--q_primary",
+			"savedLabel": "J-m--q_savedLabel",
+			"savedSpl": "J-m--q_savedSpl",
+			"savedSummary": "J-m--q_savedSummary",
+			"secondary": "J-m--q_secondary",
+			"section": "J-m--q_section",
+			"sectionBody": "J-m--q_sectionBody",
+			"select": "J-m--q_select",
+			"spl": "J-m--q_spl",
+			"subtitle": "J-m--q_subtitle",
+			"success": "J-m--q_success",
+			"textarea": "J-m--q_textarea",
+			"title": "J-m--q_title",
+			"toggle": "J-m--q_toggle"
+		};
+		//#endregion
+		//#region src/client/splunkDetection.ts
+		const SPLUNK_WRITE_DETECTION_TOOL_NAME = "mcp__soc_agent__splunk_write_detection";
+		const SPLUNK_UPDATE_DETECTION_TOOL_NAME = "mcp__soc_agent__splunk_update_detection";
+		const DETECTION_STANDARD_FIELDS = [
+			"is_scheduled",
+			"cron_schedule",
+			"dispatch.earliest_time",
+			"dispatch.latest_time",
+			"dispatch.rt_backfill",
+			"dispatch.indexedRealtime",
+			"dispatch.indexedRealtimeOffset",
+			"dispatch.indexedRealtimeMinSpan",
+			"dispatch.rt_maximum_span",
+			"alert_type",
+			"alert_comparator",
+			"alert_threshold",
+			"alert_condition",
+			"alert.digest_mode",
+			"alert.suppress",
+			"alert.suppress.period",
+			"alert.suppress.fields",
+			"alert.suppress.group_name",
+			"alert.expires",
+			"alert.track",
+			"actions"
+		];
+		const MANAGED_ACTION_PREFIX = "action.logevent";
+		function isRecord$1(value) {
+			return typeof value === "object" && value !== null && !Array.isArray(value);
+		}
+		function text(value, fallback = "") {
+			if (typeof value === "string") return value;
+			if (typeof value === "boolean") return value ? "1" : "0";
+			if (typeof value === "number" && Number.isFinite(value)) return String(value);
+			return fallback;
+		}
+		function valueFrom(draft, key, fallback = "") {
+			return text(draft[key], fallback);
+		}
+		function isManagedActionField(key) {
+			return key === MANAGED_ACTION_PREFIX || key.startsWith(`${MANAGED_ACTION_PREFIX}.`);
+		}
+		function formFromDraft(draft) {
+			return {
+				name: valueFrom(draft, "name"),
+				description: valueFrom(draft, "description"),
+				spl: valueFrom(draft, "spl", valueFrom(draft, "search")),
+				is_scheduled: valueFrom(draft, "is_scheduled", "0"),
+				cron_schedule: valueFrom(draft, "cron_schedule"),
+				"dispatch.earliest_time": valueFrom(draft, "dispatch.earliest_time", valueFrom(draft, "earliest_time", "-10m")),
+				"dispatch.latest_time": valueFrom(draft, "dispatch.latest_time", valueFrom(draft, "latest_time", "now")),
+				"dispatch.rt_backfill": valueFrom(draft, "dispatch.rt_backfill"),
+				"dispatch.indexedRealtime": valueFrom(draft, "dispatch.indexedRealtime"),
+				"dispatch.indexedRealtimeOffset": valueFrom(draft, "dispatch.indexedRealtimeOffset"),
+				"dispatch.indexedRealtimeMinSpan": valueFrom(draft, "dispatch.indexedRealtimeMinSpan"),
+				"dispatch.rt_maximum_span": valueFrom(draft, "dispatch.rt_maximum_span"),
+				alert_type: valueFrom(draft, "alert_type"),
+				alert_comparator: valueFrom(draft, "alert_comparator"),
+				alert_threshold: valueFrom(draft, "alert_threshold"),
+				alert_condition: valueFrom(draft, "alert_condition"),
+				"alert.digest_mode": valueFrom(draft, "alert.digest_mode"),
+				"alert.suppress": valueFrom(draft, "alert.suppress"),
+				"alert.suppress.period": valueFrom(draft, "alert.suppress.period"),
+				"alert.suppress.fields": valueFrom(draft, "alert.suppress.fields"),
+				"alert.suppress.group_name": valueFrom(draft, "alert.suppress.group_name"),
+				"alert.expires": valueFrom(draft, "alert.expires"),
+				"alert.track": valueFrom(draft, "alert.track", "auto"),
+				actions: valueFrom(draft, "actions")
+			};
+		}
+		function actionFieldsFromDraft(draft) {
+			return Object.keys(draft).filter((key) => key.startsWith("action.") && !isManagedActionField(key)).sort().map((key) => ({
+				key,
+				value: text(draft[key])
+			}));
+		}
+		function detectionFromForm(fields, actionFields, reviewOnlyMetadata = {}) {
+			const detection = {};
+			for (const key of [
+				"name",
+				"description",
+				"spl",
+				...DETECTION_STANDARD_FIELDS
+			]) detection[key] = fields[key] ?? "";
+			detection.enabled = false;
+			for (const key of [
+				"severity",
+				"mitre_attack",
+				"risk_score",
+				"risk_objects",
+				"suppression_window"
+			]) if (reviewOnlyMetadata[key] !== void 0) detection[key] = reviewOnlyMetadata[key];
+			for (const field of actionFields) {
+				const key = field.key.trim();
+				if (key) detection[key] = field.value;
+			}
+			return detection;
+		}
+		function resultText(block) {
+			if (!("kind" in block)) return "";
+			return block.content.filter((item) => item.type === "text").map((item) => item.text).join("");
+		}
+		function parseDetectionEnvelope(block) {
+			const raw = resultText(block);
+			if (!raw) return null;
+			try {
+				const parsed = JSON.parse(raw);
+				if (!isRecord$1(parsed)) return null;
+				const data = isRecord$1(parsed.data) ? parsed.data : parsed;
+				if (isRecord$1(data.draft)) return data;
+				return {
+					draft: {},
+					error: parsed.error ?? data.error
+				};
+			} catch {
+				return null;
+			}
+		}
+		function detectionErrorMessage(envelope) {
+			const error = envelope?.error;
+			if (isRecord$1(error) && typeof error.message === "string" && error.message) return error.message;
+			return typeof error === "string" && error ? error : null;
+		}
+		//#endregion
+		//#region src/client/SplunkDetectionToolview.tsx
+		function isRecord(value) {
+			return typeof value === "object" && value !== null && !Array.isArray(value);
+		}
+		function isChecked(value) {
+			return [
+				"1",
+				"true",
+				"yes",
+				"on"
+			].includes(String(value ?? "").toLowerCase());
+		}
+		function valueText(value) {
+			if (typeof value === "string") return value;
+			if (typeof value === "boolean") return value ? "1" : "0";
+			if (typeof value === "number" && Number.isFinite(value)) return String(value);
+			return "";
+		}
+		function Field$1({ label, value, onChange, multiline = false, readOnly = false, className = "" }) {
+			const control = multiline ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+				className: `${SplunkDetectionToolview_module_css_default.textarea} ${className}`,
+				"aria-label": label,
+				value,
+				readOnly,
+				onChange: (event) => onChange?.(event.target.value)
+			}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+				className: `${SplunkDetectionToolview_module_css_default.input} ${className}`,
+				"aria-label": label,
+				value,
+				readOnly,
+				onChange: (event) => onChange?.(event.target.value)
+			});
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+				className: SplunkDetectionToolview_module_css_default.field,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					className: SplunkDetectionToolview_module_css_default.label,
+					children: label
+				}), control]
+			});
+		}
+		function SelectField({ label, value, options, onChange }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+				className: SplunkDetectionToolview_module_css_default.field,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					className: SplunkDetectionToolview_module_css_default.label,
+					children: label
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("select", {
+					className: SplunkDetectionToolview_module_css_default.select,
+					"aria-label": label,
+					value,
+					onChange: (event) => onChange(event.target.value),
+					children: options.map((option) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+						value: option.value,
+						children: option.label
+					}, option.value))
+				})]
+			});
+		}
+		function Toggle({ label, checked, onChange }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+				className: SplunkDetectionToolview_module_css_default.toggle,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+					type: "checkbox",
+					"aria-label": label,
+					checked,
+					onChange: (event) => onChange(event.target.checked)
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: label })]
+			});
+		}
+		function reviewText(metadata) {
+			if (!metadata) return null;
+			const parts = [
+				metadata.severity ? `Severity: ${valueText(metadata.severity)}` : "",
+				Array.isArray(metadata.mitre_attack) && metadata.mitre_attack.length ? `MITRE: ${metadata.mitre_attack.join(", ")}` : "",
+				metadata.risk_score !== void 0 ? `Risk score: ${valueText(metadata.risk_score)}` : ""
+			].filter(Boolean);
+			return parts.length ? parts.join(" · ") : null;
+		}
+		function SplunkDetectionToolview({ block, connection, toolName }) {
+			const envelope = (0, react.useMemo)(() => parseDetectionEnvelope(block), [block]);
+			const sourceKey = (0, react.useMemo)(() => JSON.stringify(envelope?.draft ?? null), [envelope]);
+			const operation = envelope?.operation ?? (toolName === "mcp__soc_agent__splunk_update_detection" ? "update" : "write");
+			const [fields, setFields] = (0, react.useState)(() => formFromDraft(envelope?.draft ?? {}));
+			const [actionFields, setActionFields] = (0, react.useState)(() => actionFieldsFromDraft(envelope?.draft ?? {}));
+			const [status, setStatus] = (0, react.useState)("editing");
+			const [error, setError] = (0, react.useState)(null);
+			const [persisted, setPersisted] = (0, react.useState)(null);
+			(0, react.useEffect)(() => {
+				if (!envelope?.draft) return;
+				setFields(formFromDraft(envelope.draft));
+				setActionFields(actionFieldsFromDraft(envelope.draft));
+				setStatus("editing");
+				setError(null);
+				setPersisted(null);
+			}, [sourceKey]);
+			if (!("kind" in block)) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: SplunkDetectionToolview_module_css_default.card,
+				"data-dshcf-preserve": "true",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: SplunkDetectionToolview_module_css_default.message,
+					children: "Preparing detection editor…"
+				})
+			});
+			const upstreamError = detectionErrorMessage(envelope);
+			if (upstreamError || block.isError || !envelope?.draft || Object.keys(envelope.draft).length === 0) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: SplunkDetectionToolview_module_css_default.card,
+				"data-dshcf-preserve": "true",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: `${SplunkDetectionToolview_module_css_default.message} ${SplunkDetectionToolview_module_css_default.error}`,
+					children: upstreamError || "Unable to prepare the Splunk detection editor."
+				})
+			});
+			const setField = (key, value) => setFields((current) => ({
+				...current,
+				[key]: value
+			}));
+			const toggleField = (key) => (checked) => setField(key, checked ? "1" : "0");
+			const resetDraft = () => {
+				setFields(formFromDraft(envelope.draft));
+				setActionFields(actionFieldsFromDraft(envelope.draft));
+				setStatus("editing");
+				setError(null);
+				setPersisted(null);
+			};
+			const save = async () => {
+				const name = fields.name.trim();
+				if (!name) {
+					setError("Detection name cannot be empty.");
+					return;
+				}
+				if (!fields.spl.trim()) {
+					setError("SPL cannot be empty.");
+					return;
+				}
+				const target = operation === "update" ? envelope.target_id || name : name;
+				const expectedFingerprint = envelope.expected_fingerprint ?? envelope.current_fingerprint;
+				if (operation === "update" && !expectedFingerprint) {
+					setError("This update draft has no concurrency fingerprint. Reopen it from Splunk.");
+					return;
+				}
+				setStatus("saving");
+				setError(null);
+				try {
+					const result = await rpc(connection, "save-detection", {
+						operation,
+						name: target,
+						detection: detectionFromForm(fields, actionFields, envelope.review_only_metadata),
+						...operation === "update" ? { expected_fingerprint: expectedFingerprint } : {}
+					});
+					if (!isRecord(result) || result.saved !== true || !isRecord(result.detection)) throw new Error("Splunk did not confirm that the detection was saved.");
+					setPersisted(result.detection);
+					setStatus("saved");
+				} catch (cause) {
+					setStatus("failed");
+					setError(cause instanceof Error ? cause.message : String(cause));
+				}
+			};
+			if (status === "discarded") return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: SplunkDetectionToolview_module_css_default.card,
+				"data-dshcf-preserve": "true",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: SplunkDetectionToolview_module_css_default.header,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: SplunkDetectionToolview_module_css_default.title,
+						children: "Detection draft discarded"
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: SplunkDetectionToolview_module_css_default.subtitle,
+						children: "No Splunk change was made."
+					})] })
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: SplunkDetectionToolview_module_css_default.actions,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						className: `${SplunkDetectionToolview_module_css_default.button} ${SplunkDetectionToolview_module_css_default.secondary}`,
+						type: "button",
+						onClick: resetDraft,
+						children: "Reopen"
+					})
+				})]
+			});
+			if (status === "saved") {
+				const savedName = valueText(persisted?.name) || fields.name;
+				const savedActions = valueText(persisted?.actions) || "No alert actions";
+				return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: SplunkDetectionToolview_module_css_default.card,
+					"data-dshcf-preserve": "true",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: SplunkDetectionToolview_module_css_default.header,
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: SplunkDetectionToolview_module_css_default.title,
+							children: "Detection saved successfully"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: SplunkDetectionToolview_module_css_default.subtitle,
+							children: savedName
+						})] })
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: SplunkDetectionToolview_module_css_default.content,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: `${SplunkDetectionToolview_module_css_default.message} ${SplunkDetectionToolview_module_css_default.success}`,
+								children: "Saved disabled for review. Enablement remains outside the MCP editor."
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: SplunkDetectionToolview_module_css_default.savedSummary,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: SplunkDetectionToolview_module_css_default.savedLabel,
+										children: "Persisted status"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Disabled" })] }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: SplunkDetectionToolview_module_css_default.savedLabel,
+										children: "Alert actions"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: savedActions })] }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: SplunkDetectionToolview_module_css_default.savedLabel,
+										children: "Description"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: valueText(persisted?.description) || "—" })] })
+								]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: SplunkDetectionToolview_module_css_default.savedSpl,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									className: SplunkDetectionToolview_module_css_default.savedLabel,
+									children: "Persisted SPL"
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("pre", { children: valueText(persisted?.spl) })]
+							})
+						]
+					})]
+				});
+			}
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+				className: SplunkDetectionToolview_module_css_default.card,
+				"data-dshcf-preserve": "true",
+				"aria-label": "Editable Splunk detection draft",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: SplunkDetectionToolview_module_css_default.header,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: SplunkDetectionToolview_module_css_default.title,
+						children: operation === "update" ? "Edit Detection" : "New Detection"
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: SplunkDetectionToolview_module_css_default.subtitle,
+						children: "Review the alert settings, then Save to write it to Splunk."
+					})] })
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: SplunkDetectionToolview_module_css_default.content,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: SplunkDetectionToolview_module_css_default.notice,
+							children: "Saved alerts remain disabled. Cancel discards this draft without changing Splunk."
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+							className: SplunkDetectionToolview_module_css_default.section,
+							open: true,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: "Settings" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: SplunkDetectionToolview_module_css_default.sectionBody,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+										label: "Name",
+										value: fields.name,
+										readOnly: operation === "update",
+										onChange: (value) => setField("name", value)
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+										label: "Description",
+										value: fields.description,
+										multiline: true,
+										onChange: (value) => setField("description", value)
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+										label: "Search / SPL",
+										value: fields.spl,
+										multiline: true,
+										className: SplunkDetectionToolview_module_css_default.spl,
+										onChange: (value) => setField("spl", value)
+									})
+								]
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+							className: SplunkDetectionToolview_module_css_default.section,
+							open: true,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: "Scheduling and dispatch" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: SplunkDetectionToolview_module_css_default.sectionBody,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Toggle, {
+										label: "Scheduled alert",
+										checked: isChecked(fields.is_scheduled),
+										onChange: toggleField("is_scheduled")
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: SplunkDetectionToolview_module_css_default.grid,
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+												label: "Cron schedule",
+												value: fields.cron_schedule,
+												onChange: (value) => setField("cron_schedule", value)
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+												label: "Earliest time",
+												value: fields["dispatch.earliest_time"],
+												onChange: (value) => setField("dispatch.earliest_time", value)
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+												label: "Latest time",
+												value: fields["dispatch.latest_time"],
+												onChange: (value) => setField("dispatch.latest_time", value)
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+												label: "Real-time maximum span",
+												value: fields["dispatch.rt_maximum_span"],
+												onChange: (value) => setField("dispatch.rt_maximum_span", value)
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: SplunkDetectionToolview_module_css_default.grid,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Toggle, {
+											label: "Real-time backfill",
+											checked: isChecked(fields["dispatch.rt_backfill"]),
+											onChange: toggleField("dispatch.rt_backfill")
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Toggle, {
+											label: "Indexed real-time",
+											checked: isChecked(fields["dispatch.indexedRealtime"]),
+											onChange: toggleField("dispatch.indexedRealtime")
+										})]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: SplunkDetectionToolview_module_css_default.grid,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+											label: "Indexed real-time offset",
+											value: fields["dispatch.indexedRealtimeOffset"],
+											onChange: (value) => setField("dispatch.indexedRealtimeOffset", value)
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+											label: "Indexed real-time minimum span",
+											value: fields["dispatch.indexedRealtimeMinSpan"],
+											onChange: (value) => setField("dispatch.indexedRealtimeMinSpan", value)
+										})]
+									})
+								]
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+							className: SplunkDetectionToolview_module_css_default.section,
+							open: true,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: "Alert trigger" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: SplunkDetectionToolview_module_css_default.sectionBody,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: SplunkDetectionToolview_module_css_default.grid,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SelectField, {
+											label: "Alert type",
+											value: fields.alert_type,
+											onChange: (value) => setField("alert_type", value),
+											options: [
+												{
+													value: "",
+													label: "Not specified"
+												},
+												{
+													value: "always",
+													label: "Always"
+												},
+												{
+													value: "number of events",
+													label: "Number of events"
+												},
+												{
+													value: "number of hosts",
+													label: "Number of hosts"
+												},
+												{
+													value: "number of sources",
+													label: "Number of sources"
+												},
+												{
+													value: "custom",
+													label: "Custom condition"
+												}
+											]
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SelectField, {
+											label: "Comparator",
+											value: fields.alert_comparator,
+											onChange: (value) => setField("alert_comparator", value),
+											options: [
+												{
+													value: "",
+													label: "Not specified"
+												},
+												{
+													value: "greater than",
+													label: "Greater than"
+												},
+												{
+													value: "less than",
+													label: "Less than"
+												},
+												{
+													value: "equal to",
+													label: "Equal to"
+												},
+												{
+													value: "not equal to",
+													label: "Not equal to"
+												},
+												{
+													value: "rises by",
+													label: "Rises by"
+												},
+												{
+													value: "drops by",
+													label: "Drops by"
+												},
+												{
+													value: "rises by perc",
+													label: "Rises by %"
+												},
+												{
+													value: "drops by perc",
+													label: "Drops by %"
+												}
+											]
+										})]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: SplunkDetectionToolview_module_css_default.grid,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+											label: "Threshold",
+											value: fields.alert_threshold,
+											onChange: (value) => setField("alert_threshold", value)
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+											label: "Expiration",
+											value: fields["alert.expires"],
+											onChange: (value) => setField("alert.expires", value)
+										})]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+										label: "Custom alert condition",
+										value: fields.alert_condition,
+										multiline: true,
+										onChange: (value) => setField("alert_condition", value)
+									})
+								]
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+							className: SplunkDetectionToolview_module_css_default.section,
+							open: true,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: "Alert behavior" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: SplunkDetectionToolview_module_css_default.sectionBody,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: SplunkDetectionToolview_module_css_default.grid,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Toggle, {
+										label: "Digest mode",
+										checked: isChecked(fields["alert.digest_mode"]),
+										onChange: toggleField("alert.digest_mode")
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Toggle, {
+										label: "Throttle / suppress",
+										checked: isChecked(fields["alert.suppress"]),
+										onChange: toggleField("alert.suppress")
+									})]
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: SplunkDetectionToolview_module_css_default.grid,
+									children: [
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+											label: "Throttle period",
+											value: fields["alert.suppress.period"],
+											onChange: (value) => setField("alert.suppress.period", value)
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+											label: "Throttle fields",
+											value: fields["alert.suppress.fields"],
+											onChange: (value) => setField("alert.suppress.fields", value)
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+											label: "Throttle group name",
+											value: fields["alert.suppress.group_name"],
+											onChange: (value) => setField("alert.suppress.group_name", value)
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SelectField, {
+											label: "Track alerts",
+											value: fields["alert.track"],
+											onChange: (value) => setField("alert.track", value),
+											options: [
+												{
+													value: "",
+													label: "Not specified"
+												},
+												{
+													value: "auto",
+													label: "Auto"
+												},
+												{
+													value: "1",
+													label: "Enabled"
+												},
+												{
+													value: "0",
+													label: "Disabled"
+												}
+											]
+										})
+									]
+								})]
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+							className: SplunkDetectionToolview_module_css_default.section,
+							open: true,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: "Actions" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: SplunkDetectionToolview_module_css_default.sectionBody,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field$1, {
+										label: "Enabled action names",
+										value: fields.actions,
+										onChange: (value) => setField("actions", value)
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: SplunkDetectionToolview_module_css_default.actionRows,
+										children: [actionFields.map((field, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+											className: SplunkDetectionToolview_module_css_default.actionRow,
+											children: [
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													className: SplunkDetectionToolview_module_css_default.input,
+													"aria-label": `Action field ${index + 1} name`,
+													value: field.key,
+													placeholder: "action.<name>.<parameter>",
+													onChange: (event) => setActionFields((current) => current.map((item, itemIndex) => itemIndex === index ? {
+														...item,
+														key: event.target.value
+													} : item))
+												}),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													className: SplunkDetectionToolview_module_css_default.input,
+													"aria-label": `Action field ${index + 1} value`,
+													value: field.value,
+													placeholder: "Value",
+													onChange: (event) => setActionFields((current) => current.map((item, itemIndex) => itemIndex === index ? {
+														...item,
+														value: event.target.value
+													} : item))
+												}),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+													className: SplunkDetectionToolview_module_css_default.button,
+													type: "button",
+													onClick: () => setActionFields((current) => current.filter((_item, itemIndex) => itemIndex !== index)),
+													children: "Remove"
+												})
+											]
+										}, `${field.key}-${index}`)), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+											className: SplunkDetectionToolview_module_css_default.button,
+											type: "button",
+											onClick: () => setActionFields((current) => [...current, {
+												key: "",
+												value: ""
+											}]),
+											children: "Add action field"
+										})]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+										className: SplunkDetectionToolview_module_css_default.hint,
+										children: "Use non-secret action.* fields only. Secret-like fields are rejected by the server."
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+										className: SplunkDetectionToolview_module_css_default.managed,
+										children: "The required company logevent action is managed automatically and is not editable here."
+									})
+								]
+							})]
+						}),
+						reviewText(envelope.review_only_metadata) && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: SplunkDetectionToolview_module_css_default.managed,
+							children: [
+								"Review-only metadata: ",
+								reviewText(envelope.review_only_metadata),
+								". It is not persisted as a Splunk alert setting."
+							]
+						}),
+						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: `${SplunkDetectionToolview_module_css_default.message} ${SplunkDetectionToolview_module_css_default.error}`,
+							role: "alert",
+							children: error
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: SplunkDetectionToolview_module_css_default.actions,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: `${SplunkDetectionToolview_module_css_default.button} ${SplunkDetectionToolview_module_css_default.secondary}`,
+								type: "button",
+								disabled: status === "saving",
+								onClick: () => setStatus("discarded"),
+								children: "Cancel"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: `${SplunkDetectionToolview_module_css_default.button} ${SplunkDetectionToolview_module_css_default.primary}`,
+								type: "button",
+								disabled: status === "saving",
+								onClick: () => {
+									save();
+								},
+								children: status === "saving" ? "Saving…" : status === "failed" ? "Retry" : "Save"
+							})]
+						})
+					]
+				})]
+			});
+		}
+		const splunkDetectionToolview = {
+			name: "splunk-detection-toolview",
+			inject: ["slots", "connection"],
+			apply(ctx) {
+				const connection = ctx.get("connection");
+				for (const key of [SPLUNK_WRITE_DETECTION_TOOL_NAME, SPLUNK_UPDATE_DETECTION_TOOL_NAME]) ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
+					name: "tool.call.toolview",
+					key,
+					inject: () => ({ connection })
+				}, SplunkDetectionToolview));
+			}
+		};
+		function installSplunkDetectionToolview(ctx) {
+			ctx.plugin(splunkDetectionToolview);
 		}
 		//#endregion
 		//#region src/attachment-constants.ts
@@ -3876,6 +4662,7 @@ window.__ModuleLoader__.load({
 				connection
 			})));
 			installEmailDraftToolview(ctx);
+			installSplunkDetectionToolview(ctx);
 			ctx.slots.inject("shell.overlay", () => ctx.slots.register({
 				name: "shell.overlay",
 				id: "soc-agent-auth-gate",
@@ -3899,6 +4686,7 @@ window.__ModuleLoader__.load({
 		//#endregion
 		exports.AdminConsole = AdminConsole;
 		exports.EmailDraftToolview = EmailDraftToolview;
+		exports.SplunkDetectionToolview = SplunkDetectionToolview;
 		exports.SplunkSettings = SplunkSettings;
 		exports.SubscriptionServerSettings = SubscriptionServerSettings;
 		exports.apply = apply;

@@ -175,23 +175,15 @@ function policyValue(ctx, sessionPolicies, sessionId) {
   const actions = session ?? savedAutoApproveActions(ctx)
   return {
     actions: ACTION_CATALOG,
-    // Detection changes always require the backend's exact proposal flow;
-    // never advertise a session-wide detection bypass to the UI.
+    // Detection drafts always require the harness approval flow; never
+    // advertise a session-wide detection bypass to the UI.
     autoApproveActions: [...actions].filter(name => !DETECTION_ACTION_TOOLS.includes(name)),
     source: session === undefined ? 'defaults' : 'session',
   }
 }
 
 function detectionApprovalReason(exec) {
-  let args = exec?.arguments
-  if (typeof args === 'string') {
-    try { args = JSON.parse(args) } catch { args = undefined }
-  }
-  const hash = args && typeof args === 'object' && typeof args.proposal_hash === 'string'
-    ? args.proposal_hash.trim()
-    : ''
-  const suffix = hash ? ` Proposal hash: ${hash}.` : ''
-  return `Splunk detection changes require approval of one immutable backend proposal; remembered tool approvals never apply.${suffix}`
+  return 'This Splunk detection draft requires approval before it can run.'
 }
 
 function policyError(error, sessionId) {
@@ -371,6 +363,31 @@ function validateAttachmentPayload(payload) {
   return { filename, content_type: contentType, data, limits: { max_bytes: maxBytes, max_chars: maxChars } }
 }
 
+function validateDetectionSavePayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('The detection save request is invalid.')
+  }
+  const operation = payload.operation
+  if (operation !== 'write' && operation !== 'update') {
+    throw new Error('The detection save operation is invalid.')
+  }
+  if (!payload.detection || typeof payload.detection !== 'object' || Array.isArray(payload.detection)) {
+    throw new Error('The detection draft is invalid.')
+  }
+  if (payload.name !== undefined && (typeof payload.name !== 'string' || payload.name.trim() === '')) {
+    throw new Error('The detection name is invalid.')
+  }
+  if (payload.expected_fingerprint !== undefined && payload.expected_fingerprint !== null && typeof payload.expected_fingerprint !== 'string') {
+    throw new Error('The detection fingerprint is invalid.')
+  }
+  return {
+    operation,
+    detection: payload.detection,
+    ...(payload.name === undefined ? {} : { name: payload.name }),
+    ...(payload.expected_fingerprint === undefined ? {} : { expected_fingerprint: payload.expected_fingerprint }),
+  }
+}
+
 const MEMORY_TOOLS = new Set([...MEMORY_READ_TOOLS, ...MEMORY_WRITE_TOOLS])
 
 function validateMemoryExecution(exec, memoryContext) {
@@ -454,6 +471,16 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
     case 'send-email': {
       const session = requireUser(ctx)
       return ok(await runAuthCommand('send-email', { ...payload, session_id: session.id }))
+    }
+    case 'save-detection': {
+      const session = requireUser(ctx)
+      let request
+      try {
+        request = validateDetectionSavePayload(payload)
+      } catch (error) {
+        return badRequest(error instanceof Error ? error.message : 'The detection save request is invalid.')
+      }
+      return ok(await runAuthCommand('save-detection', { ...request, session_id: session.id }))
     }
     case 'list-signatures': {
       const session = requireUser(ctx)
@@ -581,6 +608,14 @@ export function apply(ctx) {
           const message = error instanceof Error ? error.message.trim() : ''
           if (message.startsWith(prefix)) return internalError(message)
           return internalError(`${prefix} ${message || 'The test process did not return a diagnostic. Check the server .env configuration and server logs.'}`)
+        }
+        if (endpoint === 'save-detection') {
+          const code = typeof error?.code === 'string' ? error.code : 'internal'
+          const message = code === 'internal'
+            ? 'The detection could not be saved.'
+            : error instanceof Error ? error.message : 'The detection could not be saved.'
+          const details = error?.details && typeof error.details === 'object' ? error.details : {}
+          return { ok: false, error: { code, message, details } }
         }
         if (endpoint === 'get-action-policy' || endpoint === 'set-session-action-policy' || endpoint === 'reset-session-action-policy') {
           const sessionId = payload?.session_id ?? payload?.sessionId

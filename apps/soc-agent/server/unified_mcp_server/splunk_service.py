@@ -12,7 +12,6 @@ from typing import Any
 from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.splunk.core.client import SplunkClient
 from unified_mcp_server.splunk.core.service import SplunkCore
-from unified_mcp_server.splunk.detection.approval import DetectionApprovalStore
 from unified_mcp_server.splunk.detection.service import SplunkDetectionService
 from unified_mcp_server.splunk.search.executor import SearchExecutor
 from unified_mcp_server.splunk.search.planner import SearchIntent, SearchPlanner
@@ -28,7 +27,6 @@ class SplunkService:
         client_factory: Callable[[dict[str, object]], SplunkClient] = SplunkClient,
         *,
         core: SplunkCore | None = None,
-        approval_store: DetectionApprovalStore | None = None,
     ) -> None:
         self.core = core or SplunkCore(settings, client_factory)
         executor = SearchExecutor(self.core)
@@ -39,7 +37,7 @@ class SplunkService:
             planner,
             SearchSchemaRegistry.default(),
         )
-        self.detection_service = SplunkDetectionService(self.core, executor, approval_store)
+        self.detection_service = SplunkDetectionService(self.core, executor)
         self.security_queue_service = SplunkSecurityQueueService(self.core, executor)
 
     @property
@@ -169,33 +167,21 @@ class SplunkService:
     async def update_detection(self, name: str, payload: dict[str, Any], expected_fingerprint: str, *, actor_id: str | None = None) -> dict[str, Any]:
         return await self.detection_service.update_detection(name, payload, expected_fingerprint, actor_id=actor_id)
 
-    async def approve_detection_change(
+    async def save_detection(
         self,
-        proposal_id: str,
-        proposal_hash: str = "",
+        operation: str,
+        payload: dict[str, Any],
         *,
+        name: str | None = None,
+        expected_fingerprint: str | None = None,
         actor_id: str | None = None,
-        approved_by: str | None = None,
     ) -> dict[str, Any]:
-        return await self.detection_service.approve_detection_change(
-            proposal_id, proposal_hash, actor_id=actor_id, approved_by=approved_by
-        )
-
-    async def apply_approved_detection_change(
-        self,
-        approval_id: str,
-        *,
-        actor_id: str | None = None,
-        operation: str | None = None,
-        target_id: str | None = None,
-        proposal_hash: str | None = None,
-    ) -> dict[str, Any]:
-        return await self.detection_service.apply_approved_detection_change(
-            approval_id,
+        return await self.detection_service.save_detection(
+            operation,
+            payload,
+            name=name,
+            expected_fingerprint=expected_fingerprint,
             actor_id=actor_id,
-            operation=operation,
-            target_id=target_id,
-            proposal_hash=proposal_hash,
         )
 
     async def close(self) -> None:

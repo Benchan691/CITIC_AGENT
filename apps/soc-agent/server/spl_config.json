@@ -13,7 +13,6 @@
   "allow_detection_write": false,
   "detection_app": "search",
   "detection_owner": "nobody",
-  "detection_approval_ttl_seconds": 600,
   "search_planner_max_refinements": 2,
   "query_policy": {
     "short_search_seconds": 86400,

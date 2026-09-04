@@ -1,4 +1,4 @@
-"""Private host-side commands for Zimbra-backed application sessions."""
+"""Private host-side commands for authenticated application sessions."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from .auth import ZimbraIdentity, public_session
 from .errors import ServiceError
 from .zimbra.mail.service import ZimbraMailService
 from .postgres_store import PostgresStore, normalize_zimbra_email
+from .splunk_service import SplunkService
 from .zimbra import zimbra_login
 
 
@@ -84,6 +85,38 @@ async def list_signatures(payload: dict[str, Any]) -> dict[str, Any]:
     return await _service(payload).list_signatures()
 
 
+def _splunk_service(payload: dict[str, Any]) -> tuple[SplunkService, str]:
+    store = _store()
+    session = store.get_app_session(str(payload.get("session_id", "")))
+    if session is None:
+        raise ValueError("authentication failed")
+    return SplunkService(ServerSettings.from_env().splunk), session.user_id
+
+
+async def save_detection(payload: dict[str, Any]) -> dict[str, Any]:
+    operation = payload.get("operation")
+    detection = payload.get("detection")
+    if operation not in {"write", "update"} or not isinstance(detection, dict):
+        raise ValueError("invalid detection save request")
+    name = payload.get("name")
+    if name is not None and not isinstance(name, str):
+        raise ValueError("invalid detection save request")
+    expected_fingerprint = payload.get("expected_fingerprint")
+    if expected_fingerprint is not None and not isinstance(expected_fingerprint, str):
+        raise ValueError("invalid detection save request")
+    service, actor_id = _splunk_service(payload)
+    try:
+        return await service.save_detection(
+            operation,
+            detection,
+            name=name,
+            expected_fingerprint=expected_fingerprint,
+            actor_id=actor_id,
+        )
+    finally:
+        await service.close()
+
+
 def main() -> None:
     load_server_env()
     command = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -93,6 +126,7 @@ def main() -> None:
         result = login(payload) if command == "login" else logout(payload) if command == "logout" else None
         if command == "send-email": result = asyncio.run(send_email(payload))
         if command == "list-signatures": result = asyncio.run(list_signatures(payload))
+        if command == "save-detection": result = asyncio.run(save_detection(payload))
         if result is None:
             raise ValueError("unknown authentication command")
         print(json.dumps(result, separators=(",", ":")))
@@ -102,9 +136,16 @@ def main() -> None:
                 _store().delete_app_session(str(payload.get("session_id", "")))
             except Exception:
                 pass
-        # Stable, credential-free stderr is consumed by the host and is safe to display.
-        message = "authentication failed" if command == "login" else str(exc)
-        print(message, file=sys.stderr)
+        # Stable, credential-free JSON stderr is consumed by the host. Only
+        # ServiceError details are forwarded because they are already bounded
+        # for the application boundary.
+        if command == "login":
+            failure = {"code": "authentication_failed", "message": "authentication failed", "details": {}}
+        elif isinstance(exc, ServiceError):
+            failure = {"code": exc.code, "message": exc.message, "details": exc.details}
+        else:
+            failure = {"code": "operation_failed", "message": "The requested operation failed.", "details": {}}
+        print(json.dumps(failure, separators=(",", ":")), file=sys.stderr)
         raise SystemExit(1) from None
 
 

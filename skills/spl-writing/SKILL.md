@@ -44,8 +44,10 @@ event text is generated from the final table with `$result.<field>$` values.
 4. Backtest only the returned `backtest_spl`; it is derived from the same
    logic and contains no `outputcsv`.
 5. Use only the returned production SPL in `splunk_write_detection` or
-   `splunk_update_detection`. Those tools create the existing exact proposal
-   and all applied detections remain disabled.
+   `splunk_update_detection`. Those tools return an editable disabled draft;
+   the harness approval gate and the authenticated editor's Save action are
+   required before a detection is written.
 
 The compiler and MCP do not execute `outputcsv`, export a file, or send email.
-`outputcsv` is only part of the disabled, approval-gated production definition.
+`outputcsv` is only part of the disabled, harness-approved production
+definition.

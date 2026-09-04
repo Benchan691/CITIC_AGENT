@@ -48,10 +48,12 @@ replacement for `AGENTS.md`.
 - Treat Splunk results as evidence; distinguish observations, inferences,
   unknowns, and recommendations.
 - Detection changes use the approved flow: validate, write or update a
-  disabled proposal, review the exact proposal, approve it, and apply it.
+  disabled browser-editable draft, review it in the inline editor, and Save
+  it explicitly.
 - Use `splunk_write_detection` for a create-only rule and
   `splunk_update_detection` with the fresh fingerprint for an existing rule.
-  Both operations always persist the detection disabled after approval.
+  Both operations return drafts; only the authenticated editor Save writes,
+  and it always persists the detection disabled.
 - MCP never enables a detection and has no explicit disable operation.
   Authorized staff must use a separately controlled Splunk process outside MCP
   when activation or rollback is required.

@@ -32,7 +32,6 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.splunk.configured is False
     assert settings.zimbra.configured is False
     assert settings.splunk.detection_write_enabled is False
-    assert settings.splunk.detection_approval_ttl_seconds == 600
     assert settings.splunk.query_policy.normal_search_seconds == 604_800
     assert settings.splunk.query_policy.wildcard_index_decision == "require_approval"
     assert settings.splunk.search_resource.global_concurrency == 8
@@ -130,13 +129,6 @@ def test_from_store_does_not_use_persisted_configuration():
     )
 
     assert settings.zimbra.host == "env.example.com"
-
-
-def test_detection_approval_ttl_is_short_and_configurable():
-    settings = ServerSettings.from_env({"SPLUNK_DETECTION_APPROVAL_TTL_SECONDS": "300"})
-    assert settings.splunk.detection_approval_ttl_seconds == 300
-    with pytest.raises(ValueError):
-        ServerSettings.from_env({"SPLUNK_DETECTION_APPROVAL_TTL_SECONDS": "30"})
 
 
 def test_global_zimbra_environment_settings_load_as_connection_defaults():

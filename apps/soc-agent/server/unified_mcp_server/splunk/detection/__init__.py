@@ -1,6 +1,5 @@
 """Splunk Detection capability."""
 
-from .approval import DetectionApproval, DetectionApprovalStore, DetectionChangeProposal
 from .citic_format import (
     REQUIRED_CITIC_FIELDS,
     build_log_event_template,
@@ -12,9 +11,6 @@ from .model import DetectionDraft, validate_detection
 from .service import SplunkDetectionService
 
 __all__ = [
-    "DetectionApproval",
-    "DetectionApprovalStore",
-    "DetectionChangeProposal",
     "DetectionDraft",
     "REQUIRED_CITIC_FIELDS",
     "SplunkDetectionService",

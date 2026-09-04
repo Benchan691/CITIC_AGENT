@@ -39,8 +39,10 @@ already running, restart it manually after the update.
 
 ## Configure Splunk alerts
 
-Use the Splunk detection MCP workflow to validate, propose, approve, and apply
-saved-search alert settings. For example, a scheduled alert can include:
+Use the Splunk detection MCP workflow to validate and stage saved-search alert
+settings. The harness approves the draft tool call, then the inline editor's
+Save action performs the authenticated write. For example, a scheduled alert
+can include:
 
 For production detections, write only the detection logic first. Run
 `splunk_compile_citic_detection` with the four-digit rule number, explicit
@@ -77,13 +79,14 @@ Real-time alerts use `is_scheduled: true` with `rt...` dispatch time values;
 settings remain unchanged on updates, while empty or `null` values clear
 non-secret settings. `splunk_write_detection` is create-only, while
 `splunk_update_detection` requires the current fingerprint and applies patch
-semantics. Both tools create exact proposals, and every applied write or
-update is forced disabled. Credential-like action settings are preserved by
-Splunk and are not returned or accepted for replacement.
+semantics. Both tools return browser-editable drafts and never write by
+themselves. Credential-like action settings are preserved by Splunk and are
+not returned or accepted for replacement.
 
-Approve the exact proposal with `splunk_approve_detection_change`, then apply
-it with `splunk_apply_approved_detection_change`. MCP does not expose an
-enable/disable operation and never enables a detection. Every applied
+The harness asks for approval before either detection draft tool runs. After
+approval, review the inline editor and use its explicit Save action to write
+the detection. Cancel makes no Splunk change. MCP does not expose an
+enable/disable operation and never enables a detection. Every saved
 write/update persists the detection disabled; authorized staff must use a
 separately controlled Splunk process outside MCP when activation or rollback
 is required.
@@ -99,9 +102,9 @@ and trigger actions. The team defaults are Add to Triggered Alerts (`alert.track
 `$name$`, `ticket_details`, empty, and `ticket_summary`; event text is generated
 from the final table. Client-email rules may append the documented `outputcsv`
 filename subsearch. MCP keeps `outputcsv` blocked for ordinary searches and
-backtests; it is accepted only inside an exact disabled detection proposal and
-is never executed by MCP. No MCP path exports the CSV or sends email merely by
-creating, approving, or applying a disabled definition.
+backtests; it is accepted only inside a disabled detection draft and is never
+executed by MCP. No MCP path exports the CSV or sends email merely by
+preparing or saving a disabled definition.
 
 ## Splunk background context
 

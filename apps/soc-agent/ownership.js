@@ -502,6 +502,29 @@ export class SocStateStore {
   }
 }
 
+function parseAuthFailure(stderr) {
+  const lines = String(stderr || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+  for (const line of lines.reverse()) {
+    try {
+      const value = JSON.parse(line)
+      if (value && typeof value === 'object' && typeof value.code === 'string' && typeof value.message === 'string') return value
+    } catch { /* ignore launcher noise */ }
+  }
+  return undefined
+}
+
+function authCommandError(command, stderr = '') {
+  if (command === 'login') return new Error('authentication_failed')
+  const failure = parseAuthFailure(stderr)
+  if (failure) {
+    const error = new Error(failure.message)
+    error.code = failure.code
+    error.details = failure.details && typeof failure.details === 'object' ? failure.details : {}
+    return error
+  }
+  return new Error(command === 'logout' ? 'logout_failed' : 'operation_failed')
+}
+
 export async function runAuthCommand(command, payload) {
   const { spawn } = await import('node:child_process')
   const bundleRoot = dirname(fileURLToPath(import.meta.url))
@@ -514,23 +537,25 @@ export async function runAuthCommand(command, payload) {
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     let stdout = ''
+    let stderr = ''
     let settled = false
     const fail = () => {
       if (settled) return
       settled = true
       child.kill('SIGTERM')
-      rejectPromise(new Error('authentication_failed'))
+      rejectPromise(authCommandError(command))
     }
     child.stdout.on('data', chunk => { stdout += String(chunk) })
+    child.stderr.on('data', chunk => { stderr += String(chunk) })
     child.on('error', fail)
     child.on('close', code => {
       if (settled) return
       settled = true
       if (code !== 0) {
-        rejectPromise(new Error(command === 'login' ? 'authentication_failed' : 'logout_failed'))
+        rejectPromise(authCommandError(command, stderr))
         return
       }
-      try { resolvePromise(JSON.parse(stdout || '{}')) } catch { rejectPromise(new Error('authentication_failed')) }
+      try { resolvePromise(JSON.parse(stdout || '{}')) } catch { rejectPromise(authCommandError(command)) }
     })
     child.stdin.end(JSON.stringify(payload ?? {}))
   })

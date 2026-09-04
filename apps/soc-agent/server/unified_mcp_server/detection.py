@@ -351,7 +351,7 @@ def validate_detection(draft: DetectionDraft, *, query_validation: dict[str, Any
         errors.append("SPL policy could not establish safe execution")
     if "outputcsv" in query_validation.get("allowed_commands", []):
         warnings.append(
-            "outputcsv is permitted only in this exact disabled detection proposal "
+            "outputcsv is permitted only in this exact disabled detection draft "
             "and is not executed by MCP"
         )
     if "index=" not in draft.spl.lower():

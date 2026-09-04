@@ -154,7 +154,6 @@ class SplunkSettings:
     detection_owner: str = "nobody"
     url: str = ""
     query_policy: QueryPolicyConfig = field(default_factory=QueryPolicyConfig)
-    detection_approval_ttl_seconds: int = 600
     search_resource: SearchResourceConfig = field(default_factory=SearchResourceConfig)
     security_queue: SecurityQueueConfig = field(default_factory=SecurityQueueConfig)
     search_planner_max_refinements: int = 2
@@ -433,9 +432,6 @@ class ServerSettings:
             detection_owner=_value(env, "SPLUNK_DETECTION_OWNER", "nobody"),
             url=splunk_url,
             query_policy=query_policy,
-            detection_approval_ttl_seconds=_integer(
-                env, "SPLUNK_DETECTION_APPROVAL_TTL_SECONDS", 600, 60, 900
-            ),
             search_resource=search_resource,
             security_queue=security_queue,
             search_planner_max_refinements=search_planner_max_refinements,
@@ -524,7 +520,6 @@ class ServerSettings:
                 "sanitize_output": self.splunk.sanitize_output,
                 "detection_write_enabled": self.splunk.detection_write_enabled,
                 "detection_app": self.splunk.detection_app,
-                "detection_approval_ttl_seconds": self.splunk.detection_approval_ttl_seconds,
                 "query_policy": self.splunk.query_policy.to_dict(),
                 "search_resource": self.splunk.search_resource.to_dict(),
                 "security_queue": self.splunk.security_queue.to_dict(),

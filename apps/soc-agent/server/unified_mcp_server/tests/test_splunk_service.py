@@ -718,16 +718,15 @@ def test_detection_validation_rejects_non_scalar_action_parameters():
 @pytest.mark.asyncio
 async def test_backtest_and_writes_are_guarded_and_structured():
     service = SplunkService(settings(), FakeClient)
-    with pytest.raises(ServiceError) as error:
-        await service.write_detection({"name": "x", "spl": "index=main error"})
-    assert error.value.code == "operation_disabled"
+    draft_without_write_gate = await service.write_detection({"name": "x", "spl": citic_spl()})
+    assert draft_without_write_gate["status"] == "draft"
 
     writable = SplunkService(
         settings(detection_write_enabled=True), FakeClient
     )
     payload = {"name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *"}
     draft = await writable.write_detection(payload)
-    assert draft["status"] == "approval_required"
+    assert draft["status"] == "draft"
     assert draft["enabled"] is False
     assert "splunk" not in draft
     assert draft["requires_action_configuration"] is False
@@ -743,19 +742,21 @@ async def test_backtest_and_writes_are_guarded_and_structured():
     assert backtest["fields"] == ["card"]
     assert backtest["sample_events"] == [{"card": "****-****-****-1111"}]
     current = await writable.get_detection("x")
-    update_proposal = await writable.update_detection(
+    update_draft = await writable.update_detection(
         "x", {"description": "updated"}, current["fingerprint"], actor_id="test-analyst"
     )
-    approval = await writable.approve_detection_change(
-        update_proposal["proposal_id"], update_proposal["proposal_hash"], actor_id="test-analyst"
-    )
-    disabled = await writable.apply_approved_detection_change(
-        approval["approval_id"], actor_id="test-analyst"
+    disabled = await writable.save_detection(
+        "update",
+        update_draft["draft"],
+        name="x",
+        expected_fingerprint=update_draft["expected_fingerprint"],
+        actor_id="test-analyst",
     )
     assert disabled["enabled"] is False
     assert "splunk" not in disabled
     assert writable.core._client.updated_fields[0] == "x"
     assert writable.core._client.updated_fields[1]["disabled"] == "1"
+    assert "alert.track" not in writable.core._client.updated_fields[1]
 
 
 @pytest.mark.asyncio
@@ -766,17 +767,18 @@ async def test_detection_update_adds_company_log_event_and_forces_disabled_state
     draft = await service.write_detection({
         "name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *",
     })
-    assert draft["status"] == "approval_required"
+    assert draft["status"] == "draft"
     current = await service.get_detection("x")
-    update_proposal = await service.update_detection(
+    update_draft = await service.update_detection(
         "x", {"description": "reviewed"}, current["fingerprint"], actor_id="test-analyst"
     )
-    assert update_proposal["proposal"]["after"]["disabled"] is True
-    update_approval = await service.approve_detection_change(
-        update_proposal["proposal_id"], update_proposal["proposal_hash"], actor_id="test-analyst"
-    )
-    updated = await service.apply_approved_detection_change(
-        update_approval["approval_id"], actor_id="test-analyst"
+    assert update_draft["draft"]["disabled"] is True
+    updated = await service.save_detection(
+        "update",
+        update_draft["draft"],
+        name="x",
+        expected_fingerprint=update_draft["expected_fingerprint"],
+        actor_id="test-analyst",
     )
     assert updated["actions_preserved"] is False
     assert updated["actions_updated"] is True

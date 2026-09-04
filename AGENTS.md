@@ -93,7 +93,7 @@ Read-only investigation is the default.
 
 Use only approved Splunk and SOC tools. Do not bypass MCP restrictions, backend controls, or disabled capabilities.
 
-Changes such as detection creation, modification, enabling, disabling, or other operational writes require the configured approval flow.
+Changes such as detection creation, modification, enabling, disabling, or other operational writes require the configured harness approval flow and, for detection drafts, an explicit authenticated editor Save.
 
 Prefer reversible actions when possible and verify the result afterward.
 

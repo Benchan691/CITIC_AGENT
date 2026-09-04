@@ -17,8 +17,9 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 - Generic saved-search writes do not persist severity, ATT&CK, risk, suppression, or provider-specific action settings.
 - If a rule is later activated outside MCP, require a persisted schedule and at least one persisted Splunk alert action.
 - Do not invent MITRE mappings, severity, risk objects, or scores.
-- All writes follow the backend exact-proposal approval flow; a remembered
-  approval for a detection tool name is never sufficient.
+- Detection draft tools always require harness approval, and a remembered
+  approval for a detection tool name is never sufficient. A separate explicit
+  Save in the authenticated editor is the only detection write action.
 
 ## Tools
 
@@ -28,13 +29,12 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 - Compile production CITIC SPL with `splunk_compile_citic_detection`; follow
   the `spl-writing` skill for the required wrapper and field order.
 - Test with `splunk_backtest_detection` using a bounded period, result count, and selected fields.
-- Stage a disabled proposal with `splunk_write_detection` for a new rule or
+- Stage a disabled draft with `splunk_write_detection` for a new rule or
   `splunk_update_detection(..., expected_fingerprint=...)` for an existing
-  rule; these return an immutable proposal, hash, and structured diff and do
-  not write yet.
-- Review the exact `proposal_hash`, target, fingerprint, and before/after
-  values, then approve it with `splunk_approve_detection_change` and apply only
-  the returned approval with `splunk_apply_approved_detection_change`.
+  rule; these return the complete editor state and do not write yet.
+- Let the harness approval complete, review the inline editor, and use its
+  explicit Save action. Cancel leaves Splunk unchanged. Save always persists
+  the detection disabled.
 - If activation or rollback is required, use the separately controlled human
   Splunk process outside MCP.
 
@@ -114,10 +114,10 @@ and case prefix:
 ]
 ```
 
-`outputcsv` is permitted only in the exact disabled, approval-gated detection
-definition. It runs later in Splunk's alert runtime, is never executed or
-exported by MCP, must not be used for investigation/backtesting, writes on the
-local search head, and is unavailable on Splunk Cloud. Use the supported email
+`outputcsv` is permitted only in the exact disabled, harness-approved detection
+draft. It runs later in Splunk's alert runtime, is never executed or exported
+by MCP, must not be used for investigation/backtesting, writes on the local
+search head, and is unavailable on Splunk Cloud. Use the supported email
 CSV attachment action on Splunk Cloud. Recheck `Ruleset.csv` immediately
 before the change; its row and the detection change remain separately
 controlled operations.
@@ -133,8 +133,8 @@ controlled operations.
 7. Backtest on a representative bounded period. Examine the returned sample count and budget, repeated entities, field consistency, noise, suppression need, and performance; the tool does not return a total match count.
 8. Iterate design → compile → validate → backtest until the result is defensible or limitations are explicit.
 9. Present the exact proposed change and evidence before writing.
-10. Create or update a disabled proposal and review its complete diff and hash.
-11. Approve and apply that exact proposal. Verify the persisted detection is disabled; treat returned review-only metadata as unpersisted.
+10. Create or update a disabled draft and review its complete editor state.
+11. Let the harness approve the draft tool call, then Save the inline editor. Verify the persisted detection is disabled; treat returned review-only metadata as unpersisted.
 12. If activation or rollback is required, hand off to the separately controlled human Splunk process outside MCP and verify the resulting state with `splunk_get_detection`.
 13. If behavior is unsafe or noisy, stop further MCP changes and document the outside-MCP rollback evidence.
 

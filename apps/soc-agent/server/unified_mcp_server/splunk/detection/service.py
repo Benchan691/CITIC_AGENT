@@ -1,4 +1,4 @@
-"""Splunk detection review, backtesting, and approved action operations."""
+"""Splunk detection review, backtesting, and authenticated editor saves."""
 
 from __future__ import annotations
 
@@ -9,13 +9,6 @@ from typing import Any
 
 from ..core.service import SplunkCore
 from ..search.executor import SearchExecutor
-from .approval import (
-    DetectionApprovalStore,
-    DetectionChangeProposal,
-    build_security_payload,
-    canonical_json,
-    compute_proposal_hash,
-)
 from .citic_format import (
     build_log_event_template,
     extract_final_table_fields,
@@ -32,25 +25,35 @@ from unified_mcp_server.errors import ServiceError
 
 
 class SplunkDetectionService:
-    """Keep detection writes behind exact, server-side proposals."""
+    """Keep detection writes behind an explicit, authenticated editor save."""
+
+    _EDITOR_DEFAULTS = {
+        "dispatch.rt_backfill": "0",
+        "dispatch.indexedRealtime": "0",
+        "dispatch.indexedRealtimeOffset": "",
+        "dispatch.indexedRealtimeMinSpan": "",
+        "dispatch.rt_maximum_span": "",
+        "alert_type": "",
+        "alert_comparator": "",
+        "alert_threshold": "",
+        "alert_condition": "",
+        "alert.digest_mode": "0",
+        "alert.suppress": "0",
+        "alert.suppress.period": "",
+        "alert.suppress.fields": "",
+        "alert.suppress.group_name": "",
+        "alert.expires": "",
+        "alert.track": "auto",
+    }
 
     def __init__(
         self,
         core: SplunkCore,
         executor: SearchExecutor | None = None,
-        approval_store: DetectionApprovalStore | None = None,
     ) -> None:
         self.core = core
         self.executor = executor if executor is not None else SearchExecutor(core)
-        self.approval_store = (
-            approval_store
-            if approval_store is not None
-            else DetectionApprovalStore(getattr(core.settings, "detection_approval_ttl_seconds", 600))
-        )
-        # The store's atomic claim is authoritative. This additional
-        # process-local lock keeps the final read and write together for
-        # concurrent service calls targeting the same process.
-        self._apply_lock = asyncio.Lock()
+        self._save_lock = asyncio.Lock()
 
     @staticmethod
     def _flag(value: Any) -> bool:
@@ -101,17 +104,6 @@ class SplunkDetectionService:
         }
 
     @staticmethod
-    def _review_only_metadata_from_state(state: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "severity": state.get("severity", "medium"),
-            "mitre_attack": list(state.get("mitre_attack", [])),
-            "risk_score": state.get("risk_score", 0),
-            "risk_objects": list(state.get("risk_objects", [])),
-            "suppression_window": state.get("suppression_window", ""),
-            "persisted": False,
-        }
-
-    @staticmethod
     def _actor_id(actor_id: str | None, *, required: bool = False) -> str:
         if isinstance(actor_id, str) and actor_id.strip():
             return actor_id.strip()
@@ -131,7 +123,7 @@ class SplunkDetectionService:
         disabled: bool | None = None,
     ) -> dict[str, Any]:
         if not isinstance(source, dict):
-            raise ServiceError("proposal_payload_mismatch", "The detection state is malformed.")
+            raise ServiceError("detection_malformed", "The detection state is malformed.")
         payload = dict(source)
         payload["spl"] = source.get("spl", source.get("search", ""))
         payload.setdefault("app", app)
@@ -140,7 +132,7 @@ class SplunkDetectionService:
         try:
             draft = DetectionDraft.from_payload(payload)
         except ValueError as exc:
-            raise ServiceError("proposal_payload_mismatch", "The detection state is malformed.") from exc
+            raise ServiceError("detection_malformed", "The detection state is malformed.") from exc
         actual_disabled = (
             disabled
             if disabled is not None
@@ -163,6 +155,31 @@ class SplunkDetectionService:
             }
         )
         return state
+
+    def _scoped_state(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Keep browser-provided metadata from redirecting the write target."""
+        scoped = dict(state)
+        scoped.update(
+            {
+                "app": self.core.settings.detection_app,
+                "owner": self.core.settings.detection_owner,
+                "disabled": True,
+                "enabled": False,
+            }
+        )
+        return scoped
+
+    @classmethod
+    def _complete_editor_state(cls, state: dict[str, Any]) -> dict[str, Any]:
+        """Materialize every supported non-secret setting for the browser editor."""
+        complete = dict(state)
+        complete.setdefault("is_scheduled", False)
+        complete.setdefault("cron_schedule", "")
+        complete.setdefault("dispatch.earliest_time", complete.get("earliest_time", "-10m"))
+        complete.setdefault("dispatch.latest_time", complete.get("latest_time", "now"))
+        complete.setdefault("actions", "")
+        complete.update({key: complete.get(key, default) for key, default in cls._EDITOR_DEFAULTS.items()})
+        return complete
 
     @staticmethod
     def _merge_detection_payload(
@@ -224,19 +241,39 @@ class SplunkDetectionService:
         return normalized
 
     @staticmethod
-    def _proposal_response(proposal: DetectionChangeProposal, **extra: Any) -> dict[str, Any]:
-        public = proposal.public()
+    def _reject_enablement(payload: dict[str, Any]) -> None:
+        if "enabled" in payload and SplunkDetectionService._flag(payload.get("enabled")):
+            raise ServiceError(
+                "invalid_input",
+                "Detection saves cannot enable a detection; leave it disabled for review.",
+            )
+        if (
+            "disabled" in payload
+            and payload.get("disabled") is not None
+            and not SplunkDetectionService._flag(payload.get("disabled"))
+        ):
+            raise ServiceError(
+                "invalid_input",
+                "Detection saves cannot enable a detection; leave it disabled for review.",
+            )
+
+    @staticmethod
+    def _draft_response(
+        operation: str,
+        state: dict[str, Any],
+        *,
+        expected_fingerprint: str | None = None,
+        **extra: Any,
+    ) -> dict[str, Any]:
         return {
-            "status": "approval_required",
-            "approval_required": True,
-            "proposal": public,
-            "proposal_id": proposal.proposal_id,
-            "proposal_hash": proposal.proposal_hash,
-            "operation": proposal.operation,
-            "target_id": proposal.target_id,
-            "current_fingerprint": proposal.current_fingerprint,
-            "expires_at": public["expires_at"],
-            "diff": public["diff"],
+            "status": "draft",
+            "draft": state,
+            "operation": operation,
+            "target_id": state["name"],
+            "expected_fingerprint": expected_fingerprint,
+            "current_fingerprint": expected_fingerprint,
+            "enabled": False,
+            "save_requires_explicit_action": True,
             **extra,
         }
 
@@ -266,14 +303,14 @@ class SplunkDetectionService:
             "disabled": self._flag(content.get("disabled", False)),
             "actions": content.get("actions", ""),
             # The request is scoped to these configured values; never let a
-            # response ACL redirect a later approved write elsewhere.
+            # response ACL redirect a later authenticated editor save elsewhere.
             "app": self.core.settings.detection_app,
             "owner": self.core.settings.detection_owner,
             "sharing": acl.get("sharing", ""),
         }
         detection.update(alert_fields)
         # Keep the legacy aliases in reads while exposing the raw REST names
-        # beside them. The raw values are the canonical source for proposals.
+        # beside them. The raw values are the canonical source for editor drafts.
         detection["earliest_time"] = alert_fields.get(
             "dispatch.earliest_time", detection["earliest_time"]
         )
@@ -446,13 +483,19 @@ class SplunkDetectionService:
                 "dispatch.latest_time", state.get("latest_time", "now")
             ),
             "disabled": "1",
-            "app": state["app"],
-            "owner": state["owner"],
+            "app": self.core.settings.detection_app,
+            "owner": self.core.settings.detection_owner,
         }
         try:
-            fields.update(canonical_alert_fields(state))
+            alert_fields = canonical_alert_fields(state)
+            # The editor uses "auto" as a display-only sentinel when Splunk
+            # has no explicit tracking setting; do not send that sentinel to
+            # the REST API as a saved-search value.
+            if alert_fields.get("alert.track") == "auto":
+                alert_fields.pop("alert.track")
+            fields.update(alert_fields)
         except ValueError as exc:
-            raise ServiceError("proposal_payload_mismatch", "The detection state contains an invalid alert field.") from exc
+            raise ServiceError("invalid_input", "The detection state contains an invalid alert field.") from exc
         # These fields are always explicit so update writes cannot accidentally
         # leave a stale timing or enabled value in Splunk.
         fields.update(
@@ -480,56 +523,37 @@ class SplunkDetectionService:
                 "Detection writes are disabled. Set SPLUNK_ALLOW_DETECTION_WRITE=true after review.",
             )
 
-    async def write_detection(
-        self,
-        payload: dict[str, Any],
-        *,
-        actor_id: str | None = None,
-    ) -> dict[str, Any]:
-        self._require_write()
+    def _prepare_write(self, payload: dict[str, Any]) -> tuple[dict[str, Any], DetectionDraft, dict[str, Any]]:
         if not isinstance(payload, dict):
             raise ServiceError("invalid_input", "detection must be a JSON object")
         self._reject_dual_spl_payload(payload)
+        self._reject_enablement(payload)
         payload = self._with_company_log_event(payload, default_tracking=True)
         validation = self.validate_detection({**payload, "enabled": False})
         if not validation["valid"]:
             raise ServiceError("detection_invalid", "Detection validation failed.", details=validation)
         draft = DetectionDraft.from_payload({**payload, "enabled": False})
-        state = self._state_from_source(
-            draft.as_dict(),
-            app=self.core.settings.detection_app,
-            owner=self.core.settings.detection_owner,
-            disabled=True,
-        )
-        proposal = self.approval_store.create_proposal(
-            operation="write",
-            target_id=draft.name,
-            current_fingerprint=None,
-            before=None,
-            after=state,
-            created_by=self._actor_id(actor_id),
-        )
-        return self._proposal_response(
-            proposal,
-            enabled=False,
-            review_only_metadata=self._review_only_metadata(draft),
-            requires_action_configuration=not bool(str(state.get("actions", "")).strip()),
-            validation_warnings=validation["warnings"],
-        )
+        state = self._complete_editor_state(self._scoped_state(
+            self._state_from_source(
+                draft.as_dict(),
+                app=self.core.settings.detection_app,
+                owner=self.core.settings.detection_owner,
+                disabled=True,
+            )
+        ))
+        return state, draft, validation
 
-    async def update_detection(
+    async def _prepare_update(
         self,
         name: str,
         payload: dict[str, Any],
         expected_fingerprint: str,
-        *,
-        actor_id: str | None = None,
-    ) -> dict[str, Any]:
-        self._require_write()
+    ) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any], DetectionDraft, dict[str, Any], bool]:
         name = self._normalize_name(name)
         if not isinstance(payload, dict):
             raise ServiceError("invalid_input", "detection must be a JSON object")
         self._reject_dual_spl_payload(payload)
+        self._reject_enablement(payload)
         current = await self.get_detection(name)
         self._require_expected(expected_fingerprint, current)
         merged = self._merge_detection_payload(current, payload, name=name)
@@ -543,198 +567,122 @@ class SplunkDetectionService:
             app=self.core.settings.detection_app,
             owner=self.core.settings.detection_owner,
         )
-        after = self._state_from_source(
-            {
-                **merged,
-                **draft.as_dict(),
-            },
-            app=self.core.settings.detection_app,
-            owner=self.core.settings.detection_owner,
-            disabled=True,
+        after = self._complete_editor_state(self._scoped_state(
+            self._state_from_source(
+                {
+                    **merged,
+                    **draft.as_dict(),
+                },
+                app=self.core.settings.detection_app,
+                owner=self.core.settings.detection_owner,
+                disabled=True,
+            )
+        ))
+        return name, current, before, after, draft, validation, self._actions_changed(before, after)
+
+    async def write_detection(
+        self,
+        payload: dict[str, Any],
+        *,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        state, draft, validation = self._prepare_write(payload)
+        return self._draft_response(
+            "write",
+            state,
+            expected_fingerprint=None,
+            review_only_metadata=self._review_only_metadata(draft),
+            requires_action_configuration=not bool(str(state.get("actions", "")).strip()),
+            validation_warnings=validation["warnings"],
         )
-        actions_changed = self._actions_changed(before, after)
-        proposal = self.approval_store.create_proposal(
-            operation="update",
-            target_id=name,
-            current_fingerprint=current["fingerprint"],
-            before=before,
-            after=after,
-            created_by=self._actor_id(actor_id),
+
+    async def update_detection(
+        self,
+        name: str,
+        payload: dict[str, Any],
+        expected_fingerprint: str,
+        *,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        name, _current, _before, after, draft, validation, actions_changed = await self._prepare_update(
+            name, payload, expected_fingerprint
         )
-        return self._proposal_response(
-            proposal,
-            enabled=False,
+        return self._draft_response(
+            "update",
+            after,
+            expected_fingerprint=expected_fingerprint,
             review_only_metadata=self._review_only_metadata(draft),
             actions_preserved=not actions_changed,
             actions_updated=actions_changed,
             validation_warnings=validation["warnings"],
         )
 
-    async def approve_detection_change(
+    async def save_detection(
         self,
-        proposal_id: str,
-        proposal_hash: str = "",
+        operation: str,
+        payload: dict[str, Any],
         *,
+        name: str | None = None,
+        expected_fingerprint: str | None = None,
         actor_id: str | None = None,
-        approved_by: str | None = None,
     ) -> dict[str, Any]:
-        actor = self._actor_id(approved_by or actor_id, required=True)
-        approval = self.approval_store.approve(
-            self._normalize_id(proposal_id, "proposal_id"),
-            approved_by=actor,
-            proposal_hash=proposal_hash,
-        )
-        public = approval.public()
-        return {
-            "status": "approved",
-            "approval": public,
-            "approval_id": approval.approval_id,
-            "proposal_id": approval.proposal_id,
-            "proposal_hash": approval.proposal_hash,
-            "operation": approval.operation,
-            "target_id": approval.target_id,
-            "expires_at": public["expires_at"],
-        }
-
-    @staticmethod
-    def _normalize_id(value: str, field: str) -> str:
-        if not isinstance(value, str) or not value.strip():
-            raise ServiceError("invalid_input", f"{field} cannot be empty")
-        return value.strip()
-
-    async def apply_approved_detection_change(
-        self,
-        approval_id: str,
-        *,
-        operation: str | None = None,
-        target_id: str | None = None,
-        proposal_hash: str | None = None,
-        actor_id: str | None = None,
-        approved_by: str | None = None,
-    ) -> dict[str, Any]:
-        approval_id = self._normalize_id(approval_id, "approval_id")
-        # Read the immutable record first so an unknown approval reports the
-        # precise failure instead of being hidden by a global kill switch.
-        approval_record = self.approval_store.get_approval(approval_id)
-        if approval_record.operation not in {"write", "update"}:
+        if not isinstance(operation, str) or operation not in {"write", "update"}:
             raise ServiceError(
                 "operation_not_supported",
-                "Only write and update detection approvals can be applied through MCP.",
+                "Only write and update detection saves are supported.",
             )
         self._require_write()
-        actor = self._actor_id(approved_by or actor_id, required=True)
-
-        claimed = None
-        result = "failed"
-        async with self._apply_lock:
-            try:
-                claimed, proposal = self.approval_store.claim(
-                    approval_id,
-                    actor_id=actor,
-                    operation=operation,
-                    target_id=target_id,
-                    proposal_hash=proposal_hash,
+        self._actor_id(actor_id, required=True)
+        async with self._save_lock:
+            if operation == "write":
+                state, draft, validation = self._prepare_write(payload)
+                if name is not None and self._normalize_name(name) != state["name"]:
+                    raise ServiceError("target_mismatch", "The detection name changed before it was saved.")
+                target = state["name"]
+                if await self._get_optional_detection(target) is not None:
+                    raise ServiceError("target_mismatch", "The detection target already exists.")
+                await self.core.request(
+                    lambda client: client.create_saved_search(
+                        self._write_fields_from_state(state, creating=True)
+                    )
                 )
-                fresh_payload = build_security_payload(
-                    operation=proposal.operation,
-                    target_id=proposal.target_id,
-                    current_fingerprint=proposal.current_fingerprint,
-                    before=proposal.before,
-                    after=proposal.after,
-                )
-                recomputed_hash = compute_proposal_hash(fresh_payload)
-                if recomputed_hash != proposal.proposal_hash or claimed.proposal_hash != recomputed_hash:
-                    raise ServiceError(
-                        "proposal_hash_mismatch",
-                        "The stored detection proposal hash no longer matches its payload.",
-                    )
-                if proposal.after is None:
-                    raise ServiceError("proposal_payload_mismatch", "The approved proposal has no after state.")
-                validation = self.validate_detection({**dict(proposal.after), "enabled": False})
-                if not validation["valid"]:
-                    raise ServiceError("detection_invalid", "The approved detection proposal is no longer valid.", details=validation)
-
-                # Re-read after claiming so the fingerprint check is as close
-                # to the write as possible. No caller-supplied payload is used.
-                current = await self._get_optional_detection(proposal.target_id or "")
-                if proposal.operation == "write":
-                    if proposal.before is not None or proposal.current_fingerprint is not None:
-                        raise ServiceError("proposal_payload_mismatch", "The write proposal has an invalid prior state.")
-                    if current is not None:
-                        raise ServiceError("target_mismatch", "The detection target already exists.")
-                    await self.core.request(
-                        lambda client: client.create_saved_search(
-                            self._write_fields_from_state(dict(proposal.after), creating=True)
-                        )
-                    )
-                    persisted = await self.get_detection(proposal.target_id or "")
-                    result_payload = {
-                        "created": True,
-                        "enabled": False,
-                        "detection": persisted,
-                        "review_only_metadata": self._review_only_metadata_from_state(dict(proposal.after)),
-                        "requires_action_configuration": not bool(str(persisted.get("actions", "")).strip()),
-                    }
-                else:
-                    if current is None:
-                        raise ServiceError("target_mismatch", "The approved detection target no longer exists.")
-                    if current.get("fingerprint") != proposal.current_fingerprint:
-                        raise ServiceError(
-                            "stale_fingerprint",
-                            "The detection changed after this proposal was approved; create a new proposal.",
-                            details={"current_fingerprint": current.get("fingerprint")},
-                        )
-                    current_state = self._state_from_source(
-                        current,
-                        app=self.core.settings.detection_app,
-                        owner=self.core.settings.detection_owner,
-                    )
-                    if canonical_json({"state": proposal.before or {}}) != canonical_json({"state": current_state}):
-                        raise ServiceError(
-                            "proposal_payload_mismatch",
-                            "The current detection state does not match the approved prior state.",
-                        )
-                    if proposal.operation != "update":
-                        raise ServiceError("operation_mismatch", "The approved detection operation is not supported.")
-                    await self.core.request(
-                        lambda client: client.update_saved_search(
-                            proposal.target_id or "",
-                            self._write_fields_from_state(dict(proposal.after)),
-                        )
-                    )
-                    persisted = await self.get_detection(proposal.target_id or "")
-                    actions_changed = self._actions_changed(
-                        dict(proposal.before or {}), dict(proposal.after or {})
-                    )
-                    result_payload = {
-                        "updated": True,
-                        "enabled": False,
-                        "detection": persisted,
-                        "review_only_metadata": self._review_only_metadata_from_state(dict(proposal.after)),
-                        "actions_preserved": not actions_changed,
-                        "actions_updated": actions_changed,
-                    }
-                result = "applied"
+                persisted = await self.get_detection(target)
                 return {
-                    "status": "applied",
-                    "applied": True,
-                    "approval_id": claimed.approval_id,
-                    "proposal_id": proposal.proposal_id,
-                    "proposal_hash": proposal.proposal_hash,
-                    **result_payload,
+                    "status": "saved",
+                    "saved": True,
+                    "created": True,
+                    "enabled": False,
+                    "detection": persisted,
+                    "review_only_metadata": self._review_only_metadata(draft),
+                    "requires_action_configuration": not bool(str(persisted.get("actions", "")).strip()),
+                    "validation_warnings": validation["warnings"],
                 }
-            except ServiceError as exc:
-                result = exc.code
-                raise
-            except Exception:
-                result = "internal_error"
-                raise
-            finally:
-                if claimed is not None:
-                    # Consume even when the remote outcome is uncertain. This
-                    # prevents a timeout/transport error from being replayed
-                    # into a duplicate detection write.
-                    self.approval_store.consume(approval_id, result=result)
+
+            target, _current, _before, after, draft, validation, actions_changed = await self._prepare_update(
+                name or "", payload, expected_fingerprint or ""
+            )
+            fresh = await self._get_optional_detection(target)
+            if fresh is None:
+                raise ServiceError("target_mismatch", "The detection target no longer exists.")
+            self._require_expected(expected_fingerprint or "", fresh)
+            await self.core.request(
+                lambda client: client.update_saved_search(
+                    target,
+                    self._write_fields_from_state(after),
+                )
+            )
+            persisted = await self.get_detection(target)
+            return {
+                "status": "saved",
+                "saved": True,
+                "updated": True,
+                "enabled": False,
+                "detection": persisted,
+                "review_only_metadata": self._review_only_metadata(draft),
+                "actions_preserved": not actions_changed,
+                "actions_updated": actions_changed,
+                "validation_warnings": validation["warnings"],
+            }
 
 
 __all__ = ["SplunkDetectionService"]

@@ -149,7 +149,7 @@ test('SOC skills are concise, scoped, and use bounded action parameters', () => 
   }
   const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')
   assert.match(detection, /splunk_list_saved_searches\(name=/)
-  assert.match(detection, /disabled proposal/i)
+  assert.match(detection, /disabled draft/i)
 
   const triage = readFileSync(join(repoRoot, 'skills', 'soc-incident-triage', 'SKILL.md'), 'utf8')
   assert.match(triage, /Do not load every specialist skill up front/)

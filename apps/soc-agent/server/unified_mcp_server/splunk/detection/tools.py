@@ -74,20 +74,10 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
 
     @server.tool()
     async def splunk_write_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Propose an exact new detection without writing; apply is create-only, forces disabled state, and never executes outputcsv."""
+        """Prepare an editable new detection draft without writing; the editor Save keeps it disabled and never executes outputcsv."""
         return await execute(ctx, "splunk", "write_detection", lambda: get_runtime(ctx).splunk_detection.write_detection(detection, actor_id=_authenticated_actor(get_runtime, ctx)))
 
     @server.tool()
     async def splunk_update_detection(ctx: Context, name: str, detection: dict[str, Any], expected_fingerprint: str) -> dict[str, Any]:
-        """Propose an exact fingerprint-bound patch; apply preserves omitted fields, forces disabled state, and never executes outputcsv."""
+        """Prepare an editable fingerprint-bound detection draft without writing; the editor Save preserves omitted fields, keeps it disabled, and never executes outputcsv."""
         return await execute(ctx, "splunk", "update_detection", lambda: get_runtime(ctx).splunk_detection.update_detection(name, detection, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))
-
-    @server.tool()
-    async def splunk_approve_detection_change(ctx: Context, proposal_id: str, proposal_hash: str = "") -> dict[str, Any]:
-        """Approve one immutable detection proposal by its exact stored hash."""
-        return await execute(ctx, "splunk", "approve_detection_change", lambda: get_runtime(ctx).splunk_detection.approve_detection_change(proposal_id, proposal_hash, actor_id=_authenticated_actor(get_runtime, ctx)))
-
-    @server.tool()
-    async def splunk_apply_approved_detection_change(ctx: Context, approval_id: str) -> dict[str, Any]:
-        """Apply one unexpired, single-use write or update approval; no enable/disable operation or replacement payload is accepted."""
-        return await execute(ctx, "splunk", "apply_approved_detection_change", lambda: get_runtime(ctx).splunk_detection.apply_approved_detection_change(approval_id, actor_id=_authenticated_actor(get_runtime, ctx)))

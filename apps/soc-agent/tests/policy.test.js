@@ -16,12 +16,10 @@ const policyAuth = {
 }
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 56)
+  assert.equal(DOMAIN_TOOLS.size, 54)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
-    'mcp__soc_agent__splunk_apply_approved_detection_change',
-    'mcp__soc_agent__splunk_approve_detection_change',
     'mcp__soc_agent__splunk_update_detection',
     'mcp__soc_agent__splunk_write_detection',
     'mcp__soc_agent__update_subscription',
@@ -49,7 +47,7 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(READ_ONLY_TOOLS.length, 32)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__zimbra_list_accounts'), false)
-  assert.equal(ACTION_TOOLS.length, 24)
+  assert.equal(ACTION_TOOLS.length, 22)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
   assert.equal(READ_ONLY_TOOLS.includes('skill'), true)
@@ -232,13 +230,45 @@ test('detection changes cannot be auto-approved by action name', async () => {
   })
   const preExecute = handlers.get('tools/pre-execute')
   for (const name of DETECTION_ACTION_TOOLS) {
-    const decision = await preExecute({ name, agent, arguments: { proposal_hash: 'abc' } }, () => ({ kind: 'delegate' }))
+    const decision = await preExecute({ name, agent, arguments: {} }, () => ({ kind: 'delegate' }))
     assert.equal(decision.kind, 'ask')
-    assert.match(decision.reason, /immutable backend proposal/)
+    assert.match(decision.reason, /detection draft requires approval/)
   }
   const policy = await rpcHandler('get-action-policy', { session_id: session.id })
   assert.equal(policy.value.autoApproveActions.some(name => DETECTION_ACTION_TOOLS.includes(name)), false)
   saved = { autoApproveActions: [] }
+})
+
+test('save-detection is an authenticated editor RPC with strict request validation', async () => {
+  let rpcHandler
+  apply({
+    get(name) {
+      return name === 'socAuth' ? policyAuth : undefined
+    },
+    on() {},
+    agents: { roots: () => [] },
+    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+  })
+
+  const invalid = await rpcHandler('save-detection', { operation: 'write' })
+  assert.deepEqual(invalid, {
+    ok: false,
+    error: { code: 'bad-request', message: 'The detection draft is invalid.', details: { issues: [] } },
+  })
+
+  apply({
+    on() {},
+    agents: { roots: () => [] },
+    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+  })
+  const unauthenticated = await rpcHandler('save-detection', {
+    operation: 'write',
+    detection: { name: 'Rule', spl: 'index=main error' },
+  })
+  assert.deepEqual(unauthenticated, {
+    ok: false,
+    error: { code: 'authentication-required', message: 'authentication required', details: {} },
+  })
 })
 
 test('host RPC failures use the shared result error contract', async () => {

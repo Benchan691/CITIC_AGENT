@@ -91,7 +91,7 @@ async def test_detection_service_backtests_and_writes_through_core():
     assert result["sample_count"] == 1
     created = await detection.write_detection({"name": "test", "spl": citic_spl()})
     assert created["enabled"] is False
-    assert created["status"] == "approval_required"
+    assert created["status"] == "draft"
     await core.close()
 
 

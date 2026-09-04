@@ -11,6 +11,7 @@ import { CiticBrandMark, CiticBrandName } from './CiticBrand.tsx'
 import { AdminConsole } from './AdminConsole.tsx'
 import { AuthGate } from './AuthGate.tsx'
 import { installEmailDraftToolview } from './EmailDraftToolview.tsx'
+import { installSplunkDetectionToolview } from './SplunkDetectionToolview.tsx'
 import { MarkItDownDocumentController } from './markitdownAttachments.ts'
 import { MarkItDownDocuments, openMarkItDownPicker } from './MarkItDownDocuments.tsx'
 import { AttachmentSettingsController, MarkItDownAttachmentSettingsCard } from './MarkItDownAttachmentSettings.tsx'
@@ -25,6 +26,7 @@ export { SplunkSettings } from './SplunkSettings.ts'
 export { SubscriptionServerSettings } from './SubscriptionServerSettings.ts'
 export { AdminConsole } from './AdminConsole.tsx'
 export { EmailDraftToolview } from './EmailDraftToolview.tsx'
+export { SplunkDetectionToolview } from './SplunkDetectionToolview.tsx'
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle
@@ -95,6 +97,7 @@ export function apply(ctx: ClientContext): void {
     priority: -10,
   }, props => React.createElement(SocActionPolicyMenu, { ...props, connection })))
   installEmailDraftToolview(ctx)
+  installSplunkDetectionToolview(ctx)
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
     id: 'soc-agent-auth-gate',

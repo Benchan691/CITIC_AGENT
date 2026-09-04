@@ -26,8 +26,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_backtest_detection",
         "splunk_write_detection",
         "splunk_update_detection",
-        "splunk_approve_detection_change",
-        "splunk_apply_approved_detection_change",
         "splunk_run_saved_search",
         "zimbra_list_folders",
         "zimbra_list_signatures",
@@ -168,12 +166,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "detection_logic", "rulename", "threat_name", "threat_type",
         "case_prefix", "event_field_mappings",
     }
-    approve_tool = next(tool for tool in tools if tool.name == "splunk_approve_detection_change")
-    assert set(approve_tool.parameters["properties"]) == {"proposal_id", "proposal_hash"}
-    assert approve_tool.parameters["required"] == ["proposal_id"]
-    apply_tool = next(tool for tool in tools if tool.name == "splunk_apply_approved_detection_change")
-    assert set(apply_tool.parameters["properties"]) == {"approval_id"}
-    assert apply_tool.parameters["required"] == ["approval_id"]
+    assert "splunk_approve_detection_change" not in {tool.name for tool in tools}
+    assert "splunk_apply_approved_detection_change" not in {tool.name for tool in tools}
     backtest_tool = next(tool for tool in tools if tool.name == "splunk_backtest_detection")
     assert "fields" in backtest_tool.parameters["properties"]
 

@@ -52,8 +52,6 @@ export const ACTION_CATALOG = Object.freeze([
   { name: 'mcp__soc_agent__zimbra_delete_signature', group: 'Zimbra', label: 'Delete signature' },
   { name: 'mcp__soc_agent__splunk_write_detection', group: 'Splunk', label: 'Write detection' },
   { name: 'mcp__soc_agent__splunk_update_detection', group: 'Splunk', label: 'Update detection' },
-  { name: 'mcp__soc_agent__splunk_approve_detection_change', group: 'Splunk', label: 'Approve exact detection change' },
-  { name: 'mcp__soc_agent__splunk_apply_approved_detection_change', group: 'Splunk', label: 'Apply approved detection change' },
   { name: 'mcp__soc_agent__create_subscription', group: 'Subscriptions', label: 'Create subscription' },
   { name: 'mcp__soc_agent__update_subscription', group: 'Subscriptions', label: 'Update subscription' },
   { name: 'mcp__soc_agent__delete_subscription', group: 'Subscriptions', label: 'Delete subscription' },
@@ -69,13 +67,11 @@ export const ACTION_CATALOG = Object.freeze([
 
 export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
 
-// Detection writes are proposal-bound in the backend. These names must never
-// be satisfied by the generic remembered action-name policy.
+// Detection drafts always require the harness approval flow. These names must
+// never be satisfied by the generic remembered action-name policy.
 export const DETECTION_ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_write_detection',
   'mcp__soc_agent__splunk_update_detection',
-  'mcp__soc_agent__splunk_approve_detection_change',
-  'mcp__soc_agent__splunk_apply_approved_detection_change',
 ])
 
 export const MEMORY_READ_TOOLS = Object.freeze([
