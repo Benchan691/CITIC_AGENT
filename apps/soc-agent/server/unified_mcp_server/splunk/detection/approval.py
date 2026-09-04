@@ -26,8 +26,8 @@ from typing import Any, Literal
 from unified_mcp_server.errors import ServiceError
 
 
-DetectionOperation = Literal["create", "update", "enable", "disable", "delete"]
-_OPERATIONS = frozenset({"create", "update", "enable", "disable", "delete"})
+DetectionOperation = Literal["write", "update"]
+_OPERATIONS = frozenset({"write", "update"})
 logger = logging.getLogger(__name__)
 
 

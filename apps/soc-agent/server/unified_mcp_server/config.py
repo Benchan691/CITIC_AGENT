@@ -150,7 +150,6 @@ class SplunkSettings:
     safe_timerange: str
     sanitize_output: bool
     detection_write_enabled: bool = False
-    detection_enable_enabled: bool = False
     detection_app: str = "search"
     detection_owner: str = "nobody"
     url: str = ""
@@ -430,7 +429,6 @@ class ServerSettings:
             safe_timerange=_value(env, splunk_safe_name, "24h"),
             sanitize_output=_boolean(env, splunk_sanitize_name, True),
             detection_write_enabled=_boolean(env, "SPLUNK_ALLOW_DETECTION_WRITE", False),
-            detection_enable_enabled=_boolean(env, "SPLUNK_ALLOW_DETECTION_ENABLE", False),
             detection_app=_value(env, "SPLUNK_DETECTION_APP", "search"),
             detection_owner=_value(env, "SPLUNK_DETECTION_OWNER", "nobody"),
             url=splunk_url,
@@ -525,7 +523,6 @@ class ServerSettings:
                 "risk_tolerance": self.splunk.risk_tolerance,
                 "sanitize_output": self.splunk.sanitize_output,
                 "detection_write_enabled": self.splunk.detection_write_enabled,
-                "detection_enable_enabled": self.splunk.detection_enable_enabled,
                 "detection_app": self.splunk.detection_app,
                 "detection_approval_ttl_seconds": self.splunk.detection_approval_ttl_seconds,
                 "query_policy": self.splunk.query_policy.to_dict(),

@@ -16,16 +16,14 @@ const policyAuth = {
 }
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 58)
+  assert.equal(DOMAIN_TOOLS.size, 56)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
     'mcp__soc_agent__splunk_apply_approved_detection_change',
     'mcp__soc_agent__splunk_approve_detection_change',
-    'mcp__soc_agent__splunk_create_detection_draft',
-    'mcp__soc_agent__splunk_disable_detection',
-    'mcp__soc_agent__splunk_enable_detection',
-    'mcp__soc_agent__splunk_update_detection_draft',
+    'mcp__soc_agent__splunk_update_detection',
+    'mcp__soc_agent__splunk_write_detection',
     'mcp__soc_agent__update_subscription',
     'mcp__soc_agent__zimbra_create_email_filter',
     'mcp__soc_agent__zimbra_create_folder',
@@ -51,8 +49,7 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(READ_ONLY_TOOLS.length, 32)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__zimbra_list_accounts'), false)
-  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_search_intent'), true)
-  assert.equal(ACTION_TOOLS.length, 26)
+  assert.equal(ACTION_TOOLS.length, 24)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
   assert.equal(READ_ONLY_TOOLS.includes('skill'), true)
@@ -63,7 +60,9 @@ test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_list_lookups'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_list_security_findings'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_get_security_finding'), true)
+  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_compile_citic_detection'), true)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_list_security_findings'), false)
+  assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_compile_citic_detection'), false)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_find_lookup'), false)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_list_lookups'), false)
   assert.equal(READ_ONLY_TOOLS.includes('scheduled_task_list'), true)
@@ -99,7 +98,7 @@ test('scheduled workers have an exact read-only allowlist', () => {
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_move_email'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__splunk_list_indexes'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__splunk_list_data_sources'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.some(name => name.includes('create_detection')), false)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.some(name => DETECTION_ACTION_TOOLS.includes(name)), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_send_email'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_use_signature_on_email'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_list_signatures'), true)

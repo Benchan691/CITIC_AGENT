@@ -11,7 +11,6 @@
   "safe_timerange": "24h",
   "sanitize_output": true,
   "allow_detection_write": false,
-  "allow_detection_enable": false,
   "detection_app": "search",
   "detection_owner": "nobody",
   "detection_approval_ttl_seconds": 600,

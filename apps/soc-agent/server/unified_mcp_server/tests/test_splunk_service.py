@@ -9,6 +9,7 @@ from unified_mcp_server.splunk.splunk_client import SplunkClient
 from unified_mcp_server.splunk.splunk_client import SplunkAPIError
 from unified_mcp_server.splunk.search.executor import SearchExecutor
 from unified_mcp_server.splunk_service import SplunkService
+from unified_mcp_server.tests.citic_fixtures import citic_spl
 
 
 def settings(**overrides):
@@ -64,7 +65,7 @@ class FakeClient:
         self.closed = False
         self.search_args = None
         self.saved_content = {
-            "search": "index=main error",
+            "search": citic_spl(),
             "description": "test",
             "dispatch.earliest_time": "-10m",
             "dispatch.latest_time": "now",
@@ -258,7 +259,12 @@ async def test_saved_search_discovery_filters_partial_name_and_app():
 
 @pytest.mark.asyncio
 async def test_saved_search_disables_actions_and_sanitizes_results():
-    service = SplunkService(settings(), FakeClient)
+    class SavedSearchClient(FakeClient):
+        def __init__(self, config):
+            super().__init__(config)
+            self.saved_content["search"] = "index=main error"
+
+    service = SplunkService(settings(), SavedSearchClient)
 
     result = await service.run_saved_search(
         "Daily alerts", max_count=500, app="security", owner="nobody"
@@ -534,7 +540,7 @@ def test_detection_validation_reports_metadata_findings():
     service = SplunkService(settings())
     result = service.validate_detection({
         "name": "PowerShell download",
-        "spl": "index=main EventCode=4688 powershell",
+        "spl": citic_spl("index=main EventCode=4688 powershell"),
         "cron_schedule": "*/5 * * * *",
         "severity": "high",
         "mitre_attack": ["T1059.001"],
@@ -550,7 +556,7 @@ def test_detection_validation_supports_realtime_alerts_and_input_aliases():
 
     result = service.validate_detection({
         "name": "Realtime error alert",
-        "spl": "index=main error",
+        "spl": citic_spl(),
         "is_scheduled": True,
         "dispatch.earliest_time": "rt-5m",
         "dispatch.latest_time": "rt",
@@ -579,15 +585,7 @@ def test_detection_validation_allows_outputcsv_only_as_a_saved_search_definition
     service = SplunkService(settings())
     result = service.validate_detection({
         "name": "Client CSV alert",
-        "spl": """index=main error
-| outputcsv [
-    | stats count
-    | addinfo
-    | eval rulename=\"RULE_NUMBER\"
-    | eval search=strftime(now(), \"%Y%m%d%H%M\")
-    | eval casename=\"CASE_PREFIX\".\"\".search.\"\".rulename
-    | return $casename
-]""",
+        "spl": citic_spl(),
         "is_scheduled": True,
         "cron_schedule": "*/15 * * * *",
         "dispatch.earliest_time": "-15m",
@@ -598,6 +596,31 @@ def test_detection_validation_allows_outputcsv_only_as_a_saved_search_definition
     assert result["query_validation"]["decision"] == "allow"
     assert result["query_validation"]["allowed_commands"] == ["outputcsv"]
     assert any("outputcsv" in warning for warning in result["warnings"])
+
+
+@pytest.mark.parametrize("command", ["outputlookup", "sendemail"])
+def test_detection_validation_keeps_other_writers_blocked(command):
+    service = SplunkService(settings())
+    spl = citic_spl().replace(
+        '\n| table ', f'\n| {command} destination\n| table ', 1
+    )
+
+    result = service.validate_detection({"name": "unsafe", "spl": spl})
+
+    assert result["valid"] is False
+    assert command in result["query_validation"]["blocked_commands"]
+
+
+def test_detection_validation_rejects_dual_spl_payloads():
+    service = SplunkService(settings())
+
+    with pytest.raises(ServiceError, match="dual SPL"):
+        service.validate_detection({
+            "name": "dual",
+            "spl": citic_spl(),
+            "production_spl": citic_spl(),
+            "backtest_spl": "index=main error",
+        })
 
 
 @pytest.mark.asyncio
@@ -620,7 +643,7 @@ def test_detection_validation_supports_custom_condition_per_result_throttle_and_
 
     result = service.validate_detection({
         "name": "Custom throttled alert",
-        "spl": "index=main error",
+        "spl": citic_spl(),
         "alert_type": "custom",
         "alert_condition": "severity=critical",
         "alert.digest_mode": False,
@@ -696,20 +719,22 @@ def test_detection_validation_rejects_non_scalar_action_parameters():
 async def test_backtest_and_writes_are_guarded_and_structured():
     service = SplunkService(settings(), FakeClient)
     with pytest.raises(ServiceError) as error:
-        await service.create_detection_draft({"name": "x", "spl": "index=main error"})
+        await service.write_detection({"name": "x", "spl": "index=main error"})
     assert error.value.code == "operation_disabled"
 
     writable = SplunkService(
-        settings(detection_write_enabled=True, detection_enable_enabled=True), FakeClient
+        settings(detection_write_enabled=True), FakeClient
     )
-    payload = {"name": "x", "spl": "index=main error", "cron_schedule": "*/5 * * * *"}
-    draft = await writable.create_detection_draft(payload)
+    payload = {"name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *"}
+    draft = await writable.write_detection(payload)
     assert draft["status"] == "approval_required"
     assert draft["enabled"] is False
     assert "splunk" not in draft
-    assert draft["requires_action_configuration"] is True
+    assert draft["requires_action_configuration"] is False
     assert draft["review_only_metadata"]["persisted"] is False
-    backtest = await writable.backtest_detection(payload, max_count=10, fields=["card"])
+    backtest = await writable.backtest_detection(
+        {**payload, "spl": "index=main error"}, max_count=10, fields=["card"]
+    )
     assert backtest["sample_count"] == 1
     assert backtest["sample_budget"]["returned_count"] == 1
     assert backtest["sample_budget"]["truncated"] is False
@@ -718,69 +743,45 @@ async def test_backtest_and_writes_are_guarded_and_structured():
     assert backtest["fields"] == ["card"]
     assert backtest["sample_events"] == [{"card": "****-****-****-1111"}]
     current = await writable.get_detection("x")
-    disable_proposal = await writable.set_detection_enabled(
-        "x", False, current["fingerprint"], actor_id="test-analyst"
+    update_proposal = await writable.update_detection(
+        "x", {"description": "updated"}, current["fingerprint"], actor_id="test-analyst"
     )
     approval = await writable.approve_detection_change(
-        disable_proposal["proposal_id"], disable_proposal["proposal_hash"], actor_id="test-analyst"
+        update_proposal["proposal_id"], update_proposal["proposal_hash"], actor_id="test-analyst"
     )
     disabled = await writable.apply_approved_detection_change(
         approval["approval_id"], actor_id="test-analyst"
     )
     assert disabled["enabled"] is False
     assert "splunk" not in disabled
-    assert writable.core._client.updated_fields == (
-        "x",
-        {
-            "disabled": "1",
-            "app": writable.settings.detection_app,
-            "owner": writable.settings.detection_owner,
-        },
-    )
+    assert writable.core._client.updated_fields[0] == "x"
+    assert writable.core._client.updated_fields[1]["disabled"] == "1"
 
 
 @pytest.mark.asyncio
-async def test_detection_update_preserves_actions_and_enable_requires_runnable_state():
+async def test_detection_update_adds_company_log_event_and_forces_disabled_state():
     service = SplunkService(
-        settings(detection_write_enabled=True, detection_enable_enabled=True), FakeClient
+        settings(detection_write_enabled=True), FakeClient
     )
-    draft = await service.create_detection_draft({
-        "name": "x", "spl": "index=main error", "cron_schedule": "*/5 * * * *",
+    draft = await service.write_detection({
+        "name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *",
     })
     assert draft["status"] == "approval_required"
     current = await service.get_detection("x")
-    service.core._client.saved_content["actions"] = ""
-    current = await service.get_detection("x")
-    with pytest.raises(ServiceError) as not_runnable:
-        await service.set_detection_enabled("x", True, current["fingerprint"], actor_id="test-analyst")
-    assert not_runnable.value.code == "detection_not_runnable"
-
-    client = service.core._client
-    client.saved_content["actions"] = "notable"
-    current = await service.get_detection("x")
-    update_proposal = await service.update_detection_draft(
+    update_proposal = await service.update_detection(
         "x", {"description": "reviewed"}, current["fingerprint"], actor_id="test-analyst"
     )
+    assert update_proposal["proposal"]["after"]["disabled"] is True
     update_approval = await service.approve_detection_change(
         update_proposal["proposal_id"], update_proposal["proposal_hash"], actor_id="test-analyst"
     )
     updated = await service.apply_approved_detection_change(
         update_approval["approval_id"], actor_id="test-analyst"
     )
-    assert updated["actions_preserved"] is True
-    assert updated["detection"]["actions"] == "notable"
-    assert client.updated_fields[1]["actions"] == "notable"
-
-    enable_proposal = await service.set_detection_enabled(
-        "x", True, updated["detection"]["fingerprint"], actor_id="test-analyst"
-    )
-    enable_approval = await service.approve_detection_change(
-        enable_proposal["proposal_id"], enable_proposal["proposal_hash"], actor_id="test-analyst"
-    )
-    enabled = await service.apply_approved_detection_change(
-        enable_approval["approval_id"], actor_id="test-analyst"
-    )
-    assert enabled["enabled"] is True
+    assert updated["actions_preserved"] is False
+    assert updated["actions_updated"] is True
+    assert updated["detection"]["actions"] == "email,logevent"
+    assert service.core._client.updated_fields[1]["actions"] == "email,logevent"
 
 
 @pytest.mark.asyncio
@@ -789,6 +790,6 @@ async def test_detection_modification_rejects_a_stale_fingerprint():
     current = await service.get_detection("x")
 
     with pytest.raises(ServiceError) as error:
-        await service.update_detection_draft("x", {"description": "changed"}, "stale")
+        await service.update_detection("x", {"description": "changed"}, "stale")
 
     assert error.value.code == "detection_changed"

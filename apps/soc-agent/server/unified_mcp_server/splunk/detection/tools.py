@@ -30,7 +30,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
 
     @server.tool()
     async def splunk_validate_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Validate saved-search settings; outputcsv is definition-only and is never executed here."""
+        """Validate a CITIC production saved-search definition; outputcsv is definition-only and is never executed here."""
         try:
             current = await fresh_runtime(ctx)
             return success("splunk", "validate_detection", current.splunk_detection.validate_detection(detection))
@@ -38,29 +38,49 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
             return failure("splunk", "validate_detection", exc.code, exc.message, details=exc.details)
 
     @server.tool()
+    async def splunk_compile_citic_detection(
+        ctx: Context,
+        detection_logic: str,
+        rulename: str,
+        threat_name: str,
+        threat_type: str,
+        case_prefix: str,
+        event_field_mappings: dict[str, str],
+        extra_table_fields: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Compile base detection SPL into one CITIC production SPL and one safe backtest SPL without writing or executing either."""
+        async def compile_definition() -> dict[str, Any]:
+            return get_runtime(ctx).splunk_detection.compile_citic_detection(
+                detection_logic=detection_logic,
+                rulename=rulename,
+                threat_name=threat_name,
+                threat_type=threat_type,
+                case_prefix=case_prefix,
+                event_field_mappings=event_field_mappings,
+                extra_table_fields=extra_table_fields,
+            )
+
+        return await execute(
+            ctx,
+            "splunk",
+            "compile_citic_detection",
+            compile_definition,
+        )
+
+    @server.tool()
     async def splunk_backtest_detection(ctx: Context, detection: dict[str, Any], earliest_time: str = "-7d", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         """Run a bounded read-only detection sample; outputcsv and other writes are rejected."""
         return await execute(ctx, "splunk", "backtest_detection", lambda: get_runtime(ctx).splunk_detection.backtest_detection(detection, earliest_time, latest_time, max_count, fields, principal_id=_principal_id(get_runtime, ctx)))
 
     @server.tool()
-    async def splunk_create_detection_draft(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Propose an exact disabled detection; outputcsv is allowed only here under approval and is not executed."""
-        return await execute(ctx, "splunk", "create_detection_draft", lambda: get_runtime(ctx).splunk_detection.create_detection_draft(detection, actor_id=_authenticated_actor(get_runtime, ctx)))
+    async def splunk_write_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
+        """Propose an exact new detection without writing; apply is create-only, forces disabled state, and never executes outputcsv."""
+        return await execute(ctx, "splunk", "write_detection", lambda: get_runtime(ctx).splunk_detection.write_detection(detection, actor_id=_authenticated_actor(get_runtime, ctx)))
 
     @server.tool()
-    async def splunk_update_detection_draft(ctx: Context, name: str, detection: dict[str, Any], expected_fingerprint: str) -> dict[str, Any]:
-        """Propose an exact disabled update; outputcsv is allowed only under approval and omitted fields stay unchanged."""
-        return await execute(ctx, "splunk", "update_detection_draft", lambda: get_runtime(ctx).splunk_detection.update_detection_draft(name, detection, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))
-
-    @server.tool()
-    async def splunk_enable_detection(ctx: Context, name: str, expected_fingerprint: str) -> dict[str, Any]:
-        """Propose enabling one exact scheduled or real-time detection after its alert action is configured."""
-        return await execute(ctx, "splunk", "enable_detection", lambda: get_runtime(ctx).splunk_detection.set_detection_enabled(name, True, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))
-
-    @server.tool()
-    async def splunk_disable_detection(ctx: Context, name: str, expected_fingerprint: str) -> dict[str, Any]:
-        """Propose disabling one exact detection; approval is required before it can be applied."""
-        return await execute(ctx, "splunk", "disable_detection", lambda: get_runtime(ctx).splunk_detection.set_detection_enabled(name, False, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))
+    async def splunk_update_detection(ctx: Context, name: str, detection: dict[str, Any], expected_fingerprint: str) -> dict[str, Any]:
+        """Propose an exact fingerprint-bound patch; apply preserves omitted fields, forces disabled state, and never executes outputcsv."""
+        return await execute(ctx, "splunk", "update_detection", lambda: get_runtime(ctx).splunk_detection.update_detection(name, detection, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))
 
     @server.tool()
     async def splunk_approve_detection_change(ctx: Context, proposal_id: str, proposal_hash: str = "") -> dict[str, Any]:
@@ -69,5 +89,5 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
 
     @server.tool()
     async def splunk_apply_approved_detection_change(ctx: Context, approval_id: str) -> dict[str, Any]:
-        """Apply one unexpired, single-use detection approval; no replacement payload is accepted."""
+        """Apply one unexpired, single-use write or update approval; no enable/disable operation or replacement payload is accepted."""
         return await execute(ctx, "splunk", "apply_approved_detection_change", lambda: get_runtime(ctx).splunk_detection.apply_approved_detection_change(approval_id, actor_id=_authenticated_actor(get_runtime, ctx)))

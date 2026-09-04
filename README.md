@@ -42,10 +42,19 @@ already running, restart it manually after the update.
 Use the Splunk detection MCP workflow to validate, propose, approve, and apply
 saved-search alert settings. For example, a scheduled alert can include:
 
+For production detections, write only the detection logic first. Run
+`splunk_compile_citic_detection` with the four-digit rule number, explicit
+case/GID prefix, threat metadata, and event mappings. Review its generated
+`production_spl` and derived `backtest_spl`; validate and backtest the returned
+values, then pass only `production_spl` to `splunk_write_detection` or
+`splunk_update_detection`. The compiler adds the CITIC fields, final `table`,
+and dynamic `outputcsv`. Investigation SPL remains flexible and does not need
+this wrapper.
+
 ```json
 {
   "name": "Example error alert",
-  "spl": "index=main error",
+  "spl": "<production_spl returned by splunk_compile_citic_detection>",
   "is_scheduled": true,
   "cron_schedule": "*/15 * * * *",
   "dispatch.earliest_time": "-15m",
@@ -57,7 +66,8 @@ saved-search alert settings. For example, a scheduled alert can include:
   "alert.suppress": false,
   "alert.expires": "24h",
   "alert.track": true,
-  "actions": "email",
+  "actions": "email,logevent",
+  "action.logevent": true,
   "action.email.to": "soc@example.invalid"
 }
 ```
@@ -65,18 +75,33 @@ saved-search alert settings. For example, a scheduled alert can include:
 Real-time alerts use `is_scheduled: true` with `rt...` dispatch time values;
 `alert_type` describes the trigger condition, not the timing mode. Omitted
 settings remain unchanged on updates, while empty or `null` values clear
-non-secret settings. New and updated detections remain disabled until a
-separate enable approval is applied; credential-like action settings are
-preserved by Splunk and are not returned or accepted for replacement.
+non-secret settings. `splunk_write_detection` is create-only, while
+`splunk_update_detection` requires the current fingerprint and applies patch
+semantics. Both tools create exact proposals, and every applied write or
+update is forced disabled. Credential-like action settings are preserved by
+Splunk and are not returned or accepted for replacement.
 
-For new rules, complete the alert workflow checklist in `BACKGROUND.md`:
-alert type, time range, cron (when scheduled), expiry, trigger conditions,
-trigger behavior, throttle, and trigger actions. The team defaults are Add to
-Triggered Alerts (`alert.track=true`) and Log Event (`actions=logevent` plus
-`action.logevent=1`). Client-email rules may append the documented `outputcsv`
+Approve the exact proposal with `splunk_approve_detection_change`, then apply
+it with `splunk_apply_approved_detection_change`. MCP does not expose an
+enable/disable operation and never enables a detection. Every applied
+write/update persists the detection disabled; authorized staff must use a
+separately controlled Splunk process outside MCP when activation or rollback
+is required.
+The only MCP write gate is `SPLUNK_ALLOW_DETECTION_WRITE`; the legacy
+`SPLUNK_ALLOW_DETECTION_ENABLE` setting is ignored and is not reported.
+
+For new rules, follow the detection-writing workflow in
+`skills/detection-engineering/SKILL.md` and the SPL format in
+`skills/spl-writing/SKILL.md`. The checklist covers alert type, time range,
+cron (when scheduled), expiry, trigger conditions, trigger behavior, throttle,
+and trigger actions. The team defaults are Add to Triggered Alerts (`alert.track=true`) and Log Event (`actions=logevent` plus
+`action.logevent=1`). Log Event source, sourcetype, host, and index are fixed to
+`$name$`, `ticket_details`, empty, and `ticket_summary`; event text is generated
+from the final table. Client-email rules may append the documented `outputcsv`
 filename subsearch. MCP keeps `outputcsv` blocked for ordinary searches and
 backtests; it is accepted only inside an exact disabled detection proposal and
-does not execute until a separate enable approval.
+is never executed by MCP. No MCP path exports the CSV or sends email merely by
+creating, approving, or applying a disabled definition.
 
 ## Splunk background context
 

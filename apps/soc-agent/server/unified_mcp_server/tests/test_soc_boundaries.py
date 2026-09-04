@@ -8,6 +8,7 @@ from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.splunk.core.service import SplunkCore
 from unified_mcp_server.splunk.detection.service import SplunkDetectionService
 from unified_mcp_server.splunk.search.service import SplunkSearchService
+from unified_mcp_server.tests.citic_fixtures import citic_spl
 
 
 def settings(**overrides):
@@ -88,7 +89,7 @@ async def test_detection_service_backtests_and_writes_through_core():
 
     result = await detection.backtest_detection({"name": "test", "spl": "index=main error"})
     assert result["sample_count"] == 1
-    created = await detection.create_detection_draft({"name": "test", "spl": "index=main error"})
+    created = await detection.write_detection({"name": "test", "spl": citic_spl()})
     assert created["enabled"] is False
     assert created["status"] == "approval_required"
     await core.close()

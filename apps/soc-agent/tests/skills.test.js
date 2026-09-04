@@ -26,22 +26,27 @@ test('CITIC SOC defers generic Splunk background until a Splunk tool is visible'
   const presetRoot = join(repoRoot, 'vendor/deepseek-harness/apps/cli/config/agent-presets')
   const citicPreset = readFileSync(join(presetRoot, 'citic-soc/agent.cordis.yml'), 'utf8')
   const background = readFileSync(join(repoRoot, 'BACKGROUND.md'), 'utf8')
+  const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')
 
   assert.match(citicPreset, /instructionFileCandidates:\n\s+- AGENTS\.md\n\s+- CLAUDE\.md\n\s+deferredInstructionFileCandidates:\n\s+- BACKGROUND\.md\n\s+deferredToolNamePrefixes:\n\s+- mcp__soc_agent__splunk_/)
   assert.equal((citicPreset.match(/BACKGROUND\.md/g) ?? []).length, 1)
-  assert.match(background, /reference context/i)
+  assert.match(background, /not\s+authorization/i)
   assert.match(background, /\[COMPANY_SHORT\] detection alert name/)
   assert.match(background, /\[Fubon\] 7732_Malicious File\/Exploit Download_Checkpoint FW/)
   assert.match(background, /Ruleset\.csv/)
-  assert.match(background, /not already used.*`0000`–`9999`/is)
-  assert.match(background, /create the corresponding row/i)
-  assert.match(background, /create the Splunk detection rule/i)
-  assert.match(background, /Trigger Actions/i)
-  assert.match(background, /alert\.track=true/)
-  assert.match(background, /action\.logevent=1/)
-  assert.match(background, /RULE_NUMBER/)
-  assert.match(background, /outputcsv/)
   assert.match(background, /must\s+not be treated as a\s+customer abbreviation/i)
+  assert.doesNotMatch(background, /^## Usual detection creation workflow$/m)
+  assert.doesNotMatch(background, /Trigger Actions/)
+  assert.doesNotMatch(background, /RULE_NUMBER/)
+  assert.doesNotMatch(background, /outputcsv/)
+  assert.match(detection, /Ruleset\.csv/)
+  assert.match(detection, /not already used.*`0000`–`9999`/is)
+  assert.match(detection, /create the corresponding row/i)
+  assert.match(detection, /Trigger Actions/i)
+  assert.match(detection, /alert\.track=true/)
+  assert.match(detection, /action\.logevent=1/)
+  assert.match(detection, /RULE_NUMBER/)
+  assert.match(detection, /outputcsv/)
   assert.doesNotMatch(background, /^## What Splunk is$/m)
   assert.doesNotMatch(background, /^## How the SOC Agent uses Splunk$/m)
   assert.doesNotMatch(background, /^## Splunk Web UI and REST API$/m)
@@ -98,6 +103,7 @@ test('Harness discovers and loads the repository SOC skills through the skill to
       'false-positive-analysis',
       'soc-shift-operations',
       'zimbra-operations',
+      'spl-writing',
     ]
     const names = (await ctx.skills.list({ cwd: repoRoot })).map(skill => skill.name)
     for (const name of expected) assert.equal(names.includes(name), true, name)
@@ -143,16 +149,16 @@ test('SOC skills are concise, scoped, and use bounded action parameters', () => 
   }
   const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')
   assert.match(detection, /splunk_list_saved_searches\(name=/)
-  assert.match(detection, /disabled draft/i)
+  assert.match(detection, /disabled proposal/i)
 
   const triage = readFileSync(join(repoRoot, 'skills', 'soc-incident-triage', 'SKILL.md'), 'utf8')
   assert.match(triage, /Do not load every specialist skill up front/)
   assert.match(triage, /Stop conditions/)
 
-  assert.throws(
-    () => readFileSync(join(repoRoot, 'skills', 'spl-writing', 'SKILL.md'), 'utf8'),
-    /ENOENT/,
-  )
+  const splWriting = readFileSync(join(repoRoot, 'skills', 'spl-writing', 'SKILL.md'), 'utf8')
+  assert.match(splWriting, /splunk_compile_citic_detection/)
+  assert.match(splWriting, /backtest_spl/)
+  assert.match(splWriting, /outputcsv/)
 })
 
 test('SOC web policy lists only existing upstream tests', () => {

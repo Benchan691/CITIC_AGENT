@@ -105,6 +105,27 @@ class SplunkService:
     def validate_detection(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.detection_service.validate_detection(payload)
 
+    def compile_citic_detection(
+        self,
+        *,
+        detection_logic: str,
+        rulename: str,
+        threat_name: str,
+        threat_type: str,
+        case_prefix: str,
+        event_field_mappings: dict[str, str],
+        extra_table_fields: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return self.detection_service.compile_citic_detection(
+            detection_logic=detection_logic,
+            rulename=rulename,
+            threat_name=threat_name,
+            threat_type=threat_type,
+            case_prefix=case_prefix,
+            event_field_mappings=event_field_mappings,
+            extra_table_fields=extra_table_fields,
+        )
+
     async def backtest_detection(
         self,
         payload: dict[str, Any],
@@ -142,14 +163,11 @@ class SplunkService:
     async def get_security_finding(self, finding_id: str) -> dict[str, Any]:
         return await self.security_queue_service.get_security_finding(finding_id)
 
-    async def create_detection_draft(self, payload: dict[str, Any], *, actor_id: str | None = None) -> dict[str, Any]:
-        return await self.detection_service.create_detection_draft(payload, actor_id=actor_id)
+    async def write_detection(self, payload: dict[str, Any], *, actor_id: str | None = None) -> dict[str, Any]:
+        return await self.detection_service.write_detection(payload, actor_id=actor_id)
 
-    async def update_detection_draft(self, name: str, payload: dict[str, Any], expected_fingerprint: str, *, actor_id: str | None = None) -> dict[str, Any]:
-        return await self.detection_service.update_detection_draft(name, payload, expected_fingerprint, actor_id=actor_id)
-
-    async def set_detection_enabled(self, name: str, enabled: bool, expected_fingerprint: str, *, actor_id: str | None = None) -> dict[str, Any]:
-        return await self.detection_service.set_detection_enabled(name, enabled, expected_fingerprint, actor_id=actor_id)
+    async def update_detection(self, name: str, payload: dict[str, Any], expected_fingerprint: str, *, actor_id: str | None = None) -> dict[str, Any]:
+        return await self.detection_service.update_detection(name, payload, expected_fingerprint, actor_id=actor_id)
 
     async def approve_detection_change(
         self,

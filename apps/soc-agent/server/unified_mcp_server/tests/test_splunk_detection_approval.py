@@ -11,6 +11,11 @@ from unified_mcp_server.splunk.detection.approval import (
 )
 from unified_mcp_server.splunk.splunk_client import SplunkAPIError
 from unified_mcp_server.splunk_service import SplunkService
+from unified_mcp_server.tests.citic_fixtures import citic_spl
+
+
+CURRENT_SPL = citic_spl()
+UPDATED_SPL = citic_spl("index=main critical")
 
 
 def settings(**overrides):
@@ -28,7 +33,6 @@ def settings(**overrides):
         "safe_timerange": "24h",
         "sanitize_output": True,
         "detection_write_enabled": True,
-        "detection_enable_enabled": True,
         "detection_approval_ttl_seconds": 600,
     }
     values.update(overrides)
@@ -40,7 +44,7 @@ class MutableClient:
         self.exists = True
         self.writes = []
         self.content = {
-            "search": "index=main error",
+            "search": CURRENT_SPL,
             "description": "old",
             "dispatch.earliest_time": "-10m",
             "dispatch.latest_time": "now",
@@ -79,10 +83,10 @@ class MutableClient:
 async def test_update_is_only_a_proposal_until_exact_approval_and_apply():
     service = SplunkService(settings(), MutableClient)
     current = await service.get_detection("rule")
-    proposal = await service.update_detection_draft(
+    proposal = await service.update_detection(
         "rule",
         {
-            "spl": "index=main critical",
+            "spl": UPDATED_SPL,
             "description": "reviewed",
             "severity": "high",
             "mitre_attack": ["T1059.001"],
@@ -96,8 +100,8 @@ async def test_update_is_only_a_proposal_until_exact_approval_and_apply():
     client = service.core._client
     assert client.writes == []
     assert proposal["status"] == "approval_required"
-    assert proposal["diff"]["spl"] == {"before": "index=main error", "after": "index=main critical"}
-    assert proposal["proposal"]["after"]["actions"] == "notable"
+    assert proposal["diff"]["spl"] == {"before": CURRENT_SPL, "after": UPDATED_SPL}
+    assert proposal["proposal"]["after"]["actions"] == "notable,logevent"
 
     with pytest.raises(ServiceError) as mismatch:
         await service.approve_detection_change(
@@ -125,7 +129,7 @@ async def test_update_is_only_a_proposal_until_exact_approval_and_apply():
             "rule",
             {
                 "name": "rule",
-                "search": "index=main critical",
+                "search": UPDATED_SPL,
                 "description": "reviewed",
                 "is_scheduled": "1",
                 "cron_schedule": "*/5 * * * *",
@@ -134,7 +138,13 @@ async def test_update_is_only_a_proposal_until_exact_approval_and_apply():
                 "disabled": "1",
                 "app": "search",
                 "owner": "nobody",
-                "actions": "notable",
+                "actions": "notable,logevent",
+                "action.logevent": "1",
+                "action.logevent.param.event": '{ Ticketnumber="$result.Fix_Ticketnumber$" TriggerTime="$result.Fix_TriggerTime$" Index="$result.Fix_Index$" SourceType="$result.Fix_Source Type$" Hostname="$result.Event_Hostname$" DateTime="$result.Event_Date Time$" }',
+                "action.logevent.param.source": "$name$",
+                "action.logevent.param.sourcetype": "ticket_details",
+                "action.logevent.param.host": "",
+                "action.logevent.param.index": "ticket_summary",
             },
         )
     ]
@@ -147,7 +157,7 @@ async def test_update_is_only_a_proposal_until_exact_approval_and_apply():
 async def test_alert_settings_and_actions_are_proposed_hashed_and_written_disabled():
     service = SplunkService(settings(), MutableClient)
     current = await service.get_detection("rule")
-    proposal = await service.update_detection_draft(
+    proposal = await service.update_detection(
         "rule",
         {
             "is_scheduled": True,
@@ -201,9 +211,14 @@ async def test_alert_settings_and_actions_are_proposed_hashed_and_written_disabl
     assert written["alert.suppress"] == "0"
     assert written["alert.expires"] == "24h"
     assert written["alert.track"] == "1"
-    assert written["actions"] == "email"
+    assert written["actions"] == "email,logevent"
     assert written["action.email"] == "1"
     assert written["action.email.to"] == "soc@example.invalid"
+    assert written["action.logevent"] == "1"
+    assert written["action.logevent.param.source"] == "$name$"
+    assert written["action.logevent.param.sourcetype"] == "ticket_details"
+    assert written["action.logevent.param.host"] == ""
+    assert written["action.logevent.param.index"] == "ticket_summary"
     assert written["disabled"] == "1"
     assert result["enabled"] is False
     assert result["actions_preserved"] is False
@@ -228,7 +243,7 @@ async def test_secret_action_fields_are_hidden_preserved_and_rejected_from_patch
     assert "action.email.auth_password" not in current
     assert "remote-secret" not in str(current)
 
-    proposal = await service.update_detection_draft(
+    proposal = await service.update_detection(
         "rule", {"description": "reviewed"}, current["fingerprint"], actor_id="analyst-a"
     )
     assert "action.email.auth_password" not in str(proposal)
@@ -246,7 +261,7 @@ async def test_secret_action_fields_are_hidden_preserved_and_rejected_from_patch
 
     refreshed = await service.get_detection("rule")
     with pytest.raises(ServiceError) as error:
-        await service.update_detection_draft(
+        await service.update_detection(
             "rule",
             {"action.email.auth_password": None},
             refreshed["fingerprint"],
@@ -259,7 +274,7 @@ async def test_secret_action_fields_are_hidden_preserved_and_rejected_from_patch
 async def test_stale_fingerprint_and_wrong_actor_never_write():
     service = SplunkService(settings(), MutableClient)
     current = await service.get_detection("rule")
-    proposal = await service.update_detection_draft(
+    proposal = await service.update_detection(
         "rule", {"description": "new"}, current["fingerprint"], actor_id="analyst-a"
     )
     approval = await service.approve_detection_change(
@@ -302,7 +317,7 @@ async def test_expired_approval_and_missing_approval_are_rejected():
     store = DetectionApprovalStore(ttl_seconds=60, clock=clock)
     service = SplunkService(settings(), MutableClient, approval_store=store)
     current = await service.get_detection("rule")
-    proposal = await service.update_detection_draft(
+    proposal = await service.update_detection(
         "rule", {"description": "expires"}, current["fingerprint"], actor_id="analyst-a"
     )
     now = now + timedelta(seconds=61)
@@ -315,26 +330,28 @@ async def test_expired_approval_and_missing_approval_are_rejected():
 
 
 @pytest.mark.asyncio
-async def test_create_is_disabled_and_enable_requires_a_separate_approval():
+async def test_write_is_disabled_and_requires_exact_approval():
     class EmptyClient(MutableClient):
         def __init__(self, config):
             super().__init__(config)
             self.exists = False
 
     service = SplunkService(settings(), EmptyClient)
-    proposal = await service.create_detection_draft(
+    proposal = await service.write_detection(
         {
             "name": "new-rule",
-            "spl": "index=main error",
+            "spl": CURRENT_SPL,
             "cron_schedule": "*/5 * * * *",
             "actions": "notable",
             "action.notable": True,
+            "enabled": True,
         },
         actor_id="analyst-a",
     )
-    assert proposal["operation"] == "create"
+    assert proposal["operation"] == "write"
     assert proposal["proposal"]["after"]["disabled"] is True
-    assert proposal["proposal"]["after"]["actions"] == "notable"
+    assert proposal["proposal"]["after"]["enabled"] is False
+    assert proposal["proposal"]["after"]["actions"] == "notable,logevent"
     assert proposal["proposal"]["after"]["action.notable"] == "1"
     assert proposal["requires_action_configuration"] is False
     approval = await service.approve_detection_change(proposal["proposal_id"], actor_id="analyst-a")
@@ -342,19 +359,42 @@ async def test_create_is_disabled_and_enable_requires_a_separate_approval():
     assert created["created"] is True
     assert created["enabled"] is False
 
-    client = service.core._client
-    current = await service.get_detection("new-rule")
-    enable_proposal = await service.set_detection_enabled(
-        "new-rule", True, current["fingerprint"], actor_id="analyst-a"
+
+@pytest.mark.asyncio
+async def test_write_is_create_only_and_existing_target_fails_at_apply():
+    service = SplunkService(settings(), MutableClient)
+    proposal = await service.write_detection(
+        {"name": "rule", "spl": CURRENT_SPL},
+        actor_id="analyst-a",
     )
-    assert enable_proposal["operation"] == "enable"
-    enable_approval = await service.approve_detection_change(
-        enable_proposal["proposal_id"], actor_id="analyst-a"
+    approval = await service.approve_detection_change(
+        proposal["proposal_id"], proposal["proposal_hash"], actor_id="analyst-a"
     )
-    enabled = await service.apply_approved_detection_change(
-        enable_approval["approval_id"], actor_id="analyst-a"
-    )
-    assert enabled["enabled"] is True
+
+    with pytest.raises(ServiceError) as error:
+        await service.apply_approved_detection_change(
+            approval["approval_id"], actor_id="analyst-a"
+        )
+
+    assert error.value.code == "target_mismatch"
+    assert service.core._client.writes == []
+
+
+@pytest.mark.parametrize("operation", ["enable", "disable"])
+def test_enable_and_disable_proposals_are_rejected(operation):
+    store = DetectionApprovalStore()
+
+    with pytest.raises(ServiceError) as error:
+        store.create_proposal(
+            operation=operation,
+            target_id="rule",
+            current_fingerprint="fingerprint",
+            before={"name": "rule"},
+            after={"name": "rule", "disabled": True},
+            created_by="analyst-a",
+        )
+
+    assert error.value.code == "proposal_payload_mismatch"
 
 
 @pytest.mark.asyncio
@@ -364,17 +404,9 @@ async def test_outputcsv_proposal_is_approved_and_written_disabled_without_execu
             super().__init__(config)
             self.exists = False
 
-    spl = """index=main error
-| outputcsv [
-    | stats count
-    | addinfo
-    | eval rulename="RULE_NUMBER"
-    | eval search=strftime(now(), "%Y%m%d%H%M")
-    | eval casename="CASE_PREFIX"."".search."".rulename
-    | return $casename
-]"""
+    spl = CURRENT_SPL
     service = SplunkService(settings(), EmptyClient)
-    proposal = await service.create_detection_draft(
+    proposal = await service.write_detection(
         {
             "name": "client-csv-rule",
             "spl": spl,
@@ -408,22 +440,17 @@ async def test_outputcsv_proposal_is_approved_and_written_disabled_without_execu
 
 
 @pytest.mark.asyncio
-async def test_real_time_detection_enablement_uses_rt_bounds_without_a_cron_schedule():
+async def test_update_of_enabled_detection_is_forced_disabled():
     service = SplunkService(settings(), MutableClient)
     await service.get_detection("rule")
     client = service.core._client
-    client.content.update({
-        "is_scheduled": "1",
-        "cron_schedule": "",
-        "dispatch.earliest_time": "rt-5m",
-        "dispatch.latest_time": "rt",
-        "actions": "notable",
-    })
+    client.content["disabled"] = "0"
     current = await service.get_detection("rule")
 
-    proposal = await service.set_detection_enabled(
-        "rule", True, current["fingerprint"], actor_id="analyst-a"
+    proposal = await service.update_detection(
+        "rule", {"description": "updated while enabled"}, current["fingerprint"], actor_id="analyst-a"
     )
+    assert proposal["proposal"]["after"]["disabled"] is True
     approval = await service.approve_detection_change(
         proposal["proposal_id"], proposal["proposal_hash"], actor_id="analyst-a"
     )
@@ -431,15 +458,15 @@ async def test_real_time_detection_enablement_uses_rt_bounds_without_a_cron_sche
         approval["approval_id"], actor_id="analyst-a"
     )
 
-    assert result["enabled"] is True
-    assert client.writes[-1][2]["disabled"] == "0"
+    assert result["enabled"] is False
+    assert client.writes[-1][2]["disabled"] == "1"
 
 
 @pytest.mark.asyncio
 async def test_concurrent_apply_and_cancellation_cannot_replay_one_approval():
     service = SplunkService(settings(), MutableClient)
     current = await service.get_detection("rule")
-    proposal = await service.update_detection_draft(
+    proposal = await service.update_detection(
         "rule", {"description": "once"}, current["fingerprint"], actor_id="analyst-a"
     )
     approval = await service.approve_detection_change(proposal["proposal_id"], actor_id="analyst-a")
@@ -467,7 +494,7 @@ async def test_concurrent_apply_and_cancellation_cannot_replay_one_approval():
 
     cancelled_service = SplunkService(settings(), BlockingClient)
     current = await cancelled_service.get_detection("rule")
-    proposal = await cancelled_service.update_detection_draft(
+    proposal = await cancelled_service.update_detection(
         "rule", {"description": "cancelled"}, current["fingerprint"], actor_id="analyst-a"
     )
     approval = await cancelled_service.approve_detection_change(proposal["proposal_id"], actor_id="analyst-a")

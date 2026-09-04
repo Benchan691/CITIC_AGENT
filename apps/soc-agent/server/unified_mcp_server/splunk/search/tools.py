@@ -6,9 +6,6 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
-from .planner import ResultMode, SearchIntent
-
-
 def _principal_id(get_runtime, ctx: Context) -> str:
     identity = getattr(get_runtime(ctx), "identity", None)
     principal = getattr(identity, "user_id", "") or getattr(identity, "zimbra_email", "")
@@ -29,49 +26,6 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
     async def splunk_search(ctx: Context, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         """Execute a guarded read-only Splunk search. Use an exact index and narrow time range; use stats, tstats, chart, or similar aggregation for statistical questions, then sort/head as appropriate. Keep raw-event samples small, and never treat returned_count as total matches; inspect truncation metadata before volume or absence conclusions."""
         return await execute(ctx, "splunk", "search", lambda: get_runtime(ctx).splunk_search.search(query, earliest_time, latest_time, max_count, fields, principal_id=_principal_id(get_runtime, ctx)))
-
-    @server.tool()
-    async def splunk_search_intent(
-        ctx: Context,
-        objective: str,
-        entity_type: str | None = None,
-        entity: str | None = None,
-        entities: list[dict[str, str]] | None = None,
-        customer: str | None = None,
-        event_type: str | None = None,
-        earliest_time: str = "-24h",
-        latest_time: str = "now",
-        preferred_index: str | None = None,
-        preferred_sourcetype: str | None = None,
-        fields: list[str] | None = None,
-        result_mode: ResultMode = "auto",
-        max_count: int = 50,
-    ) -> dict[str, Any]:
-        """Plan and execute a trusted, bounded Splunk investigation search. Prefer this for normal SOC questions; it selects a curated index/sourcetype and uses aggregation for count or distribution questions. Use raw_evidence only when individual events are needed. A zero-result response means no match was observed in the planned scope, not proof of absence."""
-        async def action() -> dict[str, Any]:
-            try:
-                intent = SearchIntent.from_values(
-                    objective=objective,
-                    entity_type=entity_type,
-                    entity=entity,
-                    entities=entities,
-                    customer=customer,
-                    event_type=event_type,
-                    earliest_time=earliest_time,
-                    latest_time=latest_time,
-                    preferred_index=preferred_index,
-                    preferred_sourcetype=preferred_sourcetype,
-                    fields=fields,
-                    result_mode=result_mode,
-                    max_count=max_count,
-                )
-            except ValueError as exc:
-                raise service_error("invalid_input", str(exc)) from exc
-            return await get_runtime(ctx).splunk_search.search_intent(
-                intent, principal_id=_principal_id(get_runtime, ctx)
-            )
-
-        return await execute(ctx, "splunk", "search_intent", action)
 
     @server.tool()
     async def splunk_list_saved_searches(ctx: Context, name: str = "", app: str = "", limit: int = 50, include_spl: bool = False) -> dict[str, Any]:

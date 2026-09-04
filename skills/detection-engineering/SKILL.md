@@ -1,6 +1,6 @@
 ---
 name: detection-engineering
-description: Design, review, validate, backtest, stage, enable, or disable Splunk detections through controlled tools. Use when investigation evidence should become a new or modified rule.
+description: Design, review, validate, backtest, write, or update Splunk detections through controlled tools. Use when investigation evidence should become a new or modified rule.
 ---
 
 # Detection Engineering
@@ -9,12 +9,13 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 
 ## Invariants
 
-- Inspect an existing rule immediately before modifying, enabling, or disabling it; use its fresh fingerprint.
-- New and modified rules remain disabled until separately reviewed and approved.
+- Inspect an existing rule immediately before modifying it; use its fresh fingerprint.
+- New and modified rules are always written disabled. MCP never enables a
+  detection and has no explicit disable operation.
 - Validate before every backtest or write.
 - Backtests are bounded samples, not total match counts or proof of production quality.
 - Generic saved-search writes do not persist severity, ATT&CK, risk, suppression, or provider-specific action settings.
-- Never enable a rule without a persisted schedule and at least one persisted Splunk alert action.
+- If a rule is later activated outside MCP, require a persisted schedule and at least one persisted Splunk alert action.
 - Do not invent MITRE mappings, severity, risk objects, or scores.
 - All writes follow the backend exact-proposal approval flow; a remembered
   approval for a detection tool name is never sufficient.
@@ -24,33 +25,118 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 - Discover exact names with `splunk_list_saved_searches(name=..., app=..., limit=..., include_spl=false)`.
 - Inspect with `splunk_get_detection`.
 - Validate locally with `splunk_validate_detection`.
+- Compile production CITIC SPL with `splunk_compile_citic_detection`; follow
+  the `spl-writing` skill for the required wrapper and field order.
 - Test with `splunk_backtest_detection` using a bounded period, result count, and selected fields.
-- Stage a disabled draft with `splunk_create_detection_draft` or
-  `splunk_update_detection_draft(..., expected_fingerprint=...)`; these return
-  an immutable proposal, hash, and structured diff and do not write yet.
+- Stage a disabled proposal with `splunk_write_detection` for a new rule or
+  `splunk_update_detection(..., expected_fingerprint=...)` for an existing
+  rule; these return an immutable proposal, hash, and structured diff and do
+  not write yet.
 - Review the exact `proposal_hash`, target, fingerprint, and before/after
   values, then approve it with `splunk_approve_detection_change` and apply only
   the returned approval with `splunk_apply_approved_detection_change`.
-- Use `splunk_enable_detection` only to create a separate exact enable
-  proposal, followed by its own approval and apply call.
-- Use `splunk_disable_detection` for a reversible rollback, also as an exact
-  proposal and single-use approval.
+- If activation or rollback is required, use the separately controlled human
+  Splunk process outside MCP.
+
+## CITIC team rule-writing workflow
+
+For a new customer detection:
+
+1. Review `Ruleset.csv` and select a rule number not already used in the
+   four-digit range `0000`–`9999`.
+2. Create the corresponding row and fill in its required rule information,
+   using the verified `[COMPANY_SHORT] detection alert name` convention.
+3. Complete the alert configuration checklist below.
+4. Write the detection rule through the controlled workflow.
+
+Production detections start with detection logic only. Call
+`splunk_compile_citic_detection`; do not hand-write the CITIC wrapper or submit
+separate production and backtest SPL. Use the returned `production_spl` for
+validation and `splunk_write_detection`/`splunk_update_detection`, and use only
+the derived `backtest_spl` for testing.
+
+The required production fields are:
+
+```text
+GID
+rulename
+search=strftime(now(), "%Y%m%d%H%M")
+Fix_Ticketnumber
+Fix_TriggerTime
+Fix_Index
+Fix_Source Type
+Event_Hostname
+Event_Date Time
+```
+
+The final top-level stages must be a `table` beginning with
+`Fix_Ticketnumber`, `Fix_TriggerTime`, `Fix_Index`, `Fix_Source Type`,
+`Event_Hostname`, and `Event_Date Time`, followed by the dynamic `outputcsv`
+filename subsearch. Optional fields follow those required fields.
+Investigation SPL does not require this wrapper, and backtest SPL must not
+contain `outputcsv`.
+
+Every new rule must record:
+
+- Alert type: Scheduled uses `is_scheduled=true`, non-real-time dispatch
+  bounds, and a cron expression. Real-time uses `is_scheduled=true`, `rt...`
+  for both dispatch bounds, and no cron expression.
+- Time range: `dispatch.earliest_time` and `dispatch.latest_time`.
+- Cron expression: required for Scheduled alerts.
+- Expires: a positive `alert.expires` duration.
+- Trigger Conditions: `alert_type`/`counttype`, comparator/`relation`,
+  threshold/`quantity`, or a custom `alert_condition`.
+- Trigger behavior: `alert.digest_mode=true` once per result set, or `false`
+  once per result.
+- Throttle: whether `alert.suppress` is enabled and, when enabled, its
+  period, fields, and group name as applicable.
+- Trigger Actions / When triggered: default Add to Triggered Alerts with
+  `alert.track=true` and Log Event with `actions=logevent` plus
+  `action.logevent=1`. Record deviations explicitly and add email actions only
+  when the rule must email a client.
+
+MCP fixes Log Event parameters to source `$name$`, sourcetype
+`ticket_details`, an empty host, and index `ticket_summary`. It generates the
+event text from final table fields using `$result.<field>$`, stripping `Fix_`/
+`Event_` prefixes and spaces from output keys.
+
+For a client-email rule, append this convention with the assigned rule number
+and case prefix:
+
+```spl
+... | outputcsv [
+    | stats count
+    | addinfo
+    | eval rulename="RULE_NUMBER"
+    | eval search=strftime(now(), "%Y%m%d%H%M")
+    | eval casename="CASE_PREFIX"."".search."".rulename
+    | return $casename
+]
+```
+
+`outputcsv` is permitted only in the exact disabled, approval-gated detection
+definition. It runs later in Splunk's alert runtime, is never executed or
+exported by MCP, must not be used for investigation/backtesting, writes on the
+local search head, and is unavailable on Splunk Cloud. Use the supported email
+CSV attachment action on Splunk Cloud. Recheck `Ruleset.csv` immediately
+before the change; its row and the detection change remain separately
+controlled operations.
 
 ## Workflow
 
 1. State the behavior, evidence, entities, expected data, match condition, and known benign behavior.
 2. Inspect existing or equivalent rules. Request full SPL only for the exact relevant rule.
-3. Design scoped SPL with stable fields, bounded windows, and only necessary transformations. Prefer `tstats` or accelerated data models when appropriate and actually available.
-4. Define supported metadata: name, description, time range, schedule, severity, ATT&CK, risk, suppression, and `enabled: false`.
-5. Validate and resolve errors. Review warnings rather than ignoring them.
-6. Backtest on a representative bounded period. Examine the returned sample count and budget, repeated entities, field consistency, noise, suppression need, and performance; the tool does not return a total match count.
-7. Iterate design → validate → backtest until the result is defensible or limitations are explicit.
-8. Present the exact proposed change and evidence before writing.
-9. Create or update a disabled proposal and review its complete diff and hash.
-10. Approve and apply that exact proposal. Treat returned review-only metadata as unpersisted.
-11. For a new draft, configure and re-read the required Splunk alert action outside this generic tool before activation.
-12. Enable only through a second exact proposal and approval with the fresh fingerprint. Verify resulting state.
-13. If behavior is unsafe or noisy, re-read, disable with the fresh fingerprint, and document rollback evidence.
+3. Design base detection logic with stable fields, bounded windows, and only necessary transformations. Prefer `tstats` or accelerated data models when appropriate and actually available.
+4. Compile the logic with `splunk_compile_citic_detection`; use its production SPL for validation and write/update, and its derived backtest SPL for testing.
+5. Define supported metadata: name, description, time range, schedule, severity, ATT&CK, risk, suppression, alert actions, and `enabled: false`.
+6. Validate and resolve errors. Review warnings rather than ignoring them.
+7. Backtest on a representative bounded period. Examine the returned sample count and budget, repeated entities, field consistency, noise, suppression need, and performance; the tool does not return a total match count.
+8. Iterate design → compile → validate → backtest until the result is defensible or limitations are explicit.
+9. Present the exact proposed change and evidence before writing.
+10. Create or update a disabled proposal and review its complete diff and hash.
+11. Approve and apply that exact proposal. Verify the persisted detection is disabled; treat returned review-only metadata as unpersisted.
+12. If activation or rollback is required, hand off to the separately controlled human Splunk process outside MCP and verify the resulting state with `splunk_get_detection`.
+13. If behavior is unsafe or noisy, stop further MCP changes and document the outside-MCP rollback evidence.
 
 ## Output
 

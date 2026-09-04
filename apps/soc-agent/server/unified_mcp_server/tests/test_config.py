@@ -32,7 +32,6 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.splunk.configured is False
     assert settings.zimbra.configured is False
     assert settings.splunk.detection_write_enabled is False
-    assert settings.splunk.detection_enable_enabled is False
     assert settings.splunk.detection_approval_ttl_seconds == 600
     assert settings.splunk.query_policy.normal_search_seconds == 604_800
     assert settings.splunk.query_policy.wildcard_index_decision == "require_approval"
@@ -408,7 +407,7 @@ def test_detection_write_flags_are_explicit_and_visible_without_secrets():
     )
     status = settings.public_status()
     assert status["splunk"]["detection_write_enabled"] is True
-    assert status["splunk"]["detection_enable_enabled"] is True
+    assert "detection_enable_enabled" not in status["splunk"]
     assert status["splunk"]["detection_app"] == "security_app"
 
 

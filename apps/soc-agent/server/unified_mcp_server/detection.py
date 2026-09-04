@@ -333,7 +333,7 @@ def validate_detection(draft: DetectionDraft, *, query_validation: dict[str, Any
     if not 0 <= draft.risk_score <= 100:
         errors.append("risk_score must be between 0 and 100")
     if draft.enabled:
-        errors.append("new drafts must be disabled; use the explicit enable tool after review")
+        errors.append("detection writes must be disabled; MCP cannot enable detections")
     if draft.cron_schedule and len(draft.cron_schedule.split()) not in {5, 6}:
         errors.append("cron_schedule must contain five or six fields")
     _validate_alert_fields(draft, errors, warnings)
@@ -352,7 +352,7 @@ def validate_detection(draft: DetectionDraft, *, query_validation: dict[str, Any
     if "outputcsv" in query_validation.get("allowed_commands", []):
         warnings.append(
             "outputcsv is permitted only in this exact disabled detection proposal "
-            "and runs only after separate enable approval"
+            "and is not executed by MCP"
         )
     if "index=" not in draft.spl.lower():
         warnings.append("SPL does not name an index; confirm the data scope before deployment")

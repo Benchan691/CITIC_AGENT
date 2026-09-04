@@ -15,7 +15,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "system_get_status",
         "splunk_validate_query",
         "splunk_search",
-        "splunk_search_intent",
         "splunk_list_security_findings",
         "splunk_get_security_finding",
         "splunk_list_saved_searches",
@@ -23,11 +22,10 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_list_lookups",
         "splunk_get_detection",
         "splunk_validate_detection",
+        "splunk_compile_citic_detection",
         "splunk_backtest_detection",
-        "splunk_create_detection_draft",
-        "splunk_update_detection_draft",
-        "splunk_enable_detection",
-        "splunk_disable_detection",
+        "splunk_write_detection",
+        "splunk_update_detection",
         "splunk_approve_detection_change",
         "splunk_apply_approved_detection_change",
         "splunk_run_saved_search",
@@ -76,10 +74,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     }
     assert search_tool.parameters["required"] == ["query"]
     assert "stats" in search_tool.description.lower()
-    intent_tool = next(tool for tool in tools if tool.name == "splunk_search_intent")
-    assert "objective" in intent_tool.parameters["properties"]
-    assert intent_tool.parameters["required"] == ["objective"]
-    assert "aggregation" in intent_tool.description.lower()
     queue_list_tool = next(tool for tool in tools if tool.name == "splunk_list_security_findings")
     assert set(queue_list_tool.parameters["properties"]) == {
         "status", "urgency", "owner", "detection", "earliest_time", "latest_time", "limit", "cursor",
@@ -91,6 +85,13 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert "read-only" in queue_list_tool.description.lower()
     assert "splunk_list_data_sources" not in {tool.name for tool in tools}
     assert "splunk_list_indexes" not in {tool.name for tool in tools}
+    tool_names = {tool.name for tool in tools}
+    assert not {
+        "splunk_create_detection_draft",
+        "splunk_update_detection_draft",
+        "splunk_enable_detection",
+        "splunk_disable_detection",
+    } & tool_names
 
     # The ordinary status tool is intentionally limited to readiness; detailed
     # endpoint, policy, and LLM configuration is served through the admin plane.
@@ -148,12 +149,25 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "name", "expected_fingerprint",
     }
     assert set(delete_filter_tool.parameters["required"]) == {"name", "expected_fingerprint"}
-    for name in (
-        "splunk_update_detection_draft", "splunk_enable_detection", "splunk_disable_detection",
-    ):
-        detection_write_tool = next(tool for tool in tools if tool.name == name)
-        assert "expected_fingerprint" in detection_write_tool.parameters["properties"]
-        assert "expected_fingerprint" in detection_write_tool.parameters["required"]
+    write_tool = next(tool for tool in tools if tool.name == "splunk_write_detection")
+    assert set(write_tool.parameters["properties"]) == {"detection"}
+    assert write_tool.parameters["required"] == ["detection"]
+    update_tool = next(tool for tool in tools if tool.name == "splunk_update_detection")
+    assert set(update_tool.parameters["properties"]) == {
+        "name", "detection", "expected_fingerprint",
+    }
+    assert set(update_tool.parameters["required"]) == {
+        "name", "detection", "expected_fingerprint",
+    }
+    compiler_tool = next(tool for tool in tools if tool.name == "splunk_compile_citic_detection")
+    assert set(compiler_tool.parameters["properties"]) == {
+        "detection_logic", "rulename", "threat_name", "threat_type",
+        "case_prefix", "event_field_mappings", "extra_table_fields",
+    }
+    assert set(compiler_tool.parameters["required"]) == {
+        "detection_logic", "rulename", "threat_name", "threat_type",
+        "case_prefix", "event_field_mappings",
+    }
     approve_tool = next(tool for tool in tools if tool.name == "splunk_approve_detection_change")
     assert set(approve_tool.parameters["properties"]) == {"proposal_id", "proposal_hash"}
     assert approve_tool.parameters["required"] == ["proposal_id"]
