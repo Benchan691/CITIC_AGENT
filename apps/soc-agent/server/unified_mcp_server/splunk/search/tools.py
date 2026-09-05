@@ -6,6 +6,8 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
+from .planner import SearchIntent
+
 def _principal_id(get_runtime, ctx: Context) -> str:
     identity = getattr(get_runtime(ctx), "identity", None)
     principal = getattr(identity, "user_id", "") or getattr(identity, "zimbra_email", "")
@@ -46,3 +48,48 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
     async def splunk_run_saved_search(ctx: Context, name: str, max_count: int = 50, app: str = "", owner: str = "") -> dict[str, Any]:
         """Run a scoped saved search with actions disabled and bounded results."""
         return await execute(ctx, "splunk", "run_saved_search", lambda: get_runtime(ctx).splunk_search.run_saved_search(name, max_count, app, owner, principal_id=_principal_id(get_runtime, ctx)))
+
+    @server.tool(annotations={"readOnlyHint": True})
+    async def soc_evidence_read(ctx: Context, evidence_id: str, offset: int = 0, limit: int = 50) -> dict[str, Any]:
+        """Page through a retained search snapshot by evidence ID without re-running the search; snapshots are timestamped and evicted oldest-first."""
+        return await execute(ctx, "splunk", "evidence_read", lambda: get_runtime(ctx).splunk_search.read_evidence(evidence_id, offset=offset, limit=limit))
+
+    @server.tool(annotations={"readOnlyHint": True})
+    async def splunk_plan_search(
+        ctx: Context,
+        objective: str,
+        entity_type: str = "",
+        entity: str = "",
+        customer: str = "",
+        event_type: str = "",
+        earliest_time: str = "-24h",
+        latest_time: str = "now",
+        preferred_index: str = "",
+        preferred_sourcetype: str = "",
+        requested_fields: list[str] | None = None,
+        max_count: int = 50,
+    ) -> dict[str, Any]:
+        """Plan one deterministic, scoped SPL search from an objective without executing it; disabled until SPLUNK_SEARCH_PLANNER_ENABLED=true and the schema mappings are verified."""
+        try:
+            intent = SearchIntent(
+                objective=objective,
+                entity_type=entity_type or None,
+                entity=entity or None,
+                customer=customer or None,
+                event_type=event_type or None,
+                earliest_time=earliest_time,
+                latest_time=latest_time,
+                preferred_index=preferred_index or None,
+                preferred_sourcetype=preferred_sourcetype or None,
+                requested_fields=list(requested_fields or []),
+                max_count=max_count,
+            )
+        except ValueError as exc:
+            from unified_mcp_server.errors import ServiceError
+
+            raise ServiceError("invalid_input", str(exc)) from exc
+
+        async def plan() -> dict[str, Any]:
+            return get_runtime(ctx).splunk_search.plan_search(intent)
+
+        return await execute(ctx, "splunk", "plan_search", plan)

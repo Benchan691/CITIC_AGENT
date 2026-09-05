@@ -77,6 +77,15 @@ class SplunkService:
     async def test_connection(self) -> dict[str, Any]:
         return await self.search_service.test_connection()
 
+    def read_evidence(self, evidence_id: str, *, offset: int = 0, limit: int = 50) -> dict[str, Any]:
+        return self.search_service.read_evidence(evidence_id, offset=offset, limit=limit)
+
+    def evidence_stats(self) -> dict[str, Any]:
+        return self.search_service.evidence_stats()
+
+    def plan_search(self, intent: SearchIntent) -> dict[str, Any]:
+        return self.search_service.plan_search(intent)
+
     async def list_saved_searches(self, name: str = "", app: str = "", limit: int = 50, include_spl: bool = False) -> dict[str, Any]:
         return await self.search_service.list_saved_searches(name, app, limit, include_spl)
 

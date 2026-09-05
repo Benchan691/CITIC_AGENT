@@ -254,3 +254,21 @@ test('SOC tools enforce tenant isolation, provenance, deduplication, supersessio
     rmSync(f.root, { recursive: true, force: true })
   }
 })
+
+test('readRawEntriesSync reuses the parsed-entry cache across prompt turns', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'citic-soc-memory-sync-'))
+  try {
+    const store = new MemoryStore(root)
+    await store.appendRawEntry({ content: 'Use the approved escalation workflow.', tags: ['runbook'] })
+    const first = store.readRawEntriesSync()
+    assert.equal(first.length, 1)
+    assert.match(first[0].content, /escalation workflow/)
+    // A second synchronous read without a file change returns the same
+    // parsed array object — the cache was hit, no re-read or re-parse.
+    const second = store.readRawEntriesSync()
+    assert.equal(second, first)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+

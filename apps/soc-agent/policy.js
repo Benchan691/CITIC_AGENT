@@ -15,6 +15,8 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_validate_detection',
   'mcp__soc_agent__splunk_compile_citic_detection',
   'mcp__soc_agent__splunk_backtest_detection',
+  'mcp__soc_agent__soc_evidence_read',
+  'mcp__soc_agent__splunk_plan_search',
   'mcp__soc_agent__catalog_list_rules',
   'mcp__soc_agent__catalog_get_rule',
   'mcp__soc_agent__catalog_list_customers',

@@ -33,6 +33,9 @@ class SearchExecution(TypedDict):
     columns: list[str]
     event_budget: dict[str, Any]
     search_metadata: dict[str, Any]
+    retained_events: list[dict[str, Any]]
+    earliest_time: str
+    latest_time: str
 
 
 class SearchExecutor:
@@ -396,6 +399,7 @@ class SearchExecutor:
                 for event in events
             ]
         result_columns = self._columns_for_rows(raw_columns, events, selected_fields)
+        retained_events = list(events)
         events, event_budget = self.core.bound_events(events)
         total_result_count = self._normalize_metadata_int(
             job_metadata.get("total_result_count"), "total result count"
@@ -430,4 +434,7 @@ class SearchExecutor:
             "columns": result_columns,
             "event_budget": event_budget,
             "search_metadata": search_metadata,
+            "retained_events": retained_events,
+            "earliest_time": earliest_time,
+            "latest_time": latest_time,
         }

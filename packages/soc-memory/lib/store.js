@@ -2,6 +2,7 @@
 //
 // This module intentionally has no DSH runtime imports so its parsing, budget,
 // journal, search, and file-layout logic can be unit-tested with plain Node.js.
+import { readFileSync, statSync } from 'node:fs'
 import { appendFile, chmod, mkdir, open, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { hostname } from 'node:os'
@@ -924,6 +925,21 @@ export class MemoryStore {
     const key = `${info.mtimeMs}:${info.size}`
     if (this.rawCache !== null && this.rawCache.key === key) return this.rawCache.entries
     const entries = parseRaw(await this.readText(RAW_FILE))
+    this.rawCache = { key, entries }
+    return entries
+  }
+
+  /**
+   * Synchronous variant for prompt assembly. Reuses the same parsed-entry
+   * cache keyed by mtime+size so repeated turns skip re-reading and
+   * re-parsing the raw file; only the stat call remains per invocation.
+   */
+  readRawEntriesSync() {
+    const info = statSync(this.path(RAW_FILE), { throwIfNoEntry: false })
+    if (info === null || info === undefined) return []
+    const key = `${info.mtimeMs}:${info.size}`
+    if (this.rawCache !== null && this.rawCache.key === key) return this.rawCache.entries
+    const entries = parseRaw(readFileSync(this.path(RAW_FILE), 'utf8'))
     this.rawCache = { key, entries }
     return entries
   }

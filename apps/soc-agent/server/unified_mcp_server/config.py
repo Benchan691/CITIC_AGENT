@@ -152,6 +152,8 @@ class SplunkSettings:
     detection_write_enabled: bool = False
     detection_app: str = "search"
     detection_owner: str = "nobody"
+    search_planner_enabled: bool = False
+    search_reuse_ttl_seconds: int = 300
     lookup_write_enabled: bool = False
     lookup_app: str = "search"
     lookup_owner: str = "nobody"
@@ -162,7 +164,7 @@ class SplunkSettings:
     query_policy: QueryPolicyConfig = field(default_factory=QueryPolicyConfig)
     search_resource: SearchResourceConfig = field(default_factory=SearchResourceConfig)
     security_queue: SecurityQueueConfig = field(default_factory=SecurityQueueConfig)
-    search_planner_max_refinements: int = 2
+    search_planner_max_refinements: int = 0
     allow_insecure_http: bool = False
 
     def __post_init__(self) -> None:
@@ -380,8 +382,10 @@ class ServerSettings:
             backtest_concurrency=_integer(env, "SPLUNK_SEARCH_BACKTEST_CONCURRENCY", 1, 1, 16),
             restricted_decision=_restricted_decision(env),
         )
+        # Automatic planner refinements default to zero: refinements are an
+        # explicit opt-in after the schema mappings are verified.
         search_planner_max_refinements = _integer(
-            env, "SPLUNK_SEARCH_PLANNER_MAX_REFINEMENTS", 2, 0, 5
+            env, "SPLUNK_SEARCH_PLANNER_MAX_REFINEMENTS", 0, 0, 5
         )
         security_queue = SecurityQueueConfig(
             max_backend_pages_per_request=_integer(
@@ -436,6 +440,8 @@ class ServerSettings:
             detection_write_enabled=_boolean(env, "SPLUNK_ALLOW_DETECTION_WRITE", False),
             detection_app=_value(env, "SPLUNK_DETECTION_APP", "search"),
             detection_owner=_value(env, "SPLUNK_DETECTION_OWNER", "nobody"),
+            search_planner_enabled=_boolean(env, "SPLUNK_SEARCH_PLANNER_ENABLED", False),
+            search_reuse_ttl_seconds=_integer(env, "SPLUNK_SEARCH_REUSE_TTL_SECONDS", 300, 0, 3600),
             lookup_write_enabled=_boolean(env, "SPLUNK_ALLOW_LOOKUP_WRITE", False),
             lookup_app=_value(env, "SPLUNK_LOOKUP_APP", "search"),
             lookup_owner=_value(env, "SPLUNK_LOOKUP_OWNER", "nobody"),
@@ -538,6 +544,7 @@ class ServerSettings:
                 "search_resource": self.splunk.search_resource.to_dict(),
                 "security_queue": self.splunk.security_queue.to_dict(),
                 "search_planner_max_refinements": self.splunk.search_planner_max_refinements,
+                "search_planner_enabled": self.splunk.search_planner_enabled,
             },
             "zimbra": {
                 "configured": self.zimbra.configured,

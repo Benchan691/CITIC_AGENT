@@ -435,7 +435,10 @@ export function apply(ctx, config = {}) {
   function scopedEntriesForPrompt(scopeKey, tenant) {
     const target = storeForScope(scopeKey)
     try {
-      return parseRaw(readFileSync(target.path(RAW_FILE), 'utf8'))
+      // Reuse the store's parsed-entry cache instead of re-reading and
+      // re-parsing the raw file on every prompt assembly.
+      return target
+        .readRawEntriesSync()
         .filter((entry) => isActiveEntry(entry) && entryBelongsToRoute(entry, { key: scopeKey, tenant }))
     } catch {
       return []

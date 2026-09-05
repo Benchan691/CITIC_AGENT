@@ -27,6 +27,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_write_detection",
         "splunk_update_detection",
         "splunk_run_saved_search",
+        "soc_evidence_read",
+        "splunk_plan_search",
         "catalog_list_rules",
         "catalog_get_rule",
         "catalog_list_customers",

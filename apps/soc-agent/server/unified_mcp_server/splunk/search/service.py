@@ -7,6 +7,7 @@ from typing import Any
 
 from ..core.service import SplunkCore
 from .executor import SearchExecutor
+from .evidence import SearchEvidenceCoordinator, fingerprint_request
 from .lookup import normalize_lookups, rest_search_filter
 from .planner import SearchIntent, SearchPlanner
 from .schema_registry import SearchSchemaRegistry
@@ -25,14 +26,18 @@ class SplunkSearchService:
         planner: SearchPlanner | None = None,
         schema_registry: SearchSchemaRegistry | None = None,
         verifier: SearchResultVerifier | None = None,
+        evidence: SearchEvidenceCoordinator | None = None,
     ) -> None:
         self.core = core
         self.executor = executor if executor is not None else SearchExecutor(core)
         self.planner = planner if planner is not None else SearchPlanner(
-            getattr(core.settings, "search_planner_max_refinements", 2)
+            getattr(core.settings, "search_planner_max_refinements", 0)
         )
         self.schema_registry = schema_registry or SearchSchemaRegistry.default()
         self.verifier = verifier or SearchResultVerifier()
+        self.evidence = evidence if evidence is not None else SearchEvidenceCoordinator(
+            reuse_ttl_seconds=int(getattr(core.settings, "search_reuse_ttl_seconds", 300)),
+        )
 
     def validate(self, query: str, earliest_time: str = "-24h", latest_time: str = "now") -> dict[str, Any]:
         return self.core.validate_query(query, earliest_time, latest_time)
@@ -47,15 +52,33 @@ class SplunkSearchService:
         *,
         principal_id: str | None = None,
     ) -> dict[str, Any]:
-        execution = await self.executor.execute(
-            query,
-            earliest_time,
-            latest_time,
-            max_count,
-            fields,
+        fingerprint = fingerprint_request(
+            query=query,
+            earliest_time=earliest_time,
+            latest_time=latest_time,
+            max_count=max_count,
+            fields=fields,
             principal_id=principal_id,
         )
-        return self._format_execution(query, earliest_time, latest_time, execution)
+
+        async def runner() -> dict[str, Any]:
+            return await self.executor.execute(
+                query,
+                earliest_time,
+                latest_time,
+                max_count,
+                fields,
+                principal_id=principal_id,
+            )
+
+        execution, reused, coalesced = await self.evidence.execute_coalesced(fingerprint, runner)
+        response = self._format_execution(query, earliest_time, latest_time, execution)
+        record = reused if reused is not None else self.evidence.get_latest(fingerprint)
+        if record is not None:
+            response["evidence"] = record.summary(reused=reused is not None)
+            if coalesced:
+                response["evidence"]["coalesced"] = True
+        return response
 
     @staticmethod
     def _format_execution(
@@ -210,6 +233,39 @@ class SplunkSearchService:
         if metadata.get("splunk_result_truncated") is True or metadata.get("mcp_context_truncated") is True:
             return False
         return metadata.get("total_result_count") in {None, 0}
+
+    def read_evidence(self, evidence_id: str, *, offset: int = 0, limit: int = 50) -> dict[str, Any]:
+        """Page through a retained search snapshot without dispatching new work."""
+        return self.evidence.read_page(evidence_id, offset=offset, limit=limit)
+
+    def evidence_stats(self) -> dict[str, Any]:
+        return self.evidence.stats()
+
+    def plan_search(self, intent: SearchIntent) -> dict[str, Any]:
+        """Deterministically plan one search without executing anything.
+
+        Exposed behind SPLUNK_SEARCH_PLANNER_ENABLED so the schema mappings can
+        be verified for the deployment first; the returned SPL is run explicitly
+        through splunk_search.
+        """
+        if not getattr(self.core.settings, "search_planner_enabled", False):
+            raise ServiceError(
+                "operation_disabled",
+                "The deterministic search planner is disabled. Verify the schema mappings, then set SPLUNK_SEARCH_PLANNER_ENABLED=true.",
+            )
+        if not isinstance(intent, SearchIntent):
+            raise ServiceError("invalid_input", "search intent is malformed")
+        plan = self.planner.plan(intent, self.schema_registry)
+        return {
+            "plan": plan.to_dict(),
+            "spl": plan.spl,
+            "planner_confidence": plan.confidence,
+            "planner_confidence_label": plan.confidence_label,
+            "indexes": list(plan.indexes),
+            "sourcetypes": list(plan.sourcetypes),
+            "output_fields": list(plan.output_fields),
+            "note": "The plan is definition-only and was not executed; run splunk_search with the planned SPL to fetch evidence.",
+        }
 
     async def test_connection(self) -> dict[str, Any]:
         indexes = await self.core.request(lambda client: client.get_indexes())
