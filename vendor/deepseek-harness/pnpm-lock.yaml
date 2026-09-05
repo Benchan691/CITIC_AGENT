@@ -126,9 +126,6 @@ importers:
 
   ../../apps/soc-agent:
     dependencies:
-      '@citic/soc-memory':
-        specifier: workspace:*
-        version: link:../../packages/soc-memory
       '@deepseek-ai/dsh-mcp-client':
         specifier: link:../../vendor/deepseek-harness/packages/mcp/mcp-client
         version: link:../../vendor/deepseek-harness/packages/mcp/mcp-client
@@ -207,8 +204,6 @@ importers:
       zod:
         specifier: ^4.4.3
         version: 4.4.3
-
-  ../../packages/soc-memory: {}
 
   apps/cli:
     dependencies:

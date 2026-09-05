@@ -21,12 +21,11 @@ export function apply(ctx) {
     if (serverName !== 'soc_agent') return upstream
     const metadata = auth.mcpRequestMeta(exec)
     if (!metadata?.soc_session_id) return upstream
-    const tenant = ctx.get('socMemoryContext')?.get(exec.agent)
     return {
       ...upstream,
       ...metadata,
       soc_investigation_id: String(exec.agent?.session?.id ?? exec.agent?.id ?? ''),
-      soc_customer_id: tenant?.customerId ?? '',
+      soc_customer_id: '',
       soc_correlation_id: randomUUID(),
       soc_deadline_ms: Date.now() + 180_000,
     }

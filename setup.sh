@@ -842,20 +842,14 @@ ensure_harness_ready() {
 
 # --- profile wiring ---------------------------------------------------------
 #
-# The SOC product (login, admin host, MCP bridge, memory, scheduler, settings
-# UI) only exists when `apps/soc-agent/cordis.patch.yml` is part of the boot
+# The SOC product (login, admin host, MCP bridge, scheduler, settings UI) only
+# exists when `apps/soc-agent/cordis.patch.yml` is part of the boot
 # composition. The supported wiring registers the product bundle in the
 # harness `web` profile so a plain `pnpm dsh web` boots it:
 #
 #   1. `dsh plugin --profile web add` links `apps/soc-agent` (and the client
 #      package) into the profile and appends `dsh-soc-agent` to the bundle
 #      layer stack.
-#   2. `@citic/soc-memory` must resolve as a bare name from the profile, but
-#      it must NOT be registered as a bundle: its own `dsh.bundle` patch would
-#      replace the product's `soc-memory` row (id-targeted patches replace the
-#      whole config). A plain symlink in the profile's node_modules provides
-#      resolution without becoming a layer. pnpm may prune that link on a
-#      future profile install; ensure_soc_bundle re-creates it on every run.
 
 profile_dir() {
   printf '%s/profiles/%s' "${DSH_HOME:-$HOME/.dsh}" "$DSH_PROFILE"
@@ -1101,7 +1095,6 @@ verify_profile_resolution() { # $1 = profile dir; prints one line per plugin nam
     dsh-soc-agent/host \
     dsh-soc-agent/scheduler \
     dsh-soc-agent-client \
-    @citic/soc-memory \
     @deepseek-ai/dsh-time-context \
     @linxin666/dsh-client-ui-skin-center \
     dsh-auto-collapse
@@ -1152,16 +1145,6 @@ ensure_soc_bundle() {
       PREREQ_WARNINGS+=("harness profile wiring")
       return 1
     fi
-  fi
-
-  # Resolution-only link: never a bundle layer (see the section comment).
-  local mem_link="$pdir/node_modules/@citic/soc-memory"
-  if [ -L "$mem_link" ] && [ "$(readlink "$mem_link")" = "$REPO_ROOT/packages/soc-memory" ]; then
-    ok "@citic/soc-memory resolvable from the profile"
-  else
-    mkdir -p "$(dirname "$mem_link")"
-    ln -sfn "$REPO_ROOT/packages/soc-memory" "$mem_link"
-    ok "linked @citic/soc-memory into the profile (resolution only)"
   fi
 
   if verify_profile_resolution "$pdir"; then

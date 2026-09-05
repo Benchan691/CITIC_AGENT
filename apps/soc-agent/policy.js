@@ -42,8 +42,6 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__get_subscription_schema',
   'mcp__soc_agent__preview_subscription',
   'scheduled_task_list',
-  'soc_memory_search',
-  'soc_memory_read',
 ])
 
 /**
@@ -81,9 +79,6 @@ export const ACTION_CATALOG = Object.freeze([
   { name: 'scheduled_task_resume', group: 'Schedules', label: 'Resume scheduled task' },
   { name: 'scheduled_task_delete', group: 'Schedules', label: 'Delete scheduled task' },
   { name: 'scheduled_task_run_now', group: 'Schedules', label: 'Run scheduled task now' },
-  { name: 'soc_memory_add', group: 'SOC memory', label: 'Add memory' },
-  { name: 'soc_memory_correct', group: 'SOC memory', label: 'Correct memory' },
-  { name: 'soc_memory_forget', group: 'SOC memory', label: 'Forget memory' },
 ])
 
 export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
@@ -119,17 +114,6 @@ export const ALWAYS_ASK_ACTION_TOOLS = Object.freeze([
   ...DETECTION_ACTION_TOOLS,
   ...CATALOG_ACTION_TOOLS,
   ...SPLUNK_LOOKUP_ACTION_TOOLS,
-])
-
-export const MEMORY_READ_TOOLS = Object.freeze([
-  'soc_memory_search',
-  'soc_memory_read',
-])
-
-export const MEMORY_WRITE_TOOLS = Object.freeze([
-  'soc_memory_add',
-  'soc_memory_correct',
-  'soc_memory_forget',
 ])
 
 export const DOMAIN_TOOLS = new Set([...READ_ONLY_TOOLS, ...ACTION_TOOLS])

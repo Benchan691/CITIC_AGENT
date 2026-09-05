@@ -470,7 +470,8 @@ async def test_saved_search_stops_polling_on_failed_job_state():
 
 
 @pytest.mark.asyncio
-async def test_saved_search_timeout_cancels_the_remote_job():
+@pytest.mark.asyncio
+async def test_saved_search_timeout_cancels_the_remote_job(monkeypatch):
     class Response:
         text = "{}"
 
@@ -495,9 +496,16 @@ async def test_saved_search_timeout_cancels_the_remote_job():
             return Response({"entry": [{"content": {"dispatchState": "RUNNING"}}]})
 
     client = SplunkClient({
-        "splunk_host": "splunk.example.com", "splunk_port": 8089, "job_timeout": 0,
+        "splunk_host": "splunk.example.com", "splunk_port": 8089, "job_timeout": 5,
     })
     client._client = HttpClient()
+
+    # The job budget bounds the dispatch too; force the timeout inside the
+    # poll phase so the SID exists and the finally block cancels the job.
+    async def timed_out_poll(*_args, **_kwargs):
+        raise client._deadline_error("saved search")
+
+    monkeypatch.setattr(client, "_poll_job", timed_out_poll)
 
     with pytest.raises(Exception, match="timed out"):
         await client.run_saved_search("Slow search")

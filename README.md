@@ -7,7 +7,7 @@ server, and pinned harness source.
 ## Repository layout
 
 - `apps/soc-agent` — application host, policy, scheduler, and MCP server
-- `packages` — SOC client, scheduler, and tenant-isolated memory packages
+- `packages` — SOC client and scheduler packages
 - `vendor/deepseek-harness` — JavaScript workspace and web runtime
 - `skills` — SOC operating playbooks
 - `docs` — project structure and operating notes

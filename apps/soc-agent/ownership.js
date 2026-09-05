@@ -17,7 +17,7 @@ const ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60
 const ADMIN_EMAIL_ENV = 'SOC_ADMIN_EMAIL'
 const ADMIN_PASSWORD_ENV = 'SOC_ADMIN_PASSWORD'
 const USERNAME = /^[A-Za-z0-9_-]+$/u
-const PRIVATE_HTTP_PATHS = new Set(['/api', '/_dsh/memory/settings'])
+const PRIVATE_HTTP_PATHS = new Set(['/api'])
 const PRIVATE_UPGRADE_PATHS = new Set(['/api/events.mux', '/api/events.host'])
 const STORAGE_ENV_NAMES = ['APP_POSTGRES_URI', 'LANGGRAPH_POSTGRES_URI', 'POSTGRES_URI']
 const PRIVILEGED_API_METHODS = new Set([
@@ -1300,7 +1300,7 @@ export class SocAuthService {
 
   async principalForRequest(request, registeredPath = '') {
     const path = this.requestPath(request, registeredPath)
-    const adminOnly = path === '/_dsh/memory/settings' || isPrivilegedApiPath(path)
+    const adminOnly = isPrivilegedApiPath(path)
     const mixed = path.startsWith('/soc-agent-') || isMixedApiPath(path)
     if (adminOnly) {
       const admin = await this.requestAdmin(request)

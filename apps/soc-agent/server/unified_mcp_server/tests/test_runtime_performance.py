@@ -146,7 +146,7 @@ async def test_splunk_dispatch_itself_is_bounded_by_the_job_budget():
     with pytest.raises(SplunkAPIError) as error:
         await asyncio.wait_for(client._run_job(dispatch_url="/fixture", dispatch_params={}, max_count=1,
                                                results_path_prefix="/fixture", label="fixture", runtime_limit=0.01), 1)
-    assert error.value.code == "runtime_limit_exceeded"
+    assert error.value.error_code == "runtime_limit_exceeded"
     assert stopped.is_set()
 
 

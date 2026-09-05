@@ -710,39 +710,6 @@ test('SOC auth plugin gates Harness transport and scopes the shared API proxy', 
   assert.equal(accepted.statusCode, 200)
   assert.equal(seenSession.id, applicationSession.id)
 
-  let memoryHandlerCalled = false
-  webServer.register({
-    kind: 'exact',
-    path: '/_dsh/memory/settings',
-    handler: (_request, res) => {
-      memoryHandlerCalled = true
-      res.writeHead(200)
-      res.end('memory')
-    },
-  })
-  const memoryRoute = routes.get('exact:/_dsh/memory/settings')
-  for (const method of ['GET', 'POST']) {
-    const memoryDenied = nodeResponse()
-    await memoryRoute.handler({ method, headers: { cookie: 'soc_session=invalid' }, socket: {} }, memoryDenied)
-    assert.equal(memoryDenied.statusCode, 401)
-  }
-  assert.equal(memoryHandlerCalled, false)
-
-  const memoryAccepted = nodeResponse()
-  await memoryRoute.handler({ method: 'GET', headers: { cookie: 'soc_session=app-session-a' }, socket: {} }, memoryAccepted)
-  assert.equal(memoryAccepted.statusCode, 403)
-  assert.equal(memoryHandlerCalled, false)
-
-  const adminToken = auth.adminSessionToken()
-  auth.adminSessions.set(auth.adminSessionKey(adminToken), {
-    email: 'admin@example.com',
-    expiresAt: new Date(Date.now() + 60_000),
-  })
-  const memoryAdmin = nodeResponse()
-  await memoryRoute.handler({ method: 'GET', headers: { cookie: `soc_admin_session=${adminToken}` }, socket: {} }, memoryAdmin)
-  assert.equal(memoryAdmin.statusCode, 200)
-  assert.equal(memoryHandlerCalled, true)
-
   const scoped = await auth.withSession(applicationSession, () => api.workspace.list({ payload: {} }))
   assert.deepEqual(scoped.result.value.items.map(item => item.workspaceId), ['workspace-a'])
   assert.deepEqual(scoped.result.value.items[0].sessionIds, ['session-a'])

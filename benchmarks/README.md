@@ -97,5 +97,3 @@ python3 benchmarks/run_benchmark.py --keep     # keep produced artifacts (skip c
 
 - Every run consumes DeepSeek API tokens (roughly 1 scenario ≈ 20k–60k tokens).
 - The `bench` dsh profile is separate from `web`; your normal agent is untouched.
-- soc-memory may persist recall notes to its Postgres store during runs; that is
-  agent-internal state and is not part of Splunk cleanup.

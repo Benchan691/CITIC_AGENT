@@ -247,11 +247,21 @@ async def test_saved_search_reuses_job_lifecycle_with_actions_disabled(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_search_job_timeout_cancels_remote_job():
+async def test_search_job_timeout_cancels_remote_job(monkeypatch):
     http = JobHTTP(statuses=[job_status("RUNNING")])
+    client = make_client(http, job_timeout=5)
+
+    # The job budget now also bounds the dispatch itself (see
+    # test_splunk_dispatch_itself_is_bounded_by_the_job_budget), so force the
+    # timeout inside the poll phase, where the SID already exists and the
+    # finally block must cancel the remote job.
+    async def timed_out_poll(*_args, **_kwargs):
+        raise client._deadline_error("search job")
+
+    monkeypatch.setattr(client, "_poll_job", timed_out_poll)
 
     with pytest.raises(SplunkAPIError, match="timed out"):
-        await make_client(http, job_timeout=0).run_search_job("index=main")
+        await client.run_search_job("index=main")
 
     assert http.post_calls[-1] == (
         "/services/search/jobs/job%2F1/control",

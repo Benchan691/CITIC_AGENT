@@ -88,7 +88,6 @@
   "soc-agent-mcp",
   "soc-agent-auth-host",
   "soc-agent-admin-host",
-  "soc-memory",
   "soc-agent-scheduler",
   "soc-agent-admin-ui"
 ]
