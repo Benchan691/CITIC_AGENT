@@ -27,6 +27,7 @@ Route email-led investigations to `email-to-splunk-investigation`, false-positiv
 - `splunk_validate_query` validates new SPL before execution.
 - `splunk_search(query=..., earliest_time=..., latest_time=..., fields=[...])` runs explicit, bounded SPL. Use known index/sourcetype scope and select only fields needed for the current question.
 - `splunk_run_saved_search(..., max_count=..., app=..., owner=...)` runs an existing scoped search with actions disabled.
+- `soc_evidence_read(evidence_id=...)` pages a retained search snapshot without re-running the search; `splunk_search` responses carry an `evidence` reference with reuse and staleness metadata.
 - `splunk_find_lookup` and `splunk_list_lookups` inspect lookup metadata; they do not expose lookup contents.
 
 ## Workflow

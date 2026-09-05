@@ -11,6 +11,14 @@ uv run unified-mcp-server
 uv run pytest
 ```
 
+Authenticated UI operations (detection saves, catalog edits, publication,
+email) run through a persistent Python control channel
+(`unified_mcp_server.control_server`) instead of one interpreter per command;
+`SOC_CONTROL_CHANNEL=off` restores per-command interpreters. Search evidence
+snapshots are retained in-process and paged through `soc_evidence_read`, and
+the deterministic search planner is exposed as `splunk_plan_search` once
+`SPLUNK_SEARCH_PLANNER_ENABLED=true` and its schema mappings are verified.
+
 Configure Splunk, Zimbra, MarkItDown, and subscription-server settings in the
 ignored `.env` file. PostgreSQL stores authenticated users, sessions, and
 workspace ownership, plus the SOC catalogs (Ruleset, Customer Information,

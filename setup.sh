@@ -735,25 +735,78 @@ ensure_python_server() {
   fi
 }
 
+# Incremental build state (Phase 5): content fingerprints of everything the
+# harness install and build consume. Markers live under .data/ (gitignored).
+BUILD_STATE_DIR="$REPO_ROOT/.data"
+HARNESS_INSTALL_MARKER="$BUILD_STATE_DIR/harness-install.sha256"
+HARNESS_BUILD_MARKER="$BUILD_STATE_DIR/harness-build.sha256"
+FORCE_REBUILD="${FORCE_REBUILD:-0}"
+
+harness_source_fingerprint() {
+  # Content hash of every harness build input: framework sources, package
+  # manifests, configs, and the SOC client sources bound into the bundle.
+  # Content-based (not mtime) so checkouts and pulls do not force rebuilds.
+  (
+    cd "$HARNESS_DIR" && find packages apps scripts \
+      -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' \
+      -o -name '*.css' -o -name '*.yml' -o -name '*.yaml' -o -name '*.json' \) \
+      -not -path '*/node_modules/*' -not -path '*/lib/*' -not -path '*/dist/*' \
+      -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum
+    cd "$REPO_ROOT/packages/soc-agent-client" && find src tests tsdown.config.ts package.json \
+      -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.css' -o -name '*.json' \) \
+      -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum
+  ) 2>/dev/null | sha256sum | awk '{print $1}'
+}
+
+harness_install_fingerprint() {
+  {
+    sha256sum "$HARNESS_DIR/pnpm-lock.yaml" 2>/dev/null || true
+    sha256sum "$REPO_ROOT/apps/soc-agent/package.json" 2>/dev/null || true
+    sha256sum "$REPO_ROOT/packages/soc-agent-client/package.json" 2>/dev/null || true
+  } | sha256sum | awk '{print $1}'
+}
+
 ensure_harness_ready() {
   echo "${B}Harness build${N}"
+  mkdir -p "$BUILD_STATE_DIR"
 
-  echo "Installing/verifying harness dependencies — this can take a few minutes…"
-  if (cd "$HARNESS_DIR" && pnpm install --frozen-lockfile); then
-    ok "harness dependencies ready"
+  local install_fingerprint install_recorded
+  install_fingerprint="$(harness_install_fingerprint)"
+  install_recorded="$(cat "$HARNESS_INSTALL_MARKER" 2>/dev/null || true)"
+  if [ "$FORCE_REBUILD" != "1" ] && [ -n "$install_recorded" ] \
+    && [ "$install_recorded" = "$install_fingerprint" ] \
+    && [ -d "$HARNESS_DIR/node_modules" ]; then
+    info "dependency graph unchanged since the last install — skipping pnpm install"
   else
-    bad "pnpm install failed — fix the error above and re-run ./setup.sh"
-    PREREQ_WARNINGS+=("harness build")
-    return 1
+    echo "Installing/verifying harness dependencies — this can take a few minutes…"
+    if (cd "$HARNESS_DIR" && pnpm install --frozen-lockfile); then
+      ok "harness dependencies ready"
+      printf '%s' "$install_fingerprint" > "$HARNESS_INSTALL_MARKER"
+    else
+      bad "pnpm install failed — fix the error above and re-run ./setup.sh"
+      PREREQ_WARNINGS+=("harness build")
+      return 1
+    fi
   fi
 
-  echo "Building the harness (framework libs, client bundles, and web dist) — this can take several minutes…"
-  if (cd "$HARNESS_DIR" && pnpm run build); then
-    ok "framework build complete"
+  local source_fingerprint build_recorded
+  source_fingerprint="$(harness_source_fingerprint)"
+  build_recorded="$(cat "$HARNESS_BUILD_MARKER" 2>/dev/null || true)"
+  if [ "$FORCE_REBUILD" != "1" ] && [ -n "$build_recorded" ] \
+    && [ "$build_recorded" = "$source_fingerprint" ] \
+    && [ -f "$HARNESS_DIR/apps/web/dist/index.html" ] \
+    && [ -f "$HARNESS_DIR/packages/mcp/mcp-client/lib/index.js" ]; then
+    info "harness sources unchanged since the last build — skipping pnpm run build"
   else
-    bad "pnpm run build failed — fix the error above and re-run ./setup.sh"
-    PREREQ_WARNINGS+=("harness build")
-    return 1
+    echo "Building the harness (framework libs, client bundles, and web dist) — this can take several minutes…"
+    if (cd "$HARNESS_DIR" && pnpm run build); then
+      ok "framework build complete"
+      printf '%s' "$source_fingerprint" > "$HARNESS_BUILD_MARKER"
+    else
+      bad "pnpm run build failed — fix the error above and re-run ./setup.sh"
+      PREREQ_WARNINGS+=("harness build")
+      return 1
+    fi
   fi
 
   local need_repair=0 violations
@@ -1173,7 +1226,8 @@ summary() {
   echo "  2. Open http://127.0.0.1:3080 (remote: ssh -L 3080:127.0.0.1:3080 usr@ip)"
   echo
   echo "${D}Re-run ./setup.sh any time; --check audits without changing anything,"
-  echo "${D}--plugins re-runs install/build/repair/wiring without prompts.${N}"
+  echo "${D}--plugins re-runs install/build/repair/wiring without prompts;"
+  echo "${D}--rebuild forces a clean install and build, ignoring the fingerprints.${N}"
 }
 
 # ------------------------------------------------------------- check mode ---
@@ -1374,6 +1428,12 @@ load_env_file "$SERVER_ENV_EXAMPLE"
 load_env_file "$HARNESS_ENV"
 load_env_file "$SERVER_ENV"
 
+for _arg in "$@"; do
+  case "$_arg" in
+    --rebuild) FORCE_REBUILD=1 ;;
+  esac
+done
+
 case "${1:-}" in
   --check)
     run_check_mode
@@ -1401,7 +1461,7 @@ case "${1:-}" in
     summary
     ;;
   *)
-    echo "usage: $0 [--check|--plugins]" >&2
+    echo "usage: $0 [--check|--plugins] [--rebuild]" >&2
     exit 2
     ;;
 esac

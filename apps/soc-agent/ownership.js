@@ -529,8 +529,12 @@ function authCommandError(command, stderr = '') {
 // never hold an authenticated UI request open indefinitely. Publication runs
 // the same bound: the Splunk upload and read-back must finish within it.
 const AUTH_COMMAND_TIMEOUT_MS = Number(process.env.SOC_AUTH_COMMAND_TIMEOUT_MS ?? 185_000)
+const CONTROL_CHANNEL_START_TIMEOUT_MS = 60_000
+// 'off' always spawns a fresh interpreter; 'auto' (default) uses the
+// persistent control channel and falls back to spawning when it is unusable.
+const controlChannelMode = () => String(process.env.SOC_CONTROL_CHANNEL ?? 'auto').toLowerCase()
 
-export async function runAuthCommand(command, payload) {
+async function spawnAuthCommand(command, payload) {
   const { spawn } = await import('node:child_process')
   const bundleRoot = dirname(fileURLToPath(import.meta.url))
   const serverRoot = process.env.DSH_SOC_AGENT_SERVER || join(bundleRoot, 'server')
@@ -575,6 +579,153 @@ export async function runAuthCommand(command, payload) {
     })
     child.stdin.end(JSON.stringify(payload ?? {}))
   })
+}
+
+let controlChannel = null
+
+async function startControlChannel() {
+  const { spawn } = await import('node:child_process')
+  const bundleRoot = dirname(fileURLToPath(import.meta.url))
+  const serverRoot = process.env.DSH_SOC_AGENT_SERVER || join(bundleRoot, 'server')
+  const child = spawn('uv', ['run', 'python', '-m', 'unified_mcp_server.control_server'], {
+    cwd: serverRoot,
+    env: childEnvironment(),
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  const channel = {
+    child,
+    pending: new Map(),
+    nextId: 1,
+    lineBuffer: '',
+    readyPromise: undefined,
+    ready: { settled: false, timer: null },
+    broken: false,
+  }
+  const failPending = message => {
+    channel.broken = true
+    for (const entry of channel.pending.values()) {
+      clearTimeout(entry.timer)
+      const error = new Error(message)
+      error.code = 'operation_failed'
+      error.controlUnavailable = true
+      entry.reject(error)
+    }
+    channel.pending.clear()
+  }
+  child.on('error', error => {
+    failPending(`control channel unavailable: ${String(error)}`)
+  })
+  child.on('close', () => {
+    failPending('control channel exited before responding')
+  })
+  child.stderr.on('data', () => { /* diagnostics only; errors travel in responses */ })
+  child.stdout.on('data', chunk => {
+    channel.lineBuffer += String(chunk)
+    let newlineIndex = channel.lineBuffer.indexOf('\n')
+    while (newlineIndex !== -1) {
+      const line = channel.lineBuffer.slice(0, newlineIndex).trim()
+      channel.lineBuffer = channel.lineBuffer.slice(newlineIndex + 1)
+      newlineIndex = channel.lineBuffer.indexOf('\n')
+      if (!line) continue
+      let response
+      try { response = JSON.parse(line) } catch { continue }
+      if (response?.ready !== undefined && !channel.ready.settled) {
+        channel.ready.settled = true
+        clearTimeout(channel.ready.timer)
+        if (response.ready === true) resolveReady()
+        else {
+          rejectReady(Object.assign(new Error('control channel failed to start'), { controlUnavailable: true }))
+          failPending('control channel failed to start')
+        }
+        continue
+      }
+      const entry = channel.pending.get(String(response?.id ?? ''))
+      if (!entry) continue
+      channel.pending.delete(String(response.id))
+      clearTimeout(entry.timer)
+      if (response.ok === true) entry.resolve(response.result ?? {})
+      else {
+        const failure = response.error && typeof response.error === 'object' ? response.error : {}
+        const error = new Error(String(failure.message ?? 'The requested operation failed.'))
+        error.code = String(failure.code ?? 'operation_failed')
+        error.details = failure.details && typeof failure.details === 'object' ? failure.details : {}
+        entry.reject(error)
+      }
+    }
+  })
+  const writeLock = { current: Promise.resolve() }
+  channel.send = request => {
+    const result = writeLock.current.then(() => new Promise((resolvePromise, rejectPromise) => {
+      if (channel.broken || child.stdin.destroyed) {
+        rejectPromise(Object.assign(new Error('control channel is not usable'), { controlUnavailable: true }))
+        return
+      }
+      child.stdin.write(`${JSON.stringify(request)}\n`, writeError => {
+        if (writeError) rejectPromise(Object.assign(new Error('control channel is not usable'), { controlUnavailable: true }))
+        else resolvePromise()
+      })
+    }))
+    writeLock.current = result.catch(() => {})
+    return result
+  }
+  let resolveReady, rejectReady
+  channel.ready = new Promise((resolvePromise, rejectPromise) => {
+    resolveReady = resolvePromise
+    rejectReady = rejectPromise
+  })
+  channel.ready.settled = false
+  channel.ready.timer = setTimeout(() => {
+    if (channel.ready.settled) return
+    channel.ready.settled = true
+    rejectReady(Object.assign(new Error('control channel startup timed out'), { controlUnavailable: true }))
+    failPending('control channel startup timed out')
+    child.kill('SIGTERM')
+  }, CONTROL_CHANNEL_START_TIMEOUT_MS)
+  channel.ready.timer.unref?.()
+  try {
+    await channel.ready
+  } catch (error) {
+    failPending('control channel failed to start')
+    throw error
+  }
+  return channel
+}
+
+async function withControlChannel(command, payload) {
+  if (!controlChannel || controlChannel.broken) {
+    controlChannel = await startControlChannel()
+  }
+  const channel = controlChannel
+  const id = String(channel.nextId++)
+  return await new Promise((resolvePromise, rejectPromise) => {
+    const entry = {
+      timer: setTimeout(() => {
+        channel.pending.delete(id)
+        const error = new Error('The requested operation failed.')
+        error.code = 'operation_timeout'
+        rejectPromise(error)
+      }, AUTH_COMMAND_TIMEOUT_MS),
+      resolve: resolvePromise,
+      reject: rejectPromise,
+    }
+    entry.timer.unref?.()
+    channel.pending.set(id, entry)
+    channel.send({ id, command, payload: payload ?? {} }).catch(rejectPromise)
+  })
+}
+
+export async function runAuthCommand(command, payload) {
+  if (controlChannelMode() === 'off') return spawnAuthCommand(command, payload)
+  try {
+    return await withControlChannel(command, payload)
+  } catch (error) {
+    if (error?.controlUnavailable === true) {
+      // Legacy entrypoint: a fresh interpreter per command always works.
+      controlChannel = null
+      return spawnAuthCommand(command, payload)
+    }
+    throw error
+  }
 }
 
 function withPayload(frame, payload) {

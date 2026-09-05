@@ -250,44 +250,68 @@ async def rollback_publication(payload: dict[str, Any]) -> dict[str, Any]:
         await service.close()
 
 
+_SYNC_COMMANDS = {
+    "login": login,
+    "logout": logout,
+}
+
+_ASYNC_COMMANDS = {
+    "send-email": send_email,
+    "list-signatures": list_signatures,
+    "save-detection": save_detection,
+    "catalog-list": catalog_list,
+    "catalog-get": catalog_get,
+    "catalog-history": catalog_history,
+    "catalog-publications": catalog_publications,
+    "catalog-preview-publish": catalog_preview_publish,
+    "save-catalog-record": save_catalog_record,
+    "archive-catalog-record": archive_catalog_record,
+    "publish-catalog": publish_catalog,
+    "rollback-publication": rollback_publication,
+}
+
+KNOWN_COMMANDS = frozenset({*_SYNC_COMMANDS, *_ASYNC_COMMANDS})
+
+
+async def dispatch_command(command: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Run one host command; shared by the CLI and the persistent control server."""
+    sync_handler = _SYNC_COMMANDS.get(command)
+    if sync_handler is not None:
+        return sync_handler(payload)
+    async_handler = _ASYNC_COMMANDS.get(command)
+    if async_handler is not None:
+        return await async_handler(payload)
+    raise ValueError("unknown authentication command")
+
+
+def command_failure(command: str, exc: Exception) -> dict[str, Any]:
+    """Bounded, credential-free failure payload consumed by the host."""
+    if command == "login":
+        return {"code": "authentication_failed", "message": "authentication failed", "details": {}}
+    if isinstance(exc, ServiceError):
+        return {"code": exc.code, "message": exc.message, "details": exc.details}
+    return {"code": "operation_failed", "message": "The requested operation failed.", "details": {}}
+
+
+def _expire_session_on_auth_error(payload: dict[str, Any], exc: Exception) -> None:
+    if isinstance(exc, ServiceError) and exc.code == "zimbra_auth_error":
+        try:
+            _store().delete_app_session(str(payload.get("session_id", "")))
+        except Exception:
+            pass
+
+
 def main() -> None:
     load_server_env()
     command = sys.argv[1] if len(sys.argv) > 1 else ""
     payload: dict[str, Any] = {}
     try:
         payload = _payload()
-        result = login(payload) if command == "login" else logout(payload) if command == "logout" else None
-        if command == "send-email": result = asyncio.run(send_email(payload))
-        if command == "list-signatures": result = asyncio.run(list_signatures(payload))
-        if command == "save-detection": result = asyncio.run(save_detection(payload))
-        if command == "catalog-list": result = asyncio.run(catalog_list(payload))
-        if command == "catalog-get": result = asyncio.run(catalog_get(payload))
-        if command == "catalog-history": result = asyncio.run(catalog_history(payload))
-        if command == "catalog-publications": result = asyncio.run(catalog_publications(payload))
-        if command == "catalog-preview-publish": result = asyncio.run(catalog_preview_publish(payload))
-        if command == "save-catalog-record": result = asyncio.run(save_catalog_record(payload))
-        if command == "archive-catalog-record": result = asyncio.run(archive_catalog_record(payload))
-        if command == "publish-catalog": result = asyncio.run(publish_catalog(payload))
-        if command == "rollback-publication": result = asyncio.run(rollback_publication(payload))
-        if result is None:
-            raise ValueError("unknown authentication command")
+        result = asyncio.run(dispatch_command(command, payload))
         print(json.dumps(result, separators=(",", ":")))
     except Exception as exc:
-        if isinstance(exc, ServiceError) and exc.code == "zimbra_auth_error":
-            try:
-                _store().delete_app_session(str(payload.get("session_id", "")))
-            except Exception:
-                pass
-        # Stable, credential-free JSON stderr is consumed by the host. Only
-        # ServiceError details are forwarded because they are already bounded
-        # for the application boundary.
-        if command == "login":
-            failure = {"code": "authentication_failed", "message": "authentication failed", "details": {}}
-        elif isinstance(exc, ServiceError):
-            failure = {"code": exc.code, "message": exc.message, "details": exc.details}
-        else:
-            failure = {"code": "operation_failed", "message": "The requested operation failed.", "details": {}}
-        print(json.dumps(failure, separators=(",", ":")), file=sys.stderr)
+        _expire_session_on_auth_error(payload, exc)
+        print(json.dumps(command_failure(command, exc), separators=(",", ":")), file=sys.stderr)
         raise SystemExit(1) from None
 
 
