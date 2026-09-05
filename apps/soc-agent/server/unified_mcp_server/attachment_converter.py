@@ -7,6 +7,7 @@ import io
 import json
 import zipfile
 import xml.etree.ElementTree as ET
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import PurePath
 from typing import Any
@@ -73,9 +74,38 @@ def create_markitdown(settings: MarkItDownSettings, markitdown_type: type[MarkIt
 
 
 class AttachmentConverter:
+    """Convert attachments to Markdown with a bounded cache of successes.
+
+    Repeated reads of the same attachment (message re-inspection, session
+    replay) previously re-ran the full conversion. Successful results are
+    keyed by content hash plus converter identity and limits; failures are
+    never cached so transient converter problems retry on the next request.
+    """
+
+    CACHE_MAX_ENTRIES = 64
+
     def __init__(self, settings: MarkItDownSettings, markitdown: MarkItDown | None = None) -> None:
         self.settings = settings
         self.markitdown = markitdown or create_markitdown(settings)
+        self._cache: OrderedDict[tuple, dict[str, Any]] = OrderedDict()
+
+    def _cache_key(
+        self,
+        data: bytes,
+        filename: str,
+        content_type: str,
+        max_bytes: int,
+        max_chars: int,
+    ) -> tuple:
+        return (
+            hashlib.sha256(data).hexdigest(),
+            filename,
+            content_type,
+            max_bytes,
+            max_chars,
+            bool(self.settings.llm_enabled),
+            markitdown_version,
+        )
 
     def convert(
         self,
@@ -88,6 +118,11 @@ class AttachmentConverter:
         content_type = content_type.split(";", 1)[0].strip().lower()
         max_bytes = min(max(1, limits.max_bytes), HARD_MAX_ATTACHMENT_BYTES)
         max_chars = min(max(1, limits.max_chars), HARD_MAX_MARKDOWN_CHARS)
+        key = self._cache_key(data, filename, content_type, max_bytes, max_chars)
+        cached = self._cache.get(key)
+        if cached is not None:
+            self._cache.move_to_end(key)
+            return cached
         if len(data) > max_bytes:
             raise ServiceError("attachment_too_large", "The attachment exceeds the configured byte limit.")
         _validate_archive_safety(data, filename, content_type)
@@ -125,7 +160,7 @@ class AttachmentConverter:
                 details={"exception_type": type(exc).__name__},
             ) from exc
         markdown = result.markdown
-        return {
+        converted = {
             "filename": filename,
             "content_type": content_type,
             "bytes": len(data),
@@ -138,6 +173,10 @@ class AttachmentConverter:
             "converter": {"name": "markitdown", "version": markitdown_version},
             "llm_enabled": self.settings.llm_enabled,
         }
+        self._cache[key] = converted
+        while len(self._cache) > self.CACHE_MAX_ENTRIES:
+            self._cache.popitem(last=False)
+        return converted
 
 
 def _safe_filename(filename: str) -> str:

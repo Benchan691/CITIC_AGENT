@@ -13,7 +13,11 @@ uv run pytest
 
 Configure Splunk, Zimbra, MarkItDown, and subscription-server settings in the
 ignored `.env` file. PostgreSQL stores authenticated users, sessions, and
-workspace ownership only; it is not a service-configuration source. The
+workspace ownership, plus the SOC catalogs (Ruleset, Customer Information,
+Fix Source type) with their audit history and publication records; it is not a
+service-configuration source. Catalog records are edited through the
+authenticated editor workflow and published to Splunk lookups explicitly
+(gated by `SPLUNK_ALLOW_LOOKUP_WRITE`). The
 `/admin` console shows service status and manages LLM provider credentials, but
 does not expose or edit deployment variables.
 The checked-in `spl_config.json` is retained for legacy reference only and is

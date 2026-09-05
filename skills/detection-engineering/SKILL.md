@@ -42,10 +42,15 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 
 For a new customer detection:
 
-1. Review `Ruleset.csv` and select a rule number not already used in the
-   four-digit range `0000`–`9999`.
-2. Create the corresponding row and fill in its required rule information,
-   using the verified `[COMPANY_SHORT] detection alert name` convention.
+1. Review the rule catalog and select a rule number not already used in the
+   four-digit range `0000`–`9999`. Prefer the managed catalog tools
+   (`catalog_list_rules`, then a `catalog_write_rule` draft followed by the
+   editor's explicit Save); the published `Ruleset.csv` lookup on Splunk
+   remains the source consumers read.
+2. Create the corresponding catalog row and fill in its required rule
+   information, using the verified `[COMPANY_SHORT] detection alert name`
+   convention. New rows stay saved-but-unpublished until an operator runs the
+   catalog publish action.
 3. Complete the alert configuration checklist below.
 4. Write the detection rule through the controlled workflow.
 

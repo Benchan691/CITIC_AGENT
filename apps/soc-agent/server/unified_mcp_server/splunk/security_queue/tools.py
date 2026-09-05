@@ -8,7 +8,7 @@ from mcp.server.fastmcp import Context
 
 
 def register_tools(server, *, get_runtime, execute) -> None:
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def splunk_list_security_findings(
         ctx: Context,
         status: str = "",
@@ -30,7 +30,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
             ),
         )
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def splunk_get_security_finding(ctx: Context, finding_id: str) -> dict[str, Any]:
         """Read one bounded, read-only security finding and its available evidence."""
         return await execute(

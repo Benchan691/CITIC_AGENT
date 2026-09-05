@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { ACTION_CATALOG, apply, APPROVAL_TOOLS, bindMemoryContext, clearMemoryContext, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS } from '../host.js'
+import { ACTION_CATALOG, apply, APPROVAL_TOOLS, bindMemoryContext, CATALOG_ACTION_TOOLS, clearMemoryContext, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS } from '../host.js'
 import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 import { createMemoryContextRegistry } from '../../../packages/soc-memory/lib/tenant.js'
@@ -16,8 +16,15 @@ const policyAuth = {
 }
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 54)
+  assert.equal(DOMAIN_TOOLS.size, 69)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
+    'mcp__soc_agent__catalog_archive_record',
+    'mcp__soc_agent__catalog_update_customer',
+    'mcp__soc_agent__catalog_update_fix_source_type',
+    'mcp__soc_agent__catalog_update_rule',
+    'mcp__soc_agent__catalog_write_customer',
+    'mcp__soc_agent__catalog_write_fix_source_type',
+    'mcp__soc_agent__catalog_write_rule',
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
     'mcp__soc_agent__splunk_update_detection',
@@ -45,11 +52,15 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 })
 
 test('SOC policy has disjoint read-only and action categories', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 32)
+  assert.equal(READ_ONLY_TOOLS.length, 40)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__zimbra_list_accounts'), false)
-  assert.equal(ACTION_TOOLS.length, 22)
+  assert.equal(ACTION_TOOLS.length, 29)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
+  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__catalog_list_rules'), true)
+  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__catalog_preview_publication'), true)
+  assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__catalog_write_rule'), true)
+  assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__catalog_archive_record'), true)
   assert.equal(READ_ONLY_TOOLS.includes('skill'), true)
   assert.equal(ACTION_TOOLS.includes('skill'), false)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_list_indexes'), false)
@@ -87,7 +98,7 @@ test('SOC policy has disjoint read-only and action categories', () => {
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 26)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 34)
   for (const name of READ_ONLY_DOMAIN_TOOLS) {
     assert.equal(DOMAIN_TOOLS.has(name), true)
     assert.equal(APPROVAL_TOOLS.has(name), false)
@@ -237,6 +248,74 @@ test('detection changes cannot be auto-approved by action name', async () => {
   const policy = await rpcHandler('get-action-policy', { session_id: session.id })
   assert.equal(policy.value.autoApproveActions.some(name => DETECTION_ACTION_TOOLS.includes(name)), false)
   saved = { autoApproveActions: [] }
+})
+
+test('catalog changes cannot be auto-approved by action name', async () => {
+  const handlers = new Map()
+  const session = { id: 'soc-catalog-policy-1' }
+  const agent = { id: session.id, session, ctx: { tools: { restrict() {} } } }
+  let saved = { autoApproveActions: [...CATALOG_ACTION_TOOLS] }
+  let rpcHandler
+  apply({
+    get(name) {
+      if (name === 'settings') return { get: () => saved }
+      if (name === 'socAuth') return policyAuth
+      return undefined
+    },
+    on(event, handler) { handlers.set(event, handler) },
+    agents: { roots: () => [agent] },
+    sessions: { get: id => id === session.id ? session : undefined },
+    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+  })
+  const preExecute = handlers.get('tools/pre-execute')
+  for (const name of CATALOG_ACTION_TOOLS) {
+    const decision = await preExecute({ name, agent, arguments: {} }, () => ({ kind: 'delegate' }))
+    assert.equal(decision.kind, 'ask')
+    assert.match(decision.reason, /catalog change requires approval/)
+  }
+  const policy = await rpcHandler('get-action-policy', { session_id: session.id })
+  assert.equal(policy.value.autoApproveActions.some(name => CATALOG_ACTION_TOOLS.includes(name)), false)
+  saved = { autoApproveActions: [] }
+})
+
+test('save-catalog-record is an authenticated editor RPC with strict request validation', async () => {
+  let rpcHandler
+  apply({
+    get(name) {
+      return name === 'socAuth' ? policyAuth : undefined
+    },
+    on() {},
+    agents: { roots: () => [] },
+    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+  })
+
+  const invalid = await rpcHandler('save-catalog-record', { operation: 'write', catalog: 'rule' })
+  assert.deepEqual(invalid, {
+    ok: false,
+    error: { code: 'bad-request', message: 'The catalog record draft is invalid.', details: { issues: [] } },
+  })
+
+  const invalidCatalog = await rpcHandler('save-catalog-record', {
+    operation: 'write',
+    catalog: 'unknown',
+    record: {},
+  })
+  assert.equal(invalidCatalog.error.code, 'bad-request')
+
+  apply({
+    on() {},
+    agents: { roots: () => [] },
+    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+  })
+  const unauthenticated = await rpcHandler('save-catalog-record', {
+    operation: 'write',
+    catalog: 'rule',
+    record: { rule_number: '0001', rule_name_en: 'Threat Detection' },
+  })
+  assert.deepEqual(unauthenticated, {
+    ok: false,
+    error: { code: 'authentication-required', message: 'authentication required', details: {} },
+  })
 })
 
 test('save-detection is an authenticated editor RPC with strict request validation', async () => {

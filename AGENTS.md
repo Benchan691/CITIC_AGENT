@@ -95,6 +95,8 @@ Use only approved Splunk and SOC tools. Do not bypass MCP restrictions, backend 
 
 Changes such as detection creation, modification, enabling, disabling, or other operational writes require the configured harness approval flow and, for detection drafts, an explicit authenticated editor Save.
 
+Catalog changes (`catalog_*` tools) follow the same pattern: MCP prepares drafts, only the authenticated editor Save persists, and publication to Splunk is a separate operator action.
+
 Prefer reversible actions when possible and verify the result afterward.
 
 Never describe a proposed action as completed.

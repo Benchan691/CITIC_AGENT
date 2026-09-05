@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import {
   SocAuthService,
@@ -35,8 +36,14 @@ function installMcpSessionMetadata() {
   const original = prototype.request
   if (typeof original !== 'function') throw new Error('MCP client request API unavailable')
   const wrapped = function (request, resultSchema, options) {
+    if (request?.method !== 'tools/call') {
+      return original.call(this, request, resultSchema, options)
+    }
+    // Correlation IDs travel on every tool call so host, bridge, and Python
+    // logs can be joined per operation; the session id stays host-resolved.
+    const correlationId = randomUUID()
     const sessionId = currentMcpRequestSession()
-    if (!sessionId || request?.method !== 'tools/call') {
+    if (!sessionId) {
       return original.call(this, request, resultSchema, options)
     }
     const params = request.params && typeof request.params === 'object' ? request.params : {}
@@ -44,7 +51,7 @@ function installMcpSessionMetadata() {
       ...request,
       params: {
         ...params,
-        _meta: { ...(params._meta ?? {}), soc_session_id: sessionId },
+        _meta: { ...(params._meta ?? {}), soc_session_id: sessionId, soc_correlation_id: correlationId },
       },
     }, resultSchema, options)
   }

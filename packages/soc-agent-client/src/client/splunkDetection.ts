@@ -132,18 +132,34 @@ function resultText(block: ToolCallBlock): string {
     .join('')
 }
 
+/**
+ * Tool failures arrive as MCP error text: `Error executing tool <name>: {json}`.
+ * Parse the envelope payload regardless of the transport prefix.
+ */
+export function parseEnvelopeText(raw: string): Record<string, unknown> | null {
+  const attempt = (text: string): Record<string, unknown> | null => {
+    try {
+      const parsed: unknown = JSON.parse(text)
+      return isRecord(parsed) ? parsed : null
+    } catch {
+      return null
+    }
+  }
+  const direct = attempt(raw)
+  if (direct) return direct
+  const start = raw.indexOf('{')
+  if (start > 0) return attempt(raw.slice(start))
+  return null
+}
+
 export function parseDetectionEnvelope(block: ToolCallBlock): DetectionDraftEnvelope | null {
   const raw = resultText(block)
   if (!raw) return null
-  try {
-    const parsed: unknown = JSON.parse(raw)
-    if (!isRecord(parsed)) return null
-    const data = isRecord(parsed.data) ? parsed.data : parsed
-    if (isRecord(data.draft)) return data as DetectionDraftEnvelope
-    return { draft: {}, error: parsed.error ?? data.error }
-  } catch {
-    return null
-  }
+  const parsed = parseEnvelopeText(raw)
+  if (!parsed) return null
+  const data = isRecord(parsed.data) ? parsed.data : parsed
+  if (isRecord(data.draft)) return data as DetectionDraftEnvelope
+  return { draft: {}, error: parsed.error ?? data.error }
 }
 
 export function detectionErrorMessage(envelope: DetectionDraftEnvelope | null): string | null {

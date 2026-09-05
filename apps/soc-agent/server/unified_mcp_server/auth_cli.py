@@ -10,6 +10,7 @@ from typing import Any
 from .config import ServerSettings
 from .env_loader import load_server_env
 from .auth import ZimbraIdentity, public_session
+from .catalog.service import CatalogService
 from .errors import ServiceError
 from .zimbra.mail.service import ZimbraMailService
 from .postgres_store import PostgresStore, normalize_zimbra_email
@@ -117,6 +118,138 @@ async def save_detection(payload: dict[str, Any]) -> dict[str, Any]:
         await service.close()
 
 
+def _catalog_session(payload: dict[str, Any]) -> str:
+    store = _store()
+    session = store.get_app_session(str(payload.get("session_id", "")))
+    if session is None:
+        raise ValueError("authentication failed")
+    return session.user_id
+
+
+def _catalog_context(payload: dict[str, Any]) -> tuple[CatalogService, str]:
+    actor_id = _catalog_session(payload)
+    service = CatalogService.from_env(ServerSettings.from_env())
+    return service, actor_id
+
+
+async def catalog_list(payload: dict[str, Any]) -> dict[str, Any]:
+    service, actor_id = _catalog_context(payload)
+    try:
+        return service.list_records(
+            str(payload.get("catalog", "")),
+            search=str(payload.get("search", "") or ""),
+            limit=int(payload.get("limit", 50)),
+            offset=int(payload.get("offset", 0)),
+            include_archived=bool(payload.get("include_archived", False)),
+        )
+    finally:
+        await service.close()
+
+
+async def catalog_get(payload: dict[str, Any]) -> dict[str, Any]:
+    service, _actor_id = _catalog_context(payload)
+    try:
+        record = service.get_record(str(payload.get("catalog", "")), str(payload.get("record_id", "")))
+        return {"record": record}
+    finally:
+        await service.close()
+
+
+async def catalog_history(payload: dict[str, Any]) -> dict[str, Any]:
+    service, _actor_id = _catalog_context(payload)
+    try:
+        return {
+            "history": service.record_history(
+                str(payload.get("catalog", "")),
+                str(payload.get("record_id", "")),
+                limit=int(payload.get("limit", 100)),
+            )
+        }
+    finally:
+        await service.close()
+
+
+async def catalog_publications(payload: dict[str, Any]) -> dict[str, Any]:
+    service, _actor_id = _catalog_context(payload)
+    try:
+        return {
+            "publications": service.list_publications(
+                str(payload.get("catalog", "")),
+                limit=int(payload.get("limit", 50)),
+            )
+        }
+    finally:
+        await service.close()
+
+
+async def catalog_preview_publish(payload: dict[str, Any]) -> dict[str, Any]:
+    service, _actor_id = _catalog_context(payload)
+    try:
+        return service.preview_publication(str(payload.get("catalog", "")))
+    finally:
+        await service.close()
+
+
+async def save_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
+    operation = payload.get("operation")
+    record = payload.get("record")
+    catalog = str(payload.get("catalog", ""))
+    if operation not in {"write", "update"} or not isinstance(record, dict):
+        raise ValueError("invalid catalog save request")
+    expected_revision = payload.get("expected_revision")
+    if expected_revision is not None and not isinstance(expected_revision, int):
+        raise ValueError("invalid catalog save request")
+    service, actor_id = _catalog_context(payload)
+    try:
+        return await service.save_record(
+            catalog,
+            operation,
+            record,
+            record_id=payload.get("record_id"),
+            expected_revision=expected_revision,
+            actor_id=actor_id,
+            reason=str(payload.get("reason", "") or ""),
+        )
+    finally:
+        await service.close()
+
+
+async def archive_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
+    expected_revision = payload.get("expected_revision")
+    if not isinstance(expected_revision, int):
+        raise ValueError("invalid catalog archive request")
+    service, actor_id = _catalog_context(payload)
+    try:
+        return await service.set_record_archived(
+            str(payload.get("catalog", "")),
+            str(payload.get("record_id", "")),
+            archived=not bool(payload.get("restore", False)),
+            expected_revision=expected_revision,
+            actor_id=actor_id,
+            reason=str(payload.get("reason", "") or ""),
+        )
+    finally:
+        await service.close()
+
+
+async def publish_catalog(payload: dict[str, Any]) -> dict[str, Any]:
+    service, actor_id = _catalog_context(payload)
+    try:
+        return await service.publish_catalog(str(payload.get("catalog", "")), actor_id=actor_id)
+    finally:
+        await service.close()
+
+
+async def rollback_publication(payload: dict[str, Any]) -> dict[str, Any]:
+    service, actor_id = _catalog_context(payload)
+    try:
+        return await service.rollback_publication(
+            str(payload.get("publication_id", "")), actor_id=actor_id
+        )
+    finally:
+        await service.close()
+
+
 def main() -> None:
     load_server_env()
     command = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -127,6 +260,15 @@ def main() -> None:
         if command == "send-email": result = asyncio.run(send_email(payload))
         if command == "list-signatures": result = asyncio.run(list_signatures(payload))
         if command == "save-detection": result = asyncio.run(save_detection(payload))
+        if command == "catalog-list": result = asyncio.run(catalog_list(payload))
+        if command == "catalog-get": result = asyncio.run(catalog_get(payload))
+        if command == "catalog-history": result = asyncio.run(catalog_history(payload))
+        if command == "catalog-publications": result = asyncio.run(catalog_publications(payload))
+        if command == "catalog-preview-publish": result = asyncio.run(catalog_preview_publish(payload))
+        if command == "save-catalog-record": result = asyncio.run(save_catalog_record(payload))
+        if command == "archive-catalog-record": result = asyncio.run(archive_catalog_record(payload))
+        if command == "publish-catalog": result = asyncio.run(publish_catalog(payload))
+        if command == "rollback-publication": result = asyncio.run(rollback_publication(payload))
         if result is None:
             raise ValueError("unknown authentication command")
         print(json.dumps(result, separators=(",", ":")))

@@ -7,6 +7,7 @@ import hashlib
 import json
 import secrets
 import re
+import types
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -19,8 +20,10 @@ from .account_store import AccountStore, StoredAccount
 
 try:
     import psycopg
+    from psycopg_pool import ConnectionPool
 except ImportError:  # pragma: no cover - exercised when the optional runtime is absent
     psycopg = None  # type: ignore[assignment]
+    ConnectionPool = None  # type: ignore[assignment,misc]
 
 
 def _derive_key(value: str) -> bytes:
@@ -42,6 +45,31 @@ def _connection_error() -> RuntimeError:
     return RuntimeError(
         "PostgreSQL settings require the psycopg package. Install the project dependencies first."
     )
+
+
+def _pool_enabled(env: Mapping[str, str] | None = None) -> bool:
+    values = environ if env is None else env
+    return str(values.get("APP_POSTGRES_POOL", "")).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def create_connection_pool(uri: str, env: Mapping[str, str] | None = None):
+    """Return a bounded connection pool, or None when disabled or unavailable.
+
+    Pooling is opt-in (APP_POSTGRES_POOL=true): every store falls back to the
+    per-call connection pattern, so minimal deployments keep working unchanged.
+    The pool preserves the commit-on-clean-exit semantics of a plain
+    ``psycopg.connect`` context manager. Pooling applies only to the real
+    psycopg runtime — tests replace the module with doubles, and a pool built
+    against such a double would dial a real database that does not exist.
+    """
+    if not _pool_enabled(env) or ConnectionPool is None or psycopg is None:
+        return None
+    if not isinstance(psycopg, types.ModuleType):
+        return None
+    try:
+        return ConnectionPool(uri, min_size=1, max_size=4, open=True, name="soc-postgres")
+    except Exception:
+        return None
 
 
 # Let the configured Zimbra server decide whether an address is valid. Some
@@ -100,6 +128,11 @@ class PostgresStore:
         if not self.uri:
             raise ValueError("A PostgreSQL URI is required for settings storage")
         self._fernet = Fernet(_fernet_key(encryption_key))
+        self._pool = (
+            create_connection_pool(self.uri)
+            if isinstance(psycopg, types.ModuleType)
+            else None
+        )
         self._ensure_schema()
 
     @classmethod
@@ -112,6 +145,8 @@ class PostgresStore:
     def _connect(self):
         if psycopg is None:  # pragma: no cover
             raise _connection_error()
+        if self._pool is not None:
+            return self._pool.connection()
         return psycopg.connect(self.uri)
 
     def _encrypt_text(self, value: str) -> str:

@@ -1,0 +1,136 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 16px;
+  border: 1px solid var(--dsw-alias-border-l2, #d5d9de);
+  border-radius: 10px;
+  background: var(--dsw-alias-surface-primary, #fff);
+  color: var(--dsw-alias-text-primary, #1c2024);
+  font-size: 13px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin-top: 2px;
+  color: var(--dsw-alias-text-secondary, #5c6470);
+  font-size: 12px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fieldInvalid .input,
+.fieldInvalid .textarea,
+.fieldInvalid .select {
+  border-color: var(--dsw-alias-danger, #d33);
+}
+
+.label {
+  color: var(--dsw-alias-text-secondary, #5c6470);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.fieldError {
+  color: var(--dsw-alias-danger, #d33);
+  font-size: 11px;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l2, #d5d9de);
+  border-radius: 6px;
+  background: var(--dsw-alias-surface-secondary, #fafbfc);
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.message {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.error {
+  background: color-mix(in srgb, var(--dsw-alias-danger, #d33) 10%, transparent);
+  color: var(--dsw-alias-danger, #a00);
+}
+
+.success {
+  background: color-mix(in srgb, var(--dsw-alias-success, #2a8b43) 10%, transparent);
+  color: var(--dsw-alias-success, #23692f);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.button {
+  padding: 6px 14px;
+  border: 1px solid var(--dsw-alias-border-l2, #d5d9de);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.primary {
+  background: var(--dsw-alias-primary, #2563eb);
+  border-color: var(--dsw-alias-primary, #2563eb);
+  color: #fff;
+}
+
+.secondary {
+  background: transparent;
+}
+
+@media (max-width: 700px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

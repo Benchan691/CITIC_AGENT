@@ -165,6 +165,10 @@
   disabled: false
 - id: ui-trajectory
   disabled: true
+# The auxiliary session-title LLM is redundant: the deterministic session-title
+# fallback names sessions without a generation request on every conversation.
+- id: session-title-llm
+  disabled: true
 
 # ── SOC product plugins ─────────────────────────────────────────────────────
 
@@ -183,7 +187,9 @@
           MCP_SERVER_ROOT: !!js "process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]"
           APP_POSTGRES_URI: !!js "process.env.APP_POSTGRES_URI || process.env.LANGGRAPH_POSTGRES_URI || process.env.POSTGRES_URI || ''"
           APP_SETTINGS_ENCRYPTION_KEY: !!js process.env.APP_SETTINGS_ENCRYPTION_KEY ?? ''
-        toolCallTimeoutMs: 120000
+        # One 180-second end-to-end operation budget plus cleanup margin; the
+        # MCP transport deadline is derived from it (see redesign plan, §6).
+        toolCallTimeoutMs: 185000
         failOnStartupError: true
     - id: soc-agent-auth-host
       name: dsh-soc-agent/auth-host

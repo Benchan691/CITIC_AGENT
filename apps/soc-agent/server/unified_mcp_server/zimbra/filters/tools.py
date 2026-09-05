@@ -8,22 +8,22 @@ from mcp.server.fastmcp import Context
 
 
 def register_tools(server, *, get_runtime, fresh_runtime, execute) -> None:
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_list_email_filters(ctx: Context, include_details: bool = False) -> dict[str, Any]:
         """List compact Zimbra filter summaries; include full rules only when needed."""
         return await execute(ctx, "zimbra", "list_email_filters", lambda: get_runtime(ctx).zimbra_filters.list_email_filters(include_details=include_details))
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_get_email_filter(ctx: Context, name: str) -> dict[str, Any]:
         """Get one structured incoming Zimbra filter and the complete-set fingerprint."""
         return await execute(ctx, "zimbra", "get_email_filter", lambda: get_runtime(ctx).zimbra_filters.get_email_filter(name))
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_validate_email_filter(ctx: Context, rule: dict[str, Any]) -> dict[str, Any]:
         """Validate a structured Zimbra filter without writing it."""
         return await execute(ctx, "zimbra", "validate_email_filter", lambda: get_runtime(ctx).zimbra_filters.validate_email_filter(rule))
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_preview_email_filter_update(ctx: Context, name: str, proposed_rule: dict[str, Any]) -> dict[str, Any]:
         """Preview a structured Zimbra filter update without writing it."""
         return await execute(ctx, "zimbra", "preview_email_filter_update", lambda: get_runtime(ctx).zimbra_filters.preview_email_filter_update(name, proposed_rule))

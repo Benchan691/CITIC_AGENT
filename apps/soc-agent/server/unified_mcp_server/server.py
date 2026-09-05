@@ -1,6 +1,9 @@
 """Unified MCP server exposing prefixed Splunk and Zimbra tools."""
 
+import json
 import logging
+import time
+import uuid
 import warnings
 from contextvars import ContextVar
 from collections.abc import Awaitable, Callable
@@ -13,6 +16,8 @@ from pydantic_settings.exceptions import IncompleteFieldDefinitionWarning
 
 from .account_store import AccountStore
 from .auth import ZimbraIdentity, identity_for_session
+from .catalog.service import CatalogService
+from .catalog.tools import register_tools as register_catalog_tools
 from .config import ServerSettings
 from .env_loader import load_server_env
 from .errors import ServiceError
@@ -33,11 +38,25 @@ from .zimbra.filters.tools import register_tools as register_filter_tools
 load_server_env()
 logger = logging.getLogger(__name__)
 _request_runtime: ContextVar["Runtime | None"] = ContextVar("soc_request_runtime", default=None)
+_correlation_id: ContextVar[str] = ContextVar("soc_correlation_id", default="")
 warnings.filterwarnings(
     "ignore",
     message=r"Field 'lifespan' has an incomplete definition.*",
     category=IncompleteFieldDefinitionWarning,
 )
+
+
+class McpFailureEnvelope(Exception):
+    """Carry a bounded failure envelope through the MCP error channel.
+
+    Application failures must not look like successful tool results: raising
+    makes the transport mark the result ``isError`` while ``__str__`` keeps the
+    full ``ok:false`` envelope JSON that SOC editors already parse.
+    """
+
+    def __init__(self, payload: dict[str, Any]) -> None:
+        super().__init__(json.dumps(payload, separators=(",", ":"), ensure_ascii=True))
+        self.payload = payload
 
 
 @dataclass
@@ -49,6 +68,7 @@ class Runtime:
     zimbra_filters: ZimbraFilterService | None = None
     postgres: PostgresStore | None = None
     account_store: AccountStore | PostgresAccountStore | None = None
+    catalog: CatalogService | None = None
     identity: ZimbraIdentity | None = None
     owns_services: bool = True
 
@@ -80,14 +100,16 @@ class Runtime:
             settings.zimbra.key_file,
             settings.zimbra.explicit_key,
         )
+        splunk_service = SplunkService(settings.splunk)
         return cls(
             settings,
-            SplunkService(settings.splunk),
+            splunk_service,
             ZimbraMailService(settings.zimbra, accounts, settings.markitdown),
             EmailSubscriptionService(settings.email_server),
             zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
             postgres=postgres,
             account_store=accounts,
+            catalog=CatalogService(settings.splunk, splunk=splunk_service),
         )
 
     async def close(self) -> None:
@@ -115,6 +137,7 @@ class Runtime:
             ),
             postgres=self.postgres,
             account_store=self.account_store,
+            catalog=self.catalog,
             identity=identity,
             owns_services=False,
         )
@@ -183,27 +206,61 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         operation: str,
         action: Callable[[], Awaitable[Any]],
     ) -> dict[str, Any]:
+        correlation = _correlation_from_meta(ctx) or uuid.uuid4().hex[:12]
+        _correlation_id.set(correlation)
+        started = time.monotonic()
+        prepare_ms: float | None = None
         try:
+            prepare_started = time.monotonic()
             await fresh_runtime(ctx)
-            return success(service, operation, await action())
+            prepare_ms = (time.monotonic() - prepare_started) * 1000
+            data = await action()
+            logger.debug(
+                "mcp_call ok service=%s operation=%s correlation_id=%s prepare_ms=%.1f execute_ms=%.1f",
+                service,
+                operation,
+                correlation,
+                prepare_ms,
+                (time.monotonic() - started) * 1000 - prepare_ms,
+            )
+            return success(service, operation, data)
         except ServiceError as exc:
             current = _request_runtime.get()
             if current is not None and exc.code == "zimbra_auth_error" and current.identity is not None and current.postgres is not None:
                 current.postgres.delete_app_session(current.identity.session_id)
-            return failure(
+            logger.info(
+                "mcp_call failed service=%s operation=%s correlation_id=%s code=%s prepare_ms=%s total_ms=%.1f",
                 service,
                 operation,
+                correlation,
                 exc.code,
-                exc.message,
-                retryable=exc.retryable,
-                details=exc.details,
+                "n/a" if prepare_ms is None else f"{prepare_ms:.1f}",
+                (time.monotonic() - started) * 1000,
             )
+            raise McpFailureEnvelope(
+                failure(
+                    service,
+                    operation,
+                    exc.code,
+                    exc.message,
+                    retryable=exc.retryable,
+                    details=exc.details,
+                )
+            ) from exc
         except Exception:
             # Third-party exception strings can contain URLs, request bodies,
             # or credentials. Keep the operational log stable and credential-
             # free; the caller receives the same generic failure envelope.
-            logger.error("Unexpected %s.%s failure", service, operation)
-            return failure(service, operation, "internal_error", "The MCP server encountered an unexpected error.")
+            logger.error(
+                "mcp_call unexpected service=%s operation=%s correlation_id=%s total_ms=%.1f",
+                service,
+                operation,
+                correlation,
+                (time.monotonic() - started) * 1000,
+            )
+            raise McpFailureEnvelope(
+                failure(service, operation, "internal_error", "The MCP server encountered an unexpected error.")
+            )
 
     def runtime(ctx: Context) -> Runtime:
         return _request_runtime.get() or ctx.request_context.lifespan_context
@@ -213,6 +270,14 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         if isinstance(meta, dict):
             return str(meta.get("soc_session_id", ""))
         return str(getattr(meta, "soc_session_id", "") or "")
+
+    def _correlation_from_meta(ctx: Context) -> str:
+        meta = getattr(ctx.request_context, "meta", None)
+        if isinstance(meta, dict):
+            value = str(meta.get("soc_correlation_id", "") or "")
+        else:
+            value = str(getattr(meta, "soc_correlation_id", "") or "")
+        return value[:64]
 
     async def fresh_runtime(ctx: Context) -> Runtime:
         # A Context may service multiple sequential MCP calls. Never let a
@@ -229,7 +294,7 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         _request_runtime.set(scoped)
         return scoped
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def system_get_status(ctx: Context) -> dict[str, Any]:
         """Show non-sensitive service readiness; detailed configuration is administrator-only."""
         current = await fresh_runtime(ctx)
@@ -257,6 +322,15 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         server,
         get_runtime=runtime,
         execute=execute,
+    )
+    register_catalog_tools(
+        server,
+        get_runtime=runtime,
+        fresh_runtime=fresh_runtime,
+        execute=execute,
+        success=success,
+        failure=failure,
+        service_error=ServiceError,
     )
 
     register_mail_tools(

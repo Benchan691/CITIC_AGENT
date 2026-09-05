@@ -12,6 +12,19 @@ server, and pinned harness source.
 - `skills` — SOC operating playbooks
 - `docs` — project structure and operating notes
 
+## SOC catalogs
+
+The Ruleset, Customer Information, and Fix Source type catalogs live in
+PostgreSQL. Analysts edit records through authenticated forms (`/catalogs`, or
+the catalog MCP tools with the editor's explicit Save); every change is
+recorded in an audit history table with the actor, timestamp, reason, and
+before/after values. Splunk consumers keep reading their lookup files:
+publishing generates the lookup snapshot from the catalog, validates it, and
+uploads it through the controlled write path (`SPLUNK_ALLOW_LOOKUP_WRITE`,
+admin-only), then verifies the published content by reading it back. Imports
+of existing lookup data go through staging and a reconciliation report via
+`python -m unified_mcp_server.catalog_cli --help`.
+
 ## First-time setup
 
 From the repository root, run:

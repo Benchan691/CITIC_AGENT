@@ -40,7 +40,7 @@ Route email-led investigations to `email-to-splunk-investigation`, false-positiv
 7. Inspect `search.result.type`, `search.result.rows`, and `search` counts. Never interpret `returned_count` as total matches; check `truncation`/`truncated` before making absence or volume conclusions.
 8. If MCP context truncation is reported, narrow `fields` or scope; do not treat omitted samples as zero matches.
 9. Check queue `source` and `capabilities`; standard fired-alert history is retention-limited, and unavailable status/urgency/disposition is not evidence that nobody reviewed an alert.
-10. Pivot from returned evidence: entity → related event → surrounding activity → affected scope. Validate every new query.
+10. Pivot from returned evidence: entity → related event → surrounding activity → affected scope. Each `splunk_search` dispatch is validated by the backend; reformulate denied queries instead of repeating them.
 11. Build a UTC-normalized timeline while preserving source timestamps and timezone uncertainty.
 12. Classify as malicious, suspicious, likely benign, no supporting evidence, or inconclusive. Use calibrated confidence.
 13. Recommend the smallest next action and name missing evidence.

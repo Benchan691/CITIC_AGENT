@@ -13,7 +13,7 @@ dependencies = [
     "httpx>=0.27,<1",
     "markitdown[audio-transcription,docx,outlook,pdf,pptx,xls,xlsx]==0.1.7",
     "mcp>=1.28.1,<2",
-    "psycopg[binary]>=3.2,<4",
+    "psycopg[pool,binary]>=3.2,<4",
     "python-dotenv>=1.0,<2",
     "zimbra-client>=0.3.4,<0.4",
 ]
@@ -35,6 +35,7 @@ unified-mcp-server = "unified_mcp_server.server:main"
 [tool.setuptools]
 packages = [
     "unified_mcp_server",
+    "unified_mcp_server.catalog",
     "unified_mcp_server.splunk",
     "unified_mcp_server.splunk.core",
     "unified_mcp_server.splunk.search",

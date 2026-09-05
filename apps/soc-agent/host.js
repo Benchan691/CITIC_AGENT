@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS } from './policy.js'
+import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS } from './policy.js'
 import {
   MEMORY_SOURCE_TYPES,
   MEMORY_TYPES,
@@ -22,10 +22,21 @@ export const inject = ['agents', 'connection', 'tools', 'socAuth', 'sessions', '
 const CHANNEL = '/soc-agent-config'
 const ACTION_POLICY_NAMESPACE = 'soc-action-approval'
 const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
+const CATALOG_ENDPOINTS = new Set([
+  'catalog-list',
+  'catalog-get',
+  'catalog-history',
+  'catalog-publications',
+  'catalog-preview-publish',
+  'save-catalog-record',
+  'archive-catalog-record',
+  'publish-catalog',
+  'rollback-publication',
+])
 const HARD_ATTACHMENT_BYTES = 100_000_000
 const HARD_MARKDOWN_CHARS = 2_000_000
 
-export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS }
+export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS }
 
 const ACTION_NAMES = new Set(ACTION_TOOLS)
 const nodeRequire = createRequire(import.meta.url)
@@ -175,15 +186,19 @@ function policyValue(ctx, sessionPolicies, sessionId) {
   const actions = session ?? savedAutoApproveActions(ctx)
   return {
     actions: ACTION_CATALOG,
-    // Detection drafts always require the harness approval flow; never
-    // advertise a session-wide detection bypass to the UI.
-    autoApproveActions: [...actions].filter(name => !DETECTION_ACTION_TOOLS.includes(name)),
+    // Draft families always require the harness approval flow; never
+    // advertise a session-wide bypass for them to the UI.
+    autoApproveActions: [...actions].filter(name => !ALWAYS_ASK_ACTION_TOOLS.includes(name)),
     source: session === undefined ? 'defaults' : 'session',
   }
 }
 
 function detectionApprovalReason(exec) {
   return 'This Splunk detection draft requires approval before it can run.'
+}
+
+function catalogApprovalReason(exec) {
+  return 'This catalog change requires approval before it can run.'
 }
 
 function policyError(error, sessionId) {
@@ -279,6 +294,10 @@ function adminFailureMessage(command, stderr = '') {
   return `${label}: ${message}${extra.length ? ` (${extra.join('; ')})` : ''}`
 }
 
+// Admin helper subprocesses share the authenticated-command bound: a hung
+// Python process must never hold the admin RPC open indefinitely.
+const ADMIN_COMMAND_TIMEOUT_MS = Number(process.env.SOC_AUTH_COMMAND_TIMEOUT_MS ?? 185_000)
+
 function runAdmin(command, arg, payload, signal) {
   return new Promise((resolvePromise, rejectPromise) => {
     const args = ['run', 'python', '-m', 'unified_mcp_server.admin_cli', command]
@@ -295,9 +314,17 @@ function runAdmin(command, arg, payload, signal) {
     let stdout = ''
     let stderr = ''
     let settled = false
+    const timeoutTimer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      child.kill('SIGTERM')
+      rejectPromise(new Error(`admin_operation_timeout: The "${command}" operation exceeded ${Math.round(ADMIN_COMMAND_TIMEOUT_MS / 1000)} seconds.`))
+    }, ADMIN_COMMAND_TIMEOUT_MS)
+    timeoutTimer.unref?.()
     const abort = () => {
       if (settled) return
       settled = true
+      clearTimeout(timeoutTimer)
       child.kill('SIGTERM')
       rejectPromise(new Error('attachment_conversion_cancelled'))
     }
@@ -311,11 +338,13 @@ function runAdmin(command, arg, payload, signal) {
     child.on('error', error => {
       if (settled) return
       settled = true
+      clearTimeout(timeoutTimer)
       rejectPromise(new Error(adminFailureMessage(command)))
     })
     child.on('close', code => {
       if (settled) return
       settled = true
+      clearTimeout(timeoutTimer)
       signal?.removeEventListener('abort', abort)
       if (code !== 0) {
         if (command === 'convert-attachment') {
@@ -385,6 +414,85 @@ function validateDetectionSavePayload(payload) {
     detection: payload.detection,
     ...(payload.name === undefined ? {} : { name: payload.name }),
     ...(payload.expected_fingerprint === undefined ? {} : { expected_fingerprint: payload.expected_fingerprint }),
+  }
+}
+
+const CATALOG_NAMES = new Set(['customer', 'rule', 'fix_source_type'])
+
+function validateCatalogSavePayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('The catalog save request is invalid.')
+  }
+  const operation = payload.operation
+  if (operation !== 'write' && operation !== 'update') {
+    throw new Error('The catalog save operation is invalid.')
+  }
+  const catalog = payload.catalog
+  if (typeof catalog !== 'string' || !CATALOG_NAMES.has(catalog)) {
+    throw new Error('The catalog name is invalid.')
+  }
+  if (!payload.record || typeof payload.record !== 'object' || Array.isArray(payload.record)) {
+    throw new Error('The catalog record draft is invalid.')
+  }
+  if (operation === 'update' && (typeof payload.record_id !== 'string' || payload.record_id.trim() === '')) {
+    throw new Error('The catalog record ID is invalid.')
+  }
+  if (payload.record_id !== undefined && payload.record_id !== null && typeof payload.record_id !== 'string') {
+    throw new Error('The catalog record ID is invalid.')
+  }
+  if (operation === 'update' && (!Number.isInteger(payload.expected_revision) || payload.expected_revision < 1)) {
+    throw new Error('The catalog record revision is invalid.')
+  }
+  if (payload.reason !== undefined && typeof payload.reason !== 'string') {
+    throw new Error('The change reason is invalid.')
+  }
+  return {
+    catalog,
+    operation,
+    record: payload.record,
+    ...(payload.record_id === undefined || payload.record_id === null ? {} : { record_id: payload.record_id }),
+    ...(operation === 'update' ? { expected_revision: payload.expected_revision } : {}),
+    ...(payload.reason ? { reason: payload.reason.slice(0, 500) } : {}),
+  }
+}
+
+function validateCatalogArchivePayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('The catalog archive request is invalid.')
+  }
+  const catalog = payload.catalog
+  if (typeof catalog !== 'string' || !CATALOG_NAMES.has(catalog)) {
+    throw new Error('The catalog name is invalid.')
+  }
+  if (typeof payload.record_id !== 'string' || payload.record_id.trim() === '') {
+    throw new Error('The catalog record ID is invalid.')
+  }
+  if (!Number.isInteger(payload.expected_revision) || payload.expected_revision < 1) {
+    throw new Error('The catalog record revision is invalid.')
+  }
+  return {
+    catalog,
+    record_id: payload.record_id,
+    expected_revision: payload.expected_revision,
+    restore: payload.restore === true,
+    ...(typeof payload.reason === 'string' && payload.reason ? { reason: payload.reason.slice(0, 500) } : {}),
+  }
+}
+
+function validateCatalogNamePayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('The catalog request is invalid.')
+  }
+  const catalog = payload.catalog
+  if (typeof catalog !== 'string' || !CATALOG_NAMES.has(catalog)) {
+    throw new Error('The catalog name is invalid.')
+  }
+  return {
+    catalog,
+    ...(typeof payload.search === 'string' ? { search: payload.search } : {}),
+    ...(Number.isInteger(payload.limit) ? { limit: payload.limit } : {}),
+    ...(Number.isInteger(payload.offset) ? { offset: payload.offset } : {}),
+    ...(payload.include_archived === undefined ? {} : { include_archived: payload.include_archived === true }),
   }
 }
 
@@ -482,6 +590,68 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       }
       return ok(await runAuthCommand('save-detection', { ...request, session_id: session.id }))
     }
+    case 'catalog-list': {
+      const session = requireUser(ctx)
+      return ok(await runAuthCommand('catalog-list', { ...validateCatalogNamePayload(payload), session_id: session.id }))
+    }
+    case 'catalog-get':
+    case 'catalog-history': {
+      const session = requireUser(ctx)
+      if (typeof payload?.record_id !== 'string' || payload.record_id.trim() === '') {
+        return badRequest('The catalog record ID is invalid.')
+      }
+      const command = endpoint === 'catalog-get' ? 'catalog-get' : 'catalog-history'
+      return ok(await runAuthCommand(command, {
+        catalog: validateCatalogNamePayload(payload).catalog,
+        record_id: payload.record_id,
+        session_id: session.id,
+      }))
+    }
+    case 'catalog-publications': {
+      const session = requireUser(ctx)
+      return ok(await runAuthCommand('catalog-publications', { ...validateCatalogNamePayload(payload), session_id: session.id }))
+    }
+    case 'catalog-preview-publish': {
+      const session = requireUser(ctx)
+      return ok(await runAuthCommand('catalog-preview-publish', { ...validateCatalogNamePayload(payload), session_id: session.id }))
+    }
+    case 'save-catalog-record': {
+      const session = requireUser(ctx)
+      let request
+      try {
+        request = validateCatalogSavePayload(payload)
+      } catch (error) {
+        return badRequest(error instanceof Error ? error.message : 'The catalog save request is invalid.')
+      }
+      return ok(await runAuthCommand('save-catalog-record', { ...request, session_id: session.id }))
+    }
+    case 'archive-catalog-record': {
+      const session = requireUser(ctx)
+      let request
+      try {
+        request = validateCatalogArchivePayload(payload)
+      } catch (error) {
+        return badRequest(error instanceof Error ? error.message : 'The catalog archive request is invalid.')
+      }
+      return ok(await runAuthCommand('archive-catalog-record', { ...request, session_id: session.id }))
+    }
+    case 'publish-catalog': {
+      const session = requireAdmin(ctx)
+      return ok(await runAuthCommand('publish-catalog', {
+        ...validateCatalogNamePayload(payload),
+        session_id: session.id,
+      }))
+    }
+    case 'rollback-publication': {
+      const session = requireAdmin(ctx)
+      if (typeof payload?.publication_id !== 'string' || payload.publication_id.trim() === '') {
+        return badRequest('The publication ID is invalid.')
+      }
+      return ok(await runAuthCommand('rollback-publication', {
+        publication_id: payload.publication_id,
+        session_id: session.id,
+      }))
+    }
     case 'list-signatures': {
       const session = requireUser(ctx)
       return ok(await runAuthCommand('list-signatures', { session_id: session.id }))
@@ -507,14 +677,28 @@ export function apply(ctx) {
         path: '/admin',
         handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
       })
-      const trailing = ctx.webServer.register({
+      const adminTrailing = ctx.webServer.register({
         kind: 'exact',
         path: '/admin/',
         handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
       })
+      // The catalog management page reuses the admin shell; the RPC channel
+      // enforces authentication and (for publishing) admin rights per call.
+      const catalogs = ctx.webServer.register({
+        kind: 'exact',
+        path: '/catalogs',
+        handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
+      })
+      const catalogsTrailing = ctx.webServer.register({
+        kind: 'exact',
+        path: '/catalogs/',
+        handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
+      })
       return () => {
         admin?.()
-        trailing?.()
+        adminTrailing?.()
+        catalogs?.()
+        catalogsTrailing?.()
       }
     }, 'soc-agent-host: admin web surface')
   }
@@ -539,18 +723,20 @@ export function apply(ctx) {
       }
     }
     if (APPROVAL_TOOLS.has(exec.name)) {
-      const detectionAction = DETECTION_ACTION_TOOLS.includes(exec.name)
+      const alwaysAsk = ALWAYS_ASK_ACTION_TOOLS.includes(exec.name)
       const agent = exec?.agent
       const sessionId = sessionIdOf(agent)
       const interactive = agent !== undefined && rootsOf(ctx).includes(agent)
-      if (!detectionAction && interactive && sessionId !== undefined) {
+      if (!alwaysAsk && interactive && sessionId !== undefined) {
         const autoApproved = sessionPolicies.get(sessionId) ?? savedAutoApproveActions(ctx)
         if (autoApproved.has(exec.name)) return next()
       }
       return Promise.resolve({
         kind: 'ask',
-        reason: detectionAction
-          ? detectionApprovalReason(exec)
+        reason: alwaysAsk
+          ? DETECTION_ACTION_TOOLS.includes(exec.name)
+            ? detectionApprovalReason(exec)
+            : catalogApprovalReason(exec)
           : MEMORY_WRITE_TOOLS.includes(exec.name)
             ? 'This action changes persistent SOC memory and requires approval.'
             : 'This action changes a SOC system, sends email, or changes a persistent schedule.',
@@ -614,6 +800,14 @@ export function apply(ctx) {
           const message = code === 'internal'
             ? 'The detection could not be saved.'
             : error instanceof Error ? error.message : 'The detection could not be saved.'
+          const details = error?.details && typeof error.details === 'object' ? error.details : {}
+          return { ok: false, error: { code, message, details } }
+        }
+        if (CATALOG_ENDPOINTS.has(endpoint)) {
+          const code = typeof error?.code === 'string' ? error.code : 'internal'
+          const message = code === 'internal'
+            ? 'The catalog operation failed.'
+            : error instanceof Error ? error.message : 'The catalog operation failed.'
           const details = error?.details && typeof error.details === 'object' ? error.details : {}
           return { ok: false, error: { code, message, details } }
         }

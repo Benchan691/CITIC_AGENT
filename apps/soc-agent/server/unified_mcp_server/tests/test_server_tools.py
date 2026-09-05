@@ -27,6 +27,21 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_write_detection",
         "splunk_update_detection",
         "splunk_run_saved_search",
+        "catalog_list_rules",
+        "catalog_get_rule",
+        "catalog_list_customers",
+        "catalog_get_customer",
+        "catalog_list_fix_source_types",
+        "catalog_get_fix_source_type",
+        "catalog_get_record_history",
+        "catalog_preview_publication",
+        "catalog_write_rule",
+        "catalog_update_rule",
+        "catalog_write_customer",
+        "catalog_update_customer",
+        "catalog_write_fix_source_type",
+        "catalog_update_fix_source_type",
+        "catalog_archive_record",
         "zimbra_list_folders",
         "zimbra_list_signatures",
         "zimbra_create_signature",
@@ -150,6 +165,20 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     write_tool = next(tool for tool in tools if tool.name == "splunk_write_detection")
     assert set(write_tool.parameters["properties"]) == {"detection"}
     assert write_tool.parameters["required"] == ["detection"]
+    catalog_write = next(tool for tool in tools if tool.name == "catalog_write_rule")
+    assert set(catalog_write.parameters["properties"]) == {"rule"}
+    assert catalog_write.parameters["required"] == ["rule"]
+    catalog_update = next(tool for tool in tools if tool.name == "catalog_update_rule")
+    assert set(catalog_update.parameters["properties"]) == {"rule_id", "rule", "expected_revision"}
+    assert set(catalog_update.parameters["required"]) == {"rule_id", "rule", "expected_revision"}
+    archive_tool = next(tool for tool in tools if tool.name == "catalog_archive_record")
+    assert set(archive_tool.parameters["properties"]) == {
+        "catalog", "record_id", "expected_revision", "restore", "reason",
+    }
+    assert set(archive_tool.parameters["required"]) == {"catalog", "record_id", "expected_revision"}
+    assert "publish" in next(
+        tool for tool in tools if tool.name == "catalog_preview_publication"
+    ).description.lower()
     update_tool = next(tool for tool in tools if tool.name == "splunk_update_detection")
     assert set(update_tool.parameters["properties"]) == {
         "name", "detection", "expected_fingerprint",
@@ -180,7 +209,8 @@ def test_draft_tool_action_is_awaitable(monkeypatch):
         def __init__(self):
             self.tools = []
 
-        def tool(self):
+        def tool(self, *args, **kwargs):
+            # Accept annotation/decoration kwargs like the real FastMCP decorator.
             def register(function):
                 self.tools.append(function)
                 return function

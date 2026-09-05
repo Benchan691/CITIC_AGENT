@@ -152,6 +152,12 @@ class SplunkSettings:
     detection_write_enabled: bool = False
     detection_app: str = "search"
     detection_owner: str = "nobody"
+    lookup_write_enabled: bool = False
+    lookup_app: str = "search"
+    lookup_owner: str = "nobody"
+    rule_lookup_name: str = "Ruleset.csv"
+    customer_lookup_name: str = "Customer_Information.csv"
+    fix_source_lookup_name: str = "Fix_Source_Type.csv"
     url: str = ""
     query_policy: QueryPolicyConfig = field(default_factory=QueryPolicyConfig)
     search_resource: SearchResourceConfig = field(default_factory=SearchResourceConfig)
@@ -430,6 +436,12 @@ class ServerSettings:
             detection_write_enabled=_boolean(env, "SPLUNK_ALLOW_DETECTION_WRITE", False),
             detection_app=_value(env, "SPLUNK_DETECTION_APP", "search"),
             detection_owner=_value(env, "SPLUNK_DETECTION_OWNER", "nobody"),
+            lookup_write_enabled=_boolean(env, "SPLUNK_ALLOW_LOOKUP_WRITE", False),
+            lookup_app=_value(env, "SPLUNK_LOOKUP_APP", "search"),
+            lookup_owner=_value(env, "SPLUNK_LOOKUP_OWNER", "nobody"),
+            rule_lookup_name=_value(env, "SPLUNK_RULE_LOOKUP_NAME", "Ruleset.csv"),
+            customer_lookup_name=_value(env, "SPLUNK_CUSTOMER_LOOKUP_NAME", "Customer_Information.csv"),
+            fix_source_lookup_name=_value(env, "SPLUNK_FIX_SOURCE_LOOKUP_NAME", "Fix_Source_Type.csv"),
             url=splunk_url,
             query_policy=query_policy,
             search_resource=search_resource,
@@ -520,6 +532,8 @@ class ServerSettings:
                 "sanitize_output": self.splunk.sanitize_output,
                 "detection_write_enabled": self.splunk.detection_write_enabled,
                 "detection_app": self.splunk.detection_app,
+                "lookup_write_enabled": self.splunk.lookup_write_enabled,
+                "lookup_app": self.splunk.lookup_app,
                 "query_policy": self.splunk.query_policy.to_dict(),
                 "search_resource": self.splunk.search_resource.to_dict(),
                 "security_queue": self.splunk.security_queue.to_dict(),

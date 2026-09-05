@@ -41,7 +41,7 @@ test('CITIC SOC defers generic Splunk background until a Splunk tool is visible'
   assert.doesNotMatch(background, /outputcsv/)
   assert.match(detection, /Ruleset\.csv/)
   assert.match(detection, /not already used.*`0000`–`9999`/is)
-  assert.match(detection, /create the corresponding row/i)
+  assert.match(detection, /create the corresponding catalog row/i)
   assert.match(detection, /Trigger Actions/i)
   assert.match(detection, /alert\.track=true/)
   assert.match(detection, /action\.logevent=1/)

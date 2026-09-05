@@ -18,7 +18,7 @@ Explain the trigger and determine whether it is malicious, suspicious, likely be
 
 1. Discover with `splunk_list_saved_searches(name=..., app=..., limit=..., include_spl=false)` when the exact name is unknown.
 2. Retrieve the exact rule with `splunk_get_detection`.
-3. Validate supporting SPL with `splunk_validate_query`.
+3. Write the supporting SPL directly; `splunk_search` validates before dispatch, so reserve `splunk_validate_query` for explicit validation-only checks.
 4. Investigate with bounded `splunk_search(..., fields=[...])` or scoped `splunk_run_saved_search`.
 5. Evaluate candidate logic with `splunk_validate_detection` and `splunk_backtest_detection`; do not persist it.
 

@@ -59,3 +59,7 @@ replacement for `AGENTS.md`.
   when activation or rollback is required.
 - Authentication, environment configuration, customer context, and live
   evidence come from their authoritative sources, not from this document.
+- The Ruleset, Customer Information, and Fix Source type catalogs are managed
+  in PostgreSQL with audited, revision-checked edits. Splunk lookups such as
+  `Ruleset.csv` receive published snapshots through the controlled catalog
+  publish action; hand-editing those lookups on the search head is superseded.

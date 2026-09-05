@@ -168,6 +168,7 @@ export async function syncTools(
         supportedOutputSchema(tool.outputSchema),
         tool.execution?.taskSupport === 'required',
         opts,
+        tool.annotations as Record<string, unknown> | undefined,
       ))
     }
     cursor = response.nextCursor
@@ -251,13 +252,20 @@ function createDefinition(
   structuredSchema: JsonSchemaNode | undefined,
   taskRequired: boolean,
   opts: ToolBridgeOptions,
+  annotations?: Record<string, unknown>,
 ): ToolDefinition {
   const projections = new WeakMap<ToolExecution, PreparedProjection>()
+  // MCP annotations are the protocol-native concurrency contract. Only a
+  // server-declared read-only hint without a destructive hint joins the
+  // harness's bounded parallel scheduler; everything else stays exclusive.
+  const readOnly =
+    annotations?.readOnlyHint === true && annotations?.destructiveHint !== true
   return {
     name: publicName,
     description,
     parameters,
     output: createOutput(rawName, structuredSchema),
+    ...(readOnly ? { isConcurrencySafe: () => true } : {}),
     execute: createExecutor(client, ctx, rawName, taskRequired, opts, projections),
     finalizeContent(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>) {
       const projection = projections.get(exec)

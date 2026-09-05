@@ -7,6 +7,36 @@ from typing import Any
 from .planner import SearchPlan
 
 
+def _aggregate_zero_rows(rows: Any) -> bool:
+    """Detect aggregate rows that carry no evidence, such as a lone count=0.
+
+    ``| stats count`` over zero events returns one row whose only value is 0.
+    Row count alone would classify that as a match; every field of every row
+    must be a numeric zero for the sample to count as evidence-free. Any
+    non-numeric or non-zero field (an entity, a timestamp, text) keeps the
+    rows classified as observable matches.
+    """
+    if not isinstance(rows, list) or not rows:
+        return False
+    for row in rows:
+        if not isinstance(row, dict) or not row:
+            return False
+        for value in row.values():
+            if isinstance(value, bool):
+                return False
+            if isinstance(value, (int, float)):
+                if value != 0:
+                    return False
+                continue
+            text = str(value).strip()
+            try:
+                if float(text) != 0:
+                    return False
+            except ValueError:
+                return False
+    return True
+
+
 class SearchResultVerifier:
     """Prevent a bounded zero-result sample from becoming an absence claim."""
 
@@ -26,10 +56,13 @@ class SearchResultVerifier:
         splunk_truncated = metadata.get("splunk_result_truncated")
         context_truncated = metadata.get("mcp_context_truncated")
         has_rows = isinstance(returned, int) and returned > 0
+        events = execution.get("events")
+        aggregate_zero = _aggregate_zero_rows(events)
+        has_matching_rows = has_rows and not aggregate_zero
         backend_limited = splunk_truncated is True or context_truncated is True
         truncation_unknown = splunk_truncated is None and total is None
 
-        if has_rows:
+        if has_matching_rows:
             conclusion = "matches_observed"
             confidence = "high" if plan.confidence >= 0.85 and not backend_limited else "medium"
             reason = "The planned scope returned observable matching rows."
@@ -52,10 +85,17 @@ class SearchResultVerifier:
                     "insufficient to conclude that no activity exists."
                 )
 
+        if aggregate_zero:
+            reason = (
+                "The search returned only zero-valued aggregate rows (for example a lone count=0); "
+                "this is not evidence of matching activity."
+            )
+
         return {
             "conclusion": conclusion,
             "confidence": confidence,
             "reason": reason,
+            "aggregate_zero_rows": aggregate_zero,
             "planner_confidence": plan.confidence,
             "planner_confidence_label": plan.confidence_label,
             "total_result_count": total,

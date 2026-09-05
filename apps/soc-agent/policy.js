@@ -15,6 +15,14 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_validate_detection',
   'mcp__soc_agent__splunk_compile_citic_detection',
   'mcp__soc_agent__splunk_backtest_detection',
+  'mcp__soc_agent__catalog_list_rules',
+  'mcp__soc_agent__catalog_get_rule',
+  'mcp__soc_agent__catalog_list_customers',
+  'mcp__soc_agent__catalog_get_customer',
+  'mcp__soc_agent__catalog_list_fix_source_types',
+  'mcp__soc_agent__catalog_get_fix_source_type',
+  'mcp__soc_agent__catalog_get_record_history',
+  'mcp__soc_agent__catalog_preview_publication',
   'mcp__soc_agent__zimbra_list_folders',
   'mcp__soc_agent__zimbra_search_emails',
   'mcp__soc_agent__zimbra_get_email',
@@ -52,6 +60,13 @@ export const ACTION_CATALOG = Object.freeze([
   { name: 'mcp__soc_agent__zimbra_delete_signature', group: 'Zimbra', label: 'Delete signature' },
   { name: 'mcp__soc_agent__splunk_write_detection', group: 'Splunk', label: 'Write detection' },
   { name: 'mcp__soc_agent__splunk_update_detection', group: 'Splunk', label: 'Update detection' },
+  { name: 'mcp__soc_agent__catalog_write_rule', group: 'Catalogs', label: 'Create Ruleset draft' },
+  { name: 'mcp__soc_agent__catalog_update_rule', group: 'Catalogs', label: 'Edit Ruleset record' },
+  { name: 'mcp__soc_agent__catalog_write_customer', group: 'Catalogs', label: 'Create customer draft' },
+  { name: 'mcp__soc_agent__catalog_update_customer', group: 'Catalogs', label: 'Edit customer record' },
+  { name: 'mcp__soc_agent__catalog_write_fix_source_type', group: 'Catalogs', label: 'Create Fix Source type draft' },
+  { name: 'mcp__soc_agent__catalog_update_fix_source_type', group: 'Catalogs', label: 'Edit Fix Source type record' },
+  { name: 'mcp__soc_agent__catalog_archive_record', group: 'Catalogs', label: 'Archive or restore catalog record' },
   { name: 'mcp__soc_agent__create_subscription', group: 'Subscriptions', label: 'Create subscription' },
   { name: 'mcp__soc_agent__update_subscription', group: 'Subscriptions', label: 'Update subscription' },
   { name: 'mcp__soc_agent__delete_subscription', group: 'Subscriptions', label: 'Delete subscription' },
@@ -67,11 +82,29 @@ export const ACTION_CATALOG = Object.freeze([
 
 export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
 
-// Detection drafts always require the harness approval flow. These names must
-// never be satisfied by the generic remembered action-name policy.
+// Detection drafts and catalog drafts always require the harness approval
+// flow. These names must never be satisfied by the generic remembered
+// action-name policy.
 export const DETECTION_ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_write_detection',
   'mcp__soc_agent__splunk_update_detection',
+])
+
+export const CATALOG_ACTION_TOOLS = Object.freeze([
+  'mcp__soc_agent__catalog_write_rule',
+  'mcp__soc_agent__catalog_update_rule',
+  'mcp__soc_agent__catalog_write_customer',
+  'mcp__soc_agent__catalog_update_customer',
+  'mcp__soc_agent__catalog_write_fix_source_type',
+  'mcp__soc_agent__catalog_update_fix_source_type',
+  'mcp__soc_agent__catalog_archive_record',
+])
+
+// Both draft families are authoritative changes that must never be
+// auto-approved by a remembered session policy.
+export const ALWAYS_ASK_ACTION_TOOLS = Object.freeze([
+  ...DETECTION_ACTION_TOOLS,
+  ...CATALOG_ACTION_TOOLS,
 ])
 
 export const MEMORY_READ_TOOLS = Object.freeze([

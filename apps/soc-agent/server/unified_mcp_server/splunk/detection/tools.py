@@ -23,12 +23,12 @@ def _principal_id(get_runtime, ctx: Context) -> str:
 
 
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success, failure, service_error) -> None:
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def splunk_get_detection(ctx: Context, name: str) -> dict[str, Any]:
         """Retrieve one saved search with alert timing, trigger, throttle, and action fields; secret-like fields are omitted."""
         return await execute(ctx, "splunk", "get_detection", lambda: get_runtime(ctx).splunk_detection.get_detection(name))
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def splunk_validate_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
         """Validate a CITIC production saved-search definition; outputcsv is definition-only and is never executed here."""
         try:
@@ -37,7 +37,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
         except service_error as exc:
             return failure("splunk", "validate_detection", exc.code, exc.message, details=exc.details)
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def splunk_compile_citic_detection(
         ctx: Context,
         detection_logic: str,
@@ -67,7 +67,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
             compile_definition,
         )
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def splunk_backtest_detection(ctx: Context, detection: dict[str, Any], earliest_time: str = "-7d", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         """Run a bounded read-only detection sample; outputcsv and other writes are rejected."""
         return await execute(ctx, "splunk", "backtest_detection", lambda: get_runtime(ctx).splunk_detection.backtest_detection(detection, earliest_time, latest_time, max_count, fields, principal_id=_principal_id(get_runtime, ctx)))

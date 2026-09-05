@@ -8,7 +8,7 @@ from mcp.server.fastmcp import Context
 
 
 def register_tools(server, *, get_runtime, execute) -> None:
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def list_subscriptions(ctx: Context) -> dict[str, Any]:
         """List webserver notification subscriptions."""
         return await execute(
@@ -18,7 +18,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
             lambda: get_runtime(ctx).email_subscriptions.list_subscriptions(),
         )
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def get_subscription_schema(ctx: Context) -> dict[str, Any]:
         """Get live webserver subscription fields, defaults, enums, and limits."""
         return await execute(
@@ -28,7 +28,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
             lambda: get_runtime(ctx).email_subscriptions.get_subscription_schema(),
         )
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def preview_subscription(
         ctx: Context,
         mode: str = "create",

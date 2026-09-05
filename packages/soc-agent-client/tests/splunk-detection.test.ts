@@ -5,6 +5,7 @@ import {
   detectionFromForm,
   formFromDraft,
   parseDetectionEnvelope,
+  parseEnvelopeText,
   SPLUNK_UPDATE_DETECTION_TOOL_NAME,
   SPLUNK_WRITE_DETECTION_TOOL_NAME,
 } from '../src/client/splunkDetection.ts'
@@ -76,4 +77,18 @@ test('parses the MCP success envelope and surfaces errors', () => {
     isError: true,
   } as never)
   assert.equal(error?.error && typeof error.error === 'object' ? (error.error as { message: string }).message : '', 'stale detection')
+})
+
+test('parses failure envelopes carried through the MCP transport error text', () => {
+  const envelope = { ok: false, error: { code: 'detection_invalid', message: 'Detection validation failed.' } }
+  const prefixed = parseDetectionEnvelope({
+    kind: 'tool-result',
+    content: [{ type: 'text', text: `Error executing tool splunk_write_detection: ${JSON.stringify(envelope)}` }],
+    isError: true,
+  } as never)
+  assert.equal(
+    prefixed?.error && typeof prefixed.error === 'object' ? (prefixed.error as { message: string }).message : '',
+    'Detection validation failed.',
+  )
+  assert.equal(parseEnvelopeText('Error executing tool x: not json at all'), null)
 })

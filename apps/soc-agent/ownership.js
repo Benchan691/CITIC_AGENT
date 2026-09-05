@@ -525,6 +525,11 @@ function authCommandError(command, stderr = '') {
   return new Error(command === 'logout' ? 'logout_failed' : 'operation_failed')
 }
 
+// Privileged helper subprocesses are bounded so a hung Python process can
+// never hold an authenticated UI request open indefinitely. Publication runs
+// the same bound: the Splunk upload and read-back must finish within it.
+const AUTH_COMMAND_TIMEOUT_MS = Number(process.env.SOC_AUTH_COMMAND_TIMEOUT_MS ?? 185_000)
+
 export async function runAuthCommand(command, payload) {
   const { spawn } = await import('node:child_process')
   const bundleRoot = dirname(fileURLToPath(import.meta.url))
@@ -539,9 +544,19 @@ export async function runAuthCommand(command, payload) {
     let stdout = ''
     let stderr = ''
     let settled = false
+    const timeoutTimer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      child.kill('SIGTERM')
+      const error = authCommandError(command)
+      error.code = 'operation_timeout'
+      rejectPromise(error)
+    }, AUTH_COMMAND_TIMEOUT_MS)
+    timeoutTimer.unref?.()
     const fail = () => {
       if (settled) return
       settled = true
+      clearTimeout(timeoutTimer)
       child.kill('SIGTERM')
       rejectPromise(authCommandError(command))
     }
@@ -551,6 +566,7 @@ export async function runAuthCommand(command, payload) {
     child.on('close', code => {
       if (settled) return
       settled = true
+      clearTimeout(timeoutTimer)
       if (code !== 0) {
         rejectPromise(authCommandError(command, stderr))
         return
