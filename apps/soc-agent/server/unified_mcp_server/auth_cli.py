@@ -118,6 +118,32 @@ async def save_detection(payload: dict[str, Any]) -> dict[str, Any]:
         await service.close()
 
 
+async def save_lookup(payload: dict[str, Any]) -> dict[str, Any]:
+    operation = payload.get("operation")
+    name = payload.get("name")
+    content = payload.get("content")
+    expected_fingerprint = payload.get("expected_fingerprint")
+    if operation not in {"write", "update", "delete"} or not isinstance(name, str):
+        raise ValueError("invalid lookup save request")
+    if operation in {"write", "update"} and not isinstance(content, str):
+        raise ValueError("invalid lookup save request")
+    if operation in {"update", "delete"} and not isinstance(expected_fingerprint, str):
+        raise ValueError("invalid lookup save request")
+    if expected_fingerprint is not None and not isinstance(expected_fingerprint, str):
+        raise ValueError("invalid lookup save request")
+    service, actor_id = _splunk_service(payload)
+    try:
+        return await service.save_lookup(
+            operation,
+            name,
+            content=content,
+            expected_fingerprint=expected_fingerprint,
+            actor_id=actor_id,
+        )
+    finally:
+        await service.close()
+
+
 def _catalog_session(payload: dict[str, Any]) -> str:
     store = _store()
     session = store.get_app_session(str(payload.get("session_id", "")))
@@ -259,6 +285,7 @@ _ASYNC_COMMANDS = {
     "send-email": send_email,
     "list-signatures": list_signatures,
     "save-detection": save_detection,
+    "save-lookup": save_lookup,
     "catalog-list": catalog_list,
     "catalog-get": catalog_get,
     "catalog-history": catalog_history,

@@ -127,7 +127,7 @@ def test_first_login_creates_one_normalized_user_and_never_returns_password_or_t
     captured = {}
 
     monkeypatch.setattr(auth_cli, "_store", lambda: database)
-    monkeypatch.setattr(auth_cli.ServerSettings, "from_store", lambda _store: settings())
+    monkeypatch.setattr(auth_cli.ServerSettings, "from_env", lambda: settings())
 
     def fake_login(config):
         captured.update(config)
@@ -157,7 +157,7 @@ def test_first_login_creates_one_normalized_user_and_never_returns_password_or_t
 def test_invalid_zimbra_login_is_rejected_without_creating_local_state(store, monkeypatch):
     database, connection = store
     monkeypatch.setattr(auth_cli, "_store", lambda: database)
-    monkeypatch.setattr(auth_cli.ServerSettings, "from_store", lambda _store: settings())
+    monkeypatch.setattr(auth_cli.ServerSettings, "from_env", lambda: settings())
     monkeypatch.setattr(auth_cli, "zimbra_login", lambda _config: (_ for _ in ()).throw(RuntimeError("wrong password")))
 
     with pytest.raises(ValueError, match="authentication failed"):
@@ -184,7 +184,7 @@ def test_invalid_zimbra_token_invalidates_application_session(store, monkeypatch
     database, _connection = store
     session = database.create_user_session("analyst@example.com", "expired-zimbra-token")
     monkeypatch.setattr(auth_cli, "_store", lambda: database)
-    monkeypatch.setattr(auth_cli.ServerSettings, "from_store", lambda _store: settings())
+    monkeypatch.setattr(auth_cli.ServerSettings, "from_env", lambda: settings())
 
     def reject_token(self, *_args):
         raise RuntimeError("auth required")

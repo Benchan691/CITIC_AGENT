@@ -11,6 +11,7 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_run_saved_search',
   'mcp__soc_agent__splunk_find_lookup',
   'mcp__soc_agent__splunk_list_lookups',
+  'mcp__soc_agent__splunk_get_lookup',
   'mcp__soc_agent__splunk_get_detection',
   'mcp__soc_agent__splunk_validate_detection',
   'mcp__soc_agent__splunk_compile_citic_detection',
@@ -69,6 +70,9 @@ export const ACTION_CATALOG = Object.freeze([
   { name: 'mcp__soc_agent__catalog_write_fix_source_type', group: 'Catalogs', label: 'Create Fix Source type draft' },
   { name: 'mcp__soc_agent__catalog_update_fix_source_type', group: 'Catalogs', label: 'Edit Fix Source type record' },
   { name: 'mcp__soc_agent__catalog_archive_record', group: 'Catalogs', label: 'Archive or restore catalog record' },
+  { name: 'mcp__soc_agent__splunk_write_lookup', group: 'Splunk', label: 'Create lookup CSV' },
+  { name: 'mcp__soc_agent__splunk_update_lookup', group: 'Splunk', label: 'Update lookup CSV' },
+  { name: 'mcp__soc_agent__splunk_delete_lookup', group: 'Splunk', label: 'Delete lookup CSV' },
   { name: 'mcp__soc_agent__create_subscription', group: 'Subscriptions', label: 'Create subscription' },
   { name: 'mcp__soc_agent__update_subscription', group: 'Subscriptions', label: 'Update subscription' },
   { name: 'mcp__soc_agent__delete_subscription', group: 'Subscriptions', label: 'Delete subscription' },
@@ -102,11 +106,19 @@ export const CATALOG_ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__catalog_archive_record',
 ])
 
-// Both draft families are authoritative changes that must never be
-// auto-approved by a remembered session policy.
+// Lookup CSV mutations are draft-producing actions, but remembered approval
+// must never bypass the harness gate before the editor can commit them.
+export const SPLUNK_LOOKUP_ACTION_TOOLS = Object.freeze([
+  'mcp__soc_agent__splunk_write_lookup',
+  'mcp__soc_agent__splunk_update_lookup',
+  'mcp__soc_agent__splunk_delete_lookup',
+])
+
+// Draft changes must never be auto-approved by a remembered session policy.
 export const ALWAYS_ASK_ACTION_TOOLS = Object.freeze([
   ...DETECTION_ACTION_TOOLS,
   ...CATALOG_ACTION_TOOLS,
+  ...SPLUNK_LOOKUP_ACTION_TOOLS,
 ])
 
 export const MEMORY_READ_TOOLS = Object.freeze([

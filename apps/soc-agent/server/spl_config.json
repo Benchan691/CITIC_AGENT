@@ -1,8 +1,8 @@
 {
   "config_version": 1,
   "port": 8089,
-  "scheme": "https",
-  "url": "https://localhost:8089",
+  "scheme": "http",
+  "url": "https://100.89.29.121:8089",
   "verify_ssl": true,
   "request_timeout": 30,
   "job_timeout": 120,

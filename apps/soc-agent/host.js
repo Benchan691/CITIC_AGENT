@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS } from './policy.js'
+import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS, SPLUNK_LOOKUP_ACTION_TOOLS } from './policy.js'
 import {
   MEMORY_SOURCE_TYPES,
   MEMORY_TYPES,
@@ -35,8 +35,9 @@ const CATALOG_ENDPOINTS = new Set([
 ])
 const HARD_ATTACHMENT_BYTES = 100_000_000
 const HARD_MARKDOWN_CHARS = 2_000_000
+const HARD_LOOKUP_BYTES = 50_000_000
 
-export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS }
+export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, MEMORY_READ_TOOLS, MEMORY_WRITE_TOOLS, READ_ONLY_TOOLS, SPLUNK_LOOKUP_ACTION_TOOLS }
 
 const ACTION_NAMES = new Set(ACTION_TOOLS)
 const nodeRequire = createRequire(import.meta.url)
@@ -496,6 +497,37 @@ function validateCatalogNamePayload(payload) {
   }
 }
 
+function validateLookupSavePayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('The lookup CSV save request is invalid.')
+  }
+  const operation = payload.operation
+  if (!['write', 'update', 'delete'].includes(operation)) {
+    throw new Error('The lookup CSV save operation is invalid.')
+  }
+  if (typeof payload.name !== 'string' || payload.name.trim() === '' || payload.name.length > 255) {
+    throw new Error('The lookup CSV name is invalid.')
+  }
+  if (operation !== 'delete') {
+    if (typeof payload.content !== 'string') throw new Error('The lookup CSV content is invalid.')
+    if (Buffer.byteLength(payload.content, 'utf8') > HARD_LOOKUP_BYTES) {
+      throw new Error('The lookup CSV content is too large.')
+    }
+  }
+  if (operation !== 'write' && (typeof payload.expected_fingerprint !== 'string' || payload.expected_fingerprint.trim() === '')) {
+    throw new Error('The lookup CSV fingerprint is invalid.')
+  }
+  if (payload.expected_fingerprint !== undefined && payload.expected_fingerprint !== null && typeof payload.expected_fingerprint !== 'string') {
+    throw new Error('The lookup CSV fingerprint is invalid.')
+  }
+  return {
+    operation,
+    name: payload.name,
+    ...(operation === 'delete' ? {} : { content: payload.content }),
+    ...(payload.expected_fingerprint === undefined ? {} : { expected_fingerprint: payload.expected_fingerprint }),
+  }
+}
+
 const MEMORY_TOOLS = new Set([...MEMORY_READ_TOOLS, ...MEMORY_WRITE_TOOLS])
 
 function validateMemoryExecution(exec, memoryContext) {
@@ -652,6 +684,16 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
         session_id: session.id,
       }))
     }
+    case 'save-lookup': {
+      const session = requireUser(ctx)
+      let request
+      try {
+        request = validateLookupSavePayload(payload)
+      } catch (error) {
+        return badRequest(error instanceof Error ? error.message : 'The lookup CSV save request is invalid.')
+      }
+      return ok(await runAuthCommand('save-lookup', { ...request, session_id: session.id }))
+    }
     case 'list-signatures': {
       const session = requireUser(ctx)
       return ok(await runAuthCommand('list-signatures', { session_id: session.id }))
@@ -736,7 +778,9 @@ export function apply(ctx) {
         reason: alwaysAsk
           ? DETECTION_ACTION_TOOLS.includes(exec.name)
             ? detectionApprovalReason(exec)
-            : catalogApprovalReason(exec)
+            : SPLUNK_LOOKUP_ACTION_TOOLS.includes(exec.name)
+              ? 'This Splunk lookup CSV change requires approval before it can run.'
+              : catalogApprovalReason(exec)
           : MEMORY_WRITE_TOOLS.includes(exec.name)
             ? 'This action changes persistent SOC memory and requires approval.'
             : 'This action changes a SOC system, sends email, or changes a persistent schedule.',
@@ -800,6 +844,14 @@ export function apply(ctx) {
           const message = code === 'internal'
             ? 'The detection could not be saved.'
             : error instanceof Error ? error.message : 'The detection could not be saved.'
+          const details = error?.details && typeof error.details === 'object' ? error.details : {}
+          return { ok: false, error: { code, message, details } }
+        }
+        if (endpoint === 'save-lookup') {
+          const code = typeof error?.code === 'string' ? error.code : 'internal'
+          const message = code === 'internal'
+            ? 'The lookup CSV could not be saved.'
+            : error instanceof Error ? error.message : 'The lookup CSV could not be saved.'
           const details = error?.details && typeof error.details === 'object' ? error.details : {}
           return { ok: false, error: { code, message, details } }
         }

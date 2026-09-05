@@ -160,6 +160,9 @@ class SplunkSettings:
     rule_lookup_name: str = "Ruleset.csv"
     customer_lookup_name: str = "Customer_Information.csv"
     fix_source_lookup_name: str = "Fix_Source_Type.csv"
+    lookup_max_bytes: int = 5_000_000
+    lookup_max_rows: int = 50_000
+    lookup_max_columns: int = 100
     url: str = ""
     query_policy: QueryPolicyConfig = field(default_factory=QueryPolicyConfig)
     search_resource: SearchResourceConfig = field(default_factory=SearchResourceConfig)
@@ -443,11 +446,14 @@ class ServerSettings:
             search_planner_enabled=_boolean(env, "SPLUNK_SEARCH_PLANNER_ENABLED", False),
             search_reuse_ttl_seconds=_integer(env, "SPLUNK_SEARCH_REUSE_TTL_SECONDS", 300, 0, 3600),
             lookup_write_enabled=_boolean(env, "SPLUNK_ALLOW_LOOKUP_WRITE", False),
-            lookup_app=_value(env, "SPLUNK_LOOKUP_APP", "search"),
-            lookup_owner=_value(env, "SPLUNK_LOOKUP_OWNER", "nobody"),
+            lookup_app=_value(env, "SPLUNK_LOOKUP_APP") or "search",
+            lookup_owner=_value(env, "SPLUNK_LOOKUP_OWNER") or "nobody",
             rule_lookup_name=_value(env, "SPLUNK_RULE_LOOKUP_NAME", "Ruleset.csv"),
             customer_lookup_name=_value(env, "SPLUNK_CUSTOMER_LOOKUP_NAME", "Customer_Information.csv"),
             fix_source_lookup_name=_value(env, "SPLUNK_FIX_SOURCE_LOOKUP_NAME", "Fix_Source_Type.csv"),
+            lookup_max_bytes=_integer(env, "SPLUNK_LOOKUP_MAX_BYTES", 5_000_000, 1, 50_000_000),
+            lookup_max_rows=_integer(env, "SPLUNK_LOOKUP_MAX_ROWS", 50_000, 1, 1_000_000),
+            lookup_max_columns=_integer(env, "SPLUNK_LOOKUP_MAX_COLUMNS", 100, 1, 1_000),
             url=splunk_url,
             query_policy=query_policy,
             search_resource=search_resource,
@@ -540,6 +546,10 @@ class ServerSettings:
                 "detection_app": self.splunk.detection_app,
                 "lookup_write_enabled": self.splunk.lookup_write_enabled,
                 "lookup_app": self.splunk.lookup_app,
+                "lookup_owner": self.splunk.lookup_owner,
+                "lookup_max_bytes": self.splunk.lookup_max_bytes,
+                "lookup_max_rows": self.splunk.lookup_max_rows,
+                "lookup_max_columns": self.splunk.lookup_max_columns,
                 "query_policy": self.splunk.query_policy.to_dict(),
                 "search_resource": self.splunk.search_resource.to_dict(),
                 "security_queue": self.splunk.security_queue.to_dict(),

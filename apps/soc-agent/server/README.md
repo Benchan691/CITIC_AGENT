@@ -43,6 +43,12 @@ webserver exposes subscription listing, preview, creation, updates, and
 deletion. Sends, moves, folders, filters, detection changes, and subscription
 mutations remain approval-gated by the host.
 
+Persistent CSV lookups can be read with `splunk_get_lookup` and edited through
+approval-gated draft tools. The authenticated editor performs the final Save or
+Delete through the Lookup File Editing API; enable that write path separately
+with `SPLUNK_ALLOW_LOOKUP_WRITE=true` and keep its app/owner scope fixed in
+`SPLUNK_LOOKUP_APP` and `SPLUNK_LOOKUP_OWNER`.
+
 Search resource settings limit admission, lookback, runtime, concurrency,
 dispatch rate, and weighted query budget before a Splunk job is created. Keep
 these MCP limits layered with Splunk role-level controls such as

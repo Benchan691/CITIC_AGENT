@@ -126,6 +126,21 @@ class SplunkClient:
         return payload
 
     @staticmethod
+    def _response_json_value(response, operation: str) -> Any:
+        """Return a JSON value for endpoints whose success body is not an object."""
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise SplunkAPIError(
+                f"Splunk {operation} failed.",
+                status_code=exc.response.status_code,
+            ) from exc
+        try:
+            return response.json()
+        except (TypeError, ValueError) as exc:
+            raise SplunkAPIError(f"Splunk returned malformed {operation} JSON.") from exc
+
+    @staticmethod
     def _raise_message_errors(payload: dict[str, Any], operation: str) -> None:
         error = payload.get("error")
         if error:
@@ -809,6 +824,142 @@ class SplunkClient:
             ) from e
         except Exception as e:
             raise SplunkAPIError("Failed to get lookup-table files.") from e
+
+    @staticmethod
+    def _lookup_contents_path() -> str:
+        # This endpoint is provided by Splunk's Lookup File Editing app. The
+        # server deliberately does not fall back to outputlookup, which would
+        # turn a browser edit into an arbitrary search-side write.
+        return "/services/data/lookup_edit/lookup_contents"
+
+    @staticmethod
+    def _lookup_file_path(name: str, app: str = "", owner: str = "") -> str:
+        return (
+            f"/servicesNS/{quote(owner or 'nobody', safe='')}/"
+            f"{quote(app or 'search', safe='')}/data/lookup-table-files/"
+            f"{quote(name, safe='')}"
+        )
+
+    @staticmethod
+    def _lookup_content_params(name: str, app: str, owner: str) -> dict[str, str]:
+        return {
+            "output_mode": "json",
+            "lookup_file": name,
+            "namespace": app,
+            "lookup_type": "csv",
+            "owner": owner,
+        }
+
+    async def get_lookup_contents(self, name: str, app: str = "", owner: str = "") -> Any:
+        """Read CSV rows through the Lookup File Editing content endpoint."""
+        self._ensure_connected()
+        try:
+            response = await self._client.get(
+                self._lookup_contents_path(),
+                params=self._lookup_content_params(name, app or "search", owner or "nobody"),
+            )
+            payload = self._response_json_value(response, "lookup CSV contents")
+            if isinstance(payload, dict):
+                self._raise_message_errors(payload, "lookup CSV contents")
+            return payload
+        except SplunkAPIError as exc:
+            if exc.status_code == 404:
+                raise SplunkAPIError(
+                    "The Splunk Lookup File Editing API is unavailable or the lookup CSV cannot be read; "
+                    "install or enable the app and verify the target.",
+                    status_code=exc.status_code,
+                ) from exc
+            if exc.status_code in {401, 403}:
+                raise SplunkAPIError(
+                    "Splunk denied lookup CSV access; verify the authenticated user's lookup permissions.",
+                    status_code=exc.status_code,
+                ) from exc
+            raise
+        except Exception as exc:
+            raise SplunkAPIError("Failed to get lookup CSV contents.") from exc
+
+    async def _post_lookup_contents(
+        self,
+        name: str,
+        app: str,
+        owner: str,
+        rows: list[list[str]],
+        operation: str,
+    ) -> Dict[str, Any]:
+        self._ensure_connected()
+        try:
+            response = await self._client.post(
+                self._lookup_contents_path(),
+                data={
+                    "lookup_file": name,
+                    "namespace": app or "search",
+                    "lookup_type": "csv",
+                    "owner": owner or "nobody",
+                    "contents": json.dumps(rows, ensure_ascii=False, separators=(",", ":")),
+                },
+                params={"output_mode": "json"},
+            )
+            payload = self._response_json_value(response, f"lookup CSV {operation}")
+            if isinstance(payload, dict):
+                self._raise_message_errors(payload, f"lookup CSV {operation}")
+                return payload
+            return {"result": payload}
+        except SplunkAPIError as exc:
+            if exc.status_code == 404:
+                raise SplunkAPIError(
+                    "The Splunk Lookup File Editing API is unavailable; install or enable it before saving lookup CSV contents.",
+                    status_code=exc.status_code,
+                ) from exc
+            if exc.status_code in {401, 403}:
+                raise SplunkAPIError(
+                    "Splunk denied lookup CSV editing; verify the authenticated user's upload_lookup_files permission.",
+                    status_code=exc.status_code,
+                ) from exc
+            raise
+        except Exception as exc:
+            raise SplunkAPIError(f"Failed to {operation} lookup CSV contents.") from exc
+
+    async def create_lookup_contents(
+        self, name: str, app: str, owner: str, rows: list[list[str]]
+    ) -> Dict[str, Any]:
+        """Create a CSV lookup through the authenticated content editor API."""
+        return await self._post_lookup_contents(name, app, owner, rows, "create")
+
+    async def update_lookup_contents(
+        self, name: str, app: str, owner: str, rows: list[list[str]]
+    ) -> Dict[str, Any]:
+        """Replace a CSV lookup through the authenticated content editor API."""
+        return await self._post_lookup_contents(name, app, owner, rows, "update")
+
+    async def delete_lookup_table_file(
+        self, name: str, app: str = "", owner: str = ""
+    ) -> Dict[str, Any]:
+        """Delete one lookup-table file in its explicit app/owner namespace."""
+        self._ensure_connected()
+        try:
+            response = await self._client.delete(
+                self._lookup_file_path(name, app, owner),
+                params={"output_mode": "json"},
+            )
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                raise SplunkAPIError(
+                    "Failed to delete lookup-table file.",
+                    status_code=exc.response.status_code,
+                ) from exc
+            try:
+                payload = response.json()
+            except (TypeError, ValueError):
+                return {}
+            if not isinstance(payload, dict):
+                raise SplunkAPIError("Splunk returned a malformed lookup delete response.")
+            self._raise_message_errors(payload, "lookup delete")
+            return payload
+        except SplunkAPIError:
+            raise
+        except Exception as exc:
+            raise SplunkAPIError("Failed to delete lookup-table file.") from exc
             
     async def get_saved_searches(self, name: str = "", app: str = "", count: int = 50) -> List[Dict[str, Any]]:
         """Get list of all saved searches.

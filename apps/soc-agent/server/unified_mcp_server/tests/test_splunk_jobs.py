@@ -71,6 +71,27 @@ def make_client(http, *, job_timeout=30):
     return client
 
 
+@pytest.mark.parametrize("status", [401, 403, 404])
+@pytest.mark.parametrize("operation", ["queue", "results", "oneshot"])
+async def test_lookup_errors_do_not_replace_search_or_queue_failures(status, operation):
+    class FailingHTTP:
+        async def get(self, *args, **kwargs):
+            raise SplunkAPIError("original provider failure", status_code=status)
+
+        async def post(self, *args, **kwargs):
+            raise SplunkAPIError("original provider failure", status_code=status)
+
+    client = make_client(FailingHTTP())
+    with pytest.raises(SplunkAPIError, match="original provider failure") as error:
+        if operation == "queue":
+            await client._get_queue_json("/queue", params={}, operation="security queue")
+        elif operation == "results":
+            await client._fetch_result_page("/results", 0, 10, "search")
+        else:
+            await client.search_oneshot("index=main")
+    assert error.value.status_code == status
+
+
 @pytest.mark.asyncio
 async def test_search_job_dispatches_polls_and_fetches_v2_pages(monkeypatch):
     async def no_sleep(_delay):

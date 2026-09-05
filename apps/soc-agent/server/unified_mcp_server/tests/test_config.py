@@ -32,6 +32,12 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.splunk.configured is False
     assert settings.zimbra.configured is False
     assert settings.splunk.detection_write_enabled is False
+    assert settings.splunk.lookup_write_enabled is False
+    assert settings.splunk.lookup_app == "search"
+    assert settings.splunk.lookup_owner == "nobody"
+    assert settings.splunk.lookup_max_bytes == 5_000_000
+    assert settings.splunk.lookup_max_rows == 50_000
+    assert settings.splunk.lookup_max_columns == 100
     assert settings.splunk.query_policy.normal_search_seconds == 604_800
     assert settings.splunk.query_policy.wildcard_index_decision == "require_approval"
     assert settings.splunk.search_resource.global_concurrency == 8
@@ -395,12 +401,24 @@ def test_detection_write_flags_are_explicit_and_visible_without_secrets():
             "SPLUNK_ALLOW_DETECTION_WRITE": "true",
             "SPLUNK_ALLOW_DETECTION_ENABLE": "true",
             "SPLUNK_DETECTION_APP": "security_app",
+            "SPLUNK_ALLOW_LOOKUP_WRITE": "true",
+            "SPLUNK_LOOKUP_APP": "lookup_app",
+            "SPLUNK_LOOKUP_OWNER": "lookup_owner",
+            "SPLUNK_LOOKUP_MAX_BYTES": "12345",
+            "SPLUNK_LOOKUP_MAX_ROWS": "321",
+            "SPLUNK_LOOKUP_MAX_COLUMNS": "12",
         }
     )
     status = settings.public_status()
     assert status["splunk"]["detection_write_enabled"] is True
     assert "detection_enable_enabled" not in status["splunk"]
     assert status["splunk"]["detection_app"] == "security_app"
+    assert status["splunk"]["lookup_write_enabled"] is True
+    assert status["splunk"]["lookup_app"] == "lookup_app"
+    assert status["splunk"]["lookup_owner"] == "lookup_owner"
+    assert status["splunk"]["lookup_max_bytes"] == 12345
+    assert status["splunk"]["lookup_max_rows"] == 321
+    assert status["splunk"]["lookup_max_columns"] == 12
 
 
 def test_splunk_query_policy_thresholds_and_decisions_are_configurable():

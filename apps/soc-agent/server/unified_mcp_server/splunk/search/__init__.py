@@ -1,4 +1,4 @@
-"""Read-only Splunk Search capability.
+"""Splunk Search and lookup capability.
 
 The service export is lazy so configuration can import the resource-policy
 types without importing the service/core cycle during startup.

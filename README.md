@@ -103,8 +103,18 @@ enable/disable operation and never enables a detection. Every saved
 write/update persists the detection disabled; authorized staff must use a
 separately controlled Splunk process outside MCP when activation or rollback
 is required.
-The only MCP write gate is `SPLUNK_ALLOW_DETECTION_WRITE`; the legacy
+The detection write gate is `SPLUNK_ALLOW_DETECTION_WRITE`; the legacy
 `SPLUNK_ALLOW_DETECTION_ENABLE` setting is ignored and is not reported.
+
+Persistent CSV lookups use the same draft/editor pattern. `splunk_get_lookup`
+reads the canonical CSV, while `splunk_write_lookup`, `splunk_update_lookup`,
+and `splunk_delete_lookup` prepare approval-gated drafts. The inline editor's
+Save or Delete action is the only commit path and rechecks the authenticated
+user, fixed `SPLUNK_LOOKUP_APP`/`SPLUNK_LOOKUP_OWNER` scope, CSV validity, and
+the update fingerprint. Enable this separately with
+`SPLUNK_ALLOW_LOOKUP_WRITE=true`; configure the Splunk Lookup File Editing API
+for content writes. The CSV editor does not execute `outputlookup` or
+`outputcsv`.
 
 For new rules, follow the detection-writing workflow in
 `skills/detection-engineering/SKILL.md` and the SPL format in
@@ -116,8 +126,8 @@ and trigger actions. The team defaults are Add to Triggered Alerts (`alert.track
 from the final table. Client-email rules may append the documented `outputcsv`
 filename subsearch. MCP keeps `outputcsv` blocked for ordinary searches and
 backtests; it is accepted only inside a disabled detection draft and is never
-executed by MCP. No MCP path exports the CSV or sends email merely by
-preparing or saving a disabled definition.
+executed by MCP. No MCP path invokes `outputcsv` or `outputlookup` merely by
+preparing or saving a disabled detection definition.
 
 ## Splunk background context
 

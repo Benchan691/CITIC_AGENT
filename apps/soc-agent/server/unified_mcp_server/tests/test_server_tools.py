@@ -20,6 +20,10 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_list_saved_searches",
         "splunk_find_lookup",
         "splunk_list_lookups",
+        "splunk_get_lookup",
+        "splunk_write_lookup",
+        "splunk_update_lookup",
+        "splunk_delete_lookup",
         "splunk_get_detection",
         "splunk_validate_detection",
         "splunk_compile_citic_detection",
@@ -188,6 +192,22 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert set(update_tool.parameters["required"]) == {
         "name", "detection", "expected_fingerprint",
     }
+    get_lookup_tool = next(tool for tool in tools if tool.name == "splunk_get_lookup")
+    assert set(get_lookup_tool.parameters["properties"]) == {"name"}
+    assert get_lookup_tool.parameters["required"] == ["name"]
+    write_lookup_tool = next(tool for tool in tools if tool.name == "splunk_write_lookup")
+    assert set(write_lookup_tool.parameters["properties"]) == {"name", "content"}
+    assert set(write_lookup_tool.parameters["required"]) == {"name", "content"}
+    update_lookup_tool = next(tool for tool in tools if tool.name == "splunk_update_lookup")
+    assert set(update_lookup_tool.parameters["properties"]) == {
+        "name", "content", "expected_fingerprint",
+    }
+    assert set(update_lookup_tool.parameters["required"]) == {
+        "name", "content", "expected_fingerprint",
+    }
+    delete_lookup_tool = next(tool for tool in tools if tool.name == "splunk_delete_lookup")
+    assert set(delete_lookup_tool.parameters["properties"]) == {"name", "expected_fingerprint"}
+    assert set(delete_lookup_tool.parameters["required"]) == {"name", "expected_fingerprint"}
     compiler_tool = next(tool for tool in tools if tool.name == "splunk_compile_citic_detection")
     assert set(compiler_tool.parameters["properties"]) == {
         "detection_logic", "rulename", "threat_name", "threat_type",

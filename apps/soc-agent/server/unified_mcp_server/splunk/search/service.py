@@ -1,14 +1,24 @@
-"""Read-only Splunk search operations."""
+"""Splunk search, lookup discovery, and guarded lookup CSV editing."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
 from ..core.service import SplunkCore
 from .executor import SearchExecutor
 from .evidence import SearchEvidenceCoordinator, fingerprint_request
-from .lookup import normalize_lookups, rest_search_filter
+from .lookup import (
+    canonical_csv_text,
+    lookup_fingerprint,
+    lookup_rows_from_response,
+    lookup_summary,
+    normalize_lookup_name,
+    normalize_lookups,
+    rest_search_filter,
+    serialize_csv_rows,
+)
 from .planner import SearchIntent, SearchPlanner
 from .schema_registry import SearchSchemaRegistry
 from .verifier import SearchResultVerifier
@@ -38,6 +48,7 @@ class SplunkSearchService:
         self.evidence = evidence if evidence is not None else SearchEvidenceCoordinator(
             reuse_ttl_seconds=int(getattr(core.settings, "search_reuse_ttl_seconds", 300)),
         )
+        self._lookup_save_lock = asyncio.Lock()
 
     def validate(self, query: str, earliest_time: str = "-24h", latest_time: str = "now") -> dict[str, Any]:
         return self.core.validate_query(query, earliest_time, latest_time)
@@ -322,6 +333,325 @@ class SplunkSearchService:
         if lookup is None:
             raise ServiceError("not_found", "The requested lookup-table file was not found.", details={"name": name})
         return {"lookup": lookup}
+
+    @staticmethod
+    def _actor_id(actor_id: str | None, *, required: bool = False) -> str:
+        if isinstance(actor_id, str) and actor_id.strip():
+            return actor_id.strip()
+        if required:
+            raise ServiceError("not_authorized", "An authenticated SOC user is required for this operation.")
+        return "internal-service"
+
+    @staticmethod
+    def _normalize_lookup_name(name: str) -> str:
+        try:
+            return normalize_lookup_name(name)
+        except ValueError as exc:
+            raise ServiceError("invalid_input", str(exc)) from exc
+
+    def _lookup_scope(self) -> tuple[str, str]:
+        settings = self.core.settings
+        return (
+            str(getattr(settings, "lookup_app", "search") or "search").strip() or "search",
+            str(getattr(settings, "lookup_owner", "nobody") or "nobody").strip() or "nobody",
+        )
+
+    def _lookup_limits(self) -> dict[str, int]:
+        settings = self.core.settings
+        return {
+            "max_bytes": int(getattr(settings, "lookup_max_bytes", 5_000_000)),
+            "max_rows": int(getattr(settings, "lookup_max_rows", 50_000)),
+            "max_columns": int(getattr(settings, "lookup_max_columns", 100)),
+        }
+
+    def _require_lookup_write(self) -> None:
+        if not getattr(self.core.settings, "lookup_write_enabled", False):
+            raise ServiceError(
+                "operation_disabled",
+                "Lookup CSV writes are disabled. Set SPLUNK_ALLOW_LOOKUP_WRITE=true after review.",
+            )
+
+    async def _lookup_metadata(
+        self,
+        name: str,
+        *,
+        app: str = "",
+        owner: str = "",
+        exact_scope: bool = False,
+    ) -> dict[str, Any] | None:
+        entries = await self.core.request(
+            lambda client: client.get_lookup_table_files(
+                app=app,
+                search=rest_search_filter(name),
+                count=20,
+            )
+        )
+        for lookup in normalize_lookups(entries):
+            if lookup["name"] != name:
+                continue
+            if app and lookup["app"] != app:
+                continue
+            if exact_scope and owner and lookup["owner"] != owner:
+                continue
+            return lookup
+        return None
+
+    def _canonical_lookup_content(self, content: str) -> tuple[str, list[list[str]]]:
+        try:
+            return canonical_csv_text(content, **self._lookup_limits())
+        except ValueError as exc:
+            raise ServiceError("lookup_invalid", str(exc)) from exc
+
+    async def _lookup_state(
+        self,
+        metadata: dict[str, Any],
+        *,
+        app: str | None = None,
+        owner: str | None = None,
+    ) -> dict[str, Any]:
+        name = self._normalize_lookup_name(metadata.get("name", ""))
+        selected_app = str(app or metadata.get("app") or self._lookup_scope()[0]).strip()
+        selected_owner = str(owner or metadata.get("owner") or self._lookup_scope()[1]).strip()
+        payload = await self.core.request(
+            lambda client: client.get_lookup_contents(name, selected_app, selected_owner)
+        )
+        try:
+            rows = lookup_rows_from_response(payload)
+            raw_content = serialize_csv_rows(rows)
+            content, rows = canonical_csv_text(raw_content, **self._lookup_limits())
+        except ValueError as exc:
+            raise ServiceError("lookup_malformed", str(exc)) from exc
+        summary = lookup_summary(rows, content)
+        return {
+            "lookup": metadata,
+            "name": name,
+            "app": selected_app,
+            "owner": selected_owner,
+            "content": content,
+            "summary": summary,
+            "fingerprint": lookup_fingerprint(name, selected_app, selected_owner, content),
+        }
+
+    async def _scoped_lookup_state(self, name: str) -> dict[str, Any] | None:
+        app, owner = self._lookup_scope()
+        metadata = await self._lookup_metadata(name, app=app, owner=owner, exact_scope=True)
+        if metadata is None:
+            return None
+        return await self._lookup_state(metadata, app=app, owner=owner)
+
+    @staticmethod
+    def _lookup_draft(
+        operation: str,
+        state: dict[str, Any],
+        *,
+        expected_fingerprint: str | None,
+        current_fingerprint: str | None,
+    ) -> dict[str, Any]:
+        draft = {
+            "name": state["name"],
+            "app": state["app"],
+            "owner": state["owner"],
+            "content": state["content"],
+            "summary": state["summary"],
+            "fingerprint": current_fingerprint,
+        }
+        return {
+            "status": "draft",
+            "operation": operation,
+            "target_id": state["name"],
+            "draft": draft,
+            "expected_fingerprint": expected_fingerprint,
+            "current_fingerprint": current_fingerprint,
+            "save_requires_explicit_action": True,
+            "review_only_metadata": {
+                "content_format": "CSV",
+                "write_scope": {"app": state["app"], "owner": state["owner"]},
+                "persisted": False,
+                "app_and_owner_are_read_only": True,
+            },
+        }
+
+    @staticmethod
+    def _require_lookup_fingerprint(expected_fingerprint: str | None, current: dict[str, Any]) -> None:
+        if not isinstance(expected_fingerprint, str) or not expected_fingerprint.strip():
+            raise ServiceError(
+                "expected_fingerprint_required",
+                "expected_fingerprint is required for lookup CSV modifications.",
+            )
+        if expected_fingerprint != current["fingerprint"]:
+            raise ServiceError(
+                "lookup_changed",
+                "The Splunk lookup CSV changed since it was read; refresh and retry.",
+                details={"current_fingerprint": current["fingerprint"]},
+            )
+
+    async def get_lookup(self, name: str) -> dict[str, Any]:
+        name = self._normalize_lookup_name(name)
+        metadata = await self._lookup_metadata(name)
+        if metadata is None:
+            raise ServiceError("not_found", "The requested lookup-table file was not found.", details={"name": name})
+        return await self._lookup_state(metadata)
+
+    async def write_lookup(self, name: str, content: str, *, actor_id: str | None = None) -> dict[str, Any]:
+        del actor_id
+        name = self._normalize_lookup_name(name)
+        canonical, rows = self._canonical_lookup_content(content)
+        app, owner = self._lookup_scope()
+        state = {
+            "name": name,
+            "app": app,
+            "owner": owner,
+            "content": canonical,
+            "summary": lookup_summary(rows, canonical),
+        }
+        return self._lookup_draft(
+            "write",
+            state,
+            expected_fingerprint=None,
+            current_fingerprint=None,
+        )
+
+    async def update_lookup(
+        self,
+        name: str,
+        content: str,
+        expected_fingerprint: str,
+        *,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        del actor_id
+        name = self._normalize_lookup_name(name)
+        current = await self._scoped_lookup_state(name)
+        if current is None:
+            raise ServiceError("target_not_found", "The lookup CSV target no longer exists.", details={"name": name})
+        self._require_lookup_fingerprint(expected_fingerprint, current)
+        canonical, rows = self._canonical_lookup_content(content)
+        state = {
+            "name": name,
+            "app": current["app"],
+            "owner": current["owner"],
+            "content": canonical,
+            "summary": lookup_summary(rows, canonical),
+        }
+        return self._lookup_draft(
+            "update",
+            state,
+            expected_fingerprint=expected_fingerprint,
+            current_fingerprint=current["fingerprint"],
+        )
+
+    async def delete_lookup(
+        self,
+        name: str,
+        expected_fingerprint: str,
+        *,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        del actor_id
+        name = self._normalize_lookup_name(name)
+        current = await self._scoped_lookup_state(name)
+        if current is None:
+            raise ServiceError("target_not_found", "The lookup CSV target no longer exists.", details={"name": name})
+        self._require_lookup_fingerprint(expected_fingerprint, current)
+        return self._lookup_draft(
+            "delete",
+            current,
+            expected_fingerprint=expected_fingerprint,
+            current_fingerprint=current["fingerprint"],
+        )
+
+    @staticmethod
+    def _saved_lookup_response(operation: str, state: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "status": "saved",
+            "saved": True,
+            operation: True,
+            "lookup": state["lookup"],
+            "name": state["name"],
+            "app": state["app"],
+            "owner": state["owner"],
+            "content": state["content"],
+            "summary": state["summary"],
+            "fingerprint": state["fingerprint"],
+        }
+
+    async def save_lookup(
+        self,
+        operation: str,
+        name: str,
+        *,
+        content: str | None = None,
+        expected_fingerprint: str | None = None,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        if operation not in {"write", "update", "delete"}:
+            raise ServiceError(
+                "operation_not_supported",
+                "Only write, update, and delete lookup CSV saves are supported.",
+            )
+        self._require_lookup_write()
+        self._actor_id(actor_id, required=True)
+        name = self._normalize_lookup_name(name)
+        async with self._lookup_save_lock:
+            app, owner = self._lookup_scope()
+            if operation == "write":
+                if not isinstance(content, str):
+                    raise ServiceError("invalid_input", "content is required for lookup CSV creation.")
+                # Validate the complete edited value before checking or
+                # changing the target. There is no partial write path.
+                canonical, rows = self._canonical_lookup_content(content)
+                existing = await self._lookup_metadata(name, app=app)
+                if existing is not None:
+                    raise ServiceError(
+                        "target_exists",
+                        "The lookup CSV target already exists; use update instead.",
+                        details={"name": name, "app": app},
+                    )
+                await self.core.request(
+                    lambda client: client.create_lookup_contents(name, app, owner, rows)
+                )
+                persisted = await self._scoped_lookup_state(name)
+                if persisted is None:
+                    raise ServiceError("write_verification_failed", "Splunk did not return the created lookup CSV.")
+                return self._saved_lookup_response("created", persisted)
+
+            current = await self._scoped_lookup_state(name)
+            if current is None:
+                raise ServiceError("target_not_found", "The lookup CSV target no longer exists.", details={"name": name})
+            self._require_lookup_fingerprint(expected_fingerprint, current)
+
+            if operation == "delete":
+                await self.core.request(
+                    lambda client: client.delete_lookup_table_file(name, app, owner)
+                )
+                if await self._scoped_lookup_state(name) is not None:
+                    raise ServiceError("write_verification_failed", "Splunk did not confirm lookup CSV deletion.")
+                return {
+                    "status": "saved",
+                    "saved": True,
+                    "deleted": True,
+                    "name": name,
+                    "app": app,
+                    "owner": owner,
+                    "fingerprint": None,
+                }
+
+            if not isinstance(content, str):
+                raise ServiceError("invalid_input", "content is required for lookup CSV updates.")
+            # Re-validate before the replacement request so malformed edits
+            # cannot partially overwrite a valid lookup.
+            _canonical, rows = self._canonical_lookup_content(content)
+            latest = await self._scoped_lookup_state(name)
+            if latest is None:
+                raise ServiceError("target_not_found", "The lookup CSV target no longer exists.", details={"name": name})
+            self._require_lookup_fingerprint(expected_fingerprint, latest)
+            await self.core.request(
+                lambda client: client.update_lookup_contents(name, app, owner, rows)
+            )
+            persisted = await self._scoped_lookup_state(name)
+            if persisted is None:
+                raise ServiceError("write_verification_failed", "Splunk did not return the updated lookup CSV.")
+            return self._saved_lookup_response("updated", persisted)
 
     async def run_saved_search(
         self,

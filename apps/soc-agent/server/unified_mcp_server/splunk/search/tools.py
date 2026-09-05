@@ -1,10 +1,11 @@
-"""MCP registrations for read-only Splunk Search tools."""
+"""MCP registrations for Splunk Search and lookup tools."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from mcp.server.fastmcp import Context
+from unified_mcp_server.errors import ServiceError
 
 from .planner import SearchIntent
 
@@ -12,6 +13,14 @@ def _principal_id(get_runtime, ctx: Context) -> str:
     identity = getattr(get_runtime(ctx), "identity", None)
     principal = getattr(identity, "user_id", "") or getattr(identity, "zimbra_email", "")
     return principal.strip() if isinstance(principal, str) and principal.strip() else "anonymous"
+
+
+def _authenticated_actor(get_runtime, ctx: Context) -> str:
+    identity = getattr(get_runtime(ctx), "identity", None)
+    actor = getattr(identity, "user_id", "") or getattr(identity, "zimbra_email", "")
+    if not isinstance(actor, str) or not actor.strip():
+        raise ServiceError("not_authorized", "An authenticated SOC user is required for lookup CSV changes.")
+    return actor.strip()
 
 
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success, failure, service_error) -> None:
@@ -43,6 +52,63 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
     async def splunk_list_lookups(ctx: Context, app: str = "", name: str = "", limit: int = 50) -> dict[str, Any]:
         """List visible Splunk lookup-table files with optional app and name filters."""
         return await execute(ctx, "splunk", "list_lookups", lambda: get_runtime(ctx).splunk_search.list_lookups(app, name, limit))
+
+    @server.tool(annotations={"readOnlyHint": True})
+    async def splunk_get_lookup(ctx: Context, name: str) -> dict[str, Any]:
+        """Read one visible persistent CSV lookup, including canonical CSV text and a concurrency fingerprint."""
+        return await execute(ctx, "splunk", "get_lookup", lambda: get_runtime(ctx).splunk_search.get_lookup(name))
+
+    @server.tool()
+    async def splunk_write_lookup(ctx: Context, name: str, content: str) -> dict[str, Any]:
+        """Prepare an editable new persistent CSV lookup draft without writing it; the authenticated editor Save performs the approved write."""
+        return await execute(
+            ctx,
+            "splunk",
+            "write_lookup",
+            lambda: get_runtime(ctx).splunk_search.write_lookup(
+                name,
+                content,
+                actor_id=_authenticated_actor(get_runtime, ctx),
+            ),
+        )
+
+    @server.tool()
+    async def splunk_update_lookup(
+        ctx: Context,
+        name: str,
+        content: str,
+        expected_fingerprint: str,
+    ) -> dict[str, Any]:
+        """Prepare an editable fingerprint-bound persistent CSV lookup draft without writing it; the authenticated editor Save performs the approved replacement."""
+        return await execute(
+            ctx,
+            "splunk",
+            "update_lookup",
+            lambda: get_runtime(ctx).splunk_search.update_lookup(
+                name,
+                content,
+                expected_fingerprint,
+                actor_id=_authenticated_actor(get_runtime, ctx),
+            ),
+        )
+
+    @server.tool()
+    async def splunk_delete_lookup(
+        ctx: Context,
+        name: str,
+        expected_fingerprint: str,
+    ) -> dict[str, Any]:
+        """Prepare a fingerprint-bound persistent CSV lookup deletion draft without deleting it; the authenticated editor Delete action performs the approved deletion."""
+        return await execute(
+            ctx,
+            "splunk",
+            "delete_lookup",
+            lambda: get_runtime(ctx).splunk_search.delete_lookup(
+                name,
+                expected_fingerprint,
+                actor_id=_authenticated_actor(get_runtime, ctx),
+            ),
+        )
 
     @server.tool(annotations={"readOnlyHint": True})
     async def splunk_run_saved_search(ctx: Context, name: str, max_count: int = 50, app: str = "", owner: str = "") -> dict[str, Any]:
