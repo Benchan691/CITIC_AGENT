@@ -8,11 +8,11 @@ This is a concrete companion to [`dsh-compaction-basic`](../compaction-basic/REA
 
 ## Service API
 
-`pruneSession(session)` scans one stable snapshot of the current surface. Every over-budget tool result is replaced by one newly appended `tool/result` carrying `{ surfaceOp: { op: 'replace', start: originalSeq, end: originalSeq }, sourceEventSeqs: [originalSeq] }`. The replacement spreads the complete original data and changes only `content`, preserving `turn`, `step`, `callId`, error fields, `meta`, and later data additions. The original event remains available for persistence, replay, and exact-log inspection.
+`pruneSession(session)` scans one stable snapshot of the current surface. Every eligible over-budget tool result is replaced by one newly appended `tool/result` carrying `{ surfaceOp: { op: 'replace', start: originalSeq, end: originalSeq }, sourceEventSeqs: [originalSeq] }`. The replacement spreads the complete original data and changes only `content`, preserving `turn`, `step`, `callId`, error fields, `meta`, and later data additions. The original event remains available for persistence, replay, and exact-log inspection.
 
 The method throws synchronously when the session rejects a replacement. Replacements committed earlier in the pass remain durable.
 
-`measureContent(blocks)` counts Unicode code points in `text` blocks. `pruneContent(blocks)` returns the bounded replacement or `null` when content is already within the threshold. Non-text blocks are retained at their original relative positions; text slicing never splits a UTF-16 surrogate pair, though it can split a multi-code-point grapheme cluster.
+`measureContent(blocks)` counts Unicode code points in `text` blocks. `pruneContent(blocks)` returns the bounded replacement or `null` when content is already within the threshold or consists of one valid JSON text block. JSON stays intact so counts, evidence references, and editor payloads remain parseable. Its owning tool can project a smaller complete object. Non-text blocks are retained at their original relative positions; text slicing never splits a UTF-16 surrogate pair, though it can split a multi-code-point grapheme cluster.
 
 Every emitted result has exactly the configured head budget, fixed marker, and tail budget in text code points, is no larger than `thresholdChars`, and is strictly smaller than the triggering input. A second pass therefore emits no replacement.
 
@@ -26,7 +26,7 @@ Unrecognized keys fail at plugin construction. Resolved config is detached and d
 | `headChars` | no (default `4096`) | Leading Unicode code points retained. |
 | `tailChars` | no (default `1024`) | Trailing Unicode code points retained. |
 
-All values are integers; the threshold is positive and head/tail are non-negative. `headChars + marker + tailChars` must fit within `thresholdChars`, so a valid configuration can prune every over-budget result without growth or repeated rewriting.
+All values are integers; the threshold is positive and head/tail are non-negative. `headChars + marker + tailChars` must fit within `thresholdChars`, so a valid configuration can prune every eligible over-budget result without growth or repeated rewriting.
 
 ## Usage
 
@@ -49,7 +49,7 @@ Once a compaction trigger qualifies, future requests see the retained head, `\n\
 
 #### Token effect
 
-Each rewritten tool result has at most `thresholdChars` text code points. Pruning itself makes no model call; compaction-basic skips summarization when the remeasured request falls below pressure, otherwise the summarizer reads the pruned surface.
+Each rewritten tool result has at most `thresholdChars` text code points. A single valid JSON block is unchanged and has no token savings from this pruner. Pruning itself makes no model call; compaction-basic skips summarization when the remeasured request falls below pressure, otherwise the summarizer reads the resulting surface.
 
 #### KV Cache effect
 
@@ -59,4 +59,5 @@ Replacing an earlier result invalidates reuse from the first changed token. The 
 
 - **Character budgets are not token budgets** — provider token density varies, so `ctx.tokenMeter` remains the authority for deciding whether pruning relieved request pressure.
 - **Pruning is syntactic** — it retains the beginning and end without interpreting which middle lines are semantically important.
+- **Single JSON blocks bypass slicing** — large structured results need an owner-specific projection or ordinary conversation compaction. JSON mixed with other blocks does not receive this exemption.
 - **Grapheme clusters can split** — code-point slicing protects surrogate pairs but does not perform locale-aware grapheme segmentation.

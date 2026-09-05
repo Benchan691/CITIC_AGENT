@@ -8,7 +8,7 @@ from typing import Any
 
 from ..core.service import SplunkCore
 from .executor import SearchExecutor
-from .evidence import SearchEvidenceCoordinator, fingerprint_request
+from .evidence import SearchEvidenceCoordinator, fingerprint_request, resolve_time_window
 from .lookup import (
     canonical_csv_text,
     lookup_fingerprint,
@@ -47,6 +47,7 @@ class SplunkSearchService:
         self.verifier = verifier or SearchResultVerifier()
         self.evidence = evidence if evidence is not None else SearchEvidenceCoordinator(
             reuse_ttl_seconds=int(getattr(core.settings, "search_reuse_ttl_seconds", 300)),
+            store_path=getattr(core.settings, "evidence_store_path", ""),
         )
         self._lookup_save_lock = asyncio.Lock()
 
@@ -62,7 +63,9 @@ class SplunkSearchService:
         fields: list[str] | None = None,
         *,
         principal_id: str | None = None,
+        fresh: bool = False,
     ) -> dict[str, Any]:
+        resolved_start, resolved_end, resolved = resolve_time_window(earliest_time, latest_time)
         fingerprint = fingerprint_request(
             query=query,
             earliest_time=earliest_time,
@@ -75,20 +78,29 @@ class SplunkSearchService:
         async def runner() -> dict[str, Any]:
             return await self.executor.execute(
                 query,
-                earliest_time,
-                latest_time,
+                resolved_start,
+                resolved_end,
                 max_count,
                 fields,
                 principal_id=principal_id,
             )
 
-        execution, reused, coalesced = await self.evidence.execute_coalesced(fingerprint, runner)
-        response = self._format_execution(query, earliest_time, latest_time, execution)
-        record = reused if reused is not None else self.evidence.get_latest(fingerprint)
+        execution, reused, coalesced = await self.evidence.execute_coalesced(fingerprint, runner, fresh=fresh or not resolved)
+        response = self._format_execution(query, execution["earliest_time"], execution["latest_time"], execution)
+        evidence_id = execution.get("_evidence_id")
+        record = reused
+        if record is None and evidence_id:
+            try:
+                record = self.evidence.get_record(evidence_id)
+            except ServiceError:
+                pass  # An oversized or concurrently evicted snapshot has no reference.
         if record is not None:
             response["evidence"] = record.summary(reused=reused is not None)
             if coalesced:
                 response["evidence"]["coalesced"] = True
+        else:
+            response["evidence"] = {"retained": False, "reason": "snapshot_exceeds_retention_limit"}
+        response["search"]["time_window_resolved"] = resolved
         return response
 
     @staticmethod
@@ -245,9 +257,9 @@ class SplunkSearchService:
             return False
         return metadata.get("total_result_count") in {None, 0}
 
-    def read_evidence(self, evidence_id: str, *, offset: int = 0, limit: int = 50) -> dict[str, Any]:
+    def read_evidence(self, evidence_id: str, *, offset: int = 0, limit: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         """Page through a retained search snapshot without dispatching new work."""
-        return self.evidence.read_page(evidence_id, offset=offset, limit=limit)
+        return self.evidence.read_page(evidence_id, offset=offset, limit=limit, fields=fields)
 
     def evidence_stats(self) -> dict[str, Any]:
         return self.evidence.stats()

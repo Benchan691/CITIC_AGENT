@@ -16,9 +16,25 @@ import {
   validateCatalogForm,
   CATALOG_WRITE_RULE_TOOL_NAME,
   CATALOG_UPDATE_CUSTOMER_TOOL_NAME,
+  catalogSavePayload,
+  requireCatalogRecord,
 } from '../src/client/catalog.ts'
 
 const ROOT = join(import.meta.dirname, '..')
+
+test('catalog edits preserve the selected ID and revision while creates have neither', () => {
+  const fields = { customer_code: 'sample', display_name: 'Updated' }
+  assert.deepEqual(catalogSavePayload('customer', fields, { record_id: 'customer-1', revision: 7 }), {
+    catalog: 'customer', operation: 'update', record: recordFromForm('customer', fields),
+    record_id: 'customer-1', expected_revision: 7,
+  })
+  const created = catalogSavePayload('customer', fields, null)
+  assert.equal(created.operation, 'write')
+  assert.equal('expected_revision' in created, false)
+  assert.equal('record_id' in created, false)
+  assert.throws(() => catalogSavePayload('customer', fields, { record_id: 'customer-1' }), /revision/)
+  assert.throws(() => requireCatalogRecord(null), /record/)
+})
 
 function textBlock(payload: unknown): import('@deepseek-ai/dsh-client-runtime/client').ToolCallBlock {
   return {

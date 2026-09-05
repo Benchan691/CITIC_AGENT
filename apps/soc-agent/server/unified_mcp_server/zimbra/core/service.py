@@ -8,6 +8,7 @@ from unified_mcp_server.account_store import AccountStore, StoredAccount
 from unified_mcp_server.auth import ZimbraIdentity
 from unified_mcp_server.config import ZimbraSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
+from unified_mcp_server.request_context import remaining_seconds
 
 
 class _EmptyAccountStore:
@@ -98,4 +99,4 @@ class ZimbraCore:
         raise ServiceError("account_required", "Select an email account before using Zimbra tools.")
 
     def client_config(self, account: StoredAccount) -> dict[str, object]:
-        return self.settings.client_config(email=account.email, username=account.username, password=account.password)
+        return {**self.settings.client_config(email=account.email, username=account.username, password=account.password), "timeout": remaining_seconds(self.settings.timeout)}

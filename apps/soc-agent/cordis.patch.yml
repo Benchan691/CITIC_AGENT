@@ -6,6 +6,10 @@
   config:
     mode: native
 
+- id: agent-loop
+  config:
+    maxParallelToolCalls: 4
+
 - id: approval
   config:
     policy: ask
@@ -187,6 +191,7 @@
           MCP_SERVER_ROOT: !!js "process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]"
           APP_POSTGRES_URI: !!js "process.env.APP_POSTGRES_URI || process.env.LANGGRAPH_POSTGRES_URI || process.env.POSTGRES_URI || ''"
           APP_SETTINGS_ENCRYPTION_KEY: !!js process.env.APP_SETTINGS_ENCRYPTION_KEY ?? ''
+          SOC_EVIDENCE_STORE: !!js "process.env.SOC_EVIDENCE_STORE ?? ((process.env.DSH_HOME ?? process.env.HOME + '/.dsh') + '/soc-evidence.sqlite3')"
         # One 180-second end-to-end operation budget plus cleanup margin; the
         # MCP transport deadline is derived from it (see redesign plan, §6).
         toolCallTimeoutMs: 185000

@@ -69,6 +69,20 @@ async def test_dispatch_rejects_unknown_command():
         await dispatch_command("definitely-not-a-command", {})
 
 
+def test_response_bound_preserves_the_complete_protocol_envelope(monkeypatch):
+    from io import BytesIO
+    from unified_mcp_server import control_server
+    monkeypatch.setattr(control_server, "MAX_LINE_BYTES", 1024)
+    output = BytesIO()
+    server = control_server.ControlServer(None, output)
+    server._write_line({"id": "large", "ok": True, "result": "界" * 1000})
+    assert len(output.getvalue()) <= 1024
+    response = json.loads(output.getvalue())
+    assert response["id"] == "large"
+    assert response["ok"] is False
+    assert response["error"]["code"] == "operation_outcome_unknown"
+
+
 def test_command_failure_shapes_are_bounded_and_credential_free():
     login_failure = command_failure("login", RuntimeError("password was hunter2"))
     assert login_failure == {"code": "authentication_failed", "message": "authentication failed", "details": {}}

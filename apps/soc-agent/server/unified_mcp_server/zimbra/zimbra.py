@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 
 from zimbra_client import ZimbraClient
 from zimbra_client.errors import ZimbraLimitError
+from ..request_context import remaining_seconds
 
 
 def zimbra_host(cfg):
@@ -61,7 +62,7 @@ class _TokenClient(ZimbraClient):
             if isinstance(body, ET.Element) else body,
             self._auth_token if authenticated else "",
             verify_ssl=self.config.verify_ssl,
-            timeout=int(self.config.timeout),
+            timeout=self.config.timeout,
             allow_insecure_http=self._allow_insecure_http,
         )
 
@@ -112,7 +113,7 @@ def _validate_zimbra_host(host, *, allow_insecure_http=False):
 def _connection_options(cfg):
     return {
         "verify_ssl": _as_bool(cfg.get("verify_ssl"), True),
-        "timeout": int(cfg.get("timeout", 60)),
+        "timeout": float(cfg.get("timeout", 60)),
         "allow_insecure_http": _as_bool(cfg.get("allow_insecure_http"), False),
     }
 
@@ -122,7 +123,7 @@ def soap_request(host, body_xml, auth_token="", *, verify_ssl=True, timeout=60, 
         host,
         auth_token,
         verify_ssl=verify_ssl,
-        timeout=timeout,
+        timeout=remaining_seconds(timeout),
         allow_insecure_http=allow_insecure_http,
     )
     body = ET.fromstring(body_xml) if isinstance(body_xml, str) else body_xml
@@ -138,6 +139,7 @@ def zimbra_login(cfg):
     )
     config["verify_ssl"] = _as_bool(config.get("verify_ssl"), True)
     config["allow_insecure_http"] = _as_bool(config.get("allow_insecure_http"), False)
+    config["timeout"] = remaining_seconds(float(config.get("timeout", 60)))
     client = ZimbraClient(config).login()
     token = getattr(client, "_auth_token", "")
     if not token:

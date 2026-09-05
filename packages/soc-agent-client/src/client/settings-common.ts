@@ -14,6 +14,14 @@ export async function rpc(connection: ConnectionHandle, name: string, payload: R
   return result.value
 }
 
+export async function rpcObject(connection: ConnectionHandle, name: string, payload: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+  const value = await rpc(connection, name, payload)
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`Invalid response: ${name}`)
+  }
+  return value as Record<string, unknown>
+}
+
 export function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }

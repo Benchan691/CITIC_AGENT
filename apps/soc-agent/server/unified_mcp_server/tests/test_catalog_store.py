@@ -110,7 +110,7 @@ class FakeConnection:
 @pytest.fixture()
 def store(monkeypatch):
     connection = FakeConnection()
-    monkeypatch.setattr(store_module, "psycopg", SimpleNamespace(connect=lambda _uri: connection, errors=psycopg.errors))
+    monkeypatch.setattr(store_module, "psycopg", SimpleNamespace(connect=lambda _uri, **_kwargs: connection, errors=psycopg.errors))
     return CatalogStore("postgresql://example.test/catalog"), connection
 
 

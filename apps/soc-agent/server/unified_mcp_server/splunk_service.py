@@ -56,6 +56,7 @@ class SplunkService:
         fields: list[str] | None = None,
         *,
         principal_id: str | None = None,
+        fresh: bool = False,
     ) -> dict[str, Any]:
         return await self.search_service.search(
             query,
@@ -64,6 +65,7 @@ class SplunkService:
             max_count,
             fields,
             principal_id=principal_id,
+            fresh=fresh,
         )
 
     async def search_intent(
@@ -77,8 +79,8 @@ class SplunkService:
     async def test_connection(self) -> dict[str, Any]:
         return await self.search_service.test_connection()
 
-    def read_evidence(self, evidence_id: str, *, offset: int = 0, limit: int = 50) -> dict[str, Any]:
-        return self.search_service.read_evidence(evidence_id, offset=offset, limit=limit)
+    def read_evidence(self, evidence_id: str, *, offset: int = 0, limit: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
+        return self.search_service.read_evidence(evidence_id, offset=offset, limit=limit, fields=fields)
 
     def evidence_stats(self) -> dict[str, Any]:
         return self.search_service.evidence_stats()

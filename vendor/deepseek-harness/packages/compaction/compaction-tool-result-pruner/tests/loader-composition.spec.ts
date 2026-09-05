@@ -57,6 +57,10 @@ describe('compaction-tool-result-pruner real Loader composition', () => {
       headChars: 20,
       tailChars: 10,
     })
+    const structured = [{ type: 'text' as const, text: JSON.stringify({ evidence: { id: 'snapshot-1' }, rows: [{ text: '界'.repeat(500) }] }) }]
+    expect(context.toolResultPruner.pruneContent(structured)).toBeNull()
+    expect(JSON.parse(structured[0]!.text).evidence.id).toBe('snapshot-1')
+    expect(context.toolResultPruner.pruneContent([{ type: 'text', text: 'prose '.repeat(100) }])).not.toBeNull()
   })
 
   it('rejects stale config after plugin schema normalization', async () => {

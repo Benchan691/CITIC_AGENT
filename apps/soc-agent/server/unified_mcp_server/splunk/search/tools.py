@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import asyncio
 
 from mcp.server.fastmcp import Context
 from unified_mcp_server.errors import ServiceError
@@ -27,16 +28,16 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
     @server.tool(annotations={"readOnlyHint": True})
     async def splunk_validate_query(ctx: Context, query: str, earliest_time: str = "-24h", latest_time: str = "now") -> dict[str, Any]:
         """Analyze SPL scope and safety locally without executing it."""
-        try:
-            data = (await fresh_runtime(ctx)).splunk_search.validate(query, earliest_time, latest_time)
-            return success("splunk", "validate_query", data)
-        except service_error as exc:
-            return failure("splunk", "validate_query", exc.code, exc.message, details=exc.details)
+        async def validate():
+            return get_runtime(ctx).splunk_search.validate(query, earliest_time, latest_time)
+        return await execute(ctx, "splunk", "validate_query", validate)
 
     @server.tool(annotations={"readOnlyHint": True})
-    async def splunk_search(ctx: Context, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
-        """Execute a guarded read-only Splunk search. Use an exact index and narrow time range; use stats, tstats, chart, or similar aggregation for statistical questions, then sort/head as appropriate. Keep raw-event samples small, and never treat returned_count as total matches; inspect truncation metadata before volume or absence conclusions."""
-        return await execute(ctx, "splunk", "search", lambda: get_runtime(ctx).splunk_search.search(query, earliest_time, latest_time, max_count, fields, principal_id=_principal_id(get_runtime, ctx)))
+    async def splunk_search(ctx: Context, query: str, earliest_time: str = "-24h", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None, fresh: bool = False) -> dict[str, Any]:
+        """Run a guarded read-only search; validation is included. Use a known index and narrow time range, and aggregate statistical questions with stats. Repeated requests reuse timestamped investigation evidence; set fresh=true for a new read. Inspect truncation and total counts before volume or absence conclusions. Read additional retained rows with soc_evidence_read."""
+        # A fresh read bypasses retained snapshots; ordinary repeats return the
+        # exact timestamped evidence already collected in this investigation.
+        return await execute(ctx, "splunk", "search", lambda: get_runtime(ctx).splunk_search.search(query, earliest_time, latest_time, max_count, fields, principal_id=_principal_id(get_runtime, ctx), fresh=fresh))
 
     @server.tool(annotations={"readOnlyHint": True})
     async def splunk_list_saved_searches(ctx: Context, name: str = "", app: str = "", limit: int = 50, include_spl: bool = False) -> dict[str, Any]:
@@ -116,9 +117,9 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
         return await execute(ctx, "splunk", "run_saved_search", lambda: get_runtime(ctx).splunk_search.run_saved_search(name, max_count, app, owner, principal_id=_principal_id(get_runtime, ctx)))
 
     @server.tool(annotations={"readOnlyHint": True})
-    async def soc_evidence_read(ctx: Context, evidence_id: str, offset: int = 0, limit: int = 50) -> dict[str, Any]:
+    async def soc_evidence_read(ctx: Context, evidence_id: str, offset: int = 0, limit: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         """Page through a retained search snapshot by evidence ID without re-running the search; snapshots are timestamped and evicted oldest-first."""
-        return await execute(ctx, "splunk", "evidence_read", lambda: get_runtime(ctx).splunk_search.read_evidence(evidence_id, offset=offset, limit=limit))
+        return await execute(ctx, "splunk", "evidence_read", lambda: asyncio.to_thread(get_runtime(ctx).splunk_search.read_evidence, evidence_id, offset=offset, limit=limit, fields=fields))
 
     @server.tool(annotations={"readOnlyHint": True})
     async def splunk_plan_search(

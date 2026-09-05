@@ -154,6 +154,7 @@ class SplunkSettings:
     detection_owner: str = "nobody"
     search_planner_enabled: bool = False
     search_reuse_ttl_seconds: int = 300
+    evidence_store_path: str = ""
     lookup_write_enabled: bool = False
     lookup_app: str = "search"
     lookup_owner: str = "nobody"
@@ -445,6 +446,7 @@ class ServerSettings:
             detection_owner=_value(env, "SPLUNK_DETECTION_OWNER", "nobody"),
             search_planner_enabled=_boolean(env, "SPLUNK_SEARCH_PLANNER_ENABLED", False),
             search_reuse_ttl_seconds=_integer(env, "SPLUNK_SEARCH_REUSE_TTL_SECONDS", 300, 0, 3600),
+            evidence_store_path=_value(env, "SOC_EVIDENCE_STORE"),
             lookup_write_enabled=_boolean(env, "SPLUNK_ALLOW_LOOKUP_WRITE", False),
             lookup_app=_value(env, "SPLUNK_LOOKUP_APP") or "search",
             lookup_owner=_value(env, "SPLUNK_LOOKUP_OWNER") or "nobody",

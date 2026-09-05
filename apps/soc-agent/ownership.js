@@ -98,16 +98,6 @@ function childEnvironment() {
   return environment
 }
 
-const mcpRequestStorage = new AsyncLocalStorage()
-
-export function currentMcpRequestSession() {
-  return mcpRequestStorage.getStore()
-}
-
-export function withMcpRequestSession(sessionId, callback) {
-  return mcpRequestStorage.run(String(sessionId), callback)
-}
-
 function configuredWorkspaceRoot() {
   const bundleRoot = dirname(fileURLToPath(import.meta.url))
   return process.env.MCP_SERVER_ROOT || process.env.MCP_SEVER_ROOT || dirname(dirname(bundleRoot))
@@ -582,6 +572,7 @@ async function spawnAuthCommand(command, payload) {
 }
 
 let controlChannel = null
+let controlChannelStarting = null
 
 async function startControlChannel() {
   const { spawn } = await import('node:child_process')
@@ -597,17 +588,22 @@ async function startControlChannel() {
     pending: new Map(),
     nextId: 1,
     lineBuffer: '',
-    readyPromise: undefined,
     ready: { settled: false, timer: null },
     broken: false,
   }
   const failPending = message => {
     channel.broken = true
+    if (!channel.ready.settled) {
+      channel.ready.settled = true
+      clearTimeout(channel.ready.timer)
+      rejectReady(Object.assign(new Error('control channel failed to start'), { controlUnavailable: true }))
+    }
     for (const entry of channel.pending.values()) {
       clearTimeout(entry.timer)
       const error = new Error(message)
-      error.code = 'operation_failed'
-      error.controlUnavailable = true
+      error.code = entry.sent ? 'operation_outcome_unknown' : 'operation_failed'
+      error.controlUnavailable = !entry.sent
+      if (entry.sent) error.message = 'The connection ended before the operation was confirmed. Check its result before trying again.'
       entry.reject(error)
     }
     channel.pending.clear()
@@ -626,6 +622,10 @@ async function startControlChannel() {
       const line = channel.lineBuffer.slice(0, newlineIndex).trim()
       channel.lineBuffer = channel.lineBuffer.slice(newlineIndex + 1)
       newlineIndex = channel.lineBuffer.indexOf('\n')
+      if (Buffer.byteLength(line) + 1 > 8_000_000) {
+        channel.close()
+        return
+      }
       if (!line) continue
       let response
       try { response = JSON.parse(line) } catch { continue }
@@ -652,7 +652,9 @@ async function startControlChannel() {
         entry.reject(error)
       }
     }
+    if (Buffer.byteLength(channel.lineBuffer) > 8_000_000) channel.close()
   })
+  channel.close = () => { failPending('control channel closed'); child.kill('SIGTERM') }
   const writeLock = { current: Promise.resolve() }
   channel.send = request => {
     const result = writeLock.current.then(() => new Promise((resolvePromise, rejectPromise) => {
@@ -660,8 +662,16 @@ async function startControlChannel() {
         rejectPromise(Object.assign(new Error('control channel is not usable'), { controlUnavailable: true }))
         return
       }
-      child.stdin.write(`${JSON.stringify(request)}\n`, writeError => {
-        if (writeError) rejectPromise(Object.assign(new Error('control channel is not usable'), { controlUnavailable: true }))
+      const entry = channel.pending.get(String(request.id))
+      if (!entry) { resolvePromise(); return } // A queued write may have timed out before transmission.
+      const line = `${JSON.stringify(request)}\n`
+      if (Buffer.byteLength(line) > 8_000_000) {
+        rejectPromise(Object.assign(new Error('The operation exceeds the request size limit.'), { code: 'invalid_request' }))
+        return
+      }
+      entry.sent = true
+      child.stdin.write(line, writeError => {
+        if (writeError) rejectPromise(Object.assign(new Error('The operation may have been received. Check its result before trying again.'), { code: 'operation_outcome_unknown' }))
         else resolvePromise()
       })
     }))
@@ -693,16 +703,18 @@ async function startControlChannel() {
 
 async function withControlChannel(command, payload) {
   if (!controlChannel || controlChannel.broken) {
-    controlChannel = await startControlChannel()
+    controlChannelStarting ??= startControlChannel().then(channel => { controlChannel = channel; return channel }).finally(() => { controlChannelStarting = null })
+    await controlChannelStarting
   }
   const channel = controlChannel
   const id = String(channel.nextId++)
   return await new Promise((resolvePromise, rejectPromise) => {
     const entry = {
+      sent: false,
       timer: setTimeout(() => {
         channel.pending.delete(id)
-        const error = new Error('The requested operation failed.')
-        error.code = 'operation_timeout'
+        const error = new Error('The operation was not confirmed before its deadline. Check its result before trying again.')
+        error.code = entry.sent ? 'operation_outcome_unknown' : 'operation_timeout'
         rejectPromise(error)
       }, AUTH_COMMAND_TIMEOUT_MS),
       resolve: resolvePromise,
@@ -710,7 +722,11 @@ async function withControlChannel(command, payload) {
     }
     entry.timer.unref?.()
     channel.pending.set(id, entry)
-    channel.send({ id, command, payload: payload ?? {} }).catch(rejectPromise)
+    channel.send({ id, command, payload: payload ?? {} }).catch(error => {
+      channel.pending.delete(id)
+      clearTimeout(entry.timer)
+      rejectPromise(error)
+    })
   })
 }
 
@@ -720,12 +736,19 @@ export async function runAuthCommand(command, payload) {
     return await withControlChannel(command, payload)
   } catch (error) {
     if (error?.controlUnavailable === true) {
-      // Legacy entrypoint: a fresh interpreter per command always works.
+      // Fall back only before transmission. Lost responses must never replay
+      // an email send, catalog publication, or other ambiguous mutation.
       controlChannel = null
       return spawnAuthCommand(command, payload)
     }
     throw error
   }
+}
+
+export async function closeAuthControlChannel() {
+  const channel = controlChannel ?? await controlChannelStarting?.catch(() => null)
+  controlChannel = null
+  channel?.close()
 }
 
 function withPayload(frame, payload) {
@@ -1158,6 +1181,7 @@ export class SocAuthService {
     }
     this.adminSessions = new Map()
     this.agentSessions = new Map()
+    this.agentInvestigations = new Map()
     this.pendingResponses = new Map()
     this.applicationSessionSignals = new Map()
     this.revokedApplicationSessions = new Map()
@@ -1436,7 +1460,7 @@ export class SocAuthService {
     const sessionId = ambient && this.isApplicationSessionRevoked(ambient.id)
       ? ambient.id
       : current?.id ?? this.agentSessions.get(sessionIdOf(exec?.agent))
-    return sessionId ? { soc_session_id: sessionId } : undefined
+    return sessionId ? { soc_session_id: sessionId, ...this.agentInvestigations.get(sessionIdOf(exec?.agent)) } : undefined
   }
 
   async sessionForAgent(agent) {
@@ -1446,24 +1470,26 @@ export class SocAuthService {
     return await this.store.session(sessionId)
   }
 
-  bindAgentSession(sessionId, applicationSessionId) {
+  bindAgentSession(sessionId, applicationSessionId, investigation) {
     const current = this.currentSession()
     const agentId = String(sessionId ?? '')
     const ownerSessionId = applicationSessionId ?? current?.id
     if (ownerSessionId && agentId && !this.isApplicationSessionRevoked(ownerSessionId)) {
       this.agentSessions.set(agentId, String(ownerSessionId))
+      if (investigation) this.agentInvestigations.set(agentId, Object.freeze({ ...investigation }))
     }
   }
 
   unbindAgentSession(sessionId) {
     this.agentSessions.delete(String(sessionId ?? ''))
+    this.agentInvestigations.delete(String(sessionId ?? ''))
   }
 
   unbindApplicationSession(sessionId) {
     const value = String(sessionId ?? '')
     this.revokeApplicationSession(value)
     for (const [agentId, boundSessionId] of this.agentSessions) {
-      if (boundSessionId === value) this.agentSessions.delete(agentId)
+      if (boundSessionId === value) this.unbindAgentSession(agentId)
     }
   }
 

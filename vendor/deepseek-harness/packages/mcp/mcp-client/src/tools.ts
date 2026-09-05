@@ -25,6 +25,13 @@ import type { ToolDefinition, ToolExecution, ToolExecutionResult } from '@deepse
 import { assertSupportedJsonSchema } from '@deepseek-ai/dsh-tools'
 import type { JsonSchemaNode, JsonValue } from '@deepseek-ai/dsh-tools'
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /** Host-owned metadata; never taken from model tool arguments. */
+    'mcp/request-meta'(exec: ToolExecution, serverName: string, next: () => Promise<Record<string, unknown>>): Promise<Record<string, unknown>>
+  }
+}
+
 /** Resolved options relevant to tool bridging. */
 export interface ToolBridgeOptions {
   /** Whether a registry conflict is contained or rejects this synchronization. */
@@ -77,15 +84,17 @@ function listToolsUncached(client: Client, cursor?: string) {
 }
 
 /** Call without the SDK pre-validating an output schema the bridge may not support. */
-function callToolUncached(
+async function callToolUncached(
   client: Client,
+  ctx: Context,
   rawName: string,
   args: Record<string, unknown>,
   exec: ToolExecution,
   opts: ToolBridgeOptions,
 ) {
+  const metadata = await ctx.waterfall('mcp/request-meta', exec, opts.serverName, () => Promise.resolve({}))
   return client.request(
-    { method: 'tools/call', params: { name: rawName, arguments: args } },
+    { method: 'tools/call', params: { name: rawName, arguments: args, ...(Object.keys(metadata).length ? { _meta: metadata } : {}) } },
     RawCallToolResultSchema,
     {
       signal: exec.signal,
@@ -325,7 +334,7 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const result = await callToolUncached(client, rawName, argsObj, exec, opts)
+    const result = await callToolUncached(client, ctx, rawName, argsObj, exec, opts)
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {

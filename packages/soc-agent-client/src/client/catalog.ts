@@ -114,8 +114,22 @@ const REQUIRED_FIELDS: Record<CatalogName, readonly string[]> = {
   fix_source_type: ['customer_id', 'system_name', 'fix_source_type_value'],
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function requireCatalogRecord(value: unknown): Record<string, unknown> {
+  if (!isRecord(value) || typeof value.record_id !== 'string' || !Number.isInteger(value.revision)) {
+    throw new Error('The catalog did not return a record with an ID and revision. Reload the record.')
+  }
+  return value
+}
+
+export function catalogSavePayload(catalog: CatalogName, fields: CatalogFormFields, selected: Record<string, unknown> | null) {
+  const record = recordFromForm(catalog, fields)
+  if (selected === null) return { catalog, operation: 'write' as const, record }
+  const current = requireCatalogRecord(selected)
+  return { catalog, operation: 'update' as const, record, record_id: current.record_id, expected_revision: current.revision }
 }
 
 function text(value: unknown, fallback = ''): string {

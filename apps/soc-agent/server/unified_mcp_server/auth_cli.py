@@ -5,6 +5,10 @@ from __future__ import annotations
 import json
 import sys
 import asyncio
+from contextvars import ContextVar
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+from threading import Lock
 from typing import Any
 
 from .config import ServerSettings
@@ -16,6 +20,66 @@ from .zimbra.mail.service import ZimbraMailService
 from .postgres_store import PostgresStore, normalize_zimbra_email
 from .splunk_service import SplunkService
 from .zimbra import zimbra_login
+from .blocking_io import run_blocking
+from .request_context import operation_budget
+
+
+@dataclass
+class CommandRuntime:
+    store: PostgresStore | None
+    settings: ServerSettings
+    splunk: SplunkService | None = None
+    catalog: CatalogService | None = None
+    lock: Lock = field(default_factory=Lock)
+
+    @classmethod
+    def create(cls):
+        settings = ServerSettings.from_env()
+        store = PostgresStore.from_env()
+        return cls(store, settings)
+
+    def splunk_service(self):
+        with self.lock:
+            if self.splunk is None:
+                self.splunk = SplunkService(self.settings.splunk)
+            return self.splunk
+
+    def catalog_service(self):
+        splunk = self.splunk_service()
+        with self.lock:
+            if self.catalog is None:
+                self.catalog = CatalogService.from_env(self.settings.splunk, splunk=splunk)
+            return self.catalog
+
+
+_command_runtime: ContextVar[CommandRuntime | None] = ContextVar("soc_command_runtime", default=None)
+
+
+@asynccontextmanager
+async def command_runtime():
+    runtime = await asyncio.to_thread(CommandRuntime.create)
+    token = _command_runtime.set(runtime)
+    try:
+        yield runtime
+    finally:
+        _command_runtime.reset(token)
+        if runtime.catalog is not None:
+            await runtime.catalog.close()
+        if runtime.splunk is not None:
+            await runtime.splunk.close()
+        if runtime.store is not None:
+            await asyncio.to_thread(runtime.store.close)
+
+
+def _settings():
+    runtime = _command_runtime.get()
+    return runtime.settings if runtime else ServerSettings.from_env()
+
+
+async def _close_service(service):
+    runtime = _command_runtime.get()
+    if runtime is None or (service is not runtime.splunk and service is not runtime.catalog):
+        await service.close()
 
 
 def _payload() -> dict[str, Any]:
@@ -29,7 +93,8 @@ def _payload() -> dict[str, Any]:
 
 
 def _store() -> PostgresStore:
-    store = PostgresStore.from_env()
+    runtime = _command_runtime.get()
+    store = runtime.store if runtime else PostgresStore.from_env()
     if store is None:
         raise RuntimeError("application authentication requires PostgreSQL")
     return store
@@ -41,7 +106,7 @@ def login(payload: dict[str, Any]) -> dict[str, object]:
     if not password:
         raise ValueError("authentication failed")
     store = _store()
-    settings = ServerSettings.from_env()
+    settings = _settings()
     if not settings.zimbra.host:
         raise RuntimeError("Zimbra authentication is not configured")
     try:
@@ -66,12 +131,12 @@ def _service(payload: dict[str, Any]) -> ZimbraMailService:
     session = store.get_app_session(str(payload.get("session_id", "")))
     if session is None:
         raise ValueError("authentication failed")
-    settings = ServerSettings.from_env()
+    settings = _settings()
     return ZimbraMailService(settings.zimbra, identity=ZimbraIdentity.from_session(session))
 
 
 async def send_email(payload: dict[str, Any]) -> dict[str, Any]:
-    service = _service(payload)
+    service = await run_blocking(_service, payload, principal=str(payload.get("session_id", "")))
     return await service.send_email(
         payload.get("to", []),
         payload.get("subject", ""),
@@ -83,7 +148,8 @@ async def send_email(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 async def list_signatures(payload: dict[str, Any]) -> dict[str, Any]:
-    return await _service(payload).list_signatures()
+    service = await run_blocking(_service, payload, principal=str(payload.get("session_id", "")))
+    return await service.list_signatures()
 
 
 def _splunk_service(payload: dict[str, Any]) -> tuple[SplunkService, str]:
@@ -91,7 +157,8 @@ def _splunk_service(payload: dict[str, Any]) -> tuple[SplunkService, str]:
     session = store.get_app_session(str(payload.get("session_id", "")))
     if session is None:
         raise ValueError("authentication failed")
-    return SplunkService(ServerSettings.from_env().splunk), session.user_id
+    runtime = _command_runtime.get()
+    return (runtime.splunk_service() if runtime else SplunkService(_settings().splunk)), session.user_id
 
 
 async def save_detection(payload: dict[str, Any]) -> dict[str, Any]:
@@ -105,7 +172,7 @@ async def save_detection(payload: dict[str, Any]) -> dict[str, Any]:
     expected_fingerprint = payload.get("expected_fingerprint")
     if expected_fingerprint is not None and not isinstance(expected_fingerprint, str):
         raise ValueError("invalid detection save request")
-    service, actor_id = _splunk_service(payload)
+    service, actor_id = await run_blocking(_splunk_service, payload, principal=str(payload.get("session_id", "")))
     try:
         return await service.save_detection(
             operation,
@@ -115,7 +182,7 @@ async def save_detection(payload: dict[str, Any]) -> dict[str, Any]:
             actor_id=actor_id,
         )
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 async def save_lookup(payload: dict[str, Any]) -> dict[str, Any]:
@@ -131,7 +198,7 @@ async def save_lookup(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("invalid lookup save request")
     if expected_fingerprint is not None and not isinstance(expected_fingerprint, str):
         raise ValueError("invalid lookup save request")
-    service, actor_id = _splunk_service(payload)
+    service, actor_id = await run_blocking(_splunk_service, payload, principal=str(payload.get("session_id", "")))
     try:
         return await service.save_lookup(
             operation,
@@ -141,7 +208,7 @@ async def save_lookup(payload: dict[str, Any]) -> dict[str, Any]:
             actor_id=actor_id,
         )
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 def _catalog_session(payload: dict[str, Any]) -> str:
@@ -154,14 +221,15 @@ def _catalog_session(payload: dict[str, Any]) -> str:
 
 def _catalog_context(payload: dict[str, Any]) -> tuple[CatalogService, str]:
     actor_id = _catalog_session(payload)
-    service = CatalogService.from_env(ServerSettings.from_env())
+    runtime = _command_runtime.get()
+    service = runtime.catalog_service() if runtime else CatalogService.from_env(_settings().splunk)
     return service, actor_id
 
 
 async def catalog_list(payload: dict[str, Any]) -> dict[str, Any]:
-    service, actor_id = _catalog_context(payload)
+    service, actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
-        return service.list_records(
+        return await run_blocking(service.list_records,
             str(payload.get("catalog", "")),
             search=str(payload.get("search", "") or ""),
             limit=int(payload.get("limit", 50)),
@@ -169,51 +237,51 @@ async def catalog_list(payload: dict[str, Any]) -> dict[str, Any]:
             include_archived=bool(payload.get("include_archived", False)),
         )
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 async def catalog_get(payload: dict[str, Any]) -> dict[str, Any]:
-    service, _actor_id = _catalog_context(payload)
+    service, _actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
-        record = service.get_record(str(payload.get("catalog", "")), str(payload.get("record_id", "")))
+        record = await run_blocking(service.get_record,str(payload.get("catalog", "")), str(payload.get("record_id", "")))
         return {"record": record}
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 async def catalog_history(payload: dict[str, Any]) -> dict[str, Any]:
-    service, _actor_id = _catalog_context(payload)
+    service, _actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
         return {
-            "history": service.record_history(
+            "history": await run_blocking(service.record_history,
                 str(payload.get("catalog", "")),
                 str(payload.get("record_id", "")),
                 limit=int(payload.get("limit", 100)),
             )
         }
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 async def catalog_publications(payload: dict[str, Any]) -> dict[str, Any]:
-    service, _actor_id = _catalog_context(payload)
+    service, _actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
         return {
-            "publications": service.list_publications(
+            "publications": await run_blocking(service.list_publications,
                 str(payload.get("catalog", "")),
                 limit=int(payload.get("limit", 50)),
             )
         }
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 async def catalog_preview_publish(payload: dict[str, Any]) -> dict[str, Any]:
-    service, _actor_id = _catalog_context(payload)
+    service, _actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
-        return service.preview_publication(str(payload.get("catalog", "")))
+        return await run_blocking(service.preview_publication,str(payload.get("catalog", "")))
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 async def save_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
@@ -225,7 +293,7 @@ async def save_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
     expected_revision = payload.get("expected_revision")
     if expected_revision is not None and not isinstance(expected_revision, int):
         raise ValueError("invalid catalog save request")
-    service, actor_id = _catalog_context(payload)
+    service, actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
         return await service.save_record(
             catalog,
@@ -237,14 +305,14 @@ async def save_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
             reason=str(payload.get("reason", "") or ""),
         )
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 async def archive_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
     expected_revision = payload.get("expected_revision")
     if not isinstance(expected_revision, int):
         raise ValueError("invalid catalog archive request")
-    service, actor_id = _catalog_context(payload)
+    service, actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
         return await service.set_record_archived(
             str(payload.get("catalog", "")),
@@ -255,25 +323,25 @@ async def archive_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
             reason=str(payload.get("reason", "") or ""),
         )
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 async def publish_catalog(payload: dict[str, Any]) -> dict[str, Any]:
-    service, actor_id = _catalog_context(payload)
+    service, actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
         return await service.publish_catalog(str(payload.get("catalog", "")), actor_id=actor_id)
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 async def rollback_publication(payload: dict[str, Any]) -> dict[str, Any]:
-    service, actor_id = _catalog_context(payload)
+    service, actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
         return await service.rollback_publication(
             str(payload.get("publication_id", "")), actor_id=actor_id
         )
     finally:
-        await service.close()
+        await _close_service(service)
 
 
 _SYNC_COMMANDS = {
@@ -304,7 +372,7 @@ async def dispatch_command(command: str, payload: dict[str, Any]) -> dict[str, A
     """Run one host command; shared by the CLI and the persistent control server."""
     sync_handler = _SYNC_COMMANDS.get(command)
     if sync_handler is not None:
-        return sync_handler(payload)
+        return await run_blocking(sync_handler, payload, principal=str(payload.get("session_id", "")))
     async_handler = _ASYNC_COMMANDS.get(command)
     if async_handler is not None:
         return await async_handler(payload)
@@ -334,7 +402,10 @@ def main() -> None:
     payload: dict[str, Any] = {}
     try:
         payload = _payload()
-        result = asyncio.run(dispatch_command(command, payload))
+        async def run():
+            async with command_runtime(), operation_budget():
+                return await dispatch_command(command, payload)
+        result = asyncio.run(run())
         print(json.dumps(result, separators=(",", ":")))
     except Exception as exc:
         _expire_session_on_auth_error(payload, exc)

@@ -14,9 +14,15 @@ uv run pytest
 Authenticated UI operations (detection saves, catalog edits, publication,
 email) run through a persistent Python control channel
 (`unified_mcp_server.control_server`) instead of one interpreter per command;
-`SOC_CONTROL_CHANNEL=off` restores per-command interpreters. Search evidence
-snapshots are retained in-process and paged through `soc_evidence_read`, and
-the deterministic search planner is exposed as `splunk_plan_search` once
+`SOC_CONTROL_CHANNEL=off` restores per-command interpreters. The control channel
+shares settings, provider clients and bounded PostgreSQL pools across requests.
+Only failures before transmission may fall back to a fresh interpreter. An
+unconfirmed operation returns `operation_outcome_unknown` and is not replayed.
+Search evidence snapshots are cached in memory and, when `SOC_EVIDENCE_STORE`
+is configured, retained in SQLite and paged through `soc_evidence_read`. The
+SOC host defaults that file to `$DSH_HOME/soc-evidence.sqlite3` (or
+`~/.dsh/soc-evidence.sqlite3`). An explicit empty path disables disk retention.
+The deterministic search planner is exposed as `splunk_plan_search` once
 `SPLUNK_SEARCH_PLANNER_ENABLED=true` and its schema mappings are verified.
 
 Configure Splunk, Zimbra, MarkItDown, and subscription-server settings in the
@@ -42,6 +48,33 @@ hashes; and verified reversible message moves. The authenticated email
 webserver exposes subscription listing, preview, creation, updates, and
 deletion. Sends, moves, folders, filters, detection changes, and subscription
 mutations remain approval-gated by the host.
+
+Ad-hoc searches coalesce identical in-flight requests within the host-resolved
+user, investigation and customer scope. Completed snapshots can be reused for
+`SPLUNK_SEARCH_REUSE_TTL_SECONDS` (default 300; zero disables completed reuse).
+Use `fresh=true` when new evidence is required. Responses retain source counts,
+retrieval time, resolved time bounds, checksum and source-completeness flags.
+Simple relative windows resolve once; calendar snaps retain Splunk's syntax and
+bypass reuse. Disk and memory retain at most 32 snapshots and 64 MB of serialized
+payload each; eviction can make an old evidence ID unavailable. Evidence pages
+accept `fields`, return up to 200 whole rows within a 24,000-byte data budget,
+and expose `next_offset`. The host additionally projects ordinary event previews
+to at most eight rows and a 7,500-byte JSON envelope when it fits. Oversized
+metadata passes through intact. Retention covers fetched evidence, not events
+outside the provider's result cap.
+
+An operation has one 180-second budget including authentication and admission;
+the host MCP transport allows 185 seconds for cleanup. Splunk job time includes
+dispatch, polling and retrieval, and cleanup is bounded to five seconds. Only
+transient Splunk GET failures receive one retry. Zimbra blocking calls retain
+their admission slots until their worker exits, even if a caller cancels; each
+SOAP request checks the remaining deadline. PostgreSQL pooling defaults on,
+with up to four connections per store, a five-second connection/pool wait and
+a 15-second statement timeout. `APP_POSTGRES_POOL=false` restores per-call
+connections. Deployment configuration changes require a host/backend restart.
+
+See the [implementation and validation report](../../../docs/PERFORMANCE_REDESIGN_IMPLEMENTATION.md)
+for measured offline results, remaining work and rollout steps.
 
 Persistent CSV lookups can be read with `splunk_get_lookup` and edited through
 approval-gated draft tools. The authenticated editor performs the final Save or

@@ -14,3 +14,18 @@ The CITIC host binds the resolved context in-process through `socMemoryContext`;
 The default rollout is `read-only`. Manual writes can be enabled explicitly after isolation tests pass; automatic candidate extraction and consolidation are later phases. Memory is historical context, never current evidence, and raw Splunk/Zimbra content, secrets, full emails, attachments, and tool results are not captured automatically.
 
 Administrative consumers can inspect `MemoryStore.listSummaryHistory()` and use its lock-protected `rollbackSummary()` API; history and rollback are intentionally not registered as model-facing tools.
+
+Prompt assembly waits for the prompt service and initial memory load. It reads
+the global and resolved-scope summaries and relevant entries asynchronously,
+then reuses one bounded snapshot throughout a turn. The current claimed user
+message drives recall, including the first model step. A new turn, scope or
+relevant setting change, or a successful memory mutation invalidates the snapshot.
+Changes made by another process become visible on the next turn. Raw-entry
+parsing also reuses the store's modification-time cache.
+
+This cache adds no LLM calls. It reduces repeated file reads and ranking, and
+keeps memory context stable between tool steps. It does not remove the main
+agent's model calls or change the configured byte budget. Disposal removes the
+prompt hooks and waits for pending store work before releasing the writer lock.
+
+Run `node --test test/*.test.js` for unit and real Loader composition checks.

@@ -5,7 +5,8 @@ subclass gives new composition code a stable Mail-specific service surface
 without changing its behavior.
 """
 
-import asyncio
+from unified_mcp_server.blocking_io import run_blocking
+from unified_mcp_server.request_context import remaining_seconds
 
 from unified_mcp_server.account_store import AccountStore, StoredAccount
 from unified_mcp_server.auth import ZimbraIdentity
@@ -63,7 +64,7 @@ class ZimbraMailService(ZimbraService):
             raise ServiceError("invalid_input", "parent_id must be a numeric Zimbra folder ID")
         account = self.core.resolve_account(account_id)
         try:
-            folder = await asyncio.to_thread(self._create_folder, account, name, parent_id)
+            folder = await run_blocking(self._create_folder, account, name, parent_id, principal=self.core.identity.user_id if self.core.identity else "legacy")
         except ServiceError:
             raise
         except ValueError as exc:
@@ -78,7 +79,7 @@ class ZimbraMailService(ZimbraService):
             self.settings.host,
             token,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
         if not any(str(folder.get("id", "")) == parent_id for folder in folders):
@@ -89,6 +90,6 @@ class ZimbraMailService(ZimbraService):
             name,
             parent_id,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )

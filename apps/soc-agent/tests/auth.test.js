@@ -648,6 +648,11 @@ test('MCP metadata carries only an opaque app session reference', async () => {
   await auth.withSession(session, async () => { metadata = auth.mcpRequestMeta({ agent: { id: 'agent-a' } }) })
   assert.deepEqual(metadata, { soc_session_id: 'app-session-a' })
   assert.equal(JSON.stringify(metadata).includes('must-not-leave-server'), false)
+  auth.bindAgentSession('scheduled-agent', session.id, { soc_workload: 'scheduled' })
+  assert.equal(auth.agentInvestigations.size, 1)
+  auth.unbindApplicationSession(session.id)
+  assert.equal(auth.agentSessions.size, 0)
+  assert.equal(auth.agentInvestigations.size, 0)
 })
 
 test('SOC auth plugin gates Harness transport and scopes the shared API proxy', async () => {
@@ -774,7 +779,7 @@ test('SOC auth plugin attaches session metadata to the Harness MCP client withou
     },
     inject() {},
     on(name, listener) {
-      if (name === 'tools/execute') executeListener = listener
+      if (name === 'mcp/request-meta') executeListener = listener
     },
     effect(factory) {
       const disposer = factory()
@@ -784,22 +789,13 @@ test('SOC auth plugin attaches session metadata to the Harness MCP client withou
   }
   applyAuthHost(ctx)
   providedAuth.bindAgentSession('agent-a', 'app-session-a')
-  const client = new HarnessMcpClient({ name: 'test', version: '1' })
-  let sent
-  client._transport = {
-    send(message) {
-      sent = message
-      return Promise.reject(new Error('stop test request'))
-    },
-  }
-  await assert.rejects(
-    executeListener({ agent: { id: 'agent-a' } }, () => client.request(
-      { method: 'tools/call', params: { name: 'mail_search', arguments: {} } },
-      CallToolResultSchema,
-    )),
-    /stop test request/,
-  )
-  assert.equal(sent.params._meta.soc_session_id, 'app-session-a')
-  assert.equal(JSON.stringify(sent).includes('zimbra'), false)
+  const metadata = await executeListener({ agent: { id: 'agent-a' } }, 'soc_agent', async () => ({ trace: 'test' }))
+  assert.equal(metadata.soc_session_id, 'app-session-a')
+  assert.equal(metadata.soc_investigation_id, 'agent-a')
+  assert.equal(metadata.trace, 'test')
+  assert.equal(typeof metadata.soc_correlation_id, 'string')
+  assert.ok(metadata.soc_deadline_ms > Date.now())
+  assert.equal(JSON.stringify(metadata).includes('zimbra'), false)
+  assert.deepEqual(await executeListener({ agent: { id: 'agent-a' } }, 'other', async () => ({})), {})
   for (const dispose of effects.reverse()) dispose()
 })

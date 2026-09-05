@@ -77,7 +77,7 @@ class FakeConnection:
 
 def test_postgres_store_round_trips_config_and_accounts(monkeypatch):
     connection = FakeConnection()
-    monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri: connection))
+    monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri, **_kwargs: connection))
 
     store = PostgresStore("postgresql://example.test/settings", "test-encryption-key")
     store.set_config("SPLUNK_URL", "http://127.0.0.1:8089")
@@ -98,7 +98,7 @@ def test_postgres_store_round_trips_config_and_accounts(monkeypatch):
 
 def test_server_settings_ignores_postgres_service_configuration(monkeypatch):
     connection = FakeConnection()
-    monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri: connection))
+    monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri, **_kwargs: connection))
     store = PostgresStore("postgresql://example.test/settings", "test-encryption-key")
     store.set_configs(
         {
@@ -123,7 +123,7 @@ def test_server_settings_ignores_postgres_service_configuration(monkeypatch):
 
 def test_postgres_store_migrates_file_accounts(monkeypatch, tmp_path):
     connection = FakeConnection()
-    monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri: connection))
+    monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri, **_kwargs: connection))
     store = PostgresStore("postgresql://example.test/settings", "test-encryption-key")
     file_store = AccountStore(str(tmp_path / "accounts.enc"), str(tmp_path / "accounts.key"))
     file_store.add(label="Ops", email="ops@example.com", username="ops", password="pw1")

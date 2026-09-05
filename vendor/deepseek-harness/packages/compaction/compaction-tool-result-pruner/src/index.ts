@@ -78,11 +78,21 @@ export class ToolResultPruner extends Service {
    * Text slicing is by Unicode code point, not UTF-16 code unit, so a retained
    * boundary cannot split a surrogate pair. Grapheme clusters may still split.
    * @param blocks - original tool-result content.
-   * @returns pruned content, or `null` when the text is within budget.
+   * @returns pruned content, or `null` for in-budget text or a single valid JSON block.
    */
   pruneContent(blocks: readonly ContentBlock[]): ContentBlock[] | null {
     const totalChars = this.measureContent(blocks)
     if (totalChars <= this.config.thresholdChars) return null
+
+    // A byte slice cannot preserve a structured result's schema, counts, or
+    // evidence references. Leave JSON to its owning tool's semantic projector
+    // (and ordinary conversation compaction) instead of emitting broken JSON.
+    if (blocks.length === 1 && blocks[0]?.type === 'text') {
+      try {
+        JSON.parse(blocks[0].text)
+        return null
+      } catch { /* prose retains the existing head/tail behavior */ }
+    }
 
     const removedStart = this.config.headChars
     const removedEnd = totalChars - this.config.tailChars
@@ -122,7 +132,7 @@ export class ToolResultPruner extends Service {
   }
 
   /**
-   * Prune every over-budget tool result from one stable current-surface snapshot.
+   * Prune eligible over-budget tool results from one stable current-surface snapshot.
    * Each replacement preserves the complete event data except for `content`,
    * cites the shadowed node so replay can recover the replacement input, and is
    * immediately preceded by a `compaction/prune` shadow-price event pricing the

@@ -21,13 +21,17 @@ function runtimeWith({ tasks = [], runs = [], concurrency = 1 } = {}) {
   return { runtime, tables }
 }
 
-function executionRuntime({ whenIdle = async () => {}, flush = true, createError } = {}) {
+function executionRuntime({ whenIdle = async () => {}, flush = true, createError, terminalKind = 'completed', resumedEvents = [] } = {}) {
   const tables = { tasks: new MemoryTable(), runs: new MemoryTable(), config: new MemoryTable() }
-  const session = { events: [], append(type, data) { this.events.push({ type, data }) } }
+  const session = { events: [...resumedEvents], append(type, data) { this.events.push({ type, data }) } }
   const observations = { agentOptions: undefined, modelHandlers: {}, restricted: [], title: '', followedUp: false, cancelled: false, disposed: false, order: [] }
   const ctx = {
     agentDefaultModel: { currentSelection: () => ({ provider: 'default-provider', model: 'default-model' }) },
     agents: {
+      async resume(options) {
+        observations.resumed = options.resumeSessionId
+        return this.create(options)
+      },
       async create(options) {
         if (createError) throw createError
         observations.agentOptions = options.agentOptions
@@ -38,7 +42,7 @@ function executionRuntime({ whenIdle = async () => {}, flush = true, createError
         return {
           agent: {
             session,
-            followup() { observations.followedUp = true; observations.order.push('followup') },
+            followup() { observations.followedUp = true; observations.order.push('followup'); if (terminalKind) session.append('turn/end', { reason: { kind: terminalKind } }) },
             whenIdle,
             cancel() { observations.cancelled = true },
           },
@@ -189,7 +193,7 @@ test('global concurrency starts only one queued investigation at a time', async 
   await runtime.close()
 })
 
-test('durable reload retries queued work and records the interrupted run', async () => {
+test('durable reload preserves the logical run instead of queuing a duplicate', async () => {
   const task = {
     id: '47bc85e8-d18b-4d60-941f-93b0b50321ac', name: 'Review', prompt: 'Review alerts',
     rule: { kind: 'cron', expression: '0 * * * *', timeZone: 'UTC' }, status: 'active',
@@ -205,9 +209,9 @@ test('durable reload retries queued work and records the interrupted run', async
   runtime.executeRun = async () => {}
   await runtime.recover()
   await new Promise(resolve => setImmediate(resolve))
-  assert.equal(tables.runs.get(interrupted.id).state, 'failed')
-  assert.equal(tables.runs.get(interrupted.id).errorCode, 'host_restart')
-  assert.equal([...tables.runs.values.values()].length, 2)
+  assert.equal(tables.runs.get(interrupted.id).state, 'queued')
+  assert.equal(tables.runs.get(interrupted.id).resumeCount, 1)
+  assert.equal([...tables.runs.values.values()].length, 1)
   await runtime.close()
 })
 
@@ -245,7 +249,7 @@ test('successful runs create linked result sessions with read-only tools and met
     await observations.modelHandlers['agent/request']({}, () => Promise.resolve({ provider: 'default-provider', model: 'default-model', reasoningEffort: 'inherited' })),
     { provider: 'scheduled-provider', model: 'scheduled-model', reasoningEffort: 'high' },
   )
-  assert.deepEqual(session.events, [])
+  assert.equal(session.events.at(-1).data.reason.kind, 'completed')
 })
 
 test('legacy tasks use the current default model selection', async () => {
@@ -256,6 +260,29 @@ test('legacy tasks use the current default model selection', async () => {
   )
   assert.deepEqual(observations.agentOptions, { provider: 'default-provider', model: 'default-model' })
 })
+
+test('restart resumes the existing session and does not repeat a completed assessment', async () => {
+  const { runtime, tables, observations } = executionRuntime({ resumedEvents: [
+    { type: 'tool/result', data: { evidence_id: 'snapshot-1' } },
+    { type: 'turn/end', data: { reason: { kind: 'completed' } } },
+  ] })
+  const task = { id: 'task-1', name: 'Review', prompt: 'Review alerts' }
+  await runtime.executeRun(task, { id: 'run-resumed', taskId: task.id, scheduledFor: '2026-08-17T01:00:00.000Z', state: 'queued', sessionId: 'scheduled-existing', resumeCount: 1 })
+  assert.equal(observations.resumed, 'scheduled-existing')
+  assert.equal(observations.followedUp, false)
+  assert.equal(tables.runs.get('run-resumed').state, 'completed')
+  assert.equal(tables.runs.get('run-resumed').sessionId, 'scheduled-existing')
+})
+
+for (const terminalKind of [null, 'blocked', 'max-tokens', 'aborted']) {
+  test(`idle with ${terminalKind ?? 'no terminal outcome'} is not a completed investigation`, async () => {
+    const { runtime, tables } = executionRuntime({ terminalKind })
+    const task = { id: 'task-1', name: 'Review', prompt: 'Review alerts' }
+    await runtime.executeRun(task, { id: 'run-incomplete', taskId: task.id, scheduledFor: '2026-08-17T01:00:00.000Z', state: 'queued' })
+    assert.equal(tables.runs.get('run-incomplete').state, 'failed')
+    assert.equal(tables.runs.get('run-incomplete').errorCode, 'investigation_incomplete')
+  })
+}
 
 test('failed creation and timed-out runs record stable errors', async () => {
   const task = { id: 'task-1', name: 'Review', prompt: 'Review alerts' }

@@ -1,4 +1,4 @@
-"""Process-lifetime retention and coalescing of completed search evidence.
+"""Bounded retention and coalescing of completed investigation evidence.
 
 Repeated evidence reads must not re-dispatch provider work: identical search
 requests reuse the retained snapshot within a bounded TTL unless explicitly
@@ -13,14 +13,44 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
+import sqlite3
+import re
+from threading import RLock
 import uuid
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields as dataclass_fields
 from datetime import datetime, timezone
-from time import monotonic
+from time import monotonic, time
 from typing import Any, Awaitable, Callable
 
 from unified_mcp_server.errors import ServiceError
+from unified_mcp_server.request_context import operation_context
+from .evidence_store import EvidenceStore
+
+logger = logging.getLogger(__name__)
+
+
+def resolve_time_window(earliest: str, latest: str) -> tuple[str, str, bool]:
+    """Resolve plain offsets once at dispatch; leave Splunk calendar snaps intact.
+
+    Calendar snaps depend on the provider timezone and are never guessed here.
+    Such requests can still run, but completed-snapshot reuse is disabled.
+    """
+    now = operation_context.get().scheduled_at or time()
+    def resolve(value):
+        if value == "now":
+            return f"{now:.6f}", True
+        match = re.fullmatch(r"([+-]?\d+)(s|m|h|d|w)", value)
+        if match:
+            seconds = int(match[1]) * {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}[match[2]]
+            return f"{now + seconds:.6f}", True
+        if re.fullmatch(r"\d+(?:\.\d+)?", value):
+            return value, True
+        return value, False
+    start, a = resolve(earliest)
+    end, b = resolve(latest)
+    return start, end, a and b
 
 
 def fingerprint_request(
@@ -32,9 +62,10 @@ def fingerprint_request(
     fields: list[str] | None,
     principal_id: str | None,
 ) -> str:
-    """Stable identity of one exact search request within this process."""
+    """Stable identity of one exact request in its host-resolved scope."""
     encoded = json.dumps(
-        [query, earliest_time, latest_time, int(max_count), list(fields or []), principal_id or ""],
+        [query, earliest_time, latest_time, int(max_count), list(fields or []), principal_id or "",
+         operation_context.get().evidence_scope, operation_context.get().config_revision],
         separators=(",", ":"),
         sort_keys=True,
         ensure_ascii=True,
@@ -64,18 +95,39 @@ class EvidenceRecord:
     approximate_bytes: int = 0
     checksum: str = field(default="")
     execution: dict[str, Any] = field(default_factory=dict)
+    scope: str = ""
+    created_at: float = field(default_factory=time)
+    durable: bool = False
+
+    def snapshot(self) -> dict[str, Any]:
+        # Retained rows already live in events; do not serialize them twice.
+        return {
+            **{item.name: getattr(self, item.name) for item in dataclass_fields(self)},
+            "execution": {key: value for key, value in self.execution.items() if key != "retained_events"},
+        }
 
     def summary(self, *, reused: bool = False) -> dict[str, Any]:
         return {
             "id": self.evidence_id,
             "reused": reused,
             "retrieved_at": self.retrieved_at,
-            "age_seconds": round(max(0.0, monotonic() - self.created_monotonic), 3),
+            "age_seconds": round(max(0.0, time() - self.created_at), 3),
             "result_count": len(self.events),
             "columns": list(self.columns),
             "checksum": self.checksum,
-            "query": self.query,
+            "query": self.query[:4096],
+            "query_truncated": len(self.query) > 4096,
+            "earliest_time": self.earliest_time,
+            "latest_time": self.latest_time,
+            "durable": self.durable,
+            "source_complete": self.metadata.get("splunk_result_truncated") is False,
         }
+
+
+@dataclass
+class _Flight:
+    task: asyncio.Task
+    readers: int = 0
 
 
 class SearchEvidenceCoordinator:
@@ -91,15 +143,18 @@ class SearchEvidenceCoordinator:
         max_records: int = 32,
         max_total_bytes: int = 64_000_000,
         reuse_ttl_seconds: int = 300,
+        store_path: str = "",
     ) -> None:
         self.max_records = max(1, int(max_records))
         self.max_total_bytes = max(1, int(max_total_bytes))
         self.reuse_ttl_seconds = max(0, int(reuse_ttl_seconds))
         self._records: OrderedDict[str, EvidenceRecord] = OrderedDict()
         self._latest_by_fingerprint: dict[str, str] = {}
-        self._in_flight: dict[str, asyncio.Future] = {}
+        self._in_flight: dict[str, _Flight] = {}
         self._lock = asyncio.Lock()
         self._total_bytes = 0
+        self._cache_lock = RLock()
+        self._store_backend = EvidenceStore(store_path, max_records=self.max_records, max_bytes=self.max_total_bytes) if store_path else None
 
     def stats(self) -> dict[str, Any]:
         return {
@@ -110,43 +165,63 @@ class SearchEvidenceCoordinator:
         }
 
     def get_record(self, evidence_id: str) -> EvidenceRecord:
-        record = self._records.get(str(evidence_id or ""))
-        if record is None:
+        with self._cache_lock:
+            record = self._records.get(str(evidence_id or ""))
+        scope = operation_context.get().evidence_scope
+        if record is None and self._store_backend:
+            stored = self._store_backend.get(scope, str(evidence_id or ""))
+            if stored:
+                record = self._restore(stored)
+        if record is None or record.scope != scope:
             raise ServiceError(
                 "evidence_not_found",
                 "The requested evidence snapshot is no longer retained; rerun the search.",
                 details={"evidence_id": str(evidence_id or "")},
             )
-        self._records.move_to_end(record.evidence_id)
+        with self._cache_lock:
+            if record.evidence_id in self._records:
+                self._records.move_to_end(record.evidence_id)
         return record
 
     def get_latest(self, fingerprint: str) -> EvidenceRecord | None:
         """Latest retained record for a fingerprint, or None once evicted."""
-        evidence_id = self._latest_by_fingerprint.get(fingerprint)
-        if evidence_id is None:
-            return None
-        return self._records.get(evidence_id)
+        with self._cache_lock:
+            evidence_id = self._latest_by_fingerprint.get(fingerprint)
+            record = self._records.get(evidence_id) if evidence_id else None
+            return record if record is not None and record.scope == operation_context.get().evidence_scope else None
 
-    def read_page(self, evidence_id: str, *, offset: int = 0, limit: int = 50) -> dict[str, Any]:
+    def read_page(self, evidence_id: str, *, offset: int = 0, limit: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         record = self.get_record(evidence_id)
         offset = max(0, int(offset))
         limit = max(1, min(int(limit), 200))
         page = record.events[offset : offset + limit]
-        return {
+        if fields:
+            page = [{key: row[key] for key in fields if key in row} for row in page]
+        response = {
             "evidence": record.summary(),
             "offset": offset,
             "returned_count": len(page),
             "total_count": len(record.events),
             "result_type": record.result_type,
-            "columns": list(record.columns),
+            "columns": list(fields or record.columns),
             "rows": page,
             "complete": offset + len(page) >= len(record.events),
+            "source_metadata": record.metadata,
+            "next_offset": None if offset + len(page) >= len(record.events) else offset + len(page),
         }
+        while page and len(json.dumps(response, ensure_ascii=True).encode()) > 24_000:
+            page.pop()
+            response.update(returned_count=len(page), complete=False, next_offset=offset + len(page))
+        if (offset < len(record.events) and not page) or len(json.dumps(response, ensure_ascii=True).encode()) > 24_000:
+            raise ServiceError("evidence_page_too_large", "Select fewer fields to read this evidence within the response limit.")
+        return response
 
     async def execute_coalesced(
         self,
         fingerprint: str,
         runner: Callable[[], Awaitable[dict[str, Any]]],
+        *,
+        fresh: bool = False,
     ) -> tuple[dict[str, Any], EvidenceRecord | None, bool]:
         """Run one search, reusing a fresh snapshot or an in-flight twin.
 
@@ -156,45 +231,59 @@ class SearchEvidenceCoordinator:
         issuing its own.
         """
         async with self._lock:
-            record = self._latest_by_fingerprint.get(fingerprint)
-            if record is not None:
-                existing = self._records.get(record)
-                if (
-                    existing is not None
-                    and self.reuse_ttl_seconds > 0
-                    and monotonic() - existing.created_monotonic <= self.reuse_ttl_seconds
-                ):
-                    self._records.move_to_end(existing.evidence_id)
-                    return existing.execution, existing, False
-            future = self._in_flight.get(fingerprint)
-            if future is None:
-                future = asyncio.get_running_loop().create_future()
-                self._in_flight[fingerprint] = future
+            existing = None if fresh else self.get_latest(fingerprint)
+            if not fresh and self._store_backend and existing is None:
+                try:
+                    stored = await asyncio.to_thread(self._store_backend.latest, operation_context.get().evidence_scope, fingerprint)
+                except (OSError, sqlite3.Error):
+                    stored = None
+                    logger.warning("Evidence reuse unavailable; dispatching a new search.")
+                if stored:
+                    existing = self._restore(stored)
+            if existing is not None and self.reuse_ttl_seconds > 0 and time() - existing.created_at <= self.reuse_ttl_seconds:
+                with self._cache_lock:
+                    if existing.evidence_id in self._records:
+                        self._records.move_to_end(existing.evidence_id)
+                return existing.execution, existing, False
+            flight_key = f"{fingerprint}:{uuid.uuid4().hex}" if fresh else fingerprint
+            flight = self._in_flight.get(flight_key)
+            if flight is None:
+                async def run():
+                    execution = await runner()
+                    record = await asyncio.to_thread(self._store, fingerprint, execution)
+                    if record is not None and self._store_backend:
+                        try:
+                            record.durable = await asyncio.to_thread(self._store_backend.put, {**record.snapshot(), "durable": True})
+                        except (OSError, sqlite3.Error):
+                            record.durable = False
+                            logger.warning("Evidence persistence failed; snapshot remains available in memory.")
+                    return execution, record
+
+                flight = _Flight(asyncio.create_task(run()))
+                self._in_flight[flight_key] = flight
                 owner = True
             else:
                 owner = False
-        if not owner:
-            try:
-                execution, record = await future
-            except BaseException:
-                raise
-            return execution, record, True
+            flight.readers += 1
         try:
-            execution = await runner()
-        except Exception as exc:
-            future.set_exception(exc)
-            raise
-        except BaseException:
-            future.cancel()
-            raise
+            # Every reader, including the first, owns only its wait. The shared
+            # provider job remains alive until all readers have left.
+            execution, record = await asyncio.shield(flight.task)
+            return execution, None if owner else record, not owner
         finally:
             async with self._lock:
-                self._in_flight.pop(fingerprint, None)
-        record = self._store(fingerprint, execution)
-        future.set_result((execution, record))
-        return execution, None, False
+                flight.readers -= 1
+                last_reader = flight.readers == 0
+                if last_reader:
+                    self._in_flight.pop(flight_key, None)
+                    if not flight.task.done():
+                        flight.task.cancel()
+            if last_reader:
+                # Drain cancellation so backend admission slots and search jobs
+                # are released before reporting this operation finished.
+                await asyncio.gather(flight.task, return_exceptions=True)
 
-    def _store(self, fingerprint: str, execution: dict[str, Any]) -> EvidenceRecord:
+    def _store(self, fingerprint: str, execution: dict[str, Any]) -> EvidenceRecord | None:
         events = execution.get("retained_events")
         if not isinstance(events, list):
             events = execution.get("events") or []
@@ -211,19 +300,40 @@ class SearchEvidenceCoordinator:
             events=list(events),
             columns=list(execution.get("columns") or []),
             metadata=dict(execution.get("search_metadata") or {}),
+            scope=operation_context.get().evidence_scope,
         )
         record.checksum = evidence_checksum(record.events)
-        record.approximate_bytes = len(json.dumps(record.events, separators=(",", ":"), ensure_ascii=True).encode())
+        execution["_evidence_id"] = record.evidence_id
         record.execution = execution
-        self._records[record.evidence_id] = record
-        self._total_bytes += record.approximate_bytes
-        self._latest_by_fingerprint[fingerprint] = record.evidence_id
-        self._prune()
+        record.approximate_bytes = len(json.dumps(record.snapshot(), separators=(",", ":"), ensure_ascii=True).encode()) + 64
+        if record.approximate_bytes > self.max_total_bytes:
+            return None
+        self._remember(record)
         return record
+
+    def _restore(self, stored: dict[str, Any]) -> EvidenceRecord:
+        record = EvidenceRecord(**stored)
+        record.execution["retained_events"] = record.events
+        record.created_monotonic = monotonic() - max(0, time() - record.created_at)
+        self._remember(record)
+        return record
+
+    def _remember(self, record: EvidenceRecord) -> None:
+        with self._cache_lock:
+            previous = self._records.get(record.evidence_id)
+            if previous:
+                self._total_bytes -= previous.approximate_bytes
+            self._records[record.evidence_id] = record
+            self._total_bytes += record.approximate_bytes
+            latest_id = self._latest_by_fingerprint.get(record.fingerprint)
+            latest = self._records.get(latest_id) if latest_id else None
+            if latest is None or latest.created_at <= record.created_at:
+                self._latest_by_fingerprint[record.fingerprint] = record.evidence_id
+            self._prune()
 
     def _prune(self) -> None:
         while len(self._records) > self.max_records or (
-            self._total_bytes > self.max_total_bytes and len(self._records) > 1
+            self._total_bytes > self.max_total_bytes and self._records
         ):
             _, dropped = self._records.popitem(last=False)
             self._total_bytes = max(0, self._total_bytes - dropped.approximate_bytes)

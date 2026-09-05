@@ -171,9 +171,11 @@ async def test_search_reuses_client_caps_results_and_sanitizes():
         "rows": [{"card": "****-****-****-1111", "ssn": "***-**-****"}],
     }
     assert created[0].search_args[-1] == 2
+    assert float(result["search"]["latest_time"]) - float(result["search"]["earliest_time"]) == pytest.approx(86400)
     assert result["search"] == {
-        "earliest_time": "-24h",
-        "latest_time": "now",
+        "earliest_time": result["search"]["earliest_time"],
+        "latest_time": result["search"]["latest_time"],
+        "time_window_resolved": True,
         "run_duration_seconds": 0.01,
         "run_duration_ms": 10,
         "scanned_events": 1,
@@ -404,9 +406,11 @@ async def test_search_formats_analytical_spl_as_a_table_and_preserves_columns():
             {"rule": "MFA Failure", "count": "14"},
         ],
     }
+    assert float(result["search"]["latest_time"]) - float(result["search"]["earliest_time"]) == pytest.approx(86400)
     assert result["search"] == {
-        "earliest_time": "-24h",
-        "latest_time": "now",
+        "earliest_time": result["search"]["earliest_time"],
+        "latest_time": result["search"]["latest_time"],
+        "time_window_resolved": True,
         "run_duration_seconds": 1.82,
         "run_duration_ms": 1820,
         "scanned_events": 823144,

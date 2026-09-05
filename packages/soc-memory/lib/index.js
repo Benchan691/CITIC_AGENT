@@ -7,8 +7,8 @@
 //   journal.jsonl              mutation journal (add/update/delete) consumed by consolidation
 //   state.json                 consolidation bookkeeping (version, journal cursor, rollout cursor)
 //
-// Injection: a systemPrompt.context provider re-reads memory_summary.md at every
-// prompt assembly, so tool writes surface in the very next model step.
+// Injection: an async assembly hook prepares bounded historical memory once per
+// turn and scope. Explicit memory changes invalidate it for the next model step.
 //
 // Auto-summarization: on agent/turn-stopping (root agents only), the turn's new
 // text is distilled with the default model into a rollout summary; when enough
@@ -16,7 +16,7 @@
 // is re-distilled (atomic write, version bump). Summarization is debounced and
 // singleton per session, consolidation is singleton, and every LLM call has a
 // timeout; background jobs never block a turn.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
@@ -420,8 +420,23 @@ export function apply(ctx, config = {}) {
     }
   }
 
+  const promptInputs = new WeakMap()
+  let promptCache = new WeakMap()
+  disposers.push(ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
+    promptInputs.set(agent, { message, turn })
+    promptCache.delete(agent)
+  }, { global: true }))
+  disposers.push(ctx.on('tools/result', (exec, result) => {
+    if (!result.isError && exec.name?.startsWith('soc_memory_') && !/_(search|read)$/.test(exec.name)) {
+      // Explicit memory changes become visible on the next assembly.
+      promptCache = new WeakMap()
+    }
+  }, { global: true }))
+
   function latestUserQuery(context) {
     const agent = context?.agent ?? context?.scope?.agent
+    const claimed = promptInputs.get(agent)
+    if (claimed) return truncateUtf8(extractMessageText(claimed.message), 1200).trim()
     const events = agent?.session?.events
     if (events === undefined || typeof events.entries !== 'function') return ''
     const entries = [...events.entries()].reverse()
@@ -432,26 +447,26 @@ export function apply(ctx, config = {}) {
     return ''
   }
 
-  function scopedEntriesForPrompt(scopeKey, tenant) {
+  async function scopedEntriesForPrompt(scopeKey, tenant) {
     const target = storeForScope(scopeKey)
     try {
       // Reuse the store's parsed-entry cache instead of re-reading and
       // re-parsing the raw file on every prompt assembly.
-      return target
-        .readRawEntriesSync()
+      return (await target.readRawEntries())
         .filter((entry) => isActiveEntry(entry) && entryBelongsToRoute(entry, { key: scopeKey, tenant }))
     } catch {
       return []
     }
   }
 
-  function relevantMemoryContext(context, scopeKey, tenant) {
+  async function relevantMemoryContext(context, scopeKey, tenant) {
     const query = latestUserQuery(context)
     if (query.length === 0) return ''
     const routes = scopeKey === 'global' ? ['global'] : [scopeKey, 'global']
     const hits = []
-    for (const key of routes) {
-      const entries = scopedEntriesForPrompt(key, tenant)
+    const entriesByRoute = await Promise.all(routes.map(key => scopedEntriesForPrompt(key, tenant)))
+    for (const [index, key] of routes.entries()) {
+      const entries = entriesByRoute[index]
       for (const hit of searchEntries(entries, query, { mode: 'any', limit: 5, fuzzy: true })) {
         hits.push({ ...hit, scope: key, rank: hit.score + memoryRankBoost(hit.entry) })
       }
@@ -498,51 +513,48 @@ export function apply(ctx, config = {}) {
     installMemorySettingsWeb(settingsCtx, settings)
   })
 
-  const systemPrompt = ctx.get('systemPrompt')
-  if (systemPrompt !== undefined) {
-    disposers.push(systemPrompt.context({
-      name: 'soc-memory',
-      order: 2000,
-      text: (context) => {
-        try {
-          const globalText = readFileSync(store.path(SUMMARY_FILE), 'utf8')
-          if (!resolved.scopedMemory) {
-            const relevant = relevantMemoryContext(context, 'global', {})
-            const output = truncateUtf8(`${globalText}${relevant.length > 0 ? `\n\n${relevant}` : ''}`, resolved.maxBytes)
-            return resolved.redactSecrets ? redactSecrets(output) : output
-          }
-          const globalBudget = Math.max(0, resolved.maxBytes - resolved.scopeMaxBytes - 800)
-          const globalPart = truncateUtf8(globalText, globalBudget)
-          const scopeKey = assembleScopeKey(context)
-          const agent = context?.agent ?? context?.scope?.agent
-          const tenant = tenantResolver?.get(agent) ?? {}
-          if (scopeKey === 'global') {
-            const relevant = relevantMemoryContext(context, 'global', tenant)
-            const output = `${globalPart}${relevant.length > 0 ? `\n\n${relevant}` : ''}`
-            return resolved.redactSecrets ? redactSecrets(truncateUtf8(output, resolved.maxBytes)) : truncateUtf8(output, resolved.maxBytes)
-          }
-          let scopedText = ''
-          try {
-            scopedText = readFileSync(storeForScope(scopeKey).path(SUMMARY_FILE), 'utf8')
-          } catch {
-            return resolved.redactSecrets ? redactSecrets(globalPart) : globalPart
-          }
-          if (scopedText.trim().length === 0 || !/^##\s+\S/m.test(scopedText)) {
-            const relevant = relevantMemoryContext(context, scopeKey, tenant)
-            const output = `${globalPart}${relevant.length > 0 ? `\n\n${relevant}` : ''}`
-            return resolved.redactSecrets ? redactSecrets(truncateUtf8(output, resolved.maxBytes)) : truncateUtf8(output, resolved.maxBytes)
-          }
+  async function prepareMemoryText(context) {
+    const agent = context?.agent ?? context?.scope?.agent
+    const scopeKey = resolved.scopedMemory ? assembleScopeKey(context) : 'global'
+    const tenant = tenantResolver?.get(agent) ?? {}
+    const query = latestUserQuery(context)
+    const turn = promptInputs.get(agent)?.turn ?? agent?.session?.events?.findLast?.(event => event.type === 'turn/start')?.seq
+    const key = JSON.stringify([scopeKey, tenant, query, turn, resolved.maxBytes, resolved.scopeMaxBytes, resolved.scopedMemory, resolved.redactSecrets])
+    const cached = agent && promptCache.get(agent)
+    if (cached?.key === key) return cached.text
+    const settings = { ...resolved }
+    const text = (async () => {
+      try {
+        await globalRuntimeReady
+        const [globalText, scopedText, relevant] = await Promise.all([
+          store.readSummary(),
+          scopeKey === 'global' ? '' : storeForScope(scopeKey).readSummary(),
+          relevantMemoryContext(context, scopeKey, tenant),
+        ])
+        if (lifecycle.signal.aborted || context.signal?.aborted) return ''
+        if (settings.scopedMemory && assembleScopeKey(context) !== scopeKey) return ''
+        const globalBudget = settings.scopedMemory ? Math.max(0, settings.maxBytes - settings.scopeMaxBytes - 800) : settings.maxBytes
+        const parts = [truncateUtf8(globalText, globalBudget)]
+        if (scopedText.trim() && /^##\s+\S/m.test(scopedText)) {
           const kind = scopeKey.startsWith('incident/') ? 'Incident' : scopeKey.startsWith('analyst/') ? 'Analyst' : 'Customer'
-          const relevant = relevantMemoryContext(context, scopeKey, tenant)
-          const output = `${globalPart}\n\n## ${kind} historical memory\n\n${truncateUtf8(scopedText, resolved.scopeMaxBytes)}${relevant.length > 0 ? `\n\n${relevant}` : ''}`
-          const bounded = truncateUtf8(output, resolved.maxBytes)
-          return resolved.redactSecrets ? redactSecrets(bounded) : bounded
-        } catch {
-          return ''
+          parts.push(`## ${kind} historical memory\n\n${truncateUtf8(scopedText, settings.scopeMaxBytes)}`)
         }
-      }
-    }))
+        if (relevant) parts.push(relevant)
+        const bounded = truncateUtf8(parts.filter(Boolean).join('\n\n'), settings.maxBytes)
+        return settings.redactSecrets ? redactSecrets(bounded) : bounded
+      } catch { return '' }
+    })()
+    if (agent) promptCache.set(agent, { key, text })
+    return await text
   }
+
+  ctx.inject(['systemPrompt'], (promptCtx) => {
+    promptCtx.systemPrompt.context({ name: 'soc-memory', order: 2000, text: '' })
+    promptCtx.on('system-prompt/assemble', async (_assembly, context, next) => {
+      const [assembly, text] = await Promise.all([next(), prepareMemoryText(context)])
+      return { ...assembly, contexts: assembly.contexts.map(entry => entry.name === 'soc-memory' ? { ...entry, text } : entry) }
+    }, { global: true })
+  })
 
   const telemetry = { errorCount: 0, lastError: null, summarizeSkipCounts: {}, lastSummarizeSkip: null }
   function recordError(kind, error) {
@@ -1000,7 +1012,7 @@ export function apply(ctx, config = {}) {
   })
   globalRuntimeReady = store.chain
 
-  ctx.effect(() => () => {
+  ctx.effect(() => async () => {
     lifecycle.abort(new Error('dsh-memory disposed'))
     for (const dispose of disposers) {
       try {
@@ -1011,7 +1023,8 @@ export function apply(ctx, config = {}) {
     }
     lastSummarized.clear()
     summarizing.clear()
-    if (releaseLock !== null) releaseLock().catch(() => {})
+    await store.chain.catch(() => {})
+    if (releaseLock !== null) await releaseLock().catch(() => {})
   })
 
   ctx.logger.info('dsh-memory ready (dir=%s, maxBytes=%d, consolidateMaxBytes=%d, keepSummaryVersions=%d, rawArchiveMaxBytes=%d, summaryMaxTokens=%d, consolidateMaxTokens=%d, llmRetries=%d, maxActiveSummaries=%d, scopedMemory=%s, scopeMaxBytes=%d, redactSecrets=%s, autoSummarize=%s)', configuredDir, resolved.maxBytes, resolved.consolidateMaxBytes, resolved.keepSummaryVersions, resolved.rawArchiveMaxBytes, resolved.summaryMaxTokens, resolved.consolidateMaxTokens, resolved.llmRetries, resolved.maxActiveSummaries, String(resolved.scopedMemory), resolved.scopeMaxBytes, String(resolved.redactSecrets), String(resolved.autoSummarize))

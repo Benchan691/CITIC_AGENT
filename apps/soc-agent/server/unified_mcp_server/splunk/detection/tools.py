@@ -31,11 +31,9 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
     @server.tool(annotations={"readOnlyHint": True})
     async def splunk_validate_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
         """Validate a CITIC production saved-search definition; outputcsv is definition-only and is never executed here."""
-        try:
-            current = await fresh_runtime(ctx)
-            return success("splunk", "validate_detection", current.splunk_detection.validate_detection(detection))
-        except service_error as exc:
-            return failure("splunk", "validate_detection", exc.code, exc.message, details=exc.details)
+        async def validate():
+            return get_runtime(ctx).splunk_detection.validate_detection(detection)
+        return await execute(ctx, "splunk", "validate_detection", validate)
 
     @server.tool(annotations={"readOnlyHint": True})
     async def splunk_compile_citic_detection(

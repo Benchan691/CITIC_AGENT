@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from unified_mcp_server.blocking_io import run_blocking
+from unified_mcp_server.request_context import remaining_seconds
 import hashlib
 import json
 import re
@@ -93,7 +95,7 @@ class ZimbraFilterService:
 
     async def _run(self, function, *args, **kwargs):
         try:
-            return await asyncio.to_thread(function, *args, **kwargs)
+            return await run_blocking(function, *args, principal=self.core.identity.user_id if self.core.identity else "legacy", **kwargs)
         except ServiceError:
             raise
         except ValueError as exc:
@@ -114,7 +116,7 @@ class ZimbraFilterService:
             self.settings.host,
             token,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
         return [EmailFilter.from_zimbra(element, order=index) for index, element in enumerate(elements, 1)]
@@ -124,7 +126,7 @@ class ZimbraFilterService:
             self.settings.host,
             token,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
 
@@ -370,7 +372,7 @@ class ZimbraFilterService:
             token,
             serialize_filter_rules(rules),
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
         return self._fingerprint(self._normalized_rules(rules))

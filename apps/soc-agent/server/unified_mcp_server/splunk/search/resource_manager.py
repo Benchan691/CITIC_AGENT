@@ -12,6 +12,7 @@ from time import monotonic
 from typing import Any
 
 from unified_mcp_server.errors import ServiceError
+from unified_mcp_server.request_context import operation_context
 
 from .resource_policy import CostClass, SearchResourceConfig, SearchWorkloadType
 
@@ -47,6 +48,7 @@ class SearchResourceManager:
         self._active_by_principal: dict[str, int] = defaultdict(int)
         self._active_backtests = 0
         self._queued_jobs = 0
+        self._waiters: list[tuple] = []
         self._dispatch_history: dict[str, deque[tuple[float, int]]] = defaultdict(deque)
         self._metrics: dict[str, Any] = {
             "active_splunk_searches": 0,
@@ -158,19 +160,27 @@ class SearchResourceManager:
         loop_deadline = loop.time() + float(self.config.queue_timeout_seconds)
         queued = False
         reserved = False
+        priority = 1 if operation_context.get().workload == "scheduled" else 0
+        waiter = (object(), priority, principal_id, weight, workload_type)
         lease: ResourceLease | None = None
         try:
             async with self._condition:
                 self._queued_jobs += 1
                 self._metrics["queued_splunk_searches"] = self._queued_jobs
                 queued = True
+                self._waiters.append(waiter)
                 while True:
                     now = self._clock()
                     limit_error = self._limit_error(principal_id, budget_cost, now)
                     if limit_error is not None:
                         self._metrics["search_resource_rejections_total"] += 1
                         raise limit_error
-                    if self._capacity_available(principal_id, weight, workload_type):
+                    higher_priority_waiting = any(
+                        other[1] < priority and self._capacity_available(other[2], other[3], other[4])
+                        for other in self._waiters
+                    )
+                    if not higher_priority_waiting and self._capacity_available(principal_id, weight, workload_type):
+                        self._waiters.remove(waiter)
                         self._queued_jobs -= 1
                         self._metrics["queued_splunk_searches"] = self._queued_jobs
                         queued = False
@@ -272,6 +282,7 @@ class SearchResourceManager:
             # Cancellation while queued must not leave a phantom queue entry.
             if queued:
                 async with self._condition:
+                    self._waiters.remove(waiter)
                     self._queued_jobs = max(0, self._queued_jobs - 1)
                     self._metrics["queued_splunk_searches"] = self._queued_jobs
                     self._condition.notify_all()

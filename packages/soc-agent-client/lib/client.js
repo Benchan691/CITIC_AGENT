@@ -226,6 +226,11 @@ window.__ModuleLoader__.load({
 			if (!result?.ok) throw new Error(result?.error?.message || `Request failed: ${name}`);
 			return result.value;
 		}
+		async function rpcObject(connection, name, payload = {}) {
+			const value = await rpc(connection, name, payload);
+			if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error(`Invalid response: ${name}`);
+			return value;
+		}
 		function errorText(error) {
 			return error instanceof Error ? error.message : String(error);
 		}
@@ -1679,6 +1684,26 @@ window.__ModuleLoader__.load({
 		function isRecord$4(value) {
 			return typeof value === "object" && value !== null && !Array.isArray(value);
 		}
+		function requireCatalogRecord(value) {
+			if (!isRecord$4(value) || typeof value.record_id !== "string" || !Number.isInteger(value.revision)) throw new Error("The catalog did not return a record with an ID and revision. Reload the record.");
+			return value;
+		}
+		function catalogSavePayload(catalog, fields, selected) {
+			const record = recordFromForm(catalog, fields);
+			if (selected === null) return {
+				catalog,
+				operation: "write",
+				record
+			};
+			const current = requireCatalogRecord(selected);
+			return {
+				catalog,
+				operation: "update",
+				record,
+				record_id: current.record_id,
+				expected_revision: current.revision
+			};
+		}
 		function text$2(value, fallback = "") {
 			if (typeof value === "string") return value;
 			if (typeof value === "number" && Number.isFinite(value)) return String(value);
@@ -1884,23 +1909,28 @@ window.__ModuleLoader__.load({
 			const [history, setHistory] = (0, react.useState)([]);
 			const [preview, setPreview] = (0, react.useState)(null);
 			const [publications, setPublications] = (0, react.useState)([]);
+			const listRequest = (0, react.useRef)(0);
+			const selectionRequest = (0, react.useRef)(0);
 			const authError = error === "authentication required" || error?.includes("authentication");
 			const loadList = (0, react.useCallback)(async () => {
+				const request = ++listRequest.current;
 				setStatus("busy");
 				setError(null);
 				try {
-					const result = await rpc(connection, "catalog-list", {
+					const result = await rpcObject(connection, "catalog-list", {
 						catalog,
 						search,
 						limit: 200,
 						include_archived: true
 					});
+					if (request !== listRequest.current) return;
 					setList({
-						items: Array.isArray(result.items) ? result.items : [],
+						items: Array.isArray(result.items) ? result.items.filter(isRecord$4) : [],
 						total: Number(result.total ?? 0)
 					});
 					setStatus("idle");
 				} catch (cause) {
+					if (request !== listRequest.current) return;
 					setError(cause instanceof Error ? cause.message : String(cause));
 					setStatus("failed");
 				}
@@ -1910,48 +1940,62 @@ window.__ModuleLoader__.load({
 				search
 			]);
 			const loadSideData = (0, react.useCallback)(async (recordId) => {
+				const request = selectionRequest.current;
 				setHistory([]);
 				setPublications([]);
-				setPreview(null);
 				try {
-					if (recordId) {
-						const result = await rpc(connection, "catalog-history", {
-							catalog,
-							record_id: recordId
-						});
-						setHistory(Array.isArray(result.history) ? result.history : []);
-					}
-					const publicationsResult = await rpc(connection, "catalog-publications", { catalog });
-					setPublications(Array.isArray(publicationsResult.publications) ? publicationsResult.publications : []);
+					const [historyResult, publicationsResult] = await Promise.all([recordId ? rpcObject(connection, "catalog-history", {
+						catalog,
+						record_id: recordId
+					}) : Promise.resolve(null), rpcObject(connection, "catalog-publications", { catalog })]);
+					if (request !== selectionRequest.current) return;
+					setHistory(Array.isArray(historyResult?.history) ? historyResult.history.filter(isRecord$4) : []);
+					setPublications(Array.isArray(publicationsResult.publications) ? publicationsResult.publications.filter(isRecord$4) : []);
 				} catch (cause) {
+					if (request !== selectionRequest.current) return;
 					setError(cause instanceof Error ? cause.message : String(cause));
 				}
 			}, [connection, catalog]);
 			(0, react.useEffect)(() => {
+				++listRequest.current;
+				++selectionRequest.current;
 				setSelected(null);
 				setMode("view");
-				loadList();
+				setPreview(null);
+				const timer = setTimeout(() => {
+					loadList();
+				}, search ? 250 : 0);
+				return () => {
+					clearTimeout(timer);
+					++listRequest.current;
+					++selectionRequest.current;
+				};
 			}, [loadList]);
 			const selectRecord = async (recordId) => {
+				const request = ++selectionRequest.current;
 				setStatus("busy");
 				setError(null);
 				try {
-					const result = await rpc(connection, "catalog-get", {
+					const result = await rpcObject(connection, "catalog-get", {
 						catalog,
 						record_id: recordId
 					});
-					setSelected(result.record);
-					setFields(formFromRecord(result.record));
+					if (request !== selectionRequest.current) return;
+					const record = requireCatalogRecord(result.record);
+					setSelected(record);
+					setFields(formFromRecord(record));
 					setMode("view");
 					setFieldErrors({});
 					setStatus("idle");
 					await loadSideData(recordId);
 				} catch (cause) {
+					if (request !== selectionRequest.current) return;
 					setError(cause instanceof Error ? cause.message : String(cause));
 					setStatus("failed");
 				}
 			};
 			const startCreate = () => {
+				++selectionRequest.current;
 				const empty = {};
 				for (const key of CATALOG_FIELDS[catalog]) empty[key] = "";
 				setFields(empty);
@@ -1968,7 +2012,7 @@ window.__ModuleLoader__.load({
 				setError(null);
 			};
 			const save = async () => {
-				if (!mode) return;
+				if (mode === "view" || mode === "edit" && !selected) return;
 				const localErrors = validateCatalogForm(catalog, fields);
 				if (Object.keys(localErrors).length > 0) {
 					setFieldErrors(localErrors);
@@ -1979,20 +2023,15 @@ window.__ModuleLoader__.load({
 				setError(null);
 				setFieldErrors({});
 				try {
-					const recordId = selected ? valueText$3(selected.record_id) : void 0;
-					const result = await rpc(connection, "save-catalog-record", {
-						catalog,
-						operation: mode === "create" ? "write" : "update",
-						record: recordFromForm(catalog, fields),
-						...mode === "update" && recordId ? { record_id: recordId } : {},
-						...mode === "update" && selected ? { expected_revision: Number(selected.revision) } : {}
-					});
-					setSelected(result.record);
-					setFields(formFromRecord(result.record));
+					const result = await rpcObject(connection, "save-catalog-record", catalogSavePayload(catalog, fields, mode === "create" ? null : selected));
+					if (result.saved !== true) throw new Error("The catalog did not confirm that the record was saved.");
+					const record = requireCatalogRecord(result.record);
+					setSelected(record);
+					setFields(formFromRecord(record));
 					setMode("view");
 					setStatus("saved");
-					await loadList();
-					await loadSideData(valueText$3(result.record.record_id));
+					await Promise.all([loadList(), loadSideData(valueText$3(record.record_id))]);
+					setStatus("saved");
 				} catch (cause) {
 					setError(cause instanceof Error ? cause.message : String(cause));
 					setStatus("failed");
@@ -2005,18 +2044,18 @@ window.__ModuleLoader__.load({
 				setStatus("busy");
 				setError(null);
 				try {
-					const result = await rpc(connection, "archive-catalog-record", {
+					const record = requireCatalogRecord((await rpcObject(connection, "archive-catalog-record", {
 						catalog,
 						record_id: valueText$3(selected.record_id),
 						expected_revision: Number(selected.revision),
 						restore: !archived
-					});
-					setSelected(result.record);
-					setFields(formFromRecord(result.record));
+					})).record);
+					setSelected(record);
+					setFields(formFromRecord(record));
 					setMode("view");
 					setStatus("saved");
-					await loadList();
-					await loadSideData(valueText$3(result.record.record_id));
+					await Promise.all([loadList(), loadSideData(valueText$3(record.record_id))]);
+					setStatus("saved");
 				} catch (cause) {
 					setError(cause instanceof Error ? cause.message : String(cause));
 					setStatus("failed");
@@ -2026,7 +2065,7 @@ window.__ModuleLoader__.load({
 				setStatus("busy");
 				setError(null);
 				try {
-					setPreview(await rpc(connection, "catalog-preview-publish", { catalog }));
+					setPreview(await rpcObject(connection, "catalog-preview-publish", { catalog }));
 					await loadSideData(selected ? valueText$3(selected.record_id) : null);
 					setStatus("idle");
 				} catch (cause) {
@@ -2039,8 +2078,8 @@ window.__ModuleLoader__.load({
 				setStatus("busy");
 				setError(null);
 				try {
-					await rpc(connection, "publish-catalog", { catalog });
-					setPreview(await rpc(connection, "catalog-preview-publish", { catalog }));
+					await rpcObject(connection, "publish-catalog", { catalog });
+					setPreview(await rpcObject(connection, "catalog-preview-publish", { catalog }));
 					await loadSideData(selected ? valueText$3(selected.record_id) : null);
 					setStatus("saved");
 				} catch (cause) {
@@ -2053,8 +2092,8 @@ window.__ModuleLoader__.load({
 				setStatus("busy");
 				setError(null);
 				try {
-					await rpc(connection, "rollback-publication", { publication_id: publicationId });
-					setPreview(await rpc(connection, "catalog-preview-publish", { catalog }));
+					await rpcObject(connection, "rollback-publication", { publication_id: publicationId });
+					setPreview(await rpcObject(connection, "catalog-preview-publish", { catalog }));
 					await loadSideData(selected ? valueText$3(selected.record_id) : null);
 					setStatus("saved");
 				} catch (cause) {
@@ -2145,7 +2184,7 @@ window.__ModuleLoader__.load({
 									"aria-label": `${CATALOG_LABELS[catalog]} records`,
 									children: (list?.items ?? []).map((record) => {
 										const id = valueText$3(record.record_id);
-										const active = selected && valueText$3(selected.record_id) === id;
+										const active = !!selected && valueText$3(selected.record_id) === id;
 										return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
 											type: "button",
 											role: "option",
@@ -2487,7 +2526,7 @@ window.__ModuleLoader__.load({
 				setError(null);
 				setFieldErrors({});
 				try {
-					const result = await rpc(connection, "save-catalog-record", {
+					const result = await rpcObject(connection, "save-catalog-record", {
 						catalog,
 						operation,
 						record: recordFromForm(catalog, fields),
@@ -2495,7 +2534,7 @@ window.__ModuleLoader__.load({
 						...operation === "update" ? { expected_revision: expectedRevision } : {}
 					});
 					if (!result || result.saved !== true || !result.record) throw new Error("The catalog did not confirm that the record was saved.");
-					setPersisted(result.record);
+					setPersisted(requireCatalogRecord(result.record));
 					setStatus("saved");
 				} catch (cause) {
 					const message = cause instanceof Error ? cause.message : String(cause);
@@ -4240,6 +4279,7 @@ window.__ModuleLoader__.load({
 			aborts = /* @__PURE__ */ new Map();
 			listeners = /* @__PURE__ */ new Set();
 			version = 0;
+			converted = /* @__PURE__ */ new Map();
 			constructor(connection, settings) {
 				this.connection = connection;
 				this.settings = settings;
@@ -4281,18 +4321,26 @@ window.__ModuleLoader__.load({
 			release(sessionId, id) {
 				this.aborts.get(id)?.abort();
 				this.aborts.delete(id);
+				this.converted.delete(id);
 				const drafts = this.drafts.get(sessionId);
 				if (drafts?.delete(id)) this.changed();
 				if (drafts?.size === 0) this.drafts.delete(sessionId);
 			}
 			async convert(sessionId, ids, signal) {
 				const limits = settingsOf(this.settings);
-				const result = [];
-				let totalChars = 0;
-				for (const id of ids) {
+				const cacheKey = JSON.stringify([limits.maxBytesPerFile, limits.maxCharsPerFile]);
+				const results = /* @__PURE__ */ new Map();
+				let next = 0;
+				let failure;
+				const convertOne = async (id) => {
 					if (signal.aborted) throw new Error("attachment_conversion_cancelled");
 					const document = this.drafts.get(sessionId)?.get(id);
-					if (document === void 0) continue;
+					if (document === void 0) return;
+					const cached = this.converted.get(id);
+					if (cached?.key === cacheKey) {
+						results.set(id, cached.value);
+						return;
+					}
 					this.setStatus(sessionId, id, "converting");
 					const localAbort = new AbortController();
 					const abort = () => {
@@ -4312,31 +4360,49 @@ window.__ModuleLoader__.load({
 							}
 						}, localAbort.signal);
 						if (!response?.ok) throw new Error(response?.error?.message || "The attachment conversion failed.");
-						const converted = response.value;
-						const markdown = typeof converted.text === "string" ? converted.text : "";
-						totalChars += markdown.length;
-						if (totalChars > limits.maxTotalChars) throw new Error("The attachments exceed the configured Markdown character limit.");
-						if (!this.drafts.get(sessionId)?.has(id)) continue;
-						this.setStatus(sessionId, id, "converted");
-						result.push({
+						const value = response.value;
+						if (typeof value?.text !== "string") throw new Error("The converter returned no attachment text.");
+						if (!this.drafts.get(sessionId)?.has(id)) return;
+						const notice = value.text_truncated === true ? "[Attachment excerpt: text was truncated during conversion.]\n" : "";
+						const attachment = {
 							id,
-							filename: typeof converted.filename === "string" ? converted.filename : document.file.name,
-							markdown
+							filename: typeof value.filename === "string" ? value.filename : document.file.name,
+							markdown: notice + value.text
+						};
+						this.converted.set(id, {
+							key: cacheKey,
+							value: attachment
 						});
+						results.set(id, attachment);
+						this.setStatus(sessionId, id, "converted");
 					} catch (error) {
 						if (localAbort.signal.aborted || signal.aborted) {
-							if (!this.drafts.get(sessionId)?.has(id)) continue;
+							if (!this.drafts.get(sessionId)?.has(id)) return;
 							throw new Error("attachment_conversion_cancelled");
 						}
-						const message = error instanceof Error ? error.message : "The attachment conversion failed.";
-						this.setStatus(sessionId, id, "failed", message);
-						throw new Error(message);
+						this.setStatus(sessionId, id, "failed", error instanceof Error ? error.message : String(error));
+						throw error;
 					} finally {
 						signal.removeEventListener("abort", abort);
 						if (this.aborts.get(id) === localAbort) this.aborts.delete(id);
 					}
-				}
-				return result;
+				};
+				const worker = async () => {
+					while (next < ids.length && failure === void 0) {
+						const id = ids[next++];
+						try {
+							await convertOne(id);
+						} catch (error) {
+							failure = error;
+						}
+					}
+				};
+				await Promise.all([worker(), worker()]);
+				if (failure !== void 0) throw failure;
+				if (signal.aborted) throw new Error("attachment_conversion_cancelled");
+				const ordered = ids.flatMap((id) => results.has(id) ? [results.get(id)] : []);
+				if (ordered.reduce((total, item) => total + item.markdown.length, 0) > limits.maxTotalChars) throw new Error("The attachments exceed the configured Markdown character limit.");
+				return ordered;
 			}
 			setStatus(sessionId, id, status, error) {
 				const drafts = this.drafts.get(sessionId);

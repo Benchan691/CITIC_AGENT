@@ -1,14 +1,19 @@
 """Unified MCP server exposing prefixed Splunk and Zimbra tools."""
 
 import json
+import asyncio
+import hashlib
+import inspect
 import logging
 import time
 import uuid
 import warnings
 from contextvars import ContextVar
-from collections.abc import Awaitable, Callable
+from collections import OrderedDict
+from collections.abc import Callable
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+from datetime import datetime
 from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -25,6 +30,8 @@ from .email.service import EmailSubscriptionService
 from .email.tools import register_tools as register_email_tools
 from .postgres_store import PostgresAccountStore, PostgresStore
 from .responses import failure, success
+from .request_context import operation_budget, operation_context
+from .blocking_io import run_blocking
 from .splunk_service import SplunkService
 from .splunk.search.tools import register_tools as register_search_tools
 from .splunk.detection.tools import register_tools as register_detection_tools
@@ -71,6 +78,11 @@ class Runtime:
     catalog: CatalogService | None = None
     identity: ZimbraIdentity | None = None
     owns_services: bool = True
+    config_revision: str = field(init=False)
+    _mail_sessions: OrderedDict = field(default_factory=OrderedDict, init=False)
+
+    def __post_init__(self):
+        self.config_revision = hashlib.sha256(repr(self.settings.splunk).encode()).hexdigest()
 
     @property
     def splunk_search(self):
@@ -109,7 +121,7 @@ class Runtime:
             zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
             postgres=postgres,
             account_store=accounts,
-            catalog=CatalogService(settings.splunk, splunk=splunk_service),
+            catalog=CatalogService.from_env(settings.splunk, splunk=splunk_service),
         )
 
     async def close(self) -> None:
@@ -117,10 +129,19 @@ class Runtime:
             return
         await self.splunk.close()
         await self.email_subscriptions.close()
+        if self.catalog is not None:
+            await self.catalog.close()
+        if self.postgres is not None:
+            await asyncio.to_thread(self.postgres.close)
+        self._mail_sessions.clear()
 
     def for_identity(self, identity: ZimbraIdentity) -> "Runtime":
         """Create a request-scoped view without sharing mutable Zimbra state."""
-        return Runtime(
+        cached = self._mail_sessions.get(identity.session_id)
+        if cached is not None and cached.identity == identity:
+            self._mail_sessions.move_to_end(identity.session_id)
+            return cached
+        scoped = Runtime(
             settings=self.settings,
             splunk=self.splunk,
             zimbra=ZimbraMailService(
@@ -141,24 +162,10 @@ class Runtime:
             identity=identity,
             owns_services=False,
         )
-
-    async def refresh(self) -> None:
-
-        if self.postgres is None:
-            return
-        updated = ServerSettings.from_env()
-        if updated.splunk != self.settings.splunk:
-            await self.splunk.close()
-            self.splunk = SplunkService(updated.splunk)
-        if updated.zimbra != self.settings.zimbra or updated.markitdown != self.settings.markitdown:
-            if self.account_store is None:
-                self.account_store = PostgresAccountStore(self.postgres)
-            self.zimbra = ZimbraMailService(updated.zimbra, self.account_store, updated.markitdown)
-            self.zimbra_filters = ZimbraFilterService(updated.zimbra, self.account_store)
-        if updated.email_server != self.settings.email_server:
-            await self.email_subscriptions.close()
-            self.email_subscriptions = EmailSubscriptionService(updated.email_server)
-        self.settings = updated
+        self._mail_sessions[identity.session_id] = scoped
+        while len(self._mail_sessions) > 32:
+            self._mail_sessions.popitem(last=False)
+        return scoped
 
 
 def create_server(settings: ServerSettings | None = None) -> FastMCP:
@@ -185,7 +192,7 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
 
     @asynccontextmanager
     async def server_lifespan(_):
-        runtime = Runtime.create(settings, account_store, postgres_store)
+        runtime = await asyncio.to_thread(Runtime.create, settings, account_store, postgres_store)
         try:
             yield runtime
         finally:
@@ -204,30 +211,36 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         ctx: Context,
         service: str,
         operation: str,
-        action: Callable[[], Awaitable[Any]],
+        action: Callable[[], Any],
     ) -> dict[str, Any]:
         correlation = _correlation_from_meta(ctx) or uuid.uuid4().hex[:12]
-        _correlation_id.set(correlation)
+        correlation_token = _correlation_id.set(correlation)
+        runtime_token = _request_runtime.set(None)
         started = time.monotonic()
         prepare_ms: float | None = None
         try:
-            prepare_started = time.monotonic()
-            await fresh_runtime(ctx)
-            prepare_ms = (time.monotonic() - prepare_started) * 1000
-            data = await action()
-            logger.debug(
-                "mcp_call ok service=%s operation=%s correlation_id=%s prepare_ms=%.1f execute_ms=%.1f",
-                service,
-                operation,
-                correlation,
-                prepare_ms,
-                (time.monotonic() - started) * 1000 - prepare_ms,
-            )
-            return success(service, operation, data)
+            async with operation_budget(_meta_value(ctx, "soc_deadline_ms")):
+                prepare_started = time.monotonic()
+                await fresh_runtime(ctx)
+                prepare_ms = (time.monotonic() - prepare_started) * 1000
+                # Catalog callbacks use synchronous PostgreSQL APIs. Other
+                # capabilities return either an awaitable or a local draft.
+                data = await run_blocking(action, principal=operation_context.get().principal_id) if service == "catalog" else action()
+                if inspect.isawaitable(data):
+                    data = await data
+                logger.debug(
+                    "mcp_call ok service=%s operation=%s correlation_id=%s prepare_ms=%.1f execute_ms=%.1f",
+                    service,
+                    operation,
+                    correlation,
+                    prepare_ms,
+                    (time.monotonic() - started) * 1000 - prepare_ms,
+                )
+                return success(service, operation, data)
         except ServiceError as exc:
             current = _request_runtime.get()
             if current is not None and exc.code == "zimbra_auth_error" and current.identity is not None and current.postgres is not None:
-                current.postgres.delete_app_session(current.identity.session_id)
+                await asyncio.to_thread(current.postgres.delete_app_session, current.identity.session_id)
             logger.info(
                 "mcp_call failed service=%s operation=%s correlation_id=%s code=%s prepare_ms=%s total_ms=%.1f",
                 service,
@@ -262,6 +275,14 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
                 failure(service, operation, "internal_error", "The MCP server encountered an unexpected error.")
             )
 
+        finally:
+            _request_runtime.reset(runtime_token)
+            _correlation_id.reset(correlation_token)
+
+    def _meta_value(ctx: Context, key: str):
+        meta = getattr(ctx.request_context, "meta", None)
+        return meta.get(key) if isinstance(meta, dict) else getattr(meta, key, None)
+
     def runtime(ctx: Context) -> Runtime:
         return _request_runtime.get() or ctx.request_context.lifespan_context
 
@@ -284,12 +305,20 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         # previous call's identity survive a missing or expired metadata value.
         _request_runtime.set(None)
         base = ctx.request_context.lifespan_context
-        await base.refresh()
         if base.postgres is None:
             raise ServiceError("authentication_required", "Log in with Zimbra before using SOC Agent tools.")
-        identity = identity_for_session(base.postgres, _session_id(ctx))
+        identity = await run_blocking(identity_for_session, base.postgres, _session_id(ctx), principal=_session_id(ctx))
         if identity is None:
             raise ServiceError("session_expired", "Your SOC Agent session has expired. Log in again.")
+        operation_context.set(replace(
+            operation_context.get(),
+            principal_id=identity.user_id,
+            investigation_id=str(_meta_value(ctx, "soc_investigation_id") or identity.session_id)[:128],
+            customer_id=str(_meta_value(ctx, "soc_customer_id") or "")[:128],
+            config_revision=base.config_revision,
+            scheduled_at=datetime.fromisoformat(_meta_value(ctx, "soc_scheduled_for")).timestamp() if _meta_value(ctx, "soc_scheduled_for") else None,
+            workload="scheduled" if _meta_value(ctx, "soc_workload") == "scheduled" else "interactive",
+        ))
         scoped = base.for_identity(identity)
         _request_runtime.set(scoped)
         return scoped
@@ -297,8 +326,9 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
     @server.tool(annotations={"readOnlyHint": True})
     async def system_get_status(ctx: Context) -> dict[str, Any]:
         """Show non-sensitive service readiness; detailed configuration is administrator-only."""
-        current = await fresh_runtime(ctx)
-        return success("system", "get_status", current.settings.public_readiness())
+        async def status():
+            return runtime(ctx).settings.public_readiness()
+        return await execute(ctx, "system", "get_status", status)
 
     register_search_tools(
         server,

@@ -21,8 +21,10 @@ import sys
 import threading
 from typing import Any
 
-from .auth_cli import _expire_session_on_auth_error, command_failure, dispatch_command
+from .auth_cli import _expire_session_on_auth_error, command_failure, dispatch_command, command_runtime
 from .env_loader import load_server_env
+from .request_context import operation_budget
+from .blocking_io import run_blocking
 
 # Detection saves carry full SPL and catalog saves carry record payloads;
 # this bound keeps one malformed or oversized line from consuming memory.
@@ -40,9 +42,10 @@ async def handle_request(request: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         payload = {}
     try:
-        result = await dispatch_command(command, payload)
+        async with operation_budget():
+            result = await dispatch_command(command, payload)
     except Exception as exc:
-        _expire_session_on_auth_error(payload, exc)
+        await run_blocking(_expire_session_on_auth_error, payload, exc)
         error = command_failure(command, exc)
         error["details"] = error.get("details") or {}
         return {"id": request_id, "ok": False, "error": error}
@@ -52,9 +55,8 @@ async def handle_request(request: Any) -> dict[str, Any]:
 class ControlServer:
     """Line-protocol loop over stdin/stdout with concurrent request handling.
 
-    Responses are written synchronously under a lock: lines are bounded and
-    the host drains stdout continuously, so a blocking flush only waits for
-    the pipe buffer and never stalls a concurrent request's handling.
+    A worker writes complete bounded lines under a lock. Pipe backpressure
+    does not block the event loop; at most eight requests remain in flight.
     """
 
     def __init__(self, reader: asyncio.StreamReader, output) -> None:
@@ -65,6 +67,10 @@ class ControlServer:
 
     def _write_line(self, payload: dict[str, Any]) -> None:
         line = json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode() + b"\n"
+        if len(line) > MAX_LINE_BYTES:
+            line = json.dumps({"id": payload.get("id", ""), "ok": False, "error": {
+                "code": "operation_outcome_unknown", "message": "The operation ran but its response exceeded the size limit. Check its result before trying again.", "details": {},
+            }}, separators=(",", ":")).encode() + b"\n"
         with self._write_lock:
             self._output.write(line)
             self._output.flush()
@@ -78,15 +84,12 @@ class ControlServer:
 
     async def serve(self) -> None:
         self._write_line({"ready": True})
-        semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-
-        async def guarded(request: Any) -> None:
-            async with semaphore:
-                await self._run_one(request)
-
         while True:
+            if len(self._in_flight) >= MAX_CONCURRENT_REQUESTS:
+                await asyncio.wait(self._in_flight, return_when=asyncio.FIRST_COMPLETED)
             line = await self.reader.readline()
             if not line:
+                await asyncio.gather(*self._in_flight, return_exceptions=True)
                 return
             if len(line) > MAX_LINE_BYTES:
                 await asyncio.get_running_loop().run_in_executor(None, self._write_line, {"id": "", "ok": False, "error": {"code": "invalid_request", "message": "Request line is too large.", "details": {}}})
@@ -96,7 +99,7 @@ class ControlServer:
             except (json.JSONDecodeError, UnicodeDecodeError):
                 await asyncio.get_running_loop().run_in_executor(None, self._write_line, {"id": "", "ok": False, "error": {"code": "invalid_request", "message": "Request line is not valid JSON.", "details": {}}})
                 continue
-            task = asyncio.create_task(guarded(request))
+            task = asyncio.create_task(self._run_one(request))
             self._in_flight.add(task)
             task.add_done_callback(self._in_flight.discard)
 
@@ -104,14 +107,15 @@ class ControlServer:
 async def main() -> None:
     load_server_env()
     try:
-        reader = asyncio.StreamReader()
+        reader = asyncio.StreamReader(limit=MAX_LINE_BYTES + 1)
         await asyncio.get_running_loop().connect_read_pipe(
             lambda: asyncio.StreamReaderProtocol(reader), sys.stdin
         )
     except Exception:
         print(json.dumps({"ready": False, "error": "stdin is not a readable pipe"}), file=sys.stderr)
         raise SystemExit(1) from None
-    await ControlServer(reader, sys.stdout.buffer).serve()
+    async with command_runtime():
+        await ControlServer(reader, sys.stdout.buffer).serve()
 
 
 if __name__ == "__main__":

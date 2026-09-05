@@ -49,14 +49,14 @@ def _connection_error() -> RuntimeError:
 
 def _pool_enabled(env: Mapping[str, str] | None = None) -> bool:
     values = environ if env is None else env
-    return str(values.get("APP_POSTGRES_POOL", "")).strip().lower() in {"1", "true", "yes", "on"}
+    return str(values.get("APP_POSTGRES_POOL", "true")).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def create_connection_pool(uri: str, env: Mapping[str, str] | None = None):
     """Return a bounded connection pool, or None when disabled or unavailable.
 
-    Pooling is opt-in (APP_POSTGRES_POOL=true): every store falls back to the
-    per-call connection pattern, so minimal deployments keep working unchanged.
+    Pooling defaults on; APP_POSTGRES_POOL=false restores per-call connections.
+    Missing optional pool support also retains the per-call connection path.
     The pool preserves the commit-on-clean-exit semantics of a plain
     ``psycopg.connect`` context manager. Pooling applies only to the real
     psycopg runtime — tests replace the module with doubles, and a pool built
@@ -67,7 +67,7 @@ def create_connection_pool(uri: str, env: Mapping[str, str] | None = None):
     if not isinstance(psycopg, types.ModuleType):
         return None
     try:
-        return ConnectionPool(uri, min_size=1, max_size=4, open=True, name="soc-postgres")
+        return ConnectionPool(uri, min_size=1, max_size=4, timeout=5, open=True, name="soc-postgres", kwargs={"connect_timeout": 5, "options": "-c statement_timeout=15000"})
     except Exception:
         return None
 
@@ -147,7 +147,12 @@ class PostgresStore:
             raise _connection_error()
         if self._pool is not None:
             return self._pool.connection()
-        return psycopg.connect(self.uri)
+        return psycopg.connect(self.uri, connect_timeout=5, options="-c statement_timeout=15000")
+
+    def close(self) -> None:
+        if self._pool is not None:
+            self._pool.close()
+            self._pool = None
 
     def _encrypt_text(self, value: str) -> str:
         return self._fernet.encrypt(value.encode("utf-8")).decode("utf-8")

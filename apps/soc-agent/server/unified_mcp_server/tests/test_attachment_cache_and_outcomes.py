@@ -37,15 +37,34 @@ def test_successful_conversion_is_cached():
     first = converter.convert(payload(), "report.pdf", "application/pdf")
     second = converter.convert(payload(), "report.pdf", "application/pdf")
     assert fake.calls == 1
-    assert first is second
+    assert first == second
+    first["text"] = "caller mutation"
+    assert converter.convert(payload(), "report.pdf", "application/pdf")["text"] == "converted text"
 
 
-def test_different_content_or_limits_bypass_cache():
+def test_different_content_converts_but_new_excerpt_limits_reuse_full_conversion():
     converter, fake = make_converter()
     converter.convert(payload(), "a.pdf", "application/pdf")
     converter.convert(b"other-bytes", "a.pdf", "application/pdf")
-    converter.convert(payload(), "a.pdf", "application/pdf", AttachmentConversionLimits(max_chars=5))
-    assert fake.calls == 3
+    excerpt = converter.convert(payload(), "a.pdf", "application/pdf", AttachmentConversionLimits(max_chars=5))
+    assert fake.calls == 2
+    assert excerpt["text"] == "conve"
+    assert excerpt["characters"] == len("converted text")
+    assert excerpt["text_truncated"] is True
+
+
+def test_conversion_initialization_is_lazy_and_large_results_are_not_cached():
+    created = []
+    def factory(_settings):
+        created.append(1)
+        return FakeMarkitdown(markdown="large result")
+    converter = AttachmentConverter(MarkItDownSettings(), factory=factory)
+    assert created == []
+    converter.CACHE_MAX_BYTES = 10
+    converter.convert(payload(), "a.pdf", "application/pdf")
+    assert created == [1]
+    assert converter._cache_bytes == 0
+    assert len(converter._cache) == 0
 
 
 def test_failures_are_never_cached():

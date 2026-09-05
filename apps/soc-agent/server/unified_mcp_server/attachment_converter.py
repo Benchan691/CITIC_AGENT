@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import threading
 import zipfile
 import xml.etree.ElementTree as ET
 from collections import OrderedDict
@@ -83,10 +84,14 @@ class AttachmentConverter:
     """
 
     CACHE_MAX_ENTRIES = 64
+    CACHE_MAX_BYTES = 4_000_000
 
-    def __init__(self, settings: MarkItDownSettings, markitdown: MarkItDown | None = None) -> None:
+    def __init__(self, settings: MarkItDownSettings, markitdown: MarkItDown | None = None, *, factory=None) -> None:
         self.settings = settings
-        self.markitdown = markitdown or create_markitdown(settings)
+        self.markitdown = markitdown
+        self._factory = factory or create_markitdown
+        self._lock = threading.RLock()
+        self._cache_bytes = 0
         self._cache: OrderedDict[tuple, dict[str, Any]] = OrderedDict()
 
     def _cache_key(
@@ -107,7 +112,17 @@ class AttachmentConverter:
             markitdown_version,
         )
 
-    def convert(
+    def convert(self, data: bytes, filename: str, content_type: str, limits: AttachmentConversionLimits = AttachmentConversionLimits()) -> dict[str, Any]:
+        # MarkItDown and the LRU are shared by concurrent mailbox reads. Keep
+        # conversion atomic; different downloads may still run in parallel.
+        with self._lock:
+            result = self._convert(data, filename, content_type, AttachmentConversionLimits(
+                max_bytes=limits.max_bytes, max_chars=HARD_MAX_MARKDOWN_CHARS,
+            ))
+            max_chars = min(max(1, limits.max_chars), HARD_MAX_MARKDOWN_CHARS)
+            return {**result, "text": result["text"][:max_chars], "text_truncated": result["characters"] > max_chars}
+
+    def _convert(
         self,
         data: bytes,
         filename: str,
@@ -131,6 +146,8 @@ class AttachmentConverter:
         if content_type == "application/octet-stream" and extension in {None, ".bin"}:
             raise ServiceError("attachment_unsupported", "This attachment type cannot be converted to Markdown.")
         try:
+            if self.markitdown is None:
+                self.markitdown = self._factory(self.settings)
             result = self.markitdown.convert_stream(
                 io.BytesIO(data),
                 stream_info=StreamInfo(
@@ -173,9 +190,13 @@ class AttachmentConverter:
             "converter": {"name": "markitdown", "version": markitdown_version},
             "llm_enabled": self.settings.llm_enabled,
         }
-        self._cache[key] = converted
-        while len(self._cache) > self.CACHE_MAX_ENTRIES:
-            self._cache.popitem(last=False)
+        size = len(json.dumps(converted, ensure_ascii=True).encode())
+        if size <= self.CACHE_MAX_BYTES:
+            self._cache[key] = converted
+            self._cache_bytes += size
+            while len(self._cache) > self.CACHE_MAX_ENTRIES or self._cache_bytes > self.CACHE_MAX_BYTES:
+                _, dropped = self._cache.popitem(last=False)
+                self._cache_bytes -= len(json.dumps(dropped, ensure_ascii=True).encode())
         return converted
 
 

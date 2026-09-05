@@ -114,7 +114,7 @@ class SocConnection:
 @pytest.fixture
 def store(monkeypatch):
     connection = SocConnection()
-    monkeypatch.setattr(postgres_module, "psycopg", SimpleNamespace(connect=lambda _uri: connection))
+    monkeypatch.setattr(postgres_module, "psycopg", SimpleNamespace(connect=lambda _uri, **_kwargs: connection))
     return PostgresStore("postgresql://example.test/soc", "test-encryption-key"), connection
 
 

@@ -15,6 +15,7 @@ import {
 } from '../../packages/soc-memory/lib/tenant.js'
 import { detectSecrets, normalizeTags, validateContent } from '../../packages/soc-memory/lib/store.js'
 import { runAuthCommand } from './ownership.js'
+import { installInvestigationProjection } from './investigation.js'
 
 export const name = 'soc-agent-host'
 export const inject = ['agents', 'connection', 'tools', 'socAuth', 'sessions', 'settings', 'webServer']
@@ -745,6 +746,7 @@ export function apply(ctx) {
     }, 'soc-agent-host: admin web surface')
   }
   let memoryContext = ctx.get?.('socMemoryContext')
+  installInvestigationProjection(ctx)
   if (memoryContext === undefined) {
     memoryContext = createMemoryContextRegistry()
     try { ctx.provide?.('socMemoryContext', memoryContext) } catch { /* another host fiber may own the service */ }

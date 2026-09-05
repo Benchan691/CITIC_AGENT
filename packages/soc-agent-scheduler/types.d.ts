@@ -26,6 +26,7 @@ export interface ScheduledTaskRun {
   finishedAt?: string
   state: ScheduledTaskRunState
   sessionId?: string
+  resumeCount?: number
   errorCode?: string
 }
 

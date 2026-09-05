@@ -1,5 +1,18 @@
 # CITIC_AGENT SOC Benchmark
 
+For an offline performance check with synthetic evidence and no external
+service calls, run this from the repository root:
+
+```sh
+apps/soc-agent/server/.venv/bin/python -B benchmarks/offline_performance.py
+```
+
+It compares serial fresh requests with bounded parallel coalescing, verifies
+warm and restart reuse, counts attachment conversions, and measures the model
+preview's serialized size. It asserts preserved rows and counts. Its fixed
+20 ms provider delay is a fixture, not a production latency measurement. The
+live benchmark below is a separate workflow and can perform operational writes.
+
 Measures how well the SOC agent performs the **daily SOC workflow** described in
 [`BACKGROUND.md`](../BACKGROUND.md) and the playbooks in [`skills/`](../skills/):
 ruleset catalog navigation, security-queue intake, bounded read-only Splunk

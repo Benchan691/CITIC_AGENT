@@ -89,7 +89,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert saved_searches.parameters.get("required", []) == []
     search_tool = next(tool for tool in tools if tool.name == "splunk_search")
     assert set(search_tool.parameters["properties"]) == {
-        "query", "earliest_time", "latest_time", "max_count", "fields",
+        "query", "earliest_time", "latest_time", "max_count", "fields", "fresh",
     }
     assert search_tool.parameters["required"] == ["query"]
     assert "stats" in search_tool.description.lower()

@@ -5,7 +5,8 @@ catalog tables, the append-only history table, publication records, and the
 import staging tables. Every mutation writes its record row and history entry
 in one transaction and bumps ``revision``; edits based on an outdated revision
 are rejected with ``catalog_conflict``. Connections follow the existing
-``PostgresStore`` pattern: one fresh connection per call, no pool.
+``PostgresStore`` pattern: a bounded pool by default, with per-call connections
+when pooling is disabled or the optional pool dependency is unavailable.
 """
 
 from __future__ import annotations
@@ -232,7 +233,12 @@ class CatalogStore:
     def _connect(self):
         if self._pool is not None:
             return self._pool.connection()
-        return psycopg.connect(self.uri)
+        return psycopg.connect(self.uri, connect_timeout=5, options="-c statement_timeout=15000")
+
+    def close(self):
+        if self._pool is not None:
+            self._pool.close()
+            self._pool = None
 
     def _ensure_schema(self) -> None:
         self._apply_script(1, "initial_catalog_schema", INITIAL_SCHEMA)

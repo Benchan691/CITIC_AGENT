@@ -7,6 +7,7 @@ import math
 from time import monotonic
 from typing import Optional, Dict, Any, List
 from urllib.parse import parse_qs, quote, urlsplit
+from unified_mcp_server.request_context import operation_context, remaining_seconds
 
 
 class SplunkAPIError(Exception):
@@ -194,7 +195,7 @@ class SplunkClient:
         operation: str,
     ) -> dict[str, Any]:
         try:
-            response = await self._client.get(path, params=params)
+            response = await self._get(path, params=params)
             payload = self._response_json(response, operation)
             self._raise_message_errors(payload, operation)
             return payload
@@ -301,14 +302,31 @@ class SplunkClient:
             raise SplunkAPIError(f"Splunk returned no SID for {operation}.")
         return sid.strip()
 
+    async def _get(self, *args, **kwargs):
+        """Retry a transient read once, within the caller's remaining budget.
+
+        Dispatch, cancel and other POST/write operations never enter this path.
+        """
+        for attempt in range(2):
+            try:
+                response = await self._client.get(*args, **kwargs)
+            except (httpx.ConnectError, httpx.ReadTimeout):
+                if attempt:
+                    raise
+            else:
+                if attempt or getattr(response, "status_code", None) not in {429, 502, 503, 504}:
+                    return response
+            await asyncio.sleep(remaining_seconds(0.1))
+        raise AssertionError("read retry did not settle")
+
     async def _cancel_job(self, sid: str) -> None:
         """Cancel a remote job without masking the original failure."""
         try:
-            response = await self._client.post(
+            response = await asyncio.wait_for(self._client.post(
                 f"/services/search/jobs/{quote(sid, safe='')}/control",
                 data={"action": "cancel"},
                 params={"output_mode": "json"},
-            )
+            ), timeout=5)
             response.raise_for_status()
         except Exception:
             # Cancellation is best effort; the original job error is more useful.
@@ -359,7 +377,7 @@ class SplunkClient:
                 raise self._deadline_error(label, timeout_error_code, timeout_details)
             try:
                 response = await asyncio.wait_for(
-                    self._client.get(job_url, params={"output_mode": "json"}),
+                    self._get(job_url, params={"output_mode": "json"}),
                     timeout=remaining,
                 )
                 payload = self._response_json(response, f"{label} status")
@@ -454,7 +472,7 @@ class SplunkClient:
                 remaining = deadline - monotonic()
                 if remaining <= 0:
                     raise self._deadline_error(label, timeout_error_code, timeout_details)
-            request = self._client.get(
+            request = self._get(
                 results_url,
                 params={"output_mode": "json", "count": count, "offset": offset},
             )
@@ -492,9 +510,29 @@ class SplunkClient:
     ) -> tuple[str, dict[str, Any], list[dict[str, Any]], int | None, list[str]]:
         sid: str | None = None
         job_complete = False
+        started = monotonic()
+        configured_timeout = float(self.config.get("job_timeout", 120))
+        effective_timeout = configured_timeout
+        timeout_error_code: str | None = None
+        timeout_details: dict[str, Any] | None = None
+        if runtime_limit is not None:
+            try:
+                requested_runtime = float(runtime_limit)
+            except (TypeError, ValueError) as exc:
+                raise SplunkAPIError("Invalid search runtime limit.") from exc
+            if not math.isfinite(requested_runtime) or requested_runtime <= 0:
+                raise SplunkAPIError("Invalid search runtime limit.")
+            effective_timeout = min(configured_timeout, requested_runtime)
+            if requested_runtime <= configured_timeout:
+                timeout_error_code = "runtime_limit_exceeded"
+                timeout_details = {"runtime_limit_seconds": requested_runtime}
+        deadline = min(started + effective_timeout, operation_context.get().deadline)
         try:
             try:
-                response = await self._client.post(dispatch_url, data=dispatch_params)
+                response = await asyncio.wait_for(
+                    self._client.post(dispatch_url, data=dispatch_params),
+                    timeout=max(0, deadline - monotonic()),
+                )
                 payload = self._response_json(response, f"{label} dispatch")
                 candidate_sid = payload.get("sid")
                 if isinstance(candidate_sid, str) and candidate_sid.strip():
@@ -502,6 +540,8 @@ class SplunkClient:
                 self._raise_message_errors(payload, f"{label} dispatch")
                 if sid is None:
                     sid = self._job_sid(payload, label)
+            except asyncio.TimeoutError as exc:
+                raise self._deadline_error(label, timeout_error_code, timeout_details) from exc
             except SplunkAPIError:
                 raise
             except httpx.RequestError as exc:
@@ -509,22 +549,6 @@ class SplunkClient:
             except Exception as exc:
                 raise SplunkAPIError(f"Splunk could not dispatch {label}.") from exc
 
-            configured_timeout = float(self.config.get("job_timeout", 120))
-            effective_timeout = configured_timeout
-            timeout_error_code: str | None = None
-            timeout_details: dict[str, Any] | None = None
-            if runtime_limit is not None:
-                try:
-                    requested_runtime = float(runtime_limit)
-                except (TypeError, ValueError) as exc:
-                    raise SplunkAPIError("Invalid search runtime limit.") from exc
-                if not math.isfinite(requested_runtime) or requested_runtime <= 0:
-                    raise SplunkAPIError("Invalid search runtime limit.")
-                effective_timeout = min(configured_timeout, requested_runtime)
-                if requested_runtime <= configured_timeout:
-                    timeout_error_code = "runtime_limit_exceeded"
-                    timeout_details = {"runtime_limit_seconds": requested_runtime}
-            deadline = monotonic() + effective_timeout
             content = await self._poll_job(
                 sid,
                 deadline,
@@ -730,7 +754,7 @@ class SplunkClient:
         self._ensure_connected()
         
         try:
-            response = await self._client.get("/services/data/indexes", params={"output_mode": "json"})
+            response = await self._get("/services/data/indexes", params={"output_mode": "json"})
             response.raise_for_status()
             
             data = response.json()
@@ -802,7 +826,7 @@ class SplunkClient:
             params["search"] = search.strip()
 
         try:
-            response = await self._client.get("/services/data/lookup-table-files", params=params)
+            response = await self._get("/services/data/lookup-table-files", params=params)
             response.raise_for_status()
             entries = response.json().get("entry", [])
             if not app.strip():
@@ -854,7 +878,7 @@ class SplunkClient:
         """Read CSV rows through the Lookup File Editing content endpoint."""
         self._ensure_connected()
         try:
-            response = await self._client.get(
+            response = await self._get(
                 self._lookup_contents_path(),
                 params=self._lookup_content_params(name, app or "search", owner or "nobody"),
             )
@@ -983,7 +1007,7 @@ class SplunkClient:
             params["search"] = " AND ".join(predicates)
 
         try:
-            response = await self._client.get("/services/saved/searches", params=params)
+            response = await self._get("/services/saved/searches", params=params)
             response.raise_for_status()
             
             data = response.json()
@@ -1020,7 +1044,7 @@ class SplunkClient:
         self._ensure_connected()
         try:
             url = f"{self._saved_searches_path(app, owner)}/{quote(search_name, safe='')}"
-            response = await self._client.get(url, params={"output_mode": "json"})
+            response = await self._get(url, params={"output_mode": "json"})
             response.raise_for_status()
             entry = response.json().get("entry", [{}])[0]
             return {

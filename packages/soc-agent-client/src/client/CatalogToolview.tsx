@@ -4,7 +4,7 @@ import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import React, { useEffect, useMemo, useState } from 'react'
 import css from './CatalogToolview.module.css'
-import { rpc } from './settings-common.ts'
+import { rpcObject as rpc } from './settings-common.ts'
 import {
   CATALOG_DRAFT_TOOL_NAMES,
   CATALOG_FIELDS,
@@ -16,6 +16,7 @@ import {
   formFromRecord,
   parseCatalogEnvelope,
   recordFromForm,
+  requireCatalogRecord,
   validateCatalogForm,
   type CatalogDraftEnvelope,
   type CatalogFormFields,
@@ -153,7 +154,7 @@ export function CatalogToolview({ block, connection, toolName }: CatalogEditorPr
       if (!result || result.saved !== true || !result.record) {
         throw new Error('The catalog did not confirm that the record was saved.')
       }
-      setPersisted(result.record)
+      setPersisted(requireCatalogRecord(result.record))
       setStatus('saved')
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)

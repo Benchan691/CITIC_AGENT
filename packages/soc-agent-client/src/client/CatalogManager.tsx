@@ -1,7 +1,7 @@
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import css from './CatalogManager.module.css'
-import { rpc } from './settings-common.ts'
+import { rpcObject as rpc } from './settings-common.ts'
 import {
   CATALOG_FIELDS,
   CATALOG_LABELS,
@@ -9,7 +9,9 @@ import {
   catalogSubtitle,
   catalogTitle,
   formFromRecord,
-  recordFromForm,
+  catalogSavePayload,
+  requireCatalogRecord,
+  isRecord,
   validateCatalogForm,
   type CatalogName,
 } from './catalog.ts'
@@ -103,10 +105,13 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
   const [history, setHistory] = useState<Record<string, unknown>[]>([])
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null)
   const [publications, setPublications] = useState<Record<string, unknown>[]>([])
+  const listRequest = useRef(0)
+  const selectionRequest = useRef(0)
 
   const authError = error === 'authentication required' || error?.includes('authentication')
 
   const loadList = useCallback(async () => {
+    const request = ++listRequest.current
     setStatus('busy')
     setError(null)
     try {
@@ -116,54 +121,67 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
         limit: 200,
         include_archived: true,
       })
-      setList({ items: Array.isArray(result.items) ? result.items : [], total: Number(result.total ?? 0) })
+      if (request !== listRequest.current) return
+      setList({ items: Array.isArray(result.items) ? result.items.filter(isRecord) : [], total: Number(result.total ?? 0) })
       setStatus('idle')
     } catch (cause) {
+      if (request !== listRequest.current) return
       setError(cause instanceof Error ? cause.message : String(cause))
       setStatus('failed')
     }
   }, [connection, catalog, search])
 
   const loadSideData = useCallback(async (recordId: string | null) => {
+    const request = selectionRequest.current
     setHistory([])
     setPublications([])
-    setPreview(null)
     try {
-      if (recordId) {
-        const result = await rpc(connection, 'catalog-history', { catalog, record_id: recordId })
-        setHistory(Array.isArray(result.history) ? result.history : [])
-      }
-      const publicationsResult = await rpc(connection, 'catalog-publications', { catalog })
-      setPublications(Array.isArray(publicationsResult.publications) ? publicationsResult.publications : [])
+      const [historyResult, publicationsResult] = await Promise.all([
+        recordId ? rpc(connection, 'catalog-history', { catalog, record_id: recordId }) : Promise.resolve(null),
+        rpc(connection, 'catalog-publications', { catalog }),
+      ])
+      if (request !== selectionRequest.current) return
+      setHistory(Array.isArray(historyResult?.history) ? historyResult.history.filter(isRecord) : [])
+      setPublications(Array.isArray(publicationsResult.publications) ? publicationsResult.publications.filter(isRecord) : [])
     } catch (cause) {
+      if (request !== selectionRequest.current) return
       setError(cause instanceof Error ? cause.message : String(cause))
     }
   }, [connection, catalog])
 
   useEffect(() => {
+    ++listRequest.current
+    ++selectionRequest.current
     setSelected(null)
     setMode('view')
-    void loadList()
+    setPreview(null)
+    const timer = setTimeout(() => { void loadList() }, search ? 250 : 0)
+    return () => { clearTimeout(timer); ++listRequest.current; ++selectionRequest.current }
   }, [loadList])
 
   const selectRecord = async (recordId: string) => {
+    const request = ++selectionRequest.current
     setStatus('busy')
     setError(null)
     try {
       const result = await rpc(connection, 'catalog-get', { catalog, record_id: recordId })
-      setSelected(result.record)
-      setFields(formFromRecord(result.record))
+      if (request !== selectionRequest.current) return
+      const record = requireCatalogRecord(result.record)
+      setSelected(record)
+      setFields(formFromRecord(record))
       setMode('view')
       setFieldErrors({})
       setStatus('idle')
       await loadSideData(recordId)
     } catch (cause) {
+      if (request !== selectionRequest.current) return
       setError(cause instanceof Error ? cause.message : String(cause))
       setStatus('failed')
     }
   }
 
   const startCreate = () => {
+    ++selectionRequest.current
     const empty: Record<string, string> = {}
     for (const key of CATALOG_FIELDS[catalog]) empty[key] = ''
     setFields(empty)
@@ -182,7 +200,7 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
   }
 
   const save = async () => {
-    if (!mode) return
+    if (mode === 'view' || (mode === 'edit' && !selected)) return
     const localErrors = validateCatalogForm(catalog, fields)
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors)
@@ -193,20 +211,15 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
     setError(null)
     setFieldErrors({})
     try {
-      const recordId = selected ? valueText(selected.record_id) : undefined
-      const result = await rpc(connection, 'save-catalog-record', {
-        catalog,
-        operation: mode === 'create' ? 'write' : 'update',
-        record: recordFromForm(catalog, fields),
-        ...(mode === 'update' && recordId ? { record_id: recordId } : {}),
-        ...(mode === 'update' && selected ? { expected_revision: Number(selected.revision) } : {}),
-      })
-      setSelected(result.record)
-      setFields(formFromRecord(result.record))
+      const result = await rpc(connection, 'save-catalog-record', catalogSavePayload(catalog, fields, mode === 'create' ? null : selected))
+      if (result.saved !== true) throw new Error('The catalog did not confirm that the record was saved.')
+      const record = requireCatalogRecord(result.record)
+      setSelected(record)
+      setFields(formFromRecord(record))
       setMode('view')
       setStatus('saved')
-      await loadList()
-      await loadSideData(valueText(result.record.record_id))
+      await Promise.all([loadList(), loadSideData(valueText(record.record_id))])
+      setStatus('saved')
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
       setError(message)
@@ -227,12 +240,13 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
         expected_revision: Number(selected.revision),
         restore: !archived,
       })
-      setSelected(result.record)
-      setFields(formFromRecord(result.record))
+      const record = requireCatalogRecord(result.record)
+      setSelected(record)
+      setFields(formFromRecord(record))
       setMode('view')
       setStatus('saved')
-      await loadList()
-      await loadSideData(valueText(result.record.record_id))
+      await Promise.all([loadList(), loadSideData(valueText(record.record_id))])
+      setStatus('saved')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
       setStatus('failed')
@@ -334,7 +348,7 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
           <ul className={css.recordList} role="listbox" aria-label={`${CATALOG_LABELS[catalog]} records`}>
             {(list?.items ?? []).map(record => {
               const id = valueText(record.record_id)
-              const active = selected && valueText(selected.record_id) === id
+              const active = !!selected && valueText(selected.record_id) === id
               return (
                 <li key={id}>
                   <button

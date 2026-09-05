@@ -9,6 +9,7 @@ to Splunk is a separate operator action gated by SPLUNK_ALLOW_LOOKUP_WRITE.
 from __future__ import annotations
 
 from typing import Any
+from ..blocking_io import run_blocking
 
 from ..config import SplunkSettings, redact_endpoint
 from ..errors import ServiceError
@@ -54,6 +55,8 @@ class CatalogService:
         if self._splunk is not None:
             await self._splunk.close()
             self._splunk = None
+        if self.store is not None and hasattr(self.store, "close"):
+            await run_blocking(self.store.close)
 
     @staticmethod
     def _actor_id(actor_id: str | None, *, required: bool = False) -> str:
@@ -181,16 +184,16 @@ class CatalogService:
                 if column in base:
                     base[column] = value
             values = validate_payload(catalog, base, partial=False)
-            self._verify_references(catalog, values)
-            record = store.create_record(catalog, values, actor=actor)
+            await run_blocking(self._verify_references, catalog, values)
+            record = await run_blocking(store.create_record, catalog, values, actor=actor)
             return {"status": "saved", "saved": True, "created": True, "record": record}
         if record_id is None:
             raise ServiceError("invalid_input", "record_id is required to update a catalog record.")
-        current = store.require_record(catalog, record_id)
+        current = await run_blocking(store.require_record, catalog, record_id)
         self._require_current_revision(current, expected_revision)
         values = self._merge_payload(catalog, current, payload)
-        self._verify_references(catalog, values)
-        record = store.update_record(
+        await run_blocking(self._verify_references, catalog, values)
+        record = await run_blocking(store.update_record,
             catalog,
             record_id,
             values,
@@ -229,7 +232,7 @@ class CatalogService:
     ) -> dict[str, Any]:
         catalog = self._require_catalog(catalog)
         actor = self._actor_id(actor_id, required=True)
-        record = self._require_store().set_archived(
+        record = await run_blocking(self._require_store().set_archived,
             catalog,
             record_id,
             archived=archived,
@@ -334,8 +337,8 @@ class CatalogService:
         if splunk is None:
             raise ServiceError("not_configured", "The Splunk publish path is unavailable.")
         store = self._require_store()
-        records = store.all_records(catalog, include_archived=False)
-        customers = self._customers_by_id()
+        records = await run_blocking(store.all_records, catalog, include_archived=False)
+        customers = await run_blocking(self._customers_by_id)
         rows = lookup_rows(catalog, records, customers)
         report = validate_publication(catalog, records, customers)
         if not report["valid"]:
@@ -347,8 +350,8 @@ class CatalogService:
         lookup_name = self._lookup_name(catalog)
         csv_text = render_lookup_csv(LOOKUP_COLUMNS[catalog], rows)
         checksum = canonical_checksum(rows)
-        previous = store.latest_publication(catalog, outcome="published")
-        publication = store.create_publication(
+        previous = await run_blocking(store.latest_publication, catalog, outcome="published")
+        publication = await run_blocking(store.create_publication,
             catalog=catalog,
             lookup_name=lookup_name,
             checksum=checksum,
@@ -374,7 +377,7 @@ class CatalogService:
                 )
             )
         except ServiceError as exc:
-            failed = store.set_publication_outcome(
+            failed = await run_blocking(store.set_publication_outcome,
                 publication["publication_id"], outcome="failed", error=exc.message
             )
             return {
@@ -386,7 +389,7 @@ class CatalogService:
             }
         read_back_checksum = canonical_checksum(read_back)
         if read_back_checksum != checksum:
-            failed = store.set_publication_outcome(
+            failed = await run_blocking(store.set_publication_outcome,
                 publication["publication_id"],
                 outcome="failed",
                 error="Read-back verification failed; the published lookup does not match the catalog snapshot.",
@@ -398,7 +401,7 @@ class CatalogService:
                 "read_back_checksum": read_back_checksum,
                 "validation": report,
             }
-        saved = store.set_publication_outcome(
+        saved = await run_blocking(store.set_publication_outcome,
             publication["publication_id"],
             outcome="published",
             verified=True,
@@ -423,7 +426,7 @@ class CatalogService:
         if splunk is None:
             raise ServiceError("not_configured", "The Splunk publish path is unavailable.")
         store = self._require_store()
-        previous = store.get_publication(publication_id)
+        previous = await run_blocking(store.get_publication, publication_id)
         if previous is None or previous["outcome"] != "published" or not previous["content_snapshot"]:
             raise ServiceError(
                 "invalid_input",
@@ -432,7 +435,7 @@ class CatalogService:
         lookup_name = previous["lookup_name"]
         snapshot = previous["content_snapshot"]
         checksum = previous["content_checksum"] or canonical_checksum(parse_lookup_csv(snapshot))
-        publication = store.create_publication(
+        publication = await run_blocking(store.create_publication,
             catalog=previous["catalog"],
             lookup_name=lookup_name,
             checksum=checksum,
@@ -440,7 +443,7 @@ class CatalogService:
             actor=actor,
             content_snapshot=snapshot,
         )
-        store.set_publication_outcome(publication["publication_id"], outcome="pending")
+        await run_blocking(store.set_publication_outcome, publication["publication_id"], outcome="pending")
         try:
             await splunk.core.request(
                 lambda client: client.upload_lookup_contents(
@@ -459,7 +462,7 @@ class CatalogService:
                 )
             )
         except ServiceError as exc:
-            failed = store.set_publication_outcome(
+            failed = await run_blocking(store.set_publication_outcome,
                 publication["publication_id"], outcome="failed", error=exc.message
             )
             return {
@@ -470,7 +473,7 @@ class CatalogService:
             }
         read_back_checksum = canonical_checksum(read_back)
         if read_back_checksum != canonical_checksum(parse_lookup_csv(snapshot)):
-            failed = store.set_publication_outcome(
+            failed = await run_blocking(store.set_publication_outcome,
                 publication["publication_id"],
                 outcome="failed",
                 error="Rollback verification failed; the lookup does not match the restored snapshot.",
@@ -481,12 +484,12 @@ class CatalogService:
                 "publication": _publication_summary(failed),
                 "read_back_checksum": read_back_checksum,
             }
-        saved = store.set_publication_outcome(
+        saved = await run_blocking(store.set_publication_outcome,
             publication["publication_id"],
             outcome="published",
             verified=True,
         )
-        store.set_publication_outcome(
+        await run_blocking(store.set_publication_outcome,
             publication_id, outcome="rolled_back", error="Replaced by a rollback publication."
         )
         return {

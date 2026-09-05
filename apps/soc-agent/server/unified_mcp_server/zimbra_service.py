@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import re
 from datetime import datetime
-from pathlib import PurePath
 from typing import Any
 
-from markitdown import MarkItDown, __version__ as markitdown_version
+from markitdown import MarkItDown
 
 from unified_mcp_server.zimbra import (
     download_attachment,
@@ -36,6 +34,8 @@ from .attachment_converter import (
 )
 from .config import MarkItDownSettings, ZimbraSettings
 from .errors import ConfigurationError, ServiceError
+from .blocking_io import run_blocking
+from .request_context import remaining_seconds
 from .zimbra.core.service import _EmptyAccountStore
 
 
@@ -162,8 +162,7 @@ class ZimbraService:
         else:
             self.accounts = AccountStore(settings.accounts_file, settings.key_file, settings.explicit_key)
         self.markitdown_settings = markitdown_settings or MarkItDownSettings()
-        self._markitdown = _create_markitdown(self.markitdown_settings)
-        self._attachment_converter = AttachmentConverter(self.markitdown_settings, self._markitdown)
+        self._attachment_converter = AttachmentConverter(self.markitdown_settings, factory=_create_markitdown)
 
     def account_count(self) -> int:
         if self.identity is not None:
@@ -520,7 +519,7 @@ class ZimbraService:
         raise ServiceError("account_required", "Select an email account before using Zimbra tools.")
 
     def _config(self, account: StoredAccount) -> dict[str, object]:
-        return self.settings.client_config(email=account.email, username=account.username, password=account.password)
+        return {**self.settings.client_config(email=account.email, username=account.username, password=account.password), "timeout": remaining_seconds(self.settings.timeout)}
 
     def _token(self, account: StoredAccount) -> str:
         return self.identity.zimbra_token if self.identity is not None else zimbra_login(self._config(account))
@@ -539,7 +538,7 @@ class ZimbraService:
             self.settings.host,
             token,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
         return {"count": len(folders), "folders": folders}
@@ -550,7 +549,7 @@ class ZimbraService:
             self.settings.host,
             token,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
 
@@ -616,7 +615,7 @@ class ZimbraService:
             bcc=bcc,
             body_format=body_format,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
 
@@ -629,7 +628,7 @@ class ZimbraService:
             limit,
             offset,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
 
@@ -640,7 +639,7 @@ class ZimbraService:
             token,
             message_id,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
 
@@ -657,7 +656,7 @@ class ZimbraService:
             message_id,
             names,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
 
@@ -713,7 +712,7 @@ class ZimbraService:
             token,
             message_id,
             verify_ssl=self.settings.verify_ssl,
-            timeout=self.settings.timeout,
+            timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
         )
         if message is None:
@@ -733,31 +732,15 @@ class ZimbraService:
             raise
         filename = str(attachment.get("filename", ""))
         content_type = str(attachment.get("content_type", "")).split(";", 1)[0].lower()
-        text, title = self._convert_attachment_text(data, filename, content_type)
-        characters = len(text)
-        extension = PurePath(filename).suffix.lower()
+        converted = self._attachment_converter.convert(data, filename, content_type, AttachmentConversionLimits(
+            max_bytes=self.settings.max_attachment_bytes, max_chars=max_chars,
+        ))
         return {
+            **converted,
             "account_id": account.id,
             "account": account.agent_dict(),
             "message_id": message_id,
             "part": part,
-            "filename": filename,
-            "content_type": content_type,
-            "bytes": len(data),
-            "sha256": hashlib.sha256(data).hexdigest(),
-            "characters": characters,
-            "text_truncated": characters > max_chars,
-            "text": text[:max_chars],
-            "title": title,
-            "format": {
-                "content_type": content_type,
-                "extension": extension,
-            },
-            "converter": {
-                "name": "markitdown",
-                "version": markitdown_version,
-            },
-            "llm_enabled": self.markitdown_settings.llm_enabled,
         }
 
     def _convert_attachment_text(self, data: bytes, filename: str, content_type: str) -> tuple[str, str | None]:
@@ -774,7 +757,7 @@ class ZimbraService:
 
     async def _run(self, function, *args):
         try:
-            return await asyncio.to_thread(function, *args)
+            return await run_blocking(function, *args, principal=self.identity.user_id if self.identity else "legacy")
         except ServiceError:
             raise
         except (ValueError, TypeError) as exc:
