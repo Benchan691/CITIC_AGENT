@@ -34,6 +34,36 @@ authenticated editor workflow and published to Splunk lookups explicitly
 (gated by `SPLUNK_ALLOW_LOOKUP_WRITE`). The
 `/admin` console shows service status and manages LLM provider credentials, but
 does not expose or edit deployment variables.
+
+Manual fired-alert ingestion is available after the alert-ingestion migration
+has been applied:
+
+```bash
+uv run python -m unified_mcp_server.alert_ingest --limit 100 --dry-run
+uv run python -m unified_mcp_server.alert_ingest --limit 100
+```
+
+The command reads fired-alert metadata and selected `Event_GID`/
+`Event_Rulenum` fields from existing Splunk search SIDs. It stores alert
+metadata in PostgreSQL, skips duplicates, and quarantines alerts whose mapping
+is missing or ambiguous. It never dispatches searches or writes to Splunk.
+
+For live ingestion, enable the backend worker in the server environment:
+
+```dotenv
+ALERT_INGEST_ENABLED=true
+ALERT_INGEST_INTERVAL_SECONDS=60
+ALERT_INGEST_LIMIT=100
+ALERT_INGEST_MAX_BACKOFF_SECONDS=300
+```
+
+The worker runs once at backend startup and then at the configured interval. A
+PostgreSQL advisory lock prevents a second backend process from polling at the
+same time. It retries transient failures with bounded backoff, rechecks
+unresolved quarantine rows, and records counters in `sec_alert_ingestion_status`.
+It only reads Splunk fired-alert and existing search-job result endpoints; all
+database inserts and quarantine decisions happen in the application backend.
+
 The checked-in `spl_config.json` is retained for legacy reference only and is
 not loaded by the server.
 

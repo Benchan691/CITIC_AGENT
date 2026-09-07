@@ -137,6 +137,8 @@ def compile_citic_detection(
         f'| eval "Fix_Source Type"={mappings["Fix_Source Type"]}',
         f'| eval "Event_Hostname"={mappings["Event_Hostname"]}',
         '| eval "Event_Date Time"=strftime(_time, "%F %T")',
+        '| eval Event_GID=GID',
+        '| eval Event_Rulenum=rulename',
         f'| eval "Event_Threat Name"={_splunk_string(threat_name, "threat_name")}',
         f'| eval "Event_Threat Type"={_splunk_string(threat_type, "threat_type")}',
     ]

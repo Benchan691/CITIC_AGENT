@@ -78,6 +78,8 @@ def test_compiler_appends_optional_fields_and_builds_log_event_text():
         "Fix_Source Type",
         "Event_Hostname",
         "Event_Date Time",
+        "Event_GID",
+        "Event_Rulenum",
         "Event_Threat Name",
         "Event_Threat Type",
         "Event_Source IP",

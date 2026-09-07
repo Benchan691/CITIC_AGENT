@@ -15,6 +15,8 @@ REQUIRED_CITIC_FIELDS = (
     "Fix_Source Type",
     "Event_Hostname",
     "Event_Date Time",
+    "Event_GID",
+    "Event_Rulenum",
 )
 
 _COMMAND = re.compile(r"^\s*([A-Za-z][A-Za-z0-9_]*)\b")
@@ -257,6 +259,8 @@ def validate_citic_detection_spl(spl: str) -> dict[str, object]:
     _required_assignment(main_text, "Fix_Source Type", errors)
     _required_assignment(main_text, "Event_Hostname", errors)
     _required_assignment(main_text, "Event_Date Time", errors, expression=_DATE_TIME)
+    _required_assignment(main_text, "Event_GID", errors)
+    _required_assignment(main_text, "Event_Rulenum", errors)
 
     case_names = list(_CASE_NAME.finditer(output_body))
     if len(case_names) != 1:

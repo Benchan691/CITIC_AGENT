@@ -326,6 +326,12 @@ class ServerSettings:
     zimbra: ZimbraSettings
     markitdown: MarkItDownSettings
     email_server: EmailServerSettings
+    # The worker is opt-in so deploying the code cannot start database writes
+    # until the operator enables them explicitly.
+    alert_ingest_enabled: bool = False
+    alert_ingest_interval_seconds: int = 60
+    alert_ingest_limit: int = 100
+    alert_ingest_max_backoff_seconds: int = 300
 
     @classmethod
     def from_env(cls, values: Mapping[str, str] | None = None) -> "ServerSettings":
@@ -509,6 +515,11 @@ class ServerSettings:
             timeout=_integer(env, "SUBSCRIPTION_SERVER_TIMEOUT", 30, 1, 600),
             allow_insecure_http=_boolean(env, "SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP", False),
         )
+        alert_ingest_enabled_name = (
+            "ALERT_INGEST_ENABLED"
+            if _value(env, "ALERT_INGEST_ENABLED")
+            else "ALERT_INGESTION_ENABLED"
+        )
         return cls(
             name=_value(env, "MCP_SERVER_NAME", "SOC Agent MCP"),
             description=_value(env, "MCP_SERVER_DESCRIPTION", "SOC Agent investigation tools for Splunk and Zimbra"),
@@ -520,6 +531,14 @@ class ServerSettings:
             zimbra=zimbra,
             markitdown=markitdown,
             email_server=email_server,
+            alert_ingest_enabled=_boolean(env, alert_ingest_enabled_name, False),
+            alert_ingest_interval_seconds=_integer(
+                env, "ALERT_INGEST_INTERVAL_SECONDS", 60, 1, 86_400
+            ),
+            alert_ingest_limit=_integer(env, "ALERT_INGEST_LIMIT", 100, 1, 201),
+            alert_ingest_max_backoff_seconds=_integer(
+                env, "ALERT_INGEST_MAX_BACKOFF_SECONDS", 300, 1, 86_400
+            ),
         )
 
     @classmethod
@@ -584,6 +603,11 @@ class ServerSettings:
                 "url": redact_endpoint(self.email_server.url),
                 "allow_insecure_http": self.email_server.allow_insecure_http,
             },
+            "alert_ingestion": {
+                "enabled": self.alert_ingest_enabled,
+                "interval_seconds": self.alert_ingest_interval_seconds,
+                "limit": self.alert_ingest_limit,
+            },
         }
 
     def public_readiness(self) -> dict[str, object]:
@@ -595,5 +619,9 @@ class ServerSettings:
                 "zimbra": {"configured": self.zimbra.configured},
                 "markitdown": {"available": True},
                 "subscription_server": {"configured": self.email_server.configured},
+                "alert_ingestion": {
+                    "enabled": self.alert_ingest_enabled,
+                    "interval_seconds": self.alert_ingest_interval_seconds,
+                },
             },
         }

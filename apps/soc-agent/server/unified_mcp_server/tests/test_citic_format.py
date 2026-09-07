@@ -14,6 +14,8 @@ def test_citic_example_is_valid_with_only_the_required_company_fields():
         "Fix_Source Type",
         "Event_Hostname",
         "Event_Date Time",
+        "Event_GID",
+        "Event_Rulenum",
     ]
     assert result["rulename"] == "0724"
 
@@ -40,8 +42,8 @@ def test_citic_validator_rejects_inconsistent_main_and_output_rule_numbers():
 def test_citic_validator_rejects_missing_fields_and_wrong_table_order():
     missing_field = citic_spl().replace('| eval "Fix_Source Type"="QiAnXin EDR"\n', "", 1)
     wrong_order = citic_spl().replace(
-        'table Fix_Ticketnumber, Fix_TriggerTime, Fix_Index, "Fix_Source Type", Event_Hostname, "Event_Date Time"',
-        'table Fix_Ticketnumber, Fix_Index, Fix_TriggerTime, "Fix_Source Type", Event_Hostname, "Event_Date Time"',
+        'table Fix_Ticketnumber, Fix_TriggerTime, Fix_Index, "Fix_Source Type", Event_Hostname, "Event_Date Time", Event_GID, Event_Rulenum',
+        'table Fix_Ticketnumber, Fix_Index, Fix_TriggerTime, "Fix_Source Type", Event_Hostname, "Event_Date Time", Event_GID, Event_Rulenum',
     )
 
     missing_result = validate_citic_detection_spl(missing_field)
@@ -66,9 +68,22 @@ def test_citic_validator_rejects_empty_required_assignments():
     assert any("Fix_Index" in error and "empty" in error for error in index_result["errors"])
 
 
+def test_citic_validator_requires_alert_mapping_fields():
+    missing_gid = citic_spl().replace('| eval Event_GID=GID\n', "", 1)
+    missing_rule = citic_spl().replace('| eval Event_Rulenum=rulename\n', "", 1)
+
+    gid_result = validate_citic_detection_spl(missing_gid)
+    rule_result = validate_citic_detection_spl(missing_rule)
+
+    assert gid_result["valid"] is False
+    assert any("Event_GID" in error for error in gid_result["errors"])
+    assert rule_result["valid"] is False
+    assert any("Event_Rulenum" in error for error in rule_result["errors"])
+
+
 def test_citic_validator_requires_table_followed_by_final_outputcsv():
     no_table = citic_spl().replace(
-        '| table Fix_Ticketnumber, Fix_TriggerTime, Fix_Index, "Fix_Source Type", Event_Hostname, "Event_Date Time"\n',
+        '| table Fix_Ticketnumber, Fix_TriggerTime, Fix_Index, "Fix_Source Type", Event_Hostname, "Event_Date Time", Event_GID, Event_Rulenum\n',
         "",
     )
     follow_up_table = citic_spl() + "\n| table Event_Hostname"

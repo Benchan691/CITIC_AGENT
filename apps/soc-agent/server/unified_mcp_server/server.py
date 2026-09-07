@@ -20,6 +20,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from pydantic_settings.exceptions import IncompleteFieldDefinitionWarning
 
 from .account_store import AccountStore
+from .alert_ingest import AlertIngestionWorker
 from .auth import ZimbraIdentity, identity_for_session
 from .catalog.service import CatalogService
 from .catalog.tools import register_tools as register_catalog_tools
@@ -76,6 +77,7 @@ class Runtime:
     postgres: PostgresStore | None = None
     account_store: AccountStore | PostgresAccountStore | None = None
     catalog: CatalogService | None = None
+    alert_ingestion: AlertIngestionWorker | None = None
     identity: ZimbraIdentity | None = None
     owns_services: bool = True
     config_revision: str = field(init=False)
@@ -127,6 +129,8 @@ class Runtime:
     async def close(self) -> None:
         if not self.owns_services:
             return
+        if self.alert_ingestion is not None:
+            await self.alert_ingestion.stop()
         await self.splunk.close()
         await self.email_subscriptions.close()
         if self.catalog is not None:
@@ -159,6 +163,7 @@ class Runtime:
             postgres=self.postgres,
             account_store=self.account_store,
             catalog=self.catalog,
+            alert_ingestion=self.alert_ingestion,
             identity=identity,
             owns_services=False,
         )
@@ -193,6 +198,10 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
     @asynccontextmanager
     async def server_lifespan(_):
         runtime = await asyncio.to_thread(Runtime.create, settings, account_store, postgres_store)
+        if settings.alert_ingest_enabled:
+            runtime.alert_ingestion = AlertIngestionWorker.from_settings(settings)
+            if runtime.alert_ingestion is not None:
+                await runtime.alert_ingestion.start()
         try:
             yield runtime
         finally:
@@ -327,7 +336,11 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
     async def system_get_status(ctx: Context) -> dict[str, Any]:
         """Show non-sensitive service readiness; detailed configuration is administrator-only."""
         async def status():
-            return runtime(ctx).settings.public_readiness()
+            current = runtime(ctx)
+            payload = current.settings.public_readiness()
+            if current.alert_ingestion is not None:
+                payload["services"]["alert_ingestion"] = current.alert_ingestion.status()
+            return payload
         return await execute(ctx, "system", "get_status", status)
 
     register_search_tools(

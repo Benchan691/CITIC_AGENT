@@ -12,6 +12,7 @@ from threading import Lock
 from typing import Any
 
 from .config import ServerSettings
+from .alert_ingest import AlertIngestionWorker
 from .env_loader import load_server_env
 from .auth import ZimbraIdentity, public_session
 from .catalog.service import CatalogService
@@ -30,6 +31,7 @@ class CommandRuntime:
     settings: ServerSettings
     splunk: SplunkService | None = None
     catalog: CatalogService | None = None
+    alert_ingestion: AlertIngestionWorker | None = None
     lock: Lock = field(default_factory=Lock)
 
     @classmethod
@@ -58,11 +60,17 @@ _command_runtime: ContextVar[CommandRuntime | None] = ContextVar("soc_command_ru
 @asynccontextmanager
 async def command_runtime():
     runtime = await asyncio.to_thread(CommandRuntime.create)
+    if getattr(runtime.settings, "alert_ingest_enabled", False):
+        runtime.alert_ingestion = AlertIngestionWorker.from_settings(runtime.settings)
+        if runtime.alert_ingestion is not None:
+            await runtime.alert_ingestion.start()
     token = _command_runtime.set(runtime)
     try:
         yield runtime
     finally:
         _command_runtime.reset(token)
+        if runtime.alert_ingestion is not None:
+            await runtime.alert_ingestion.stop()
         if runtime.catalog is not None:
             await runtime.catalog.close()
         if runtime.splunk is not None:

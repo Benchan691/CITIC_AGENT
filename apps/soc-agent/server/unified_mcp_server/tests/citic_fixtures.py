@@ -19,7 +19,9 @@ def citic_spl(
 | eval "Fix_Source Type"={source}
 | eval "Event_Hostname"={hostname}
 | eval "Event_Date Time"=strftime(_time, "%F %T")
-| table Fix_Ticketnumber, Fix_TriggerTime, Fix_Index, "Fix_Source Type", Event_Hostname, "Event_Date Time"
+| eval Event_GID=GID
+| eval Event_Rulenum=rulename
+| table Fix_Ticketnumber, Fix_TriggerTime, Fix_Index, "Fix_Source Type", Event_Hostname, "Event_Date Time", Event_GID, Event_Rulenum
 | outputcsv [
     | stats count
     | addinfo

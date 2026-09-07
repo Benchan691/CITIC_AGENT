@@ -174,13 +174,13 @@ class SplunkClient:
                 [candidates]
                 if any(
                     key in candidates
-                    for key in ("id", "finding_id", "findingId", "sid")
+                    for key in ("id", "finding_id", "findingId", "sid", "name")
                 )
                 else None
             )
         if candidates is None and any(
             key in payload
-            for key in ("id", "finding_id", "findingId", "sid")
+            for key in ("id", "finding_id", "findingId", "sid", "name")
         ):
             candidates = [payload]
         if not isinstance(candidates, list) or any(not isinstance(item, dict) for item in candidates):
@@ -808,15 +808,80 @@ class SplunkClient:
         )
         return self._queue_page(payload, "fired alerts")
 
-    async def get_fired_alert(self, name: str) -> list[dict[str, Any]]:
-        """Read the unexpired instances for one named fired alert."""
+    async def get_fired_alert_page(
+        self,
+        name: str,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """Read one bounded page of unexpired instances for a fired alert."""
         self._ensure_connected()
         payload = await self._get_queue_json(
             f"/services/alerts/fired_alerts/{quote(name, safe='')}",
-            params={"output_mode": "json"},
+            params={
+                "output_mode": "json",
+                "count": max(1, min(int(limit), 201)),
+                "offset": max(0, int(offset)),
+            },
             operation="fired alert",
         )
-        return self._resource_items(payload, "fired alert")
+        return self._queue_page(payload, "fired alert")
+
+    async def get_fired_alert(self, name: str) -> list[dict[str, Any]]:
+        """Read the first page for one named fired alert (compatibility API)."""
+        page = await self.get_fired_alert_page(name, limit=201)
+        return page["items"]
+
+    async def get_job_result_fields(
+        self,
+        sid: str,
+        fields: tuple[str, ...] = ("Event_GID", "Event_Rulenum"),
+        *,
+        max_count: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Read a small, selected-field page from an existing search job.
+
+        This is deliberately a GET against an existing SID.  It does not
+        dispatch, mutate, or re-run a search and is used by alert ingestion to
+        resolve the customer/rule contract without copying raw events.
+        """
+        self._ensure_connected()
+        normalized_sid = str(sid or "").strip()
+        selected = tuple(dict.fromkeys(str(field).strip() for field in fields if str(field).strip()))
+        if not normalized_sid or not selected:
+            return []
+        params = {
+            "output_mode": "json",
+            "count": max(1, min(int(max_count), 10)),
+            "offset": 0,
+            "field_list": ",".join(selected),
+        }
+        try:
+            response = await self._get(
+                f"/services/search/jobs/{quote(normalized_sid, safe='')}/results",
+                params=params,
+            )
+            response.raise_for_status()
+            page, _offset, _total, _columns = self._parse_result_page(
+                response.text,
+                "selected search-job results",
+            )
+            return [
+                {field: event[field] for field in selected if field in event}
+                for event in page
+            ]
+        except SplunkAPIError:
+            raise
+        except httpx.HTTPStatusError as exc:
+            raise SplunkAPIError(
+                "Splunk selected search-job result retrieval failed.",
+                status_code=exc.response.status_code,
+            ) from exc
+        except httpx.RequestError as exc:
+            raise SplunkAPIError("Splunk could not retrieve selected search-job results.") from exc
+        except Exception as exc:
+            raise SplunkAPIError("Splunk returned malformed selected search-job results.") from exc
 
     async def get_lookup_table_files(self, app: str = "", search: str = "", count: int = 50) -> List[Dict[str, Any]]:
         """List visible lookup-table knowledge objects without modifying them."""
