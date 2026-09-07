@@ -52,3 +52,6 @@ packages = [
 addopts = "-q"
 asyncio_mode = "auto"
 testpaths = ["unified_mcp_server/tests"]
+
+[tool.setuptools.package-data]
+unified_mcp_server = ["email_templates/*.html", "email_templates/img/*"]

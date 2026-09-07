@@ -64,6 +64,55 @@ unresolved quarantine rows, and records counters in `sec_alert_ingestion_status`
 It only reads Splunk fired-alert and existing search-job result endpoints; all
 database inserts and quarantine decisions happen in the application backend.
 
+Automatic alert email uses the PostgreSQL outbox and a separate SMTP worker.
+Apply migration 013 after 012 with sending stopped and `ALERT_EMAIL_ENABLED=false`.
+Migration 013 disables existing rules and queued historical deliveries. Applied
+migration 012 is unchanged. Review routes before enabling them, then restart the
+backend with the following environment configuration:
+
+```dotenv
+ALERT_EMAIL_ENABLED=false
+ALERT_SMTP_HOST=
+ALERT_SMTP_PORT=25
+ALERT_SMTP_TLS=starttls
+ALERT_EMAIL_FROM=
+ALERT_EMAIL_USERNAME=
+ALERT_EMAIL_PASSWORD=
+ALERT_EMAIL_INTERVAL_SECONDS=5
+ALERT_EMAIL_BATCH_SIZE=25
+```
+
+`ALERT_SMTP_TLS` accepts `none`, `starttls`, or `ssl`. Authentication is optional;
+username/password must be supplied together. The supplied legacy scripts use
+`mail01.trustcsi.com:25` without TLS/authentication. Its current connection requirements
+have not been confirmed; obtain those before setting the host and enabling live sends.
+No live message is needed to validate rendering or the local SMTP test sink.
+Interactive user-controlled Zimbra email is unchanged.
+
+Administrators use `/admin/alert-email` for customer defaults (`recipients`, `cc`,
+`bcc`, `language`: EN/CN/ZH, `brand`: CPC/CEC), source types, IP/subnet/range and
+hostname filters, recipient overrides, preview and delivery history. Filter categories
+are AND, values within each category are OR; missing filter data does not match.
+Overrides require an explicit customer. All matching routes are combined, with BCC
+visibility preserved and duplicate addresses removed. Global rules use each event's
+own customer defaults. Ruleset localized email content is stored as
+`rulesets.email_content = {"EN":{"description":"...","remediation":"..."}}`;
+the rule template summary is a fallback description. No raw logs are copied.
+
+CSV preview requires selecting the exact customer and exact PostgreSQL source-type
+names. Supported headers are `gid` (optional, must match selected customer),
+`source_type`, `severity`, `ip1`, `ip2`, `hostname`, `recipients`, `cc`, `bcc`.
+Unknown mappings remain unapplied. Previewed rows require an explicit Save and
+are saved disabled. Legacy IP-or-hostname conditions become two equivalent routes.
+Customer Python modules, Remedy and event-supplied recipients are not executed.
+
+Each new event has at most one outbox row. Disabled rules do not queue historical
+mail. SMTP acceptance is recorded separately from mailbox delivery, which is
+unconfirmed. Partial failures retain accepted recipients and retry only temporary
+refusals; permanent failures have no retry timestamp. Interrupted sends and database
+acknowledgement failures require operator review, including after restart. Do not
+manually requeue uncertain rows without checking the relay delivery records.
+
 The checked-in `spl_config.json` is retained for legacy reference only and is
 not loaded by the server.
 

@@ -58,6 +58,7 @@ def test_admin_service_settings_are_status_only(monkeypatch):
             "zimbra": {"status": "not_configured"},
             "markitdown": {"status": "ready"},
             "subscription_server": {"status": "ready"},
+            "alert_email": {"status": "disabled", "enabled": False, "configured": False},
         }
     }
 

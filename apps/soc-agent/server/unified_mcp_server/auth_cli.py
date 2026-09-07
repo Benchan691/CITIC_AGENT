@@ -13,6 +13,7 @@ from typing import Any
 
 from .config import ServerSettings
 from .alert_ingest import AlertIngestionWorker
+from .alert_email import AlertEmailWorker
 from .env_loader import load_server_env
 from .auth import ZimbraIdentity, public_session
 from .catalog.service import CatalogService
@@ -32,6 +33,7 @@ class CommandRuntime:
     splunk: SplunkService | None = None
     catalog: CatalogService | None = None
     alert_ingestion: AlertIngestionWorker | None = None
+    alert_email: AlertEmailWorker | None = None
     lock: Lock = field(default_factory=Lock)
 
     @classmethod
@@ -64,6 +66,10 @@ async def command_runtime():
         runtime.alert_ingestion = AlertIngestionWorker.from_settings(runtime.settings)
         if runtime.alert_ingestion is not None:
             await runtime.alert_ingestion.start()
+    if getattr(runtime.settings, "alert_email_enabled", False):
+        runtime.alert_email = AlertEmailWorker.from_settings(runtime.settings)
+        if runtime.alert_email is not None:
+            await runtime.alert_email.start()
     token = _command_runtime.set(runtime)
     try:
         yield runtime
@@ -71,6 +77,8 @@ async def command_runtime():
         _command_runtime.reset(token)
         if runtime.alert_ingestion is not None:
             await runtime.alert_ingestion.stop()
+        if runtime.alert_email is not None:
+            await runtime.alert_email.stop()
         if runtime.catalog is not None:
             await runtime.catalog.close()
         if runtime.splunk is not None:

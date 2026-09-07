@@ -332,6 +332,19 @@ class ServerSettings:
     alert_ingest_interval_seconds: int = 60
     alert_ingest_limit: int = 100
     alert_ingest_max_backoff_seconds: int = 300
+    # Email delivery is a separate opt-in from alert ingestion. Credentials
+    # are deployment-owned and are never stored in PostgreSQL or returned by
+    # a status endpoint.
+    alert_email_enabled: bool = False
+    alert_email_interval_seconds: int = 5
+    alert_email_batch_size: int = 25
+    alert_email_max_backoff_seconds: int = 300
+    alert_email_from: str = ""
+    alert_email_username: str = ""
+    alert_email_password: str = ""
+    alert_smtp_host: str = ""
+    alert_smtp_port: int = 25
+    alert_smtp_tls: str = "starttls"
 
     @classmethod
     def from_env(cls, values: Mapping[str, str] | None = None) -> "ServerSettings":
@@ -520,6 +533,12 @@ class ServerSettings:
             if _value(env, "ALERT_INGEST_ENABLED")
             else "ALERT_INGESTION_ENABLED"
         )
+        alert_email_from = _value(env, "ALERT_EMAIL_FROM")
+        smtp_tls = _value(env, "ALERT_SMTP_TLS", "starttls").lower()
+        if smtp_tls not in {"none", "starttls", "ssl"}:
+            raise ValueError("ALERT_SMTP_TLS must be none, starttls, or ssl")
+        if bool(_value(env, "ALERT_EMAIL_USERNAME")) != bool(_value(env, "ALERT_EMAIL_PASSWORD")):
+            raise ValueError("SMTP username and password must be supplied together")
         return cls(
             name=_value(env, "MCP_SERVER_NAME", "SOC Agent MCP"),
             description=_value(env, "MCP_SERVER_DESCRIPTION", "SOC Agent investigation tools for Splunk and Zimbra"),
@@ -539,6 +558,20 @@ class ServerSettings:
             alert_ingest_max_backoff_seconds=_integer(
                 env, "ALERT_INGEST_MAX_BACKOFF_SECONDS", 300, 1, 86_400
             ),
+            alert_email_enabled=_boolean(env, "ALERT_EMAIL_ENABLED", False),
+            alert_email_interval_seconds=_integer(
+                env, "ALERT_EMAIL_INTERVAL_SECONDS", 5, 1, 86_400
+            ),
+            alert_email_batch_size=_integer(env, "ALERT_EMAIL_BATCH_SIZE", 25, 1, 201),
+            alert_email_max_backoff_seconds=_integer(
+                env, "ALERT_EMAIL_MAX_BACKOFF_SECONDS", 300, 1, 86_400
+            ),
+            alert_email_from=alert_email_from,
+            alert_email_username=_value(env, "ALERT_EMAIL_USERNAME"),
+            alert_email_password=_value(env, "ALERT_EMAIL_PASSWORD"),
+            alert_smtp_host=_value(env, "ALERT_SMTP_HOST"),
+            alert_smtp_port=_integer(env, "ALERT_SMTP_PORT", 25, 1, 65535),
+            alert_smtp_tls=smtp_tls,
         )
 
     @classmethod
@@ -608,6 +641,17 @@ class ServerSettings:
                 "interval_seconds": self.alert_ingest_interval_seconds,
                 "limit": self.alert_ingest_limit,
             },
+            "alert_email": {
+                "enabled": self.alert_email_enabled,
+                "configured": self.alert_email_configured,
+                "interval_seconds": self.alert_email_interval_seconds,
+                "batch_size": self.alert_email_batch_size,
+                "max_backoff_seconds": self.alert_email_max_backoff_seconds,
+                "from": self.alert_email_from,
+                "host": self.alert_smtp_host,
+                "port": self.alert_smtp_port,
+                "tls": self.alert_smtp_tls,
+            },
         }
 
     def public_readiness(self) -> dict[str, object]:
@@ -623,5 +667,21 @@ class ServerSettings:
                     "enabled": self.alert_ingest_enabled,
                     "interval_seconds": self.alert_ingest_interval_seconds,
                 },
+                "alert_email": {
+                    "enabled": self.alert_email_enabled,
+                    "configured": self.alert_email_configured,
+                    "interval_seconds": self.alert_email_interval_seconds,
+                },
             },
         }
+
+    @property
+    def alert_email_configured(self) -> bool:
+        """Whether the deployment has enough data for the worker to start.
+
+        SMTP delivery remains separately gated by ALERT_EMAIL_ENABLED.
+        """
+        return bool(
+            self.alert_smtp_host
+            and self.alert_email_from
+        )

@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from .config import ServerSettings
+from .alert_email import AlertEmailStore
 from .attachment_converter import AttachmentConversionLimits, AttachmentConverter
 from .email.service import EmailSubscriptionService
 from .env_loader import load_server_env
@@ -34,12 +35,19 @@ def _settings(_store: PostgresStore) -> ServerSettings:
 
 def _public_settings(store: PostgresStore) -> dict[str, Any]:
     settings = _settings(store)
+    alert_email_enabled = bool(getattr(settings, "alert_email_enabled", False))
+    alert_email_configured = bool(getattr(settings, "alert_email_configured", False))
     return {
         "services": {
             "splunk": {"status": "ready" if settings.splunk.configured else "not_configured"},
             "zimbra": {"status": "ready" if settings.zimbra.configured else "not_configured"},
             "markitdown": {"status": "ready"},
             "subscription_server": {"status": "ready" if settings.email_server.configured else "not_configured"},
+            "alert_email": {
+                "status": "ready" if alert_email_enabled and alert_email_configured else "disabled",
+                "enabled": alert_email_enabled,
+                "configured": alert_email_configured,
+            },
         },
     }
 
@@ -82,6 +90,59 @@ async def test_subscription_server(store: PostgresStore) -> dict[str, Any]:
         return {"ok": True}
     finally:
         await service.close()
+
+
+def get_alert_email_settings(_store: PostgresStore) -> dict[str, Any]:
+    settings = _settings(_store)
+    alert_store = AlertEmailStore.from_env()
+    if alert_store is None:
+        raise RuntimeError("APP_POSTGRES_URI is required for alert email settings.")
+    try:
+        return {
+            "runtime": settings.public_status().get("alert_email", {}),
+            "rules": alert_store.list_rules(),
+            "customers": alert_store.list_customer_email_configs(),
+            "delivery": alert_store.status(),
+            **alert_store.admin_details(),
+        }
+    finally:
+        alert_store.close()
+
+
+def preview_alert_email(_store, payload):
+    alert_store = AlertEmailStore.from_env()
+    if alert_store is None:
+        raise RuntimeError("PostgreSQL is required")
+    try:
+        if 'csv' in payload:
+            return alert_store.preview_csv(payload.get('customer_id'),payload['csv'])
+        return alert_store.preview(payload.get('customer_id'),payload.get('event_id'))
+    finally:
+        alert_store.close()
+
+
+def save_alert_email_rule(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    alert_store = AlertEmailStore.from_env()
+    if alert_store is None:
+        raise RuntimeError("APP_POSTGRES_URI is required for alert email settings.")
+    try:
+        return {"rule": alert_store.save_rule(payload)}
+    finally:
+        alert_store.close()
+
+
+def save_customer_email_config(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    customer_id = payload.get("customer_id")
+    if not isinstance(customer_id, str) or not customer_id.strip():
+        raise ValueError("customer_id is required")
+    alert_store = AlertEmailStore.from_env()
+    if alert_store is None:
+        raise RuntimeError("APP_POSTGRES_URI is required for alert email settings.")
+    try:
+        value = payload.get("email_config", payload)
+        return {"customer": alert_store.save_customer_email_config(customer_id.strip(), value)}
+    finally:
+        alert_store.close()
 
 
 async def test_account(store: PostgresStore, account_id: str) -> dict[str, Any]:
@@ -204,6 +265,14 @@ def main() -> None:
             result = asyncio.run(test_splunk(store))
         elif command == "test-subscription-server":
             result = asyncio.run(test_subscription_server(store))
+        elif command == "get-alert-email-settings":
+            result = get_alert_email_settings(store)
+        elif command == "preview-alert-email":
+            result = preview_alert_email(store, payload)
+        elif command == "save-alert-email-rule":
+            result = save_alert_email_rule(store, payload)
+        elif command == "save-customer-email-config":
+            result = save_customer_email_config(store, payload)
         elif command == "migrate":
             result = migrate(store)
         else:
@@ -212,7 +281,14 @@ def main() -> None:
         _write_service_error(error)
         raise SystemExit(2) from error
     except ValueError:
-        if command not in {"get-settings", "test-splunk", "test-subscription-server"}:
+        if command not in {
+            "get-settings",
+            "test-splunk",
+            "test-subscription-server",
+            "get-alert-email-settings",
+            "save-alert-email-rule",
+            "save-customer-email-config",
+        }:
             raise
         payload = {
             "code": "admin_configuration_error",

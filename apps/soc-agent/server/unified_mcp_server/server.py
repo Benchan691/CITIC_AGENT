@@ -21,6 +21,7 @@ from pydantic_settings.exceptions import IncompleteFieldDefinitionWarning
 
 from .account_store import AccountStore
 from .alert_ingest import AlertIngestionWorker
+from .alert_email import AlertEmailWorker
 from .auth import ZimbraIdentity, identity_for_session
 from .catalog.service import CatalogService
 from .catalog.tools import register_tools as register_catalog_tools
@@ -78,6 +79,7 @@ class Runtime:
     account_store: AccountStore | PostgresAccountStore | None = None
     catalog: CatalogService | None = None
     alert_ingestion: AlertIngestionWorker | None = None
+    alert_email: AlertEmailWorker | None = None
     identity: ZimbraIdentity | None = None
     owns_services: bool = True
     config_revision: str = field(init=False)
@@ -131,6 +133,8 @@ class Runtime:
             return
         if self.alert_ingestion is not None:
             await self.alert_ingestion.stop()
+        if self.alert_email is not None:
+            await self.alert_email.stop()
         await self.splunk.close()
         await self.email_subscriptions.close()
         if self.catalog is not None:
@@ -164,6 +168,7 @@ class Runtime:
             account_store=self.account_store,
             catalog=self.catalog,
             alert_ingestion=self.alert_ingestion,
+            alert_email=self.alert_email,
             identity=identity,
             owns_services=False,
         )
@@ -202,6 +207,10 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
             runtime.alert_ingestion = AlertIngestionWorker.from_settings(settings)
             if runtime.alert_ingestion is not None:
                 await runtime.alert_ingestion.start()
+        if settings.alert_email_enabled:
+            runtime.alert_email = AlertEmailWorker.from_settings(settings)
+            if runtime.alert_email is not None:
+                await runtime.alert_email.start()
         try:
             yield runtime
         finally:
@@ -340,6 +349,8 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
             payload = current.settings.public_readiness()
             if current.alert_ingestion is not None:
                 payload["services"]["alert_ingestion"] = current.alert_ingestion.status()
+            if current.alert_email is not None:
+                payload["services"]["alert_email"] = current.alert_email.status()
             return payload
         return await execute(ctx, "system", "get_status", status)
 
