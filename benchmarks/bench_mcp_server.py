@@ -34,17 +34,43 @@ def disable_network():
     socket.getaddrinfo = denied
 
 
+async def forward_lab_call(upstream, item, name, arguments, *, session_id, investigation_id, record):
+    """Forward one scoped call with trusted identity and case-local evidence reuse."""
+    from grading import request_violations
+    from mcp import types
+    try:
+        if not session_id or not investigation_id:
+            raise ValueError("The trusted benchmark session is missing")
+        violations = request_violations(item, name, arguments)
+        if violations:
+            envelope = {"ok": False, "error": {"code": "benchmark_scope", "message": "; ".join(violations)}}
+        else:
+            result = await upstream.call_tool(name, arguments, meta={"soc_session_id": session_id, "soc_investigation_id": investigation_id})
+            envelope = result.structuredContent
+            if not isinstance(envelope, dict):
+                envelope = json.loads(next(c.text for c in result.content if c.type == "text"))
+            if not isinstance(envelope, dict) or not isinstance(envelope.get("ok"), bool) or not isinstance(envelope.get("meta", {}), dict):
+                raise ValueError("Malformed lab response envelope")
+            if result.isError: envelope["ok"] = False
+    except Exception:
+        envelope = {"ok": False, "error": {"code": "lab_transport_error", "message": "Lab call failed; inspect the dedicated lab service."}}
+    envelope.setdefault("meta", {})["benchmark_evidence_id"] = record(name, arguments, envelope)
+    return types.CallToolResult(content=[types.TextContent(type="text", text=json.dumps(envelope))], structuredContent=envelope, isError=envelope.get("ok") is not True)
+
+
 async def run_lab(item, config_path, record):
     import httpx
-    from mcp import ClientSession, types
+    from mcp import ClientSession
     from mcp.client.streamable_http import streamable_http_client
     from mcp.server.lowlevel import Server
     from mcp.server.stdio import stdio_server
     from bench_lib import lab_case, load_lab_config
-    from grading import READ_TOOLS, request_violations
+    from grading import READ_TOOLS
     config = load_lab_config(config_path)
     item = lab_case(item, config)
     if item["id"] not in config["prepared_cases"]: raise ValueError("Case fixtures have not been provisioned in this lab.")
+    investigation_id = os.environ.get("BENCH_SESSION_ID")
+    if not investigation_id: raise ValueError("The trusted benchmark launcher must supply a unique investigation.")
     async with httpx.AsyncClient(follow_redirects=False, timeout=180) as http:
         async with streamable_http_client(config["mcp_url"], http_client=http) as (read, write, _):
             async with ClientSession(read, write) as upstream:
@@ -56,20 +82,7 @@ async def run_lab(item, config_path, record):
                     return [t for t in result.tools if t.name in READ_TOOLS | set(item["allowed_drafts"])]
                 @server.call_tool()
                 async def call_tool(name, arguments):
-                    violations = request_violations(item, name, arguments)
-                    try:
-                        if violations:
-                            envelope = {"ok": False, "error": {"code": "benchmark_scope", "message": "; ".join(violations)}}
-                        else:
-                            result = await upstream.call_tool(name, arguments, meta={"soc_session_id": os.environ[config["session_env"]]})
-                            envelope = result.structuredContent
-                            if not isinstance(envelope, dict):
-                                envelope = json.loads(next(c.text for c in result.content if c.type == "text"))
-                            if result.isError: envelope["ok"] = False
-                    except Exception:
-                        envelope = {"ok": False, "error": {"code": "lab_transport_error", "message": "Lab call failed; inspect the dedicated lab service."}}
-                    envelope.setdefault("meta", {})["benchmark_evidence_id"] = record(name, arguments, envelope)
-                    return types.CallToolResult(content=[types.TextContent(type="text", text=json.dumps(envelope))], isError=envelope.get("ok") is not True)
+                    return await forward_lab_call(upstream, item, name, arguments, session_id=os.environ[config["session_env"]], investigation_id=investigation_id, record=record)
                 async with stdio_server() as (read, write):
                     await server.run(read, write, server.create_initialization_options())
 

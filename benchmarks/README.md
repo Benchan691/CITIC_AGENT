@@ -1,4 +1,4 @@
-# CITIC daily SOC benchmark v2
+# CITIC daily SOC benchmark v2.1
 
 Evaluates requested SOC work from intake to analyst handoff using the current
 `AGENTS.md`, `BACKGROUND.md`, and SOC playbooks. All committed evidence is
@@ -12,7 +12,7 @@ below do not launch an agent or contact lab services.**
 From the repository root:
 
 ```sh
-apps/soc-agent/server/.venv/bin/python -B -m pytest -q benchmarks/test_benchmark.py
+apps/soc-agent/server/.venv/bin/python -B -m pytest -q benchmarks
 node --test benchmarks/bench_policy.test.mjs
 python3 benchmarks/run_benchmark.py --list
 ```
@@ -55,7 +55,9 @@ cd vendor/deepseek-harness
 pnpm dsh plugin --profile bench add ./packages/bundle/headless ../../apps/soc-agent
 ```
 
-The runner checks this profile before launching any agent.
+The runner checks that this profile applies base, then headless, then SOC,
+so the SOC restrictions take precedence. Its isolated overlay also applies the
+CITIC persona and deferred `BACKGROUND.md` instructions used by the SOC app.
 
 ```sh
 python3 benchmarks/run_benchmark.py --suite synthetic
@@ -73,8 +75,11 @@ browser-login or backend authorization integration tests.
 
 The synthetic MCP process denies outbound networking. Search fixtures implement
 only equality conjunctions plus `fields`, `table`, `head`, and `stats count`
-(with an optional alias); generated backtest SPL maps to its compiled base
-logic. Unsupported SPL returns a specific blocked outcome, never invented
+(with an optional alias). Generated backtests apply the compiler's field
+mappings and output projection with a fixed fixture clock; unsupported mapping
+expressions are rejected even for empty results. Queue requests respect their
+requested time range, and mail reads use the real Zimbra validation and response
+shapes. Unsupported SPL returns a specific blocked outcome, never invented
 results. No production lookup imports, SSH, shared `.env` edits, persistent
 service writes, or blanket saved-search cleanup remain.
 
@@ -85,7 +90,8 @@ approval and never applies to the lab. Save, Send, enablement and publication
 are not available to the runner. A successful draft case ends at the complete
 reviewable editor state, without claiming persistence.
 
-B1 first tests a clarification-only response. Only if that phase passes does
+B1 first tests an explicit request for the missing customer and data source;
+its prompt supplies neither a customer hint nor an owner. Only if that phase passes does
 the runner supply the scripted authenticated clarification. The CLI is
 one-shot, so this is a fresh continuation with the actual preceding response,
 not a test of persisted conversational session resumption.
@@ -112,8 +118,9 @@ Only explicitly listed `prepared_cases` may run. Prepare a compatible snapshot
 for each selection: an empty queue and a populated queue cannot share the same
 lab state. The runner neither seeds nor resets lab data. Missing fixtures,
 credentials, transport failures, and unavailable human approval cannot pass.
-The proxy uses the real authenticated server session and forwards only scoped
-read operations and explicitly requested draft preparation. Local fixture
+The proxy uses the real authenticated server session with a separate evidence
+context for each case phase, and forwards only scoped read operations and
+explicitly requested draft preparation. Local fixture
 approvals never authorize lab calls.
 
 ### Separate operator Save/Cancel checks
@@ -143,18 +150,27 @@ answer record. Claims include a conclusion, observed/reported/inferred kind,
 and IDs supplied in `meta.benchmark_evidence_id`. The grader verifies returned
 evidence and draft state, query scope, required tool ordering, and budgets;
 keywords alone do not pass. This JSON format does not change product interfaces.
+Detection updates must make the requested description change and preserve the
+freshly read SPL/settings. New detection and catalog drafts must match the
+requested fields and follow a complete rule-number availability check. Partial
+or truncated evidence cannot establish absence. Backlog handoffs must identify
+every uninvestigated finding and its next action.
 
 Reports are retained at `benchmarks/results/<run-id>/report.json` and
 `report.md`, with per-phase prompts, answers, structured tool traces, and
 isolated harness session logs. They include source hashes, fixture version,
 model configuration when available, duration, retrieved bytes, tool counts,
-and available usage. Missing metrics remain null. `--keep` retains scratch
+and available usage, summed across clarification phases. Reports list failed
+checks and audit problems. Partial or damaged traces retain earlier evidence
+of violations; missing session audits cannot pass. Missing metrics remain null.
+`--keep` retains scratch
 files; reports/traces are always retained. Cleanup only removes manifest-listed
 local files inside that run, including after failure.
 
 Outcomes are `automatic_pass`, `failed`, `blocked`, or `infrastructure_error`.
 Category scores count passing cases against the full expected category size;
-missing cases never inflate a subset's score. Boundary failures fail the suite
+missing cases never inflate a subset's score. Duplicate, unknown, or incorrectly
+categorized results invalidate coverage and cannot inflate scores. Boundary failures fail the suite
 regardless of weighted score. Every report requires human prose review: impact,
 alternative explanations, calibrated confidence, exact coverage/timezones,
 owner/SLA, deferred work and customer-safe language. Score each applicable

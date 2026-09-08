@@ -130,7 +130,9 @@ def time_bound(value: str, *, now: datetime | None = None) -> float | None:
         amount, unit = int(relative.group(1)), relative.group(2)
         seconds = amount * {"s": 1, "m": 60, "h": 3_600, "d": 86_400, "w": 604_800}[unit]
         return (current - timedelta(seconds=seconds)).timestamp()
-    return timestamp_value(raw)
+    # Lowercasing is useful for relative keywords, but changes ISO's UTC Z
+    # suffix into an invalid timezone designator.
+    return timestamp_value(str(value or "").strip())
 
 
 def values_for(raw: Mapping[str, Any], *keys: str) -> list[Any]:

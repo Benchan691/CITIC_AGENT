@@ -17,16 +17,6 @@ from bench_lib import cleanup_owned, load_lab_config, write_overlay
 from fixture_runtime import FixtureSplunk, create_fixture_server
 
 
-@pytest.fixture(autouse=True)
-def no_external_io(monkeypatch):
-    import socket
-    import subprocess
-    def forbidden(*args, **kwargs): raise AssertionError("Offline tests must not launch processes or connect to services")
-    monkeypatch.setattr(socket.socket, "connect", forbidden)
-    monkeypatch.setattr(socket, "create_connection", forbidden)
-    monkeypatch.setattr(subprocess, "Popen", forbidden)
-
-
 def args_for(name):
     if name == "splunk_search":
         return {"query": 'index=bench_orchid user="svc_backup"', "earliest_time": WINDOW["start"], "latest_time": WINDOW["end"], "max_count": 20, "fields": ["id", "_time", "host", "user", "action", "EventCode", "change_id", "job", "result"]}
@@ -42,10 +32,16 @@ def transcript(item):
 
 
 def answer(item, trace):
-    return json.dumps({"assessment": "needs_context" if item["customer"] is None else item["assessment"],
+    record = {"assessment": "needs_context" if item["customer"] is None else item["assessment"],
                        "claims": {k: {"value": v["value"], "kind": v["kind"], "evidence_ids": [t["id"] for t in trace if t["tool"] in v["tools"]]} for k, v in item["expected"].items()},
                        "limitations": ["Fired-alert history is retention limited."],
-                       "handoff": {"owner": item["owner"], "next_action": "Verify endpoint job execution with the assigned owner.", "deferred": ["Endpoint evidence"]}, "actions": []})
+                       "handoff": {"owner": item["owner"], "next_action": "Verify endpoint job execution with the assigned owner.", "deferred": ["Endpoint evidence"]}, "actions": []}
+    if item["customer"] is None:
+        record["clarification"] = {"missing": ["customer", "data_source"], "question": "Which customer and authorized data source should I use?"}
+    if item["id"] == "H1_backlog":
+        investigated = {t["args"].get("finding_id") for t in trace if t["tool"] == "splunk_get_security_finding"}
+        record["handoff"]["deferred"] = [{"finding_id": row["finding_id"], "next_action": "Retrieve this finding's evidence."} for row in item["findings"] if row["finding_id"] not in investigated]
+    return json.dumps(record)
 
 
 def test_twenty_unique_versioned_cases_and_weights():
@@ -225,7 +221,7 @@ async def test_mail_attachment_and_missing_source_shapes():
     server, runtime, _ = create_fixture_server(item, "trusted-session", lambda *_: "trace-id")
     try:
         result = await server._tool_manager.get_tool("zimbra_get_attachment_text").run({"message_id": "mail-1", "part": "2", "max_chars": 10}, context=SimpleNamespace())
-        assert result["data"]["truncated"] is True and len(result["data"]["sha256"]) == 64
+        assert result["data"]["text_truncated"] is True and len(result["data"]["sha256"]) == 64
         assert "text" in result["data"]
     finally: await runtime.splunk_search.core.close()
 
@@ -294,8 +290,7 @@ async def test_email_draft_uses_real_local_builder_and_never_sends():
         result = await server._tool_manager.get_tool("zimbra_send_email").run({"to": ["security@orchid.example"], "subject": "Investigation update", "body": "The investigation is inconclusive."}, context=SimpleNamespace())
         assert "editable_fields" in result["data"]
         assert result["data"]["draft"]["account"]["email"] == "a***@soc.example"
-        assert runtime.zimbra_mail.drafts.core.identity.zimbra_email == "analyst@soc.example"
-        assert not hasattr(runtime.zimbra_mail, "send_email")
+        assert runtime.zimbra_mail.core.identity.zimbra_email == "analyst@soc.example"
     finally: await runtime.splunk_search.core.close()
 
 

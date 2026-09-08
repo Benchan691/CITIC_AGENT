@@ -11,6 +11,7 @@ import re
 import shlex
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 from mcp.server.fastmcp import Context, FastMCP
 
 from scenarios import BASE_SPL, RULE
@@ -24,8 +25,11 @@ from unified_mcp_server.catalog.service import CatalogService
 from unified_mcp_server.splunk.search.tools import register_tools as search_tools
 from unified_mcp_server.splunk.detection.tools import register_tools as detection_tools
 from unified_mcp_server.splunk.security_queue.tools import register_tools as queue_tools
+from unified_mcp_server.splunk.security_queue.service import SplunkSecurityQueueService
 from unified_mcp_server.catalog.tools import register_tools as catalog_tools
 from unified_mcp_server.zimbra.mail.tools import register_tools as mail_tools
+from unified_mcp_server.zimbra.mail.service import ZimbraMailService
+from unified_mcp_server.attachment_converter import AttachmentConversionLimits
 
 
 def instant(value):
@@ -87,8 +91,52 @@ class FixtureSplunk:
     async def get_saved_searches(self, name="", app="", count=20):
         return [await self.get_saved_search(RULE)] if not name or name in RULE else []
 
+    @staticmethod
+    def fired_alert(row):
+        return {
+            **row, "detection_name": row["detection"], "title": row.get("impact", row["detection"]),
+            "entities": [{"type": key, "value": row[key]} for key in ("host", "user") if row.get(key)],
+        }
+
+    async def get_fired_alerts(self, limit=20, offset=0):
+        names = list(dict.fromkeys(row["detection"] for row in self.item["findings"]))
+        return {"items": [{"name": name, "content": {"savedsearch_name": name}} for name in names[offset:offset + limit]], "total": len(names)}
+
+    async def get_fired_alert(self, name):
+        rows = [self.fired_alert(row) for row in self.item["findings"] if row["detection"] == name]
+        if not rows:
+            raise ServiceError("not_found", "No fixture fired-alert instances with that detection name.")
+        return rows
+
+    def compiled_scalar(self, expression):
+        """Interpret only the scalar forms needed by registered compiler output."""
+        expression = expression.strip()
+        if re.fullmatch(r'"(?:[^"\\]|\\.)*"', expression):
+            try:
+                value = json.loads(expression)
+                return lambda row: value
+            except ValueError:
+                pass
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", expression):
+            return lambda row: row.get(expression)
+        if re.fullmatch(r"'[A-Za-z_][A-Za-z0-9_. &-]*'", expression):
+            return lambda row: row.get(expression[1:-1])
+        if expression == 'GID."".search."".rulename':
+            return lambda row: "".join(str(row[key]) for key in ("GID", "search", "rulename"))
+        match = re.fullmatch(r'strftime\((now\(\)|_time), "(%Y%m%d%H%M|%F %T)"\)', expression)
+        if match:
+            source, fmt = match.groups()
+            # The fixture clock is the end of the shift; rendering uses its
+            # operational timezone rather than the machine running the test.
+            def render(row):
+                value = self.item["window"]["end"] if source == "now()" else row.get("_time")
+                return None if value is None else datetime.fromtimestamp(instant(value), ZoneInfo(self.item["window"]["timezone"])).strftime(fmt)
+            return render
+        raise ServiceError("fixture_query_unsupported", "This compiled scalar mapping needs the lab; no synthetic result was fabricated.")
+
     async def run_search_job(self, query, earliest_time="-24h", latest_time="now", max_count=20, **kwargs):
         start, end = bounded_window(self.item, earliest_time, latest_time)
+        compiled_query = query if query in self.compiled else None
         query = self.compiled.get(query, query)
         # Only equality conjunctions and simple count/projection are supported.
         # Complex SPL belongs in the opt-in lab suite, not an approximate interpreter.
@@ -112,11 +160,31 @@ class FixtureSplunk:
                 fields = " ".join(tokens[1:]).replace(",", " ").split()
                 rows = [{k: v for k, v in r.items() if k in fields} for r in rows]
             elif tokens[:2] == ["stats", "count"] and (len(tokens) == 2 or len(tokens) == 4 and tokens[2] == "as"):
+                if self.item.get("truncated"):
+                    raise ServiceError("fixture_query_unsupported", "The incomplete fixture sample cannot establish an aggregate count.")
                 rows = [{tokens[3] if len(tokens) == 4 else "count": len(rows)}]
             elif len(tokens) == 2 and tokens[0] == "head" and tokens[1].isdigit():
                 rows = rows[:int(tokens[1])]
             else:
                 raise ServiceError("fixture_query_unsupported", "This pipeline needs the lab; no synthetic result was fabricated.")
+        if compiled_query:
+            base = query.strip().rstrip("|").rstrip()
+            for stage in compiled_query[len(base):].split("|")[1:]:
+                stage = stage.strip()
+                assignment = re.fullmatch(r'eval ("[^"\n]+"|[A-Za-z_]\w*)=(.+)', stage)
+                if assignment:
+                    field = assignment[1].strip('"')
+                    evaluate = self.compiled_scalar(assignment[2])
+                    # Validate mappings even when the search has no rows.
+                    for row in rows:
+                        value = evaluate(row)
+                        if value is None: row.pop(field, None)
+                        else: row[field] = value
+                elif stage.startswith("table "):
+                    fields = shlex.split(stage[6:].replace(",", " "))
+                    rows = [{field: row[field] for field in fields if field in row} for row in rows]
+                else:
+                    raise ServiceError("fixture_query_unsupported", "Unsupported compiled stage; no synthetic result was fabricated.")
         limit = int(max_count)
         return {"events": rows[:limit], "metadata": {"total_result_count": None if self.item.get("truncated") else len(rows), "fetched_count": len(rows[:limit]), "splunk_result_truncated": bool(self.item.get("truncated") or len(rows) > limit)}}
 
@@ -124,67 +192,82 @@ class FixtureSplunk:
         raise ServiceError("fixture_operation_unsupported", "No fixture provider for this operation.")
 
 
-class Queue:
-    def __init__(self, item): self.item = item
+class Queue(SplunkSecurityQueueService):
+    """Use the real queue and provider, retaining readable benchmark ID aliases."""
+    def __init__(self, item, core):
+        super().__init__(core)
+        self.item = item
 
-    async def list_security_findings(self, status, urgency, owner, detection, earliest, latest, limit, cursor):
-        bounded_window(self.item, earliest, latest)
-        rows = self.item["findings"]
-        for key, value in (("status", status), ("urgency", urgency), ("owner", owner), ("detection", detection)):
-            if value: rows = [r for r in rows if r.get(key) == value]
-        if cursor: raise ServiceError("fixture_operation_unsupported", "Fixture queue fits on one page.")
-        return {"source": "splunk_fired_alerts", "findings": rows[:limit], "count": len(rows[:limit]), "total_count": len(rows), "total_count_exact": True, "next_cursor": None, "truncated": len(rows) > limit, "partial": False, "partial_reason": None, "retention_limited": True, "capabilities": {"status": False, "owner": False}}
+    async def list_security_findings(self, status="", urgency="", owner="", detection="", earliest_time="-24h", latest_time="now", limit=50, cursor=""):
+        bounded_window(self.item, earliest_time, latest_time)
+        result = await super().list_security_findings(status, urgency, owner, detection, earliest_time, latest_time, limit, cursor)
+        for summary in result["findings"]: self.alias(summary)
+        return result
+
+    def alias(self, summary):
+        reference = self.codec.decode(summary["finding_id"], provider=self.provider.source, kind="finding")
+        summary["finding_id"] = reference["id"]
+
+    async def _reference(self, value, kind):
+        if kind == "finding":
+            for row in self.item["findings"]:
+                if row["finding_id"] == value:
+                    return self.provider, self.provider._reference(row["detection"], FixtureSplunk.fired_alert(row))
+        return await super()._reference(value, kind)
 
     async def get_security_finding(self, finding_id):
-        for row in self.item["findings"]:
-            if row["finding_id"] == finding_id: return dict(row)
-        raise ServiceError("not_found", "No fixture finding with that ID.")
+        result = await super().get_security_finding(finding_id)
+        self.alias(result["finding"])
+        return result
 
 
-class Mail:
+class Mail(ZimbraMailService):
     def __init__(self, item, settings, identity):
-        from unified_mcp_server.zimbra.mail.service import ZimbraMailService
+        super().__init__(settings.zimbra, None, settings.markitdown, identity)
         self.item = item
-        self.drafts = ZimbraMailService(settings.zimbra, None, settings.markitdown, identity)
+
+    async def _run(self, function, *args):
+        if function.__func__ not in {Mail._search_emails, Mail._get_email, Mail._get_email_headers, Mail._get_attachment_text}:
+            raise ServiceError("fixture_operation_unsupported", "No fixture provider for this mail operation.")
+        return function(*args)
 
     def message(self, id):
         for row in self.item["emails"]:
             if row["message_id"] == id: return row
         raise ServiceError("not_found", "No fixture message with that ID.")
 
-    async def search_emails(self, query, limit, offset=0):
-        if not all(t in query for t in ("in:Inbox", "from:security@orchid.example", "date:09/08/2026")):
-            raise ServiceError("benchmark_scope", "Use the authorized mailbox query.")
+    def _search_emails(self, account, query, limit, offset):
+        if " ".join(query.split()) != "in:Inbox from:security@orchid.example date:09/08/2026":
+            raise ServiceError("fixture_query_unsupported", "Use the exact authorized mailbox query; additional or different clauses need the lab.")
         rows = [{k: v for k, v in r.items() if k not in {"body", "attachments"}} for r in self.item["emails"]]
-        return {"messages": rows[offset:offset + limit], "has_more": len(rows) > offset + limit}
+        return rows[offset:offset + limit]
 
-    async def get_email(self, message_id, max_body_chars=2000):
-        row = dict(self.message(message_id))
-        row["body_truncated"] = len(row["body"]) > max_body_chars
-        row["body"] = row["body"][:max_body_chars]
-        return row
+    def _get_email(self, account, message_id):
+        return dict(self.message(message_id))
 
-    async def get_email_headers(self, message_id, names=None):
+    def _get_email_headers(self, account, message_id, names):
         self.message(message_id)
-        return {"message_id": message_id, "headers": {"Authentication-Results": "mx.soc.example; dkim=pass; spf=pass"}}
+        available = {"Authentication-Results": ["mx.soc.example; dkim=pass; spf=pass"]}
+        return {"message_id": message_id, "headers": {name: available.get(name, []) for name in names}}
 
-    async def get_attachment_text(self, message_id, part, max_chars=2000):
-        import hashlib
-        self.message(message_id)
+    def _get_attachment_text(self, account, message_id, part, max_chars):
+        message = self.message(message_id)
         if part != "2": raise ServiceError("benchmark_scope", "Only the incident attachment is relevant.")
-        text = self.item.get("attachment", "")
-        return {"message_id": message_id, "part": part, "text": text[:max_chars], "sha256": hashlib.sha256(text.encode()).hexdigest(), "truncated": len(text) > max_chars, "filename": "incident.txt", "format": "text/plain"}
+        if "attachment" not in self.item or not any(a.get("part") == part for a in message["attachments"]):
+            raise ServiceError("attachment_not_found", "The selected fixture attachment does not exist.")
+        converted = self._attachment_converter.convert(self.item["attachment"].encode(), "incident.txt", "text/plain", AttachmentConversionLimits(max_bytes=self.settings.max_attachment_bytes, max_chars=max_chars))
+        return {**converted, "message_id": message_id, "part": part, "account_id": account.id, "account": account.agent_dict()}
 
     def create_email_draft(self, to, subject, body, cc=None, bcc=None):
         if to != ["security@orchid.example"] or cc or bcc:
             raise ServiceError("benchmark_scope", "The only authorized recipient is security@orchid.example.")
-        return self.drafts.create_email_draft(to, subject, body, cc, bcc)
+        return super().create_email_draft(to, subject, body, cc, bcc)
 
 
 def create_fixture_server(item, session_id, record):
     from contextlib import asynccontextmanager
     from functools import wraps
-    settings = ServerSettings.from_env({"SPLUNK_HOST": "splunk.fixture.invalid", "SPLUNK_TOKEN": "fixture-token", "SPLUNK_MAX_EVENTS": "20"})
+    settings = ServerSettings.from_env({"SPLUNK_HOST": "splunk.fixture.invalid", "SPLUNK_TOKEN": "fixture-token", "SPLUNK_MAX_EVENTS": "20", "ZIMBRA_HOST": "zimbra.fixture.invalid"})
     client = FixtureSplunk(item)
     splunk = SplunkService(settings.splunk, lambda _: client)
     # Existing-rule update validates the real compiled production format.
@@ -192,7 +275,7 @@ def create_fixture_server(item, session_id, record):
     client.current_spl = compiled["production_spl"]
     client.compiled[compiled["backtest_spl"]] = BASE_SPL
     store = FixtureStore(session_id)
-    runtime = SimpleNamespace(identity=None, splunk_search=splunk.search_service, splunk_detection=splunk.detection_service, splunk_security_queue=Queue(item), zimbra_mail=Mail(item, settings, identity_for_session(store, session_id)), catalog=CatalogService(store, settings.splunk))
+    runtime = SimpleNamespace(identity=None, splunk_search=splunk.search_service, splunk_detection=splunk.detection_service, splunk_security_queue=Queue(item, splunk.core), zimbra_mail=Mail(item, settings, identity_for_session(store, session_id)), catalog=CatalogService(store, settings.splunk))
     @asynccontextmanager
     async def lifespan(_):
         try: yield runtime

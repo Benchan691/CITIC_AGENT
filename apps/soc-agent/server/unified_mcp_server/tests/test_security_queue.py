@@ -115,6 +115,30 @@ async def test_standard_queue_maps_alerts_and_preserves_unknown_soc_fields():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("earliest,latest", [
+    ("2026-09-08T00:15:00Z", "2026-09-08T00:30:00Z"),
+    ("2026-09-08T08:15:00+08:00", "2026-09-08T08:30:00+08:00"),
+])
+async def test_standard_queue_applies_both_absolute_iso_time_bounds(earliest, latest):
+    class AbsoluteTimeClient(QueueClient):
+        async def get_fired_alert(self, name):
+            return [{"sid": sid, "trigger_time": timestamp} for sid, timestamp in [
+                ("before", "2026-09-08T00:14:00Z"),
+                ("inside", "2026-09-08T00:20:00Z"),
+                ("after", "2026-09-08T00:31:00Z"),
+            ]]
+
+    core = SplunkCore(settings(), AbsoluteTimeClient)
+    try:
+        result = await SplunkSecurityQueueService(core).list_security_findings(
+            earliest_time=earliest, latest_time=latest, limit=20,
+        )
+        assert [row["supporting_sid"] for row in result["findings"]] == ["inside"]
+    finally:
+        await core.close()
+
+
+@pytest.mark.asyncio
 async def test_standard_finding_detail_preserves_bounded_response():
     core = SplunkCore(settings(), QueueClient)
     service = SplunkSecurityQueueService(core)
