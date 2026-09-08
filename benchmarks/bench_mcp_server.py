@@ -1,26 +1,97 @@
 #!/usr/bin/env python3
-"""Bench-mode entrypoint for the SOC Agent MCP server.
+"""Benchmark-only MCP entrypoint. Synthetic mode cannot open network sockets."""
+from __future__ import annotations
+import argparse
+import asyncio
+import json
+import os
+from pathlib import Path
+import sys
+import uuid
 
-Boots the REAL unified MCP server (same tools, guardrails, approval flow and
-Splunk target) with one bench-only difference: the Zimbra session gate is
-replaced by a synthetic identity so the benchmark can run the agent headlessly
-without a browser login.
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps/soc-agent/server"))
+from scenarios import get_case
 
-Bench-only: never use this entrypoint in production. The synthetic identity is
-`bench@soc-bench.local` and appears in any audit output the server produces.
-"""
 
-from unified_mcp_server import server as srv
-from unified_mcp_server.auth import ZimbraIdentity
+def recorder(path):
+    def record(name, args, result):
+        evidence_id = "ev-" + uuid.uuid4().hex[:16]
+        with path.open("a") as stream:
+            stream.write(json.dumps({"id": evidence_id, "tool": name, "args": args, "result": result}) + "\n")
+        return evidence_id
+    return record
 
-IDENTITY = ZimbraIdentity(
-    user_id="bench",
-    zimbra_email="bench@soc-bench.local",
-    zimbra_token="bench-not-a-real-token",
-    session_id="bench-session",
-)
 
-srv.identity_for_session = lambda store, session_id: IDENTITY
+def disable_network():
+    import socket
+    def denied(*_args, **_kwargs): raise RuntimeError("Synthetic fixture process cannot access the network")
+    # Preserve local socketpair support used by asyncio, but deny outbound TCP/UDP.
+    socket.socket.connect = denied
+    socket.socket.connect_ex = denied
+    socket.socket.sendto = denied
+    socket.create_connection = denied
+    socket.getaddrinfo = denied
 
-if __name__ == "__main__":
-    srv.main()
+
+async def run_lab(item, config_path, record):
+    import httpx
+    from mcp import ClientSession, types
+    from mcp.client.streamable_http import streamable_http_client
+    from mcp.server.lowlevel import Server
+    from mcp.server.stdio import stdio_server
+    from bench_lib import lab_case, load_lab_config
+    from grading import READ_TOOLS, request_violations
+    config = load_lab_config(config_path)
+    item = lab_case(item, config)
+    if item["id"] not in config["prepared_cases"]: raise ValueError("Case fixtures have not been provisioned in this lab.")
+    async with httpx.AsyncClient(follow_redirects=False, timeout=180) as http:
+        async with streamable_http_client(config["mcp_url"], http_client=http) as (read, write, _):
+            async with ClientSession(read, write) as upstream:
+                await upstream.initialize()
+                server = Server("CITIC lab benchmark proxy")
+                @server.list_tools()
+                async def list_tools():
+                    result = await upstream.list_tools()
+                    return [t for t in result.tools if t.name in READ_TOOLS | set(item["allowed_drafts"])]
+                @server.call_tool()
+                async def call_tool(name, arguments):
+                    violations = request_violations(item, name, arguments)
+                    try:
+                        if violations:
+                            envelope = {"ok": False, "error": {"code": "benchmark_scope", "message": "; ".join(violations)}}
+                        else:
+                            result = await upstream.call_tool(name, arguments, meta={"soc_session_id": os.environ[config["session_env"]]})
+                            envelope = result.structuredContent
+                            if not isinstance(envelope, dict):
+                                envelope = json.loads(next(c.text for c in result.content if c.type == "text"))
+                            if result.isError: envelope["ok"] = False
+                    except Exception:
+                        envelope = {"ok": False, "error": {"code": "lab_transport_error", "message": "Lab call failed; inspect the dedicated lab service."}}
+                    envelope.setdefault("meta", {})["benchmark_evidence_id"] = record(name, arguments, envelope)
+                    return types.CallToolResult(content=[types.TextContent(type="text", text=json.dumps(envelope))], isError=envelope.get("ok") is not True)
+                async with stdio_server() as (read, write):
+                    await server.run(read, write, server.create_initialization_options())
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--suite", required=True, choices=("synthetic", "lab"))
+    ap.add_argument("--case", required=True)
+    ap.add_argument("--trace", required=True, type=Path)
+    ap.add_argument("--phase", default=0, type=int)
+    ap.add_argument("--lab-config")
+    args = ap.parse_args()
+    item, record = get_case(args.case, args.phase), recorder(args.trace)
+    if args.suite == "lab":
+        asyncio.run(run_lab(item, args.lab_config, record))
+    else:
+        disable_network()
+        from fixture_runtime import create_fixture_server
+        session_id = os.environ.get("BENCH_SESSION_ID")
+        if not session_id: raise SystemExit("The trusted benchmark launcher must supply a fixture session.")
+        server, _, _ = create_fixture_server(item, session_id, record)
+        server.run(transport="stdio")
+
+
+if __name__ == "__main__": main()

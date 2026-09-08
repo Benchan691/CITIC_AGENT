@@ -1,0 +1,8 @@
+{
+  "dedicated_test_environment": true,
+  "mcp_url": "https://soc-lab.example/mcp",
+  "allowed_origin": "https://soc-lab.example",
+  "session_env": "BENCH_LAB_SESSION",
+  "fixture_version": "citic-daily-v2.0",
+  "prepared_cases": ["Q1_empty"]
+}
