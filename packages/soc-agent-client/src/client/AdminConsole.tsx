@@ -7,6 +7,7 @@ import type {
 } from '@deepseek-ai/dsh-client-connection/client'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import styles from './AdminConsole.module.css'
+import { AlertEmailSettings, emailRequest, type EmailSettings } from './AlertEmailSettings'
 import { errorText, rpc } from './settings-common'
 
 type AdminAuth = {
@@ -109,6 +110,7 @@ function apiValue<T>(response: { result: { ok: boolean; value?: T; error?: { mes
 }
 
 function serviceReady(service: ServiceStatus | undefined): boolean {
+  if (service?.status === 'unavailable' || service?.status === 'not_configured') return false
   return service?.status === 'ready' || service?.configured === true || service?.available === true
 }
 
@@ -181,7 +183,7 @@ function AdminLogin({ onAuthenticated, error: initialError }: { onAuthenticated:
         <p className={styles.eyebrow}>CITICTEL-CPC · SOC AGENT</p>
         <h1 id="admin-login-title" className={styles.loginTitle}>Administration console</h1>
         <p className={styles.loginCopy}>
-          Manage LLM provider credentials and review the health of connected services.
+          Manage your SOC workspace, connected services, and alert delivery.
         </p>
         <form className={styles.form} onSubmit={signIn}>
           <label className={styles.field}>
@@ -203,41 +205,82 @@ function AdminLogin({ onAuthenticated, error: initialError }: { onAuthenticated:
   )
 }
 
+const ADMIN_PAGES = [
+  { id: 'overview', name: 'Overview', icon: 'overview', copy: 'Your workspace, at a glance.' },
+  { id: 'connections', name: 'Connections', icon: 'connections', copy: 'Review service setup and verify connections when needed.' },
+  { id: 'providers', name: 'AI providers', icon: 'providers', copy: 'Manage model access and credentials in one place.' },
+  { id: 'notifications', name: 'Alert email', icon: 'notifications', copy: 'Manage recipients, routing, and delivery for new security alerts.' },
+] as const
+function AdminIcon({ name }: { name: string }) {
+  const paths: Record<string, string> = { overview: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z', connections: 'M8 3v5 M16 3v5 M6 8h12v3a6 6 0 0 1-12 0z M12 17v4', providers: 'M12 3l9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5', notifications: 'M3 5h18v14H3z M3 5l9 8 9-8' }
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.overview} /></svg>
+}
+function currentPage() {
+  const hash = window.location.hash.slice(1).split('/')[0]
+  return ADMIN_PAGES.some(p => p.id === hash) ? hash : window.location.pathname.includes('/alert-email') ? 'notifications' : 'overview'
+}
 function AdminWorkspace({ connection, email, onSignedOut }: { connection: any; email: string; onSignedOut: () => Promise<void> }) {
   const [signingOut, setSigningOut] = useState(false)
-
+  const [error, setError] = useState('')
+  const [page, setPage] = useState(currentPage)
+  const [visited, setVisited] = useState(() => new Set([currentPage()]))
+  useEffect(() => {
+    const change = () => { const next = currentPage(); setPage(next); setVisited(old => new Set([...old,next])) }
+    window.addEventListener('hashchange',change)
+    return () => window.removeEventListener('hashchange',change)
+  }, [])
+  const selected = ADMIN_PAGES.find(p => p.id === page) || ADMIN_PAGES[0]
   async function signOut() {
-    setSigningOut(true)
+    setSigningOut(true); setError('')
     try {
-      await fetch('/admin/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      const response = await fetch('/admin/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      if (!response.ok) throw new Error('Sign-out failed. Please try again.')
       await onSignedOut()
-    } finally {
-      setSigningOut(false)
-    }
+    } catch (e) { setError(errorText(e)) } finally { setSigningOut(false) }
   }
-
-  return (
-    <main className={styles.page}>
-      <div className={styles.shell}>
-        <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>CITICTEL-CPC · SOC AGENT</p>
-            <h1 className={styles.title}>Administration console</h1>
-            <p className={styles.subtitle}>A clear view of service readiness and LLM provider access.</p>
-          </div>
-          <div className={styles.headerActions}>
-            <span className={styles.account}>{email}</span>
-            <button className={styles.button} type="button" onClick={() => void signOut()} disabled={signingOut}>
-              {signingOut ? 'Signing out…' : 'Sign out'}
-            </button>
-          </div>
-        </header>
-
-        <ServiceStatusPanel connection={connection} />
-        <ProviderSettings connection={connection} />
-      </div>
+  return <div className={styles.page}>
+    <a className={styles.skipLink} href="#admin-content" onClick={event => { event.preventDefault(); document.getElementById('admin-content')?.focus() }}>Skip to content</a>
+    <aside className={styles.sidebar}>
+      <a href="/admin" className={styles.brand}><span className={styles.brandMark}>S</span><span>Sentinel<small>Administration</small></span></a>
+      <p className={styles.navLabel}>WORKSPACE</p>
+      <nav className={styles.navigation} aria-label="Administration">{ADMIN_PAGES.map(item => <a href={'#' + item.id} key={item.id} className={page === item.id ? styles.navActive : ''} aria-current={page === item.id ? 'page' : undefined}><AdminIcon name={item.icon} />{item.name}</a>)}</nav>
+      <div className={styles.sidebarFoot}><a href="/" className={styles.backLink}>← Back to workspace</a><div className={styles.identity}><span className={styles.avatar}>{email.slice(0,1).toUpperCase() || 'A'}</span><div><strong>Administrator</strong><span className={styles.account} title={email}>{email}</span></div></div><button className={styles.signOut} onClick={() => void signOut()} disabled={signingOut}>{signingOut ? 'Signing out…' : 'Sign out'}</button></div>
+    </aside>
+    <main id="admin-content" className={styles.shell} tabIndex={-1}>
+      <div className={styles.topbar}><span>Workspace / <strong>Administration</strong></span><span className={styles.adminBadge}>Admin access</span></div>
+      <header className={styles.header}><div><p className={styles.eyebrow}>CITICTEL-CPC · SOC AGENT</p><h1 className={styles.title}>{selected.name}</h1><p className={styles.subtitle}>{selected.copy}</p></div><span className={styles.headerMark}><AdminIcon name={selected.icon} /></span></header>
+      {error && <p className={styles.error} role="alert">{error}</p>}
+      {visited.has('overview') && <div hidden={page !== 'overview'}><AdminOverview connection={connection} /></div>}
+      {visited.has('connections') && <div hidden={page !== 'connections'}><ServiceStatusPanel connection={connection} /></div>}
+      {visited.has('providers') && <div hidden={page !== 'providers'}><ProviderSettings connection={connection} /></div>}
+      {visited.has('notifications') && <div hidden={page !== 'notifications'}><AlertEmailSettings /></div>}
+      <footer className={styles.pageFoot}>Sentinel administration · CITICTEL-CPC</footer>
     </main>
-  )
+  </div>
+}
+function AdminOverview({ connection }: { connection: any }) {
+  const [services,setServices] = useState<AdminSettings | null>(null)
+  const [email,setEmail] = useState<EmailSettings | null>(null)
+  const [error,setError] = useState('')
+  const [busy,setBusy] = useState(false)
+  const [updated,setUpdated] = useState('')
+  const load = useCallback(async () => {
+    setBusy(true); setError('')
+    const results = await Promise.allSettled([rpc(connection,'get-settings'), emailRequest<EmailSettings>()])
+    setServices(results[0].status === 'fulfilled' ? results[0].value as AdminSettings : null)
+    setEmail(results[1].status === 'fulfilled' ? results[1].value : null)
+    if (results.some(r => r.status === 'rejected')) setError('Some status information is unavailable. Refresh to try again.')
+    setUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })); setBusy(false)
+  },[connection])
+  useEffect(() => { void load() },[load])
+  const configured = services ? ['splunk','zimbra','markitdown','subscription_server'].filter(key => serviceReady(services.services?.[key as ServiceKey])).length : null
+  const needsReview = email ? Number(email.delivery.failed || 0) + Number(email.delivery.uncertain || 0) : null
+  return <section className={styles.section} aria-label="Workspace overview">
+    <div className={styles.sectionHeading}><div><p className={styles.sectionKicker}>WORKSPACE SNAPSHOT</p><h2 className={styles.sectionTitle}>Everything in view.</h2></div><div className={styles.headerActions}><span className={styles.fieldHint}>{updated ? `Updated ${updated}` : 'Loading status…'}</span><button className={styles.button} disabled={busy} onClick={() => void load()}>{busy ? 'Refreshing…' : 'Refresh status'}</button></div></div>
+    {error && <p className={styles.error} role="alert">{error}</p>}
+    <div className={styles.metrics}><a href="#connections" className={styles.metric}><span className={styles.metricLabel}>Services configured <AdminIcon name="connections" /></span><strong>{configured === null ? '—' : configured + ' / 4'}</strong><small>Connection checks are available on demand <span>↗</span></small></a><a href="#notifications" className={styles.metric}><span className={styles.metricLabel}>Alert email <AdminIcon name="notifications" /></span><strong>{!email ? '—' : email.runtime.enabled && email.runtime.configured ? 'Enabled' : email.runtime.enabled ? 'Setup needed' : 'Paused'}</strong><small>{email ? `${email.rules.filter(r => r.enabled).length} enabled notification rule${email.rules.filter(r => r.enabled).length === 1 ? '' : 's'}` : 'Status unavailable'} <span>↗</span></small></a><a href="#notifications/history" className={`${styles.metric} ${needsReview ? styles.metricAttention : ''}`}><span className={styles.metricLabel}>Delivery needs attention <AdminIcon name="overview" /></span><strong>{needsReview ?? '—'}</strong><small>Failed or uncertain deliveries <span>↗</span></small></a></div>
+    <div className={styles.contentGrid}><article className={styles.card}><p className={styles.sectionKicker}>ADMINISTRATION</p><h3 className={styles.editorTitle}>Where would you like to start?</h3><div className={styles.quickLinks}>{ADMIN_PAGES.slice(1).map(item => <a key={item.id} href={'#' + item.id}><span className={styles.quickIcon}><AdminIcon name={item.icon} /></span><span><strong>{item.name}</strong><small>{item.copy}</small></span><span aria-hidden="true">→</span></a>)}</div></article><aside className={styles.helpCard}><p className={styles.sectionKicker}>ALERT DELIVERY</p><h3>Ready when you are.</h3><p>Set customer recipients, choose the alerts that matter, and preview the email before enabling a rule.</p><ol className={styles.steps}><li>Set customer defaults</li><li>Choose severity and routing</li><li>Preview and review delivery</li></ol><a className={styles.textButton} href="#notifications">Manage alert email →</a></aside></div>
+  </section>
 }
 
 function ServiceStatusPanel({ connection }: { connection: any }) {
@@ -289,7 +332,7 @@ function ServiceStatusPanel({ connection }: { connection: any }) {
           <p className={styles.sectionKicker}>Environment services</p>
           <h2 id="service-status-title" className={styles.sectionTitle}>Connection status</h2>
         </div>
-        <span className={styles.sectionHint}>Configuration stays in the server .env file.</span>
+        <div className={styles.headerActions}><span className={styles.sectionHint}>Credentials and endpoints are managed on the server.</span><button className={styles.button} onClick={() => void load()}>Refresh status</button></div>
       </div>
       {error ? <p className={styles.error} role="alert">{error}</p> : null}
       <div className={styles.statusGrid}>
@@ -304,7 +347,7 @@ function ServiceStatusPanel({ connection }: { connection: any }) {
                 ? 'Unavailable'
                 : ready
                   ? 'Configured'
-                  : 'Not configured'
+                  : !settings ? 'Unknown' : services[card.key]?.status === 'unavailable' ? 'Unavailable' : 'Not configured'
           const connectionClass = state?.kind === 'info'
             ? styles.statusInfo
             : state?.kind === 'success'
@@ -328,7 +371,7 @@ function ServiceStatusPanel({ connection }: { connection: any }) {
                 <p>{card.description}</p>
                 {state ? <p className={`${styles.checkMessage} ${styles[state.kind]}`}>{state.text}</p> : null}
                 {card.checkable ? (
-                  <button className={styles.textButton} type="button" onClick={() => void check(card.key as 'splunk' | 'subscription_server')} disabled={busy === card.key}>
+                  <button className={styles.textButton} type="button" onClick={() => void check(card.key as 'splunk' | 'subscription_server')} disabled={busy !== null}>
                     {busy === card.key ? 'Checking…' : 'Check connection'}
                   </button>
                 ) : <span className={styles.envManaged}>Environment managed</span>}
@@ -412,7 +455,7 @@ function ProviderSettings({ connection }: { connection: any }) {
           <p className={styles.sectionKicker}>LLM access</p>
           <h2 id="provider-settings-title" className={styles.sectionTitle}>Providers and credentials</h2>
         </div>
-        <span className={styles.sectionHint}>Keys are write-only and never displayed.</span>
+        <div className={styles.headerActions}><span className={styles.sectionHint}>Keys are write-only and never displayed.</span><button className={styles.button} disabled={loading} onClick={() => void load()}>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
       </div>
       {error ? <p className={styles.error} role="alert">{error}</p> : null}
       {loading && !data ? <p className={styles.loadingInline}>Loading providers…</p> : null}
@@ -423,13 +466,12 @@ function ProviderSettings({ connection }: { connection: any }) {
               <span>Available providers</span>
               <span className={styles.countBadge}>{data.providers.length}</span>
             </div>
-            <div className={styles.providerList} role="listbox" aria-label="Choose a provider">
+            <div className={styles.providerList} aria-label="Choose a provider">
               {data.providers.map((row) => (
                 <button
                   className={`${styles.providerOption} ${selected === row.provider.provider ? styles.providerOptionSelected : ''}`}
                   type="button"
-                  role="option"
-                  aria-selected={selected === row.provider.provider}
+                  aria-pressed={selected === row.provider.provider}
                   key={row.provider.provider}
                   onClick={() => setSelected(row.provider.provider)}
                 >
@@ -620,7 +662,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
       <div className={styles.actions}>
         <button className={`${styles.button} ${styles.primary}`} type="button" onClick={() => void save()} disabled={!row.writable || busy}>{busy ? 'Saving…' : 'Save provider'}</button>
         {row.credential?.configured ? <button className={styles.button} type="button" onClick={() => void removeCredential()} disabled={!row.credential.writable || busy}>Remove credential</button> : null}
-        {canRemoveProvider ? <CustomProviderRemoval connection={connection} row={row} onChanged={onChanged} disabled={busy} /> : null}
+        {canRemoveProvider ? <CustomProviderRemoval connection={connection} row={row} onChanged={onChanged} disabled={busy || !row.writable || (row.credential?.configured === true && !row.credential.writable)} /> : null}
       </div>
     </div>
   )

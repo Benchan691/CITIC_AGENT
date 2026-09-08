@@ -31,7 +31,7 @@ test('subscription server connection test stays environment-configured and read-
 
 test('admin console uses provider selection and write-only credentials', () => {
   const source = readFileSync(new URL('../src/client/AdminConsole.tsx', import.meta.url), 'utf8')
-  assert.match(source, /role="listbox"/)
+  assert.match(source, /aria-pressed=\{selected === row.provider.provider\}/)
   assert.match(source, /Custom provider/)
   assert.match(source, /credentials\.set/)
   assert.match(source, /credentials\.unset/)

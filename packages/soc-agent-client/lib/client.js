@@ -94,7 +94,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AdminConsole.module.css.mjs
-		const css$11 = ".IhE_MG_page,.IhE_MG_loginPage{color:#edf3f7;background:#0b1014;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}.IhE_MG_page{background:radial-gradient(circle at 12% 0,#1e788a2b,#0000 34rem),radial-gradient(circle at 92% 8%,#ca8e3314,#0000 30rem),#0b1014}.IhE_MG_shell{width:min(1240px,100% - 48px);margin:0 auto;padding:42px 0 72px}.IhE_MG_header{border-bottom:1px solid #a4bec729;justify-content:space-between;align-items:flex-start;gap:32px;padding:0 0 34px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#80c8d0;letter-spacing:.15em;text-transform:uppercase;margin:0 0 9px;font-size:11px;font-weight:700;line-height:1.4}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:#f7fbfc;letter-spacing:-.035em;margin:0}.IhE_MG_title{font-size:clamp(30px,4vw,46px);line-height:1.05}.IhE_MG_subtitle{color:#9aadb5;max-width:600px;margin:13px 0 0;font-size:15px;line-height:1.6}.IhE_MG_headerActions{align-items:center;gap:14px;padding-top:4px;display:flex}.IhE_MG_account{color:#9aadb5;text-overflow:ellipsis;white-space:nowrap;max-width:240px;font-size:12px;overflow:hidden}.IhE_MG_section{margin-top:34px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:16px;display:flex}.IhE_MG_sectionKicker{color:#d3a968;margin-bottom:6px}.IhE_MG_sectionTitle{font-size:22px;line-height:1.2}.IhE_MG_sectionHint{color:#72838b;text-align:right;font-size:12px;line-height:1.5}.IhE_MG_statusGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;display:grid}.IhE_MG_statusCard{background:#141f25c7;border:1px solid #97b9c226;border-radius:15px;gap:13px;min-width:0;padding:17px;display:flex;box-shadow:0 14px 42px #0000001f}.IhE_MG_statusIcon{color:#9edbe0;background:#2b6c7740;border:1px solid #80c8d042;border-radius:10px;flex:0 0 34px;place-items:center;width:34px;height:34px;font-size:14px;font-weight:750;display:grid}.IhE_MG_statusBody{min-width:0}.IhE_MG_statusTopline{justify-content:space-between;align-items:flex-start;gap:8px;display:flex}.IhE_MG_statusTopline h3{color:#eff7f8;margin:1px 0 0;font-size:14px;line-height:1.35}.IhE_MG_statusBody p{color:#82969e;margin:7px 0 0;font-size:12px;line-height:1.45}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;align-items:center;display:inline-flex}.IhE_MG_statusPill{letter-spacing:.02em;border-radius:999px;flex:none;gap:6px;padding:4px 7px;font-size:10px;font-weight:700}.IhE_MG_statusReady{color:#9ce5be;background:#2c895733}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#a9dce0;background:#468d9733}.IhE_MG_statusError{color:#ffb1b1;background:#8932363d}.IhE_MG_statusMuted{color:#9baab0;background:#7e909724}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#778990;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#59d28c;box-shadow:0 0 0 3px #59d28c1f}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#73cbd3;box-shadow:0 0 0 3px #73cbd31f}.IhE_MG_statusError .IhE_MG_statusDot{background:#f77;box-shadow:0 0 0 3px #ff77771f}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success,.IhE_MG_message.IhE_MG_success{color:#91dfb3}.IhE_MG_checkMessage.IhE_MG_error,.IhE_MG_message.IhE_MG_error,.IhE_MG_error{color:#ff9d9d}.IhE_MG_checkMessage.IhE_MG_info,.IhE_MG_message.IhE_MG_info{color:#9bd6df}.IhE_MG_textButton{color:#a9e2e6;cursor:pointer;font:inherit;background:0 0;border:0;margin-top:12px;padding:0;font-size:12px;font-weight:700}.IhE_MG_textButton:hover,.IhE_MG_textButton:focus-visible{color:#e4ffff;text-decoration:underline}.IhE_MG_textButton:disabled{cursor:wait;opacity:.55}.IhE_MG_envManaged{color:#71858d;margin-top:12px;font-size:11px;display:inline-block}.IhE_MG_button,.IhE_MG_dangerButton{color:#d9e7ea;cursor:pointer;min-height:38px;font:inherit;background:#1c2a31bf;border:1px solid #9ab8c038;border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700;transition:border-color .14s,background .14s,transform .14s}.IhE_MG_button:hover:not(:disabled),.IhE_MG_button:focus-visible,.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#274149e6;border-color:#94dbe194}.IhE_MG_button:active:not(:disabled),.IhE_MG_dangerButton:active:not(:disabled){transform:translateY(1px)}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled{cursor:not-allowed;opacity:.48}.IhE_MG_primary{color:#071215;background:#9bdde0;border-color:#0000}.IhE_MG_primary:hover:not(:disabled),.IhE_MG_primary:focus-visible{color:#071215;background:#c0f0ef;border-color:#0000}.IhE_MG_dangerButton{color:#ffb4b4;background:#782d302e;border-color:#e774744d}.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#89323659;border-color:#ff9191a6}.IhE_MG_error{margin:12px 0;font-size:12px;line-height:1.5}.IhE_MG_loading,.IhE_MG_loadingInline{color:#a2b6bc;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_loadingInline{padding:24px 0}.IhE_MG_providerLayout{background:#0f181dd6;border:1px solid #97b9c229;border-radius:17px;grid-template-columns:minmax(230px,280px) minmax(0,1fr);min-height:480px;display:grid;overflow:hidden;box-shadow:0 18px 60px #00000029}.IhE_MG_providerPicker{background:#141f25b3;border-right:1px solid #97b9c221;flex-direction:column;min-width:0;padding:17px 11px 12px;display:flex}.IhE_MG_pickerHeader{color:#b8c8cd;justify-content:space-between;align-items:center;padding:0 8px 11px;font-size:12px;font-weight:700;display:flex}.IhE_MG_countBadge{color:#a9dce0;background:#468d9733;border-radius:999px;justify-content:center;min-width:22px;padding:3px 6px;font-size:10px}.IhE_MG_providerList{scrollbar-color:#82bac080 transparent;scrollbar-width:thin;flex-direction:column;flex:1;gap:3px;min-height:0;max-height:410px;padding-right:4px;display:flex;overflow-y:auto}.IhE_MG_providerOption,.IhE_MG_customOption{color:#bdcbd0;cursor:pointer;width:100%;min-width:0;font:inherit;text-align:left;background:0 0;border:1px solid #0000;border-radius:10px;align-items:center;gap:10px;padding:11px 9px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_providerOption:focus-visible,.IhE_MG_customOption:hover,.IhE_MG_customOption:focus-visible{background:#36545b38;border-color:#7fc2c933}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{color:#f2fbfc;background:#386f7842;border-color:#7ecdd354}.IhE_MG_providerDot{flex:0 0 7px;width:7px;height:7px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:3px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{color:inherit;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700;overflow:hidden}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:#7f949b;text-overflow:ellipsis;white-space:nowrap;font-size:10px;overflow:hidden}.IhE_MG_customTag,.IhE_MG_customBadge{color:#e1bd7f;text-transform:uppercase;background:#a46f281f;border:1px solid #d3a9684d;border-radius:999px;padding:3px 6px;font-size:9px;font-weight:700}.IhE_MG_customOption{border-top:1px solid #97b9c221;border-radius:0;flex:none;margin-top:12px;padding-top:17px}.IhE_MG_addIcon{color:#e1bd7f;border:1px solid #d3a96859;border-radius:7px;flex:0 0 24px;place-items:center;width:24px;height:24px;font-size:17px;font-weight:400;display:grid}.IhE_MG_providerEditor{background:#0b12166b;min-width:0;padding:31px clamp(22px,4vw,48px) 36px}.IhE_MG_editorHeading{border-bottom:1px solid #97b9c221;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:24px;display:flex}.IhE_MG_editorTitle{font-size:25px;line-height:1.15}.IhE_MG_editorCopy{color:#879aa1;max-width:600px;margin:9px 0 0;font-size:13px;line-height:1.55}.IhE_MG_editorForm{flex-direction:column;gap:20px;max-width:720px;padding-top:26px;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_field{color:#c9d7db;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:700;display:flex}.IhE_MG_field em{color:#71858c;margin-left:4px;font-size:10px;font-style:normal;font-weight:500}.IhE_MG_input{box-sizing:border-box;color:#ecf5f6;width:100%;min-width:0;font:inherit;background:#1a272dc7;border:1px solid #97b9c233;border-radius:9px;outline:0;padding:11px 12px;font-size:13px;font-weight:500;transition:border-color .14s,box-shadow .14s}.IhE_MG_input::placeholder{color:#65777e}.IhE_MG_input:focus{border-color:#89d8deb3;box-shadow:0 0 0 3px #5bb7c021}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.56}.IhE_MG_textarea{resize:vertical;min-height:98px;line-height:1.55}.IhE_MG_fieldHint{color:#71858d;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_advanced{background:#19262c5c;border:1px solid #97b9c226;border-radius:11px}.IhE_MG_advanced summary{color:#c4d5d9;cursor:pointer;padding:13px 15px;font-size:12px;font-weight:700;list-style-position:inside}.IhE_MG_advanced summary:hover{color:#e7f5f6}.IhE_MG_advancedBody{flex-direction:column;gap:18px;padding:0 15px 18px;display:flex}.IhE_MG_discoveryRow{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_discovered{flex-wrap:wrap;gap:7px;display:flex}.IhE_MG_modelChip{color:#b6e6e8;cursor:pointer;font:inherit;background:#386f782e;border:1px solid #7ecdd340;border-radius:999px;padding:6px 9px;font-size:11px}.IhE_MG_modelChip:hover,.IhE_MG_modelChip:focus-visible{background:#386f7852;border-color:#7ecdd3a6}.IhE_MG_message{margin:20px 0 0;font-size:12px;line-height:1.5}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:24px;display:flex}.IhE_MG_confirmGroup{color:#d5b0b0;flex-wrap:wrap;align-items:center;gap:8px;font-size:11px;display:inline-flex}.IhE_MG_confirmGroup .IhE_MG_error{flex-basis:100%;margin:0}.IhE_MG_loginPage{box-sizing:border-box;background:radial-gradient(circle at 50% 0,#25747f47,#0000 35rem),linear-gradient(145deg,#0b1115,#101b20 58%,#11181b);place-items:center;min-height:100vh;padding:24px;display:grid}.IhE_MG_loginPanel{box-sizing:border-box;background:#111c22e0;border:1px solid #a4cad033;border-radius:20px;width:min(100%,430px);padding:38px;box-shadow:0 25px 90px #00000059}.IhE_MG_loginMark{color:#071215;background:#9bdde0;border:1px solid #9bdde080;border-radius:13px;place-items:center;width:42px;height:42px;margin-bottom:25px;font-size:22px;font-weight:800;display:grid}.IhE_MG_loginTitle{font-size:32px;line-height:1.08}.IhE_MG_loginCopy{color:#8fa4aa;margin:13px 0 28px;font-size:13px;line-height:1.6}.IhE_MG_form{flex-direction:column;gap:17px;display:flex}.IhE_MG_fullButton{width:100%;margin-top:3px}.IhE_MG_loginFootnote{color:#6f838a;margin:25px 0 0;font-size:11px;line-height:1.5}@media (width<=1000px){.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (width<=760px){.IhE_MG_shell{width:min(100% - 28px,620px);padding-top:28px}.IhE_MG_header,.IhE_MG_sectionHeading{flex-direction:column;align-items:flex-start}.IhE_MG_headerActions{justify-content:space-between;width:100%}.IhE_MG_sectionHint{text-align:left}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-bottom:1px solid #97b9c221;border-right:0}.IhE_MG_providerList{max-height:230px}.IhE_MG_providerEditor{padding:25px 18px 30px}.IhE_MG_fieldGrid{grid-template-columns:1fr}}@media (width<=460px){.IhE_MG_loginPanel{padding:28px 22px}.IhE_MG_account{max-width:170px}.IhE_MG_editorHeading{flex-direction:column}}";
+		const css$11 = ".IhE_MG_page,.IhE_MG_loginPage{--ink:#202c35;--muted:#65747d;--line:#dfe5e5;--accent:#216b5c;--paper:#fff;color-scheme:light;color:var(--ink);background:#f4f6f5;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;line-height:1.5}.IhE_MG_page *,.IhE_MG_loginPage *{box-sizing:border-box}.IhE_MG_page [hidden]{display:none!important}.IhE_MG_page button,.IhE_MG_loginPage button,.IhE_MG_page input,.IhE_MG_page select,.IhE_MG_page textarea{font:inherit}.IhE_MG_page a{color:inherit}.IhE_MG_page :focus-visible,.IhE_MG_loginPage :focus-visible{outline-offset:3px;outline:3px solid #49a68d}.IhE_MG_page{grid-template-columns:232px minmax(0,1fr);display:grid}.IhE_MG_sidebar{color:#d3dfdc;background:#142c2c;flex-direction:column;height:100vh;padding:32px 18px 22px;display:flex;position:sticky;top:0}.IhE_MG_brand{letter-spacing:-.5px;align-items:center;gap:12px;padding:0 10px 42px;font-size:22px;font-weight:700;text-decoration:none;display:flex}.IhE_MG_brand small{letter-spacing:.3px;color:#a9bfba;font-size:11px;font-weight:400;display:block}.IhE_MG_brandMark{color:#194e40;background:#d9eee1;border-radius:12px;place-items:center;width:38px;height:42px;font-family:Georgia,serif;font-size:24px;display:grid}.IhE_MG_navLabel{letter-spacing:1.8px;color:#8da9a2;margin:0 0 12px;padding:0 14px;font-size:10px;font-weight:600}.IhE_MG_navigation{gap:5px;display:grid}.IhE_MG_navigation a{color:#b4c8c2;border-radius:7px;align-items:center;gap:12px;padding:12px 14px;font-size:13px;text-decoration:none;display:flex}.IhE_MG_navigation a:hover{color:#fff;background:#203d3b}.IhE_MG_navigation .IhE_MG_navActive{color:#f0f8f3;background:#2c4944;font-weight:600;box-shadow:inset 3px 0 #a9d3b7}.IhE_MG_sidebarFoot{margin-top:auto;padding:32px 10px 0}.IhE_MG_backLink{padding-bottom:24px;font-size:12px;text-decoration:none;display:block;color:#b8c9c4!important}.IhE_MG_identity{border-top:1px solid #37504a;gap:10px;min-width:0;padding:19px 0 10px;display:flex}.IhE_MG_identity>div{min-width:0}.IhE_MG_identity strong{color:#e0e9e5;font-size:12px;font-weight:500;display:block}.IhE_MG_avatar{color:#d4e9db;background:#36574b;border-radius:50%;flex:0 0 33px;place-items:center;height:33px;display:grid}.IhE_MG_account{text-overflow:ellipsis;white-space:nowrap;color:#9eb6ae;max-width:155px;font-size:11px;display:block;overflow:hidden}.IhE_MG_signOut{color:#b9cdc5;cursor:pointer;background:0 0;border:0;padding:8px 0;font-size:12px!important}.IhE_MG_shell{width:100%;min-width:0;max-width:1550px;margin:0 auto;padding:0 clamp(24px,4vw,64px)}.IhE_MG_topbar{border-bottom:1px solid var(--line);min-height:74px;color:var(--muted);justify-content:space-between;align-items:center;font-size:12px;display:flex}.IhE_MG_topbar strong{color:var(--ink);font-weight:500}.IhE_MG_adminBadge{color:#4c6259;background:#e8eeeb;border-radius:4px;padding:4px 10px;font-size:11px}.IhE_MG_header{justify-content:space-between;align-items:center;gap:24px;padding:34px 0 26px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#677f75;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 9px;font-size:10px;font-weight:700}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:var(--ink);letter-spacing:-.6px;margin:0;font-weight:600}.IhE_MG_title{font-size:34px;line-height:1.2}.IhE_MG_subtitle{color:var(--muted);margin:10px 0 0;font-size:14px}.IhE_MG_headerMark{color:#4c7161;background:#ecf1ec;border:1px solid #d3dfd8;border-radius:13px;place-items:center;width:48px;height:48px;display:grid}.IhE_MG_headerMark svg{width:24px;height:24px}.IhE_MG_section{margin:8px 0 32px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;display:flex}.IhE_MG_sectionTitle{font-size:20px}.IhE_MG_sectionHint{color:var(--muted);text-align:right;max-width:290px;font-size:12px}.IhE_MG_headerActions,.IhE_MG_toolbar{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0 0 28px;display:grid}.IhE_MG_metric{border:1px solid var(--line);background:#fff;border-radius:10px;flex-direction:column;padding:22px;text-decoration:none;display:flex;box-shadow:0 2px 3px #182e2610}.IhE_MG_metric:hover{border-color:#a8c4b8}.IhE_MG_metricLabel{color:#54675f;justify-content:space-between;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_metricLabel svg{color:#7a9689}.IhE_MG_metric>strong{letter-spacing:-1px;margin:18px 0;font-size:32px;font-weight:600;line-height:1.3}.IhE_MG_metric>small{color:var(--muted);justify-content:space-between;gap:12px;font-size:11px;display:flex}.IhE_MG_metricAttention{background:#fffaf2;border-color:#ebd6b7}.IhE_MG_metricAttention>strong{color:#976322}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.9fr) minmax(230px,1fr);align-items:start;gap:22px;display:grid}.IhE_MG_card{background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:0;margin-bottom:22px;padding:26px}.IhE_MG_helpCard{color:#455c4e;background:#eaf0e9;border:1px solid #dce5d9;border-radius:10px;padding:28px}.IhE_MG_helpCard h3{color:#294938;margin:0 0 12px;font-family:Georgia,serif;font-size:26px;font-weight:400;line-height:1.2}.IhE_MG_helpCard p{font-size:13px;line-height:1.75}.IhE_MG_steps{margin:22px 0;padding-left:20px;font-size:12px}.IhE_MG_steps li{padding:5px 0 5px 5px}.IhE_MG_quickLinks{margin-top:18px;display:grid}.IhE_MG_quickLinks a{border-bottom:1px solid #e9eeeb;align-items:center;gap:15px;padding:20px 0;text-decoration:none;display:flex}.IhE_MG_quickLinks a:last-child{border-bottom:0;padding-bottom:4px}.IhE_MG_quickLinks a>span:nth-child(2){flex:1}.IhE_MG_quickLinks strong{font-size:14px;font-weight:600;display:block}.IhE_MG_quickLinks small{color:var(--muted);margin-top:5px;font-size:12px;line-height:1.5;display:block}.IhE_MG_quickLinks a:hover strong{color:var(--accent)}.IhE_MG_quickIcon{color:#50725e;background:#f0f4f1;border:1px solid #e2eae4;border-radius:9px;flex:0 0 38px;place-items:center;width:38px;height:38px;display:grid}.IhE_MG_pageFoot{border-top:1px solid var(--line);color:#77867e;margin-top:30px;padding:24px 0;font-size:11px}.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_statusCard{border:1px solid var(--line);background:#fff;border-radius:10px;gap:15px;min-width:0;padding:22px;display:flex}.IhE_MG_statusIcon{color:#346e55;background:#edf4ef;border:1px solid #d6e4dc;border-radius:9px;flex:0 0 36px;place-items:center;height:36px;font-weight:600;display:grid}.IhE_MG_statusBody{flex:1;min-width:0}.IhE_MG_statusTopline{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;display:flex}.IhE_MG_statusTopline h3{margin:0;font-size:14px;font-weight:600}.IhE_MG_statusBody p{color:var(--muted);margin:9px 0 0;font-size:12px}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;border-radius:5px;align-items:center;gap:6px;padding:4px 9px;font-size:11px;font-weight:500;display:inline-flex}.IhE_MG_statusReady{color:#286043;background:#e5f2e9}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#385e73;background:#e8f0f4}.IhE_MG_statusError{color:#9d3e32;background:#fceee7}.IhE_MG_statusMuted{color:#65726e;background:#eff1ef}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#97a59e;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#378657}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#507c94}.IhE_MG_statusError .IhE_MG_statusDot{background:#bb5f4c}.IhE_MG_textButton{cursor:pointer;background:0 0;border:0;margin-top:14px;padding:0;font-weight:600;text-decoration:none;display:inline-block;color:var(--accent)!important;font-size:12px!important}.IhE_MG_textButton:hover{text-decoration:underline}.IhE_MG_envManaged{color:#76827c;margin-top:14px;font-size:11px;display:block}.IhE_MG_button,.IhE_MG_dangerButton{color:#3e5349;cursor:pointer;background:#fff;border:1px solid #d5deda;border-radius:6px;justify-content:center;align-items:center;gap:7px;min-height:38px;padding:9px 14px;line-height:1.3;text-decoration:none;display:inline-flex;font-size:12px!important;font-weight:600!important}.IhE_MG_button:hover:not(:disabled){background:#f2f6f3;border-color:#91b3a3}.IhE_MG_primary{color:#fff;background:#246b55;border-color:#246b55}.IhE_MG_primary:hover:not(:disabled){background:#19533f;border-color:#19533f}.IhE_MG_dangerButton{color:#a14235;background:#fff9f6;border-color:#eccdc3}.IhE_MG_dangerButton:hover{background:#fceee8}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled,.IhE_MG_textButton:disabled{cursor:not-allowed;opacity:.55}.IhE_MG_error,.IhE_MG_message{overflow-wrap:anywhere;border-radius:6px;margin:12px 0;padding:12px 15px;font-size:13px}.IhE_MG_error{color:#9b3c32;background:#fff0eb}.IhE_MG_success{color:#2b6748;background:#eaf5ed}.IhE_MG_info{color:#365e73;background:#edf3f7}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success{color:#2b6748;padding:5px}.IhE_MG_loading,.IhE_MG_loadingInline{color:#5d7167;background:#f4f6f5;padding:28px;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_providerLayout{border:1px solid var(--line);background:#fff;border-radius:10px;grid-template-columns:250px minmax(0,1fr);display:grid;overflow:hidden}.IhE_MG_providerPicker{border-right:1px solid var(--line);background:#fafbf9;min-width:0;padding:18px 12px}.IhE_MG_pickerHeader{justify-content:space-between;align-items:center;padding:0 8px 12px;font-size:12px;font-weight:600;display:flex}.IhE_MG_countBadge{color:#4a6c59;background:#e9efeb}.IhE_MG_providerList{flex-direction:column;gap:4px;max-height:430px;display:flex;overflow:auto}.IhE_MG_providerOption,.IhE_MG_customOption{text-align:left;width:100%;color:var(--ink);cursor:pointer;background:0 0;border:1px solid #0000;border-radius:6px;align-items:center;gap:10px;padding:12px 10px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_customOption:hover{background:#eef3ef}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{background:#e7f0e9;border-color:#c6d9cc}.IhE_MG_providerDot{flex:0 0 6px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{overflow-wrap:anywhere;font-size:12px;font-weight:600}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:var(--muted);font-size:10px}.IhE_MG_customTag,.IhE_MG_customBadge{color:#806239;background:#f4eee0;font-size:9px}.IhE_MG_customOption{border-top:1px solid var(--line);border-radius:0;margin-top:14px}.IhE_MG_addIcon{color:var(--accent);font-size:20px}.IhE_MG_providerEditor{min-width:0;padding:28px}.IhE_MG_editorHeading{border-bottom:1px solid var(--line);justify-content:space-between;align-items:flex-start;gap:15px;padding-bottom:22px;display:flex}.IhE_MG_editorTitle{font-size:20px}.IhE_MG_editorCopy{color:var(--muted);margin:10px 0 0;font-size:13px;line-height:1.6}.IhE_MG_editorForm,.IhE_MG_form,.IhE_MG_formFields{border:0;flex-direction:column;gap:20px;min-width:0;margin:22px 0 0;padding:0;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_field{color:#3f5449;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:600;display:flex}.IhE_MG_field em{color:var(--muted);font-size:11px;font-style:normal;font-weight:400}.IhE_MG_input{width:100%;min-width:0;color:var(--ink);background:#fff;border:1px solid #cedbd3;border-radius:6px;padding:10px 12px;font-weight:400;line-height:1.5;display:block;font-size:13px!important}.IhE_MG_input::placeholder{color:#7c8c82}.IhE_MG_input:focus{border-color:#559779}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.7;background:#f3f5f2}textarea.IhE_MG_input{resize:vertical}.IhE_MG_textarea{min-height:100px}.IhE_MG_fieldHint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.IhE_MG_advanced{border:1px solid var(--line);background:#fafbf9;border-radius:7px;margin-top:8px}.IhE_MG_advanced summary{cursor:pointer;color:#425e4e;padding:13px 16px;font-size:12px;font-weight:600}.IhE_MG_advancedBody{flex-direction:column;gap:16px;padding:0 16px 18px;display:flex}.IhE_MG_discoveryRow,.IhE_MG_discovered{flex-wrap:wrap;align-items:center;gap:10px;display:flex}.IhE_MG_modelChip{color:#3e6d50;cursor:pointer;background:#edf5ef;border:1px solid #cadecf;border-radius:5px;padding:7px 10px;font-size:12px}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;display:flex}.IhE_MG_confirmGroup{color:#8e4e42;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_confirmGroup .IhE_MG_error{width:100%}.IhE_MG_loginPage{background:#eaf0ea;place-items:center;padding:24px;display:grid}.IhE_MG_loginPanel{background:#fff;border:1px solid #d4dfd5;border-radius:14px;width:min(100%,430px);padding:40px;box-shadow:0 20px 80px #26443515}.IhE_MG_loginMark{color:#fff;background:#246b55;border-radius:11px;place-items:center;width:44px;height:44px;margin-bottom:26px;font-family:Georgia,serif;font-size:22px;display:grid}.IhE_MG_loginTitle{font-size:30px;line-height:1.2}.IhE_MG_loginCopy{color:var(--muted);margin:14px 0 25px;font-size:13px}.IhE_MG_fullButton{width:100%}.IhE_MG_loginFootnote{color:var(--muted);margin:24px 0 0;font-size:11px}.IhE_MG_notice{color:#526b5d;background:#edf2ef;border:1px solid #dce5df;border-radius:7px;align-items:center;gap:12px;padding:14px 18px;font-size:12px;display:flex}.IhE_MG_tabs{border-bottom:1px solid var(--line);flex-wrap:wrap;gap:4px;margin:22px 0;display:flex}.IhE_MG_tabs button{color:var(--muted);cursor:pointer;background:0 0;border:0;border-bottom:2px solid #0000;padding:12px 14px;font-size:12px}.IhE_MG_tabs .IhE_MG_activeTab{color:#256849;border-bottom-color:#256849;font-weight:600}.IhE_MG_toolbar{margin:0 0 18px}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{max-width:320px}.IhE_MG_toolbar>.IhE_MG_button:last-child{margin-left:auto}.IhE_MG_tableWrap{border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:22px;overflow:auto}.IhE_MG_table{border-collapse:collapse;text-align:left;width:100%;font-size:12px}.IhE_MG_table th{color:#67786d;border-bottom:1px solid var(--line);white-space:nowrap;background:#f9fbf8;padding:13px 18px;font-size:11px;font-weight:500}.IhE_MG_table td{vertical-align:top;border-bottom:1px solid #edf0ec;padding:17px 18px}.IhE_MG_table tr:last-child td{border-bottom:0}.IhE_MG_table td strong{font-weight:600}.IhE_MG_table td small{color:var(--muted);margin-top:5px;display:block}.IhE_MG_table td summary{cursor:pointer;min-width:150px}.IhE_MG_empty{color:var(--muted);text-align:center;padding:35px 22px;font-size:13px}.IhE_MG_checkboxGroup{border:1px solid var(--line);border-radius:7px;flex-wrap:wrap;gap:12px;max-height:230px;padding:14px;display:flex;overflow:auto}.IhE_MG_checkboxGroup legend{color:#4b6555;padding:0 5px;font-size:12px}.IhE_MG_checkboxGroup label,.IhE_MG_checkLabel{color:#3c5546;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_checkboxGroup input,.IhE_MG_checkLabel input{accent-color:#276e53;width:16px;height:16px}.IhE_MG_previewEnvelope{border:1px solid var(--line);overflow-wrap:anywhere;background:#f4f7f3;border-bottom:0;margin-top:24px;padding:20px;font-size:12px}.IhE_MG_previewFrame{border:1px solid var(--line);background:#fff;width:100%;height:560px}.IhE_MG_plainText{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;font-size:12px}.IhE_MG_deliveryDetails{overflow-wrap:anywhere;min-width:220px;max-width:360px;font-size:11px}.IhE_MG_mono{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,monospace!important}.IhE_MG_importRow{border-top:1px solid var(--line);overflow-wrap:anywhere;justify-content:space-between;align-items:center;gap:20px;padding:18px 0;font-size:12px;display:flex}.IhE_MG_importRow p{color:var(--muted)}.IhE_MG_srOnly{clip:rect(0,0,0,0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.IhE_MG_skipLink{z-index:10;background:#fff;padding:12px;position:fixed;top:0;left:240px;transform:translateY(-150%)}.IhE_MG_skipLink:focus{transform:translateY(0)}@media (width<=1150px){.IhE_MG_page{grid-template-columns:200px minmax(0,1fr)}.IhE_MG_sidebar{padding-inline:12px}.IhE_MG_shell{padding-inline:28px}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr)}.IhE_MG_metric{padding:18px}.IhE_MG_metric>strong{font-size:28px}.IhE_MG_providerLayout{grid-template-columns:210px minmax(0,1fr)}}@media (width<=900px){.IhE_MG_contentGrid{grid-template-columns:1fr}.IhE_MG_metrics{gap:10px}.IhE_MG_metric{padding:14px}.IhE_MG_metricLabel{font-size:11px}.IhE_MG_metricLabel svg{display:none}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-right:0;border-bottom:1px solid var(--line)}.IhE_MG_providerList{max-height:180px}.IhE_MG_notice{flex-direction:column;align-items:flex-start}}@media (width<=680px){.IhE_MG_page{display:block}.IhE_MG_sidebar{height:auto;padding:18px 16px 0;position:static}.IhE_MG_brand{padding:0 0 18px;font-size:19px}.IhE_MG_brandMark{width:30px;height:34px;font-size:20px}.IhE_MG_navLabel{display:none}.IhE_MG_navigation{grid-template-columns:repeat(4,minmax(0,1fr));gap:0;display:grid}.IhE_MG_navigation a{border-radius:5px 5px 0 0;flex-direction:column;flex-shrink:0;justify-content:center;gap:6px;padding:10px 3px;font-size:10px}.IhE_MG_navigation svg{width:15px}.IhE_MG_navigation .IhE_MG_navActive{box-shadow:inset 0 -3px #a9d3b7}.IhE_MG_sidebarFoot{flex-wrap:wrap;align-items:center;gap:15px;padding:8px 0;display:flex}.IhE_MG_backLink{padding:0;font-size:11px}.IhE_MG_identity{display:none}.IhE_MG_signOut{margin-left:auto}.IhE_MG_shell{padding:0 18px}.IhE_MG_topbar{min-height:54px}.IhE_MG_header{padding:24px 0 20px}.IhE_MG_title{font-size:28px}.IhE_MG_headerMark{display:none}.IhE_MG_sectionHeading{flex-wrap:wrap;align-items:flex-start;gap:12px}.IhE_MG_metrics{grid-template-columns:1fr;gap:10px}.IhE_MG_metric{grid-template-columns:1fr auto;align-items:center;gap:8px;padding:16px 18px;display:grid}.IhE_MG_metric>strong{grid-area:1/2/3;margin:0;font-size:24px}.IhE_MG_metric>small{grid-column:1}.IhE_MG_metric small span{display:none}.IhE_MG_card,.IhE_MG_helpCard,.IhE_MG_providerEditor{padding:20px}.IhE_MG_fieldGrid{grid-template-columns:1fr}.IhE_MG_editorHeading{flex-wrap:wrap}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{width:100%;max-width:none}.IhE_MG_tabs{gap:0}.IhE_MG_tabs button{padding:11px 9px;font-size:11px}.IhE_MG_sectionHint{text-align:left}.IhE_MG_table td,.IhE_MG_table th{padding:12px}.IhE_MG_table{min-width:560px}.IhE_MG_importRow{flex-direction:column;align-items:flex-start}.IhE_MG_skipLink{left:16px}}";
 		const tagId$11 = "dsh-soc-agent-client/AdminConsole.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$11) + "]") === null) {
 			const tag = document.createElement("style");
@@ -106,24 +106,36 @@ window.__ModuleLoader__.load({
 		var AdminConsole_module_css_default = {
 			"account": "IhE_MG_account",
 			"actions": "IhE_MG_actions",
+			"activeTab": "IhE_MG_activeTab",
 			"addIcon": "IhE_MG_addIcon",
+			"adminBadge": "IhE_MG_adminBadge",
 			"advanced": "IhE_MG_advanced",
 			"advancedBody": "IhE_MG_advancedBody",
+			"avatar": "IhE_MG_avatar",
+			"backLink": "IhE_MG_backLink",
+			"brand": "IhE_MG_brand",
+			"brandMark": "IhE_MG_brandMark",
 			"button": "IhE_MG_button",
+			"card": "IhE_MG_card",
+			"checkLabel": "IhE_MG_checkLabel",
 			"checkMessage": "IhE_MG_checkMessage",
+			"checkboxGroup": "IhE_MG_checkboxGroup",
 			"confirmGroup": "IhE_MG_confirmGroup",
+			"contentGrid": "IhE_MG_contentGrid",
 			"countBadge": "IhE_MG_countBadge",
 			"customBadge": "IhE_MG_customBadge",
 			"customOption": "IhE_MG_customOption",
 			"customOptionSelected": "IhE_MG_customOptionSelected",
 			"customTag": "IhE_MG_customTag",
 			"dangerButton": "IhE_MG_dangerButton",
+			"deliveryDetails": "IhE_MG_deliveryDetails",
 			"discovered": "IhE_MG_discovered",
 			"discoveryRow": "IhE_MG_discoveryRow",
 			"editorCopy": "IhE_MG_editorCopy",
 			"editorForm": "IhE_MG_editorForm",
 			"editorHeading": "IhE_MG_editorHeading",
 			"editorTitle": "IhE_MG_editorTitle",
+			"empty": "IhE_MG_empty",
 			"envManaged": "IhE_MG_envManaged",
 			"error": "IhE_MG_error",
 			"eyebrow": "IhE_MG_eyebrow",
@@ -131,9 +143,14 @@ window.__ModuleLoader__.load({
 			"fieldGrid": "IhE_MG_fieldGrid",
 			"fieldHint": "IhE_MG_fieldHint",
 			"form": "IhE_MG_form",
+			"formFields": "IhE_MG_formFields",
 			"fullButton": "IhE_MG_fullButton",
 			"header": "IhE_MG_header",
 			"headerActions": "IhE_MG_headerActions",
+			"headerMark": "IhE_MG_headerMark",
+			"helpCard": "IhE_MG_helpCard",
+			"identity": "IhE_MG_identity",
+			"importRow": "IhE_MG_importRow",
 			"info": "IhE_MG_info",
 			"input": "IhE_MG_input",
 			"loading": "IhE_MG_loading",
@@ -145,9 +162,22 @@ window.__ModuleLoader__.load({
 			"loginPanel": "IhE_MG_loginPanel",
 			"loginTitle": "IhE_MG_loginTitle",
 			"message": "IhE_MG_message",
+			"metric": "IhE_MG_metric",
+			"metricAttention": "IhE_MG_metricAttention",
+			"metricLabel": "IhE_MG_metricLabel",
+			"metrics": "IhE_MG_metrics",
 			"modelChip": "IhE_MG_modelChip",
+			"mono": "IhE_MG_mono",
+			"navActive": "IhE_MG_navActive",
+			"navLabel": "IhE_MG_navLabel",
+			"navigation": "IhE_MG_navigation",
+			"notice": "IhE_MG_notice",
 			"page": "IhE_MG_page",
+			"pageFoot": "IhE_MG_pageFoot",
 			"pickerHeader": "IhE_MG_pickerHeader",
+			"plainText": "IhE_MG_plainText",
+			"previewEnvelope": "IhE_MG_previewEnvelope",
+			"previewFrame": "IhE_MG_previewFrame",
 			"primary": "IhE_MG_primary",
 			"providerDot": "IhE_MG_providerDot",
 			"providerDotReady": "IhE_MG_providerDotReady",
@@ -158,12 +188,20 @@ window.__ModuleLoader__.load({
 			"providerOptionSelected": "IhE_MG_providerOptionSelected",
 			"providerOptionText": "IhE_MG_providerOptionText",
 			"providerPicker": "IhE_MG_providerPicker",
+			"quickIcon": "IhE_MG_quickIcon",
+			"quickLinks": "IhE_MG_quickLinks",
+			"search": "IhE_MG_search",
 			"section": "IhE_MG_section",
 			"sectionHeading": "IhE_MG_sectionHeading",
 			"sectionHint": "IhE_MG_sectionHint",
 			"sectionKicker": "IhE_MG_sectionKicker",
 			"sectionTitle": "IhE_MG_sectionTitle",
 			"shell": "IhE_MG_shell",
+			"sidebar": "IhE_MG_sidebar",
+			"sidebarFoot": "IhE_MG_sidebarFoot",
+			"signOut": "IhE_MG_signOut",
+			"skipLink": "IhE_MG_skipLink",
+			"srOnly": "IhE_MG_srOnly",
 			"statusBody": "IhE_MG_statusBody",
 			"statusCard": "IhE_MG_statusCard",
 			"statusConfigured": "IhE_MG_statusConfigured",
@@ -176,12 +214,1070 @@ window.__ModuleLoader__.load({
 			"statusPill": "IhE_MG_statusPill",
 			"statusReady": "IhE_MG_statusReady",
 			"statusTopline": "IhE_MG_statusTopline",
+			"steps": "IhE_MG_steps",
 			"subtitle": "IhE_MG_subtitle",
 			"success": "IhE_MG_success",
+			"table": "IhE_MG_table",
+			"tableWrap": "IhE_MG_tableWrap",
+			"tabs": "IhE_MG_tabs",
 			"textButton": "IhE_MG_textButton",
 			"textarea": "IhE_MG_textarea",
-			"title": "IhE_MG_title"
+			"title": "IhE_MG_title",
+			"toolbar": "IhE_MG_toolbar",
+			"topbar": "IhE_MG_topbar"
 		};
+		//#endregion
+		//#region src/client/AlertEmailSettings.tsx
+		async function emailRequest(path = "settings", payload) {
+			const response = await fetch(`/admin/alert-email/${path}`, {
+				credentials: "same-origin",
+				...payload === void 0 ? {} : {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify(payload)
+				}
+			});
+			const value = await response.json().catch(() => ({}));
+			if (!response.ok) throw new Error(response.status === 401 ? "Your admin session has expired. Sign in again to continue." : value.error || "The request failed. Please try again.");
+			return value;
+		}
+		const addresses = (value) => value.split(/[\n,;]/).map((v) => v.trim()).filter(Boolean);
+		const joined = (value) => (value || []).join("\n");
+		function deliveryLabel(status) {
+			return {
+				accepted: "Relay accepted",
+				sent: "Legacy send recorded",
+				failed: "Failed / rejected",
+				uncertain: "Needs review",
+				pending: "Queued",
+				processing: "Sending",
+				disabled: "Skipped"
+			}[status] || status;
+		}
+		function StatusBadge({ status }) {
+			const color = ["accepted", "enabled"].includes(status) ? AdminConsole_module_css_default.statusReady : ["failed", "uncertain"].includes(status) ? AdminConsole_module_css_default.statusError : AdminConsole_module_css_default.statusMuted;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				className: `${AdminConsole_module_css_default.statusPill} ${color}`,
+				children: status === "enabled" ? "Enabled" : status === "disabled-rule" ? "Disabled" : deliveryLabel(status)
+			});
+		}
+		function AddressFields({ value, onChange }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+				className: AdminConsole_module_css_default.field,
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "To recipients" }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+						className: AdminConsole_module_css_default.input,
+						rows: 2,
+						value: joined(value.recipients),
+						onChange: (e) => onChange({
+							...value,
+							recipients: e.target.value.split("\n")
+						}),
+						placeholder: "soc@example.com",
+						required: true
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+						className: AdminConsole_module_css_default.fieldHint,
+						children: "One address per line. CC and BCC are optional."
+					})
+				]
+			}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: AdminConsole_module_css_default.fieldGrid,
+				children: ["cc", "bcc"].map((key) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+					className: AdminConsole_module_css_default.field,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: key.toUpperCase() }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+						className: AdminConsole_module_css_default.input,
+						rows: 2,
+						value: joined(value[key]),
+						onChange: (e) => onChange({
+							...value,
+							[key]: e.target.value.split("\n")
+						})
+					})]
+				}, key))
+			})] });
+		}
+		function cleanRecipients(value) {
+			const result = {
+				...value,
+				recipients: addresses(joined(value.recipients)),
+				cc: addresses(joined(value.cc)),
+				bcc: addresses(joined(value.bcc))
+			};
+			if (!result.recipients.length) throw new Error("Add at least one To recipient.");
+			for (const key of [
+				"recipients",
+				"cc",
+				"bcc"
+			]) {
+				if (result[key].length > 50) throw new Error("Use no more than 50 addresses in each recipient list.");
+				if (result[key].some((address) => address.length > 320 || !/^[^\s@<>]+@[^\s@<>]+$/.test(address))) throw new Error("Use plain email addresses, one per line, without display names.");
+			}
+			return result;
+		}
+		function AlertEmailSettings() {
+			const [data, setData] = (0, react.useState)(null);
+			const [error, setError] = (0, react.useState)("");
+			const [message, setMessage] = (0, react.useState)("");
+			const [loading, setLoading] = (0, react.useState)(false);
+			const emailTab = () => [
+				"routes",
+				"customers",
+				"preview",
+				"history",
+				"import"
+			].includes(window.location.hash.split("/")[1]) ? window.location.hash.split("/")[1] : "routes";
+			const [tab, setTab] = (0, react.useState)(emailTab);
+			(0, react.useEffect)(() => {
+				const change = () => {
+					if (window.location.hash.startsWith("#notifications")) setTab(emailTab());
+				};
+				window.addEventListener("hashchange", change);
+				return () => window.removeEventListener("hashchange", change);
+			}, []);
+			const load = (0, react.useCallback)(async () => {
+				setLoading(true);
+				setError("");
+				try {
+					setData(await emailRequest());
+				} catch (e) {
+					setError(e.message);
+				} finally {
+					setLoading(false);
+				}
+			}, []);
+			(0, react.useEffect)(() => {
+				load();
+			}, [load]);
+			const saved = async (text) => {
+				setMessage(text);
+				await load();
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+				className: AdminConsole_module_css_default.section,
+				"aria-label": "Alert email settings",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.sectionHeading,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.sectionKicker,
+							children: "Delivery controls"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
+							className: AdminConsole_module_css_default.sectionTitle,
+							children: "The right alert, to the right people."
+						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							className: AdminConsole_module_css_default.button,
+							onClick: () => void load(),
+							disabled: loading,
+							children: loading ? "Refreshing…" : "Refresh"
+						})]
+					}),
+					error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.error,
+						role: "alert",
+						children: error
+					}),
+					message && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default.success}`,
+						role: "status",
+						children: message
+					}),
+					!data && loading && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.empty,
+						children: "Loading email configuration…"
+					}),
+					data && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.notice,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: `${AdminConsole_module_css_default.statusPill} ${data.runtime.enabled && data.runtime.configured ? AdminConsole_module_css_default.statusReady : AdminConsole_module_css_default.statusMuted}`,
+								children: data.runtime.enabled && data.runtime.configured ? "Sending enabled" : data.runtime.enabled ? "Setup incomplete" : "Sending paused"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [data.runtime.enabled && data.runtime.configured ? "New matching events enter the delivery queue." : "You can prepare recipients and rules while sending is paused.", " SMTP relay settings are managed on the server."] })]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("nav", {
+							className: AdminConsole_module_css_default.tabs,
+							"aria-label": "Email sections",
+							children: [
+								["routes", "Notification rules"],
+								["customers", "Customer defaults"],
+								["preview", "Preview email"],
+								["history", "Delivery history"],
+								["import", "Import routes"]
+							].map(([id, label]) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: tab === id ? AdminConsole_module_css_default.activeTab : "",
+								onClick: () => {
+									setTab(id);
+									setMessage("");
+									window.history.replaceState(null, "", "#notifications/" + id);
+								},
+								"aria-current": tab === id ? "page" : void 0,
+								children: label
+							}, id))
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							hidden: tab !== "routes",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RulesPanel, {
+								data,
+								onSaved: saved
+							})
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							hidden: tab !== "customers",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CustomerPanel, {
+								data,
+								onSaved: saved
+							})
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							hidden: tab !== "preview",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(PreviewPanel, { data })
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							hidden: tab !== "history",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(HistoryPanel, { data })
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							hidden: tab !== "import",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ImportPanel, {
+								data,
+								onSaved: saved
+							})
+						})
+					] })
+				]
+			});
+		}
+		function CustomerOptions({ data }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(react_jsx_runtime.Fragment, { children: data.customers.map((c) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("option", {
+				value: c.id,
+				children: [
+					c.gid,
+					" · ",
+					c.name
+				]
+			}, c.id)) });
+		}
+		function CustomerPanel({ data, onSaved }) {
+			const [customerId, setCustomerId] = (0, react.useState)(data.customers[0]?.id || "");
+			const [config, setConfig] = (0, react.useState)(data.customers[0]?.email_config || {});
+			const [dirty, setDirty] = (0, react.useState)(false);
+			const [busy, setBusy] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)("");
+			(0, react.useEffect)(() => {
+				if (!dirty) setConfig(data.customers.find((c) => c.id === customerId)?.email_config || {});
+			}, [
+				data.customers,
+				customerId,
+				dirty
+			]);
+			const change = (value) => {
+				setConfig(value);
+				setDirty(true);
+			};
+			async function save(e) {
+				e.preventDefault();
+				setBusy(true);
+				setError("");
+				try {
+					await emailRequest("customer", {
+						customer_id: customerId,
+						email_config: cleanRecipients(config)
+					});
+					setDirty(false);
+					await onSaved("Customer defaults saved.");
+				} catch (e) {
+					setError(e.message);
+				} finally {
+					setBusy(false);
+				}
+			}
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: AdminConsole_module_css_default.contentGrid,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+					className: AdminConsole_module_css_default.card,
+					onSubmit: save,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
+							className: AdminConsole_module_css_default.editorTitle,
+							children: "Customer defaults"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.editorCopy,
+							children: "Used when a matching rule has no recipient override."
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+							className: AdminConsole_module_css_default.formFields,
+							disabled: busy || !data.customers.length,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Customer" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("select", {
+										className: AdminConsole_module_css_default.input,
+										value: customerId,
+										onChange: (e) => {
+											if (dirty && !window.confirm("Discard unsaved customer changes?")) return;
+											setCustomerId(e.target.value);
+											setConfig(data.customers.find((c) => c.id === e.target.value)?.email_config || {});
+											setDirty(false);
+											setError("");
+										},
+										children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CustomerOptions, { data })
+									})]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)(AddressFields, {
+									value: config,
+									onChange: change
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: AdminConsole_module_css_default.fieldGrid,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+										className: AdminConsole_module_css_default.field,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Email language" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+											className: AdminConsole_module_css_default.input,
+											value: config.language || "EN",
+											onChange: (e) => change({
+												...config,
+												language: e.target.value
+											}),
+											children: [
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+													value: "EN",
+													children: "English"
+												}),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+													value: "CN",
+													children: "简体中文"
+												}),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+													value: "ZH",
+													children: "繁體中文"
+												})
+											]
+										})]
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+										className: AdminConsole_module_css_default.field,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Brand template" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+											className: AdminConsole_module_css_default.input,
+											value: config.brand || "CPC",
+											onChange: (e) => change({
+												...config,
+												brand: e.target.value
+											}),
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", { children: "CPC" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", { children: "CEC" })]
+										})]
+									})]
+								}),
+								error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+									className: AdminConsole_module_css_default.error,
+									role: "alert",
+									children: error
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: AdminConsole_module_css_default.actions,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+										disabled: !dirty,
+										type: "submit",
+										children: busy ? "Saving…" : "Save defaults"
+									}), dirty && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: AdminConsole_module_css_default.fieldHint,
+										children: "Unsaved changes"
+									})]
+								})
+							]
+						}),
+						!data.customers.length && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.empty,
+							children: "No customers available. Add a customer to the catalog first."
+						})
+					]
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
+					className: AdminConsole_module_css_default.helpCard,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.sectionKicker,
+							children: "How defaults work"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", { children: "One customer. One destination." }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Routes only use the event’s own customer. A rule can replace the default recipients for a specific team." }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "BCC recipients remain hidden in the message. Language and brand apply to every alert for this customer." }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Saving defaults does not replay earlier events." })
+					]
+				})]
+			});
+		}
+		const newRule = () => ({
+			name: "",
+			customer_id: "",
+			ruleset_id: "",
+			severities: ["high", "critical"],
+			enabled: false,
+			routing: {}
+		});
+		function RulesPanel({ data, onSaved }) {
+			const [draft, setDraft] = (0, react.useState)(null);
+			const editor = (0, react.useRef)(null);
+			const editing = draft !== null;
+			(0, react.useEffect)(() => {
+				if (editing) {
+					editor.current?.scrollIntoView({ block: "start" });
+					editor.current?.querySelector("input")?.focus({ preventScroll: true });
+				}
+			}, [editing, draft?.id]);
+			const [query, setQuery] = (0, react.useState)("");
+			const [busy, setBusy] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)("");
+			const [dirty, setDirty] = (0, react.useState)(false);
+			const edit = (rule) => {
+				if (dirty && !window.confirm("Discard unsaved rule changes?")) return;
+				setDraft(rule ? structuredClone(rule) : null);
+				setDirty(false);
+				setError("");
+			};
+			const update = (value) => {
+				setDraft((d) => d && {
+					...d,
+					...value
+				});
+				setDirty(true);
+			};
+			const route = draft?.routing || {};
+			const routing = (value) => update({ routing: {
+				...route,
+				...value
+			} });
+			async function save(e) {
+				e.preventDefault();
+				if (!draft) return;
+				setBusy(true);
+				setError("");
+				try {
+					if (!draft.id && data.rules.some((r) => r.name === draft.name.trim())) throw new Error("A rule with this name already exists. Edit that rule or choose another name.");
+					await emailRequest("rule", {
+						...draft,
+						customer_id: draft.customer_id || null,
+						ruleset_id: draft.ruleset_id || null,
+						routing: {
+							...route,
+							ips: addresses(joined(route.ips)),
+							hostnames: addresses(joined(route.hostnames)),
+							...route.recipients ? { recipients: cleanRecipients(route.recipients) } : {}
+						}
+					});
+					setDirty(false);
+					setDraft(null);
+					await onSaved("Notification rule saved.");
+				} catch (e) {
+					setError(e.message);
+				} finally {
+					setBusy(false);
+				}
+			}
+			const customerName = (id) => data.customers.find((c) => c.id === id)?.name || (id ? "Unknown customer" : "All customers · own defaults");
+			const filtered = data.rules.filter((r) => `${r.name} ${customerName(r.customer_id)}`.toLowerCase().includes(query.toLowerCase()));
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.toolbar,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: AdminConsole_module_css_default.search,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: AdminConsole_module_css_default.srOnly,
+								children: "Search rules"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								className: AdminConsole_module_css_default.input,
+								type: "search",
+								placeholder: "Search rules or customers…",
+								value: query,
+								onChange: (e) => setQuery(e.target.value)
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+							className: AdminConsole_module_css_default.fieldHint,
+							children: [
+								data.rules.length,
+								" rules · ",
+								data.rules.filter((r) => r.enabled).length,
+								" enabled"
+							]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+							disabled: busy,
+							onClick: () => edit(newRule()),
+							children: "+ New rule"
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.tableWrap,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("table", {
+						className: AdminConsole_module_css_default.table,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("tr", { children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("th", { children: "Rule / customer" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("th", { children: "Severity" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("th", { children: "Recipients" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("th", { children: "Status" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("th", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: AdminConsole_module_css_default.srOnly,
+								children: "Actions"
+							}) })
+						] }) }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("tbody", { children: filtered.map((r) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("tr", { children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("td", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: r.name }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: customerName(r.customer_id) })] }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("td", { children: r.severities.join(", ") }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("td", { children: r.routing?.recipients ? "Custom recipients" : "Customer defaults" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("td", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StatusBadge, { status: r.enabled ? "enabled" : "disabled-rule" }) }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("td", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: AdminConsole_module_css_default.button,
+								disabled: busy,
+								onClick: () => edit(r),
+								"aria-label": `Edit ${r.name}`,
+								children: "Edit"
+							}) })
+						] }, r.id || r.name)) })]
+					}), !filtered.length && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.empty,
+						children: query ? "No rules match your search." : "No notification rules yet. Create a rule to choose which alerts should send email."
+					})]
+				}),
+				draft && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+					ref: editor,
+					className: AdminConsole_module_css_default.card,
+					onSubmit: save,
+					"aria-label": "Rule editor",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.sectionHeading,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
+							className: AdminConsole_module_css_default.editorTitle,
+							children: draft.id ? "Edit notification rule" : "New notification rule"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							className: AdminConsole_module_css_default.button,
+							type: "button",
+							onClick: () => edit(null),
+							disabled: busy,
+							children: "Close"
+						})]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+						className: AdminConsole_module_css_default.formFields,
+						disabled: busy,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AdminConsole_module_css_default.fieldGrid,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Rule name" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										className: AdminConsole_module_css_default.input,
+										value: draft.name,
+										onChange: (e) => update({ name: e.target.value }),
+										maxLength: 160,
+										required: true
+									})]
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Customer" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+										className: AdminConsole_module_css_default.input,
+										value: draft.customer_id || "",
+										onChange: (e) => update({
+											customer_id: e.target.value,
+											ruleset_id: "",
+											routing: {
+												...route,
+												recipients: void 0
+											}
+										}),
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+											value: "",
+											children: "All customers · own defaults"
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CustomerOptions, { data })]
+									})]
+								})]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+								className: AdminConsole_module_css_default.checkboxGroup,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", { children: "Send for these severities" }), [
+									"info",
+									"low",
+									"medium",
+									"high",
+									"critical"
+								].map((severity) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									type: "checkbox",
+									checked: draft.severities.includes(severity),
+									onChange: (e) => update({ severities: e.target.checked ? [...draft.severities, severity] : draft.severities.filter((s) => s !== severity) })
+								}), severity] }, severity))]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+								className: AdminConsole_module_css_default.advanced,
+								open: Boolean(route.source_type_ids?.length || route.ips?.length || route.hostnames?.length || draft.ruleset_id),
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("summary", { children: ["Additional filters ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									className: AdminConsole_module_css_default.fieldHint,
+									children: "Optional"
+								})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: AdminConsole_module_css_default.advancedBody,
+									children: [
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+											className: AdminConsole_module_css_default.fieldHint,
+											children: "All filter categories must match. Within a category, any value may match. Missing event information does not match."
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+											className: AdminConsole_module_css_default.checkboxGroup,
+											children: [
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", { children: "Source types" }),
+												data.source_types.map((s) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													type: "checkbox",
+													checked: route.source_type_ids?.includes(s.id) || false,
+													onChange: (e) => routing({ source_type_ids: e.target.checked ? [...route.source_type_ids || [], s.id] : route.source_type_ids?.filter((id) => id !== s.id) })
+												}), s.name] }, s.id)),
+												!data.source_types.length && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+													className: AdminConsole_module_css_default.fieldHint,
+													children: "No source types available."
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+											className: AdminConsole_module_css_default.fieldGrid,
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+												className: AdminConsole_module_css_default.field,
+												children: [
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "IPs, subnets or ranges" }),
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+														className: AdminConsole_module_css_default.input,
+														rows: 2,
+														placeholder: "10.0.0.0/24",
+														value: joined(route.ips),
+														onChange: (e) => routing({ ips: e.target.value.split("\n") })
+													}),
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+														className: AdminConsole_module_css_default.fieldHint,
+														children: "One per line. Matches source or destination IP."
+													})
+												]
+											}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+												className: AdminConsole_module_css_default.field,
+												children: [
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Hostnames" }),
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+														className: AdminConsole_module_css_default.input,
+														rows: 2,
+														placeholder: "web-*",
+														value: joined(route.hostnames),
+														onChange: (e) => routing({ hostnames: e.target.value.split("\n") })
+													}),
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+														className: AdminConsole_module_css_default.fieldHint,
+														children: "One per line. Use * for a wildcard."
+													})
+												]
+											})]
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+											className: AdminConsole_module_css_default.field,
+											children: [
+												/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["Ruleset ID ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("em", { children: "optional" })] }),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													className: AdminConsole_module_css_default.input,
+													value: draft.ruleset_id || "",
+													disabled: !draft.customer_id,
+													onChange: (e) => update({ ruleset_id: e.target.value })
+												}),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+													className: AdminConsole_module_css_default.fieldHint,
+													children: "Must belong to the selected customer. Leave blank to include all their rulesets."
+												})
+											]
+										})
+									]
+								})]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.checkLabel,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									type: "checkbox",
+									checked: Boolean(route.recipients),
+									disabled: !draft.customer_id,
+									onChange: (e) => routing({ recipients: e.target.checked ? { recipients: [] } : void 0 })
+								}), "Use custom recipients for this rule"]
+							}),
+							!draft.customer_id && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+								className: AdminConsole_module_css_default.fieldHint,
+								children: "Choose one customer to set recipient overrides."
+							}),
+							route.recipients && /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AddressFields, {
+								value: route.recipients,
+								onChange: (recipients) => routing({ recipients })
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.checkLabel,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									type: "checkbox",
+									checked: draft.enabled,
+									onChange: (e) => update({ enabled: e.target.checked })
+								}), "Enable this rule for new alerts"]
+							}),
+							error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: AdminConsole_module_css_default.error,
+								role: "alert",
+								children: error
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AdminConsole_module_css_default.actions,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+										type: "submit",
+										disabled: !draft.severities.length,
+										children: busy ? "Saving…" : "Save rule"
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										className: AdminConsole_module_css_default.button,
+										type: "button",
+										onClick: () => edit(null),
+										children: "Cancel"
+									}),
+									dirty && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: AdminConsole_module_css_default.fieldHint,
+										children: "Unsaved changes"
+									})
+								]
+							})
+						]
+					})]
+				})
+			] });
+		}
+		function PreviewPanel({ data }) {
+			const [customer, setCustomer] = (0, react.useState)(data.customers[0]?.id || "");
+			const [event, setEvent] = (0, react.useState)("");
+			const [preview, setPreview] = (0, react.useState)(null);
+			const [error, setError] = (0, react.useState)("");
+			const [busy, setBusy] = (0, react.useState)(false);
+			async function load(e) {
+				e.preventDefault();
+				setBusy(true);
+				setError("");
+				setPreview(null);
+				try {
+					setPreview(await emailRequest("preview", {
+						customer_id: customer,
+						event_id: event.trim()
+					}));
+				} catch (e) {
+					setError(e.message);
+				} finally {
+					setBusy(false);
+				}
+			}
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: AdminConsole_module_css_default.card,
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
+						className: AdminConsole_module_css_default.editorTitle,
+						children: "Preview before delivery"
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.editorCopy,
+						children: "Uses saved customer defaults and enabled rules. This preview does not send an email."
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+						className: AdminConsole_module_css_default.formFields,
+						onSubmit: load,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.fieldGrid,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.field,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Customer" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("select", {
+									className: AdminConsole_module_css_default.input,
+									value: customer,
+									disabled: busy,
+									onChange: (e) => {
+										setCustomer(e.target.value);
+										setPreview(null);
+									},
+									required: true,
+									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CustomerOptions, { data })
+								})]
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.field,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Event ID" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: AdminConsole_module_css_default.input,
+									value: event,
+									disabled: busy,
+									onChange: (e) => {
+										setEvent(e.target.value);
+										setPreview(null);
+									},
+									required: true,
+									placeholder: "Paste an event ID from delivery history"
+								})]
+							})]
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+							disabled: busy || !customer,
+							children: busy ? "Preparing preview…" : "Preview email"
+						}) })]
+					}),
+					error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.error,
+						role: "alert",
+						children: error
+					}),
+					preview && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.previewEnvelope,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: preview.subject }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", { children: ["Matching rules: ", preview.matched_rules.join(", ") || "None — this event would not send"] }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", { children: [
+									"To: ",
+									preview.recipients.recipients?.join(", ") || "No recipients",
+									preview.recipients.cc?.length ? ` · CC: ${preview.recipients.cc.join(", ")}` : ""
+								] }),
+								Boolean(preview.recipients.bcc?.length) && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", { children: [
+									"BCC: ",
+									preview.recipients.bcc?.join(", "),
+									" ",
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: "(visible here to administrators only)" })
+								] })
+							]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
+							className: AdminConsole_module_css_default.previewFrame,
+							title: "Alert email preview",
+							sandbox: "",
+							srcDoc: preview.html
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+							className: AdminConsole_module_css_default.advanced,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: "Plain-text version" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("pre", {
+								className: AdminConsole_module_css_default.plainText,
+								children: preview.text
+							})]
+						})
+					] })
+				]
+			});
+		}
+		function HistoryPanel({ data }) {
+			const [status, setStatus] = (0, react.useState)("");
+			const [query, setQuery] = (0, react.useState)("");
+			const history = data.history.filter((row) => (!status || row.status === status) && `${row.customer} ${row.event_id}`.toLowerCase().includes(query.toLowerCase()));
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.toolbar,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+						className: AdminConsole_module_css_default.input,
+						type: "search",
+						"aria-label": "Search delivery history",
+						placeholder: "Search customer or event ID…",
+						value: query,
+						onChange: (e) => setQuery(e.target.value)
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+						className: AdminConsole_module_css_default.input,
+						"aria-label": "Delivery status",
+						value: status,
+						onChange: (e) => setStatus(e.target.value),
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+							value: "",
+							children: "All delivery states"
+						}), [
+							"uncertain",
+							"failed",
+							"accepted",
+							"pending",
+							"processing",
+							"disabled",
+							"sent"
+						].map((s) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+							value: s,
+							children: deliveryLabel(s)
+						}, s))]
+					})]
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					className: AdminConsole_module_css_default.fieldHint,
+					children: "Latest 100 deliveries. Relay acceptance does not confirm mailbox delivery. Uncertain sends need operator review."
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: AdminConsole_module_css_default.tableWrap,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("table", {
+						className: AdminConsole_module_css_default.table,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("tr", { children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("th", { children: "Time / customer" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("th", { children: "Event" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("th", { children: "Delivery state" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("th", { children: "Details" })
+						] }) }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("tbody", { children: history.map((row) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("tr", { children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("td", { children: [new Date(row.created).toLocaleString(), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: row.customer })] }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("td", {
+								className: AdminConsole_module_css_default.mono,
+								children: row.event_id
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("td", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StatusBadge, { status: row.status }) }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("td", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("summary", { children: [
+								row.accepted.length,
+								" accepted · ",
+								Object.keys(row.rejected).length,
+								" rejected"
+							] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AdminConsole_module_css_default.deliveryDetails,
+								children: [
+									row.accepted.length > 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", { children: ["Accepted: ", row.accepted.join(", ")] }),
+									Object.entries(row.rejected).map(([address, code]) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", { children: [
+										address,
+										" — ",
+										code,
+										" (",
+										code >= 400 && code < 500 ? "temporary refusal" : "permanent refusal",
+										")"
+									] }, address)),
+									row.error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: row.error }),
+									row.smtp_accepted && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", { children: ["Relay accepted: ", new Date(row.smtp_accepted).toLocaleString()] })
+								]
+							})] }) })
+						] }, row.event_id)) })]
+					}), !history.length && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.empty,
+						children: data.history.length ? "No deliveries match these filters." : "No delivery history yet. New matching alerts will appear here."
+					})]
+				})
+			] });
+		}
+		function ImportPanel({ data, onSaved }) {
+			const [customer, setCustomer] = (0, react.useState)(data.customers[0]?.id || "");
+			const [csv, setCsv] = (0, react.useState)("");
+			const [rows, setRows] = (0, react.useState)([]);
+			const [error, setError] = (0, react.useState)("");
+			const [busy, setBusy] = (0, react.useState)(false);
+			const [applied, setApplied] = (0, react.useState)([]);
+			async function preview(e) {
+				e.preventDefault();
+				setBusy(true);
+				setError("");
+				setRows([]);
+				setApplied([]);
+				try {
+					setRows((await emailRequest("preview", {
+						customer_id: customer,
+						csv
+					})).rows);
+				} catch (e) {
+					setError(e.message);
+				} finally {
+					setBusy(false);
+				}
+			}
+			async function apply(row) {
+				setBusy(true);
+				setError("");
+				try {
+					for (const rule of row.rules || []) await emailRequest("rule", rule);
+					setApplied((old) => [...old, row.row]);
+					await onSaved(`Row ${row.row} saved. Imported rules remain disabled.`);
+				} catch (e) {
+					setError(`Row ${row.row}: ${e.message} Some routes may have saved; refresh the rules before retrying.`);
+				} finally {
+					setBusy(false);
+				}
+			}
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: AdminConsole_module_css_default.card,
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
+						className: AdminConsole_module_css_default.editorTitle,
+						children: "Bring your existing routes"
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.editorCopy,
+						children: "Preview exact customer and source-type mappings first. Unmatched rows stay unapplied; saved rules start disabled."
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+						className: AdminConsole_module_css_default.formFields,
+						onSubmit: preview,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.field,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Customer for this import" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("select", {
+									className: AdminConsole_module_css_default.input,
+									required: true,
+									value: customer,
+									onChange: (e) => {
+										setCustomer(e.target.value);
+										setRows([]);
+									},
+									disabled: busy,
+									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CustomerOptions, { data })
+								})]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AdminConsole_module_css_default.field,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "CSV content" }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+										className: `${AdminConsole_module_css_default.input} ${AdminConsole_module_css_default.mono}`,
+										rows: 6,
+										value: csv,
+										onChange: (e) => {
+											setCsv(e.target.value);
+											setRows([]);
+										},
+										disabled: busy,
+										required: true,
+										maxLength: 5e4,
+										placeholder: "source_type,severity,recipients"
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+										className: AdminConsole_module_css_default.fieldHint,
+										children: "Up to 100 rows. Headers: gid, source_type, severity, ip1, ip2, hostname, recipients, cc, bcc. Source-type names must match the catalog exactly."
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+								disabled: busy || !customer,
+								children: busy ? "Working…" : "Preview import"
+							}) })
+						]
+					}),
+					error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.error,
+						role: "alert",
+						children: error
+					}),
+					rows.map((row) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.importRow,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("strong", { children: [
+								"Row ",
+								row.row,
+								" · ",
+								row.status === "ready" ? "Ready to save" : "Needs mapping"
+							] }),
+							row.error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: row.error }),
+							row.rules?.map((rule) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", { children: [
+								rule.name,
+								" · ",
+								rule.severities.join(", "),
+								" · Source types: ",
+								rule.routing?.source_type_ids?.map((id) => data.source_types.find((source) => source.id === id)?.name || id).join(", "),
+								" · To: ",
+								rule.routing?.recipients?.recipients?.join(", "),
+								rule.routing?.ips?.length ? ` · IP: ${rule.routing.ips.join(", ")}` : "",
+								rule.routing?.hostnames?.length ? ` · Host: ${rule.routing.hostnames.join(", ")}` : "",
+								rule.routing?.recipients?.cc?.length ? ` · CC: ${rule.routing.recipients.cc.join(", ")}` : "",
+								rule.routing?.recipients?.bcc?.length ? ` · BCC: ${rule.routing.recipients.bcc.join(", ")}` : "",
+								data.rules.some((existing) => existing.name === rule.name) ? " · Replaces the existing rule with this name" : ""
+							] }, rule.name))
+						] }), row.status === "ready" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							className: AdminConsole_module_css_default.button,
+							disabled: busy || applied.includes(row.row),
+							onClick: () => void apply(row),
+							children: applied.includes(row.row) ? "Saved disabled" : "Save disabled routes"
+						})]
+					}, row.row))
+				]
+			});
+		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
 		const css$10 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
@@ -289,6 +1385,7 @@ window.__ModuleLoader__.load({
 			return response.result.value;
 		}
 		function serviceReady(service) {
+			if (service?.status === "unavailable" || service?.status === "not_configured") return false;
 			return service?.status === "ready" || service?.configured === true || service?.available === true;
 		}
 		function AdminConsole({ connection }) {
@@ -373,7 +1470,7 @@ window.__ModuleLoader__.load({
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 							className: AdminConsole_module_css_default.loginCopy,
-							children: "Manage LLM provider credentials and review the health of connected services."
+							children: "Manage your SOC workspace, connected services, and alert delivery."
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
 							className: AdminConsole_module_css_default.form,
@@ -422,58 +1519,375 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
+		const ADMIN_PAGES = [
+			{
+				id: "overview",
+				name: "Overview",
+				icon: "overview",
+				copy: "Your workspace, at a glance."
+			},
+			{
+				id: "connections",
+				name: "Connections",
+				icon: "connections",
+				copy: "Review service setup and verify connections when needed."
+			},
+			{
+				id: "providers",
+				name: "AI providers",
+				icon: "providers",
+				copy: "Manage model access and credentials in one place."
+			},
+			{
+				id: "notifications",
+				name: "Alert email",
+				icon: "notifications",
+				copy: "Manage recipients, routing, and delivery for new security alerts."
+			}
+		];
+		function AdminIcon({ name }) {
+			const paths = {
+				overview: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
+				connections: "M8 3v5 M16 3v5 M6 8h12v3a6 6 0 0 1-12 0z M12 17v4",
+				providers: "M12 3l9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5",
+				notifications: "M3 5h18v14H3z M3 5l9 8 9-8"
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
+				width: "20",
+				height: "20",
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: "1.6",
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": "true",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: paths[name] || paths.overview })
+			});
+		}
+		function currentPage() {
+			const hash = window.location.hash.slice(1).split("/")[0];
+			return ADMIN_PAGES.some((p) => p.id === hash) ? hash : window.location.pathname.includes("/alert-email") ? "notifications" : "overview";
+		}
 		function AdminWorkspace({ connection, email, onSignedOut }) {
 			const [signingOut, setSigningOut] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)("");
+			const [page, setPage] = (0, react.useState)(currentPage);
+			const [visited, setVisited] = (0, react.useState)(() => new Set([currentPage()]));
+			(0, react.useEffect)(() => {
+				const change = () => {
+					const next = currentPage();
+					setPage(next);
+					setVisited((old) => new Set([...old, next]));
+				};
+				window.addEventListener("hashchange", change);
+				return () => window.removeEventListener("hashchange", change);
+			}, []);
+			const selected = ADMIN_PAGES.find((p) => p.id === page) || ADMIN_PAGES[0];
 			async function signOut() {
 				setSigningOut(true);
+				setError("");
 				try {
-					await fetch("/admin/auth/logout", {
+					if (!(await fetch("/admin/auth/logout", {
 						method: "POST",
 						credentials: "same-origin"
-					});
+					})).ok) throw new Error("Sign-out failed. Please try again.");
 					await onSignedOut();
+				} catch (e) {
+					setError(errorText(e));
 				} finally {
 					setSigningOut(false);
 				}
 			}
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("main", {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: AdminConsole_module_css_default.page,
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					className: AdminConsole_module_css_default.shell,
-					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", {
-							className: AdminConsole_module_css_default.header,
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-									className: AdminConsole_module_css_default.eyebrow,
-									children: "CITICTEL-CPC · SOC AGENT"
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
-									className: AdminConsole_module_css_default.title,
-									children: "Administration console"
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-									className: AdminConsole_module_css_default.subtitle,
-									children: "A clear view of service readiness and LLM provider access."
-								})
-							] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-								className: AdminConsole_module_css_default.headerActions,
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
+						className: AdminConsole_module_css_default.skipLink,
+						href: "#admin-content",
+						onClick: (event) => {
+							event.preventDefault();
+							document.getElementById("admin-content")?.focus();
+						},
+						children: "Skip to content"
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
+						className: AdminConsole_module_css_default.sidebar,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("a", {
+								href: "/admin",
+								className: AdminConsole_module_css_default.brand,
 								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-									className: AdminConsole_module_css_default.account,
-									children: email
-								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									className: AdminConsole_module_css_default.button,
-									type: "button",
-									onClick: () => void signOut(),
-									disabled: signingOut,
-									children: signingOut ? "Signing out…" : "Sign out"
+									className: AdminConsole_module_css_default.brandMark,
+									children: "S"
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["Sentinel", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: "Administration" })] })]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: AdminConsole_module_css_default.navLabel,
+								children: "WORKSPACE"
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("nav", {
+								className: AdminConsole_module_css_default.navigation,
+								"aria-label": "Administration",
+								children: ADMIN_PAGES.map((item) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("a", {
+									href: "#" + item.id,
+									className: page === item.id ? AdminConsole_module_css_default.navActive : "",
+									"aria-current": page === item.id ? "page" : void 0,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminIcon, { name: item.icon }), item.name]
+								}, item.id))
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AdminConsole_module_css_default.sidebarFoot,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
+										href: "/",
+										className: AdminConsole_module_css_default.backLink,
+										children: "← Back to workspace"
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: AdminConsole_module_css_default.identity,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: AdminConsole_module_css_default.avatar,
+											children: email.slice(0, 1).toUpperCase() || "A"
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Administrator" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: AdminConsole_module_css_default.account,
+											title: email,
+											children: email
+										})] })]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										className: AdminConsole_module_css_default.signOut,
+										onClick: () => void signOut(),
+										disabled: signingOut,
+										children: signingOut ? "Signing out…" : "Sign out"
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("main", {
+						id: "admin-content",
+						className: AdminConsole_module_css_default.shell,
+						tabIndex: -1,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AdminConsole_module_css_default.topbar,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["Workspace / ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Administration" })] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									className: AdminConsole_module_css_default.adminBadge,
+									children: "Admin access"
 								})]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", {
+								className: AdminConsole_module_css_default.header,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+										className: AdminConsole_module_css_default.eyebrow,
+										children: "CITICTEL-CPC · SOC AGENT"
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
+										className: AdminConsole_module_css_default.title,
+										children: selected.name
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+										className: AdminConsole_module_css_default.subtitle,
+										children: selected.copy
+									})
+								] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									className: AdminConsole_module_css_default.headerMark,
+									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminIcon, { name: selected.icon })
+								})]
+							}),
+							error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: AdminConsole_module_css_default.error,
+								role: "alert",
+								children: error
+							}),
+							visited.has("overview") && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								hidden: page !== "overview",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminOverview, { connection })
+							}),
+							visited.has("connections") && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								hidden: page !== "connections",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ServiceStatusPanel, { connection })
+							}),
+							visited.has("providers") && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								hidden: page !== "providers",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProviderSettings, { connection })
+							}),
+							visited.has("notifications") && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								hidden: page !== "notifications",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AlertEmailSettings, {})
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("footer", {
+								className: AdminConsole_module_css_default.pageFoot,
+								children: "Sentinel administration · CITICTEL-CPC"
+							})
+						]
+					})
+				]
+			});
+		}
+		function AdminOverview({ connection }) {
+			const [services, setServices] = (0, react.useState)(null);
+			const [email, setEmail] = (0, react.useState)(null);
+			const [error, setError] = (0, react.useState)("");
+			const [busy, setBusy] = (0, react.useState)(false);
+			const [updated, setUpdated] = (0, react.useState)("");
+			const load = (0, react.useCallback)(async () => {
+				setBusy(true);
+				setError("");
+				const results = await Promise.allSettled([rpc(connection, "get-settings"), emailRequest()]);
+				setServices(results[0].status === "fulfilled" ? results[0].value : null);
+				setEmail(results[1].status === "fulfilled" ? results[1].value : null);
+				if (results.some((r) => r.status === "rejected")) setError("Some status information is unavailable. Refresh to try again.");
+				setUpdated((/* @__PURE__ */ new Date()).toLocaleTimeString([], {
+					hour: "2-digit",
+					minute: "2-digit"
+				}));
+				setBusy(false);
+			}, [connection]);
+			(0, react.useEffect)(() => {
+				load();
+			}, [load]);
+			const configured = services ? [
+				"splunk",
+				"zimbra",
+				"markitdown",
+				"subscription_server"
+			].filter((key) => serviceReady(services.services?.[key])).length : null;
+			const needsReview = email ? Number(email.delivery.failed || 0) + Number(email.delivery.uncertain || 0) : null;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+				className: AdminConsole_module_css_default.section,
+				"aria-label": "Workspace overview",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.sectionHeading,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.sectionKicker,
+							children: "WORKSPACE SNAPSHOT"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
+							className: AdminConsole_module_css_default.sectionTitle,
+							children: "Everything in view."
+						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.headerActions,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: AdminConsole_module_css_default.fieldHint,
+								children: updated ? `Updated ${updated}` : "Loading status…"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: AdminConsole_module_css_default.button,
+								disabled: busy,
+								onClick: () => void load(),
+								children: busy ? "Refreshing…" : "Refresh status"
 							})]
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ServiceStatusPanel, { connection }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProviderSettings, { connection })
-					]
-				})
+						})]
+					}),
+					error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.error,
+						role: "alert",
+						children: error
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.metrics,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("a", {
+								href: "#connections",
+								className: AdminConsole_module_css_default.metric,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+										className: AdminConsole_module_css_default.metricLabel,
+										children: ["Services configured ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminIcon, { name: "connections" })]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: configured === null ? "—" : configured + " / 4" }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("small", { children: ["Connection checks are available on demand ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "↗" })] })
+								]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("a", {
+								href: "#notifications",
+								className: AdminConsole_module_css_default.metric,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+										className: AdminConsole_module_css_default.metricLabel,
+										children: ["Alert email ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminIcon, { name: "notifications" })]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: !email ? "—" : email.runtime.enabled && email.runtime.configured ? "Enabled" : email.runtime.enabled ? "Setup needed" : "Paused" }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("small", { children: [
+										email ? `${email.rules.filter((r) => r.enabled).length} enabled notification rule${email.rules.filter((r) => r.enabled).length === 1 ? "" : "s"}` : "Status unavailable",
+										" ",
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "↗" })
+									] })
+								]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("a", {
+								href: "#notifications/history",
+								className: `${AdminConsole_module_css_default.metric} ${needsReview ? AdminConsole_module_css_default.metricAttention : ""}`,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+										className: AdminConsole_module_css_default.metricLabel,
+										children: ["Delivery needs attention ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminIcon, { name: "overview" })]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: needsReview ?? "—" }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("small", { children: ["Failed or uncertain deliveries ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "↗" })] })
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.contentGrid,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("article", {
+							className: AdminConsole_module_css_default.card,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+									className: AdminConsole_module_css_default.sectionKicker,
+									children: "ADMINISTRATION"
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
+									className: AdminConsole_module_css_default.editorTitle,
+									children: "Where would you like to start?"
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									className: AdminConsole_module_css_default.quickLinks,
+									children: ADMIN_PAGES.slice(1).map((item) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("a", {
+										href: "#" + item.id,
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+												className: AdminConsole_module_css_default.quickIcon,
+												children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminIcon, { name: item.icon })
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: item.name }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: item.copy })] }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+												"aria-hidden": "true",
+												children: "→"
+											})
+										]
+									}, item.id))
+								})
+							]
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
+							className: AdminConsole_module_css_default.helpCard,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+									className: AdminConsole_module_css_default.sectionKicker,
+									children: "ALERT DELIVERY"
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", { children: "Ready when you are." }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Set customer recipients, choose the alerts that matter, and preview the email before enabling a rule." }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("ol", {
+									className: AdminConsole_module_css_default.steps,
+									children: [
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", { children: "Set customer defaults" }),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", { children: "Choose severity and routing" }),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", { children: "Preview and review delivery" })
+									]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
+									className: AdminConsole_module_css_default.textButton,
+									href: "#notifications",
+									children: "Manage alert email →"
+								})
+							]
+						})]
+					})
+				]
 			});
 		}
 		function ServiceStatusPanel({ connection }) {
@@ -537,9 +1951,16 @@ window.__ModuleLoader__.load({
 							id: "service-status-title",
 							className: AdminConsole_module_css_default.sectionTitle,
 							children: "Connection status"
-						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: AdminConsole_module_css_default.sectionHint,
-							children: "Configuration stays in the server .env file."
+						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.headerActions,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: AdminConsole_module_css_default.sectionHint,
+								children: "Credentials and endpoints are managed on the server."
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: AdminConsole_module_css_default.button,
+								onClick: () => void load(),
+								children: "Refresh status"
+							})]
 						})]
 					}),
 					error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -579,7 +2000,7 @@ window.__ModuleLoader__.load({
 						].map((card) => {
 							const state = checks[card.key];
 							const ready = serviceReady(services[card.key]);
-							const connectionLabel = state?.kind === "info" ? "Checking…" : state?.kind === "success" ? "Connected" : state?.kind === "error" ? "Unavailable" : ready ? "Configured" : "Not configured";
+							const connectionLabel = state?.kind === "info" ? "Checking…" : state?.kind === "success" ? "Connected" : state?.kind === "error" ? "Unavailable" : ready ? "Configured" : !settings ? "Unknown" : services[card.key]?.status === "unavailable" ? "Unavailable" : "Not configured";
 							const connectionClass = state?.kind === "info" ? AdminConsole_module_css_default.statusInfo : state?.kind === "success" ? AdminConsole_module_css_default.statusReady : state?.kind === "error" ? AdminConsole_module_css_default.statusError : ready ? AdminConsole_module_css_default.statusConfigured : AdminConsole_module_css_default.statusMuted;
 							return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("article", {
 								className: AdminConsole_module_css_default.statusCard,
@@ -609,7 +2030,7 @@ window.__ModuleLoader__.load({
 											className: AdminConsole_module_css_default.textButton,
 											type: "button",
 											onClick: () => void check(card.key),
-											disabled: busy === card.key,
+											disabled: busy !== null,
 											children: busy === card.key ? "Checking…" : "Check connection"
 										}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 											className: AdminConsole_module_css_default.envManaged,
@@ -691,9 +2112,17 @@ window.__ModuleLoader__.load({
 							id: "provider-settings-title",
 							className: AdminConsole_module_css_default.sectionTitle,
 							children: "Providers and credentials"
-						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: AdminConsole_module_css_default.sectionHint,
-							children: "Keys are write-only and never displayed."
+						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.headerActions,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: AdminConsole_module_css_default.sectionHint,
+								children: "Keys are write-only and never displayed."
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: AdminConsole_module_css_default.button,
+								disabled: loading,
+								onClick: () => void load(),
+								children: loading ? "Refreshing…" : "Refresh"
+							})]
 						})]
 					}),
 					error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -720,13 +2149,11 @@ window.__ModuleLoader__.load({
 								}),
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 									className: AdminConsole_module_css_default.providerList,
-									role: "listbox",
 									"aria-label": "Choose a provider",
 									children: data.providers.map((row) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
 										className: `${AdminConsole_module_css_default.providerOption} ${selected === row.provider.provider ? AdminConsole_module_css_default.providerOptionSelected : ""}`,
 										type: "button",
-										role: "option",
-										"aria-selected": selected === row.provider.provider,
+										"aria-pressed": selected === row.provider.provider,
 										onClick: () => setSelected(row.provider.provider),
 										children: [
 											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
@@ -1064,7 +2491,7 @@ window.__ModuleLoader__.load({
 							connection,
 							row,
 							onChanged,
-							disabled: busy
+							disabled: busy || !row.writable || row.credential?.configured === true && !row.credential.writable
 						}) : null
 					]
 				})

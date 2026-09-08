@@ -17,7 +17,8 @@
   },
   "scripts": {
     "build": "node ../../vendor/deepseek-harness/node_modules/tsdown/dist/run.mjs",
-    "test": "node --import ../../vendor/deepseek-harness/node_modules/tsx/dist/esm/index.mjs --test tests/*.test.ts"
+    "test": "node --import ../../vendor/deepseek-harness/node_modules/tsx/dist/esm/index.mjs --test tests/*.test.ts",
+    "test:browser": "node tests/admin-console.browser.mjs"
   },
   "dsh": {
     "client": {

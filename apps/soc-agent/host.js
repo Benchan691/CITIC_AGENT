@@ -88,197 +88,10 @@ async function serveAdminPage(request, response, webServer) {
   }
 }
 
-const ALERT_EMAIL_SETTINGS_PAGE = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SOC alert email settings</title>
-  <style>
-    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
-    body { max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
-    section { border: 1px solid #8885; border-radius: .6rem; padding: 1rem; margin: 1rem 0; }
-    label { display: block; margin: .55rem 0; }
-    input, select, button { font: inherit; padding: .35rem; }
-    input[type=text], select { width: min(100%, 34rem); }
-    textarea { width: min(100%, 34rem); min-height: 4rem; font: inherit; }
-    .severity { display: inline-block; margin-right: 1rem; }
-    .muted { opacity: .75; }
-    #message { min-height: 1.4rem; }
-  </style>
-</head>
-<body>
-  <h1>Alert email settings</h1>
-  <p class="muted">Mailbox credentials remain in the server environment. This page controls customer recipients and severity rules.</p>
-  <p id="message" role="status"></p>
-  <section>
-    <h2>Delivery status</h2>
-    <pre id="status">Loading…</pre>
-  </section>
-  <section>
-    <h2>Customer recipients</h2>
-    <form id="customer-form">
-      <label>Customer <select id="customer-id" required></select></label>
-      <label>Recipients (one address per line)<br><textarea id="recipients" required></textarea></label>
-      <label>CC (one address per line)<br><textarea id="cc"></textarea></label>
-      <label>BCC (one address per line)<br><textarea id="bcc"></textarea></label>
-      <label>Language <select id="language"><option>EN</option><option>CN</option><option>ZH</option></select></label>
-      <label>Brand <select id="brand"><option>CPC</option><option>CEC</option></select></label>
-      <button type="submit">Save customer recipients</button>
-    </form>
-  </section>
-  <section>
-    <h2>Severity rule</h2>
-    <form id="rule-form">
-      <label>Name <input id="rule-name" type="text" maxlength="160" required></label>
-      <label>Customer (blank for all customers) <select id="rule-customer"><option value="">All customers</option></select></label>
-      <label>Ruleset ID (blank for all rulesets) <input id="rule-ruleset" type="text"></label>
-      <label>Source types <select id="route-sources" multiple></select></label>
-      <label>IPs, subnets or ranges (comma separated)<input id="route-ips" type="text"></label>
-      <label>Hostnames (comma separated; * wildcard)<input id="route-hostnames" type="text"></label>
-      <label>Recipient override (blank uses customer defaults)<textarea id="route-recipients"></textarea></label>
-      <label>Override CC<textarea id="route-cc"></textarea></label><label>Override BCC<textarea id="route-bcc"></textarea></label>
-      <p>Filter categories must all match. Within a category, any value may match.</p>
-      <div>Severities:</div>
-      <label class="severity"><input type="checkbox" name="severity" value="info"> info</label>
-      <label class="severity"><input type="checkbox" name="severity" value="low"> low</label>
-      <label class="severity"><input type="checkbox" name="severity" value="medium"> medium</label>
-      <label class="severity"><input type="checkbox" name="severity" value="high" checked> high</label>
-      <label class="severity"><input type="checkbox" name="severity" value="critical" checked> critical</label>
-      <label><input id="rule-enabled" type="checkbox"> Enabled</label>
-      <button type="submit">Save severity rule</button>
-    </form>
-    <h3>Existing rules</h3>
-    <pre id="rules">Loading…</pre>
-  </section>
-  <section><h2>Email preview</h2><label>Event ID <input id="preview-event" type="text"></label>
-    <button id="preview-button">Preview for selected customer</button><pre id="preview-info"></pre>
-    <iframe id="preview-frame" sandbox title="Email preview" style="width:100%;height:450px"></iframe></section>
-  <section><h2>Import legacy routing</h2><p>Select the customer above. Paste CSV with exact source_type, severity, ip1, ip2, hostname, recipients, cc, bcc headers. Rules are saved disabled.</p>
-    <textarea id="csv-input"></textarea><button id="csv-preview">Preview import</button><div id="csv-result"></div></section>
-  <section><h2>Delivery history</h2><p>Accepted means SMTP relay acceptance; mailbox delivery is unconfirmed.</p><div id="history"></div></section>
-  <script>
-    const message = document.getElementById('message')
-    const customers = document.getElementById('customer-id')
-    let state
-    const addresses = value => String(value || '').split(/[\\n,]/u).map(item => item.trim()).filter(Boolean)
-    const setMessage = value => { message.textContent = value || '' }
-    const request = async (path, options) => {
-      const response = await fetch(path, { credentials: 'same-origin', ...options })
-      const value = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(value.error || value.message || 'Request failed')
-      return value
-    }
-    const render = value => {
-      state = value
-      document.getElementById('route-sources').replaceChildren(...(value.source_types || []).map(s => new Option(s.name, s.id)))
-      document.getElementById('history').replaceChildren(...(value.history || []).map(row => {
-        const p = document.createElement('p'); p.textContent = [row.created, row.customer, row.event_id, row.status, 'Accepted: ' + row.accepted.join(', '), 'Rejected: ' + JSON.stringify(row.rejected), row.error || ''].join(' | '); return p
-      }))
-      customers.replaceChildren(...value.customers.map(customer => {
-        const option = document.createElement('option')
-        option.value = customer.id
-        option.textContent = (customer.gid || customer.id) + ' — ' + (customer.name || '')
-        return option
-      }))
-      const ruleCustomer = document.getElementById('rule-customer')
-      ruleCustomer.replaceChildren(new Option('All customers', ''), ...value.customers.map(customer => new Option(
-        (customer.gid || customer.id) + ' — ' + (customer.name || ''),
-        customer.id,
-      )))
-      document.getElementById('rules').textContent = JSON.stringify(value.rules, null, 2)
-      document.getElementById('status').textContent = JSON.stringify({ runtime: value.runtime, delivery: value.delivery }, null, 2)
-      const selected = value.customers[0]
-      if (selected) {
-        const config = selected.email_config || {}
-        document.getElementById('language').value = config.language || 'EN'
-        document.getElementById('brand').value = config.brand || 'CPC'
-        document.getElementById('recipients').value = (config.recipients || []).join('\\n')
-        document.getElementById('cc').value = (config.cc || []).join('\\n')
-        document.getElementById('bcc').value = (config.bcc || []).join('\\n')
-      }
-    }
-    customers.addEventListener('change', () => {
-      const selected = (state?.customers || []).find(item => item.id === customers.value)
-      const config = selected?.email_config || {}
-      document.getElementById('language').value = config.language || 'EN'
-      document.getElementById('brand').value = config.brand || 'CPC'
-      document.getElementById('recipients').value = (config.recipients || []).join('\\n')
-      document.getElementById('cc').value = (config.cc || []).join('\\n')
-      document.getElementById('bcc').value = (config.bcc || []).join('\\n')
-    })
-    document.getElementById('customer-form').addEventListener('submit', async event => {
-      event.preventDefault(); setMessage('Saving…')
-      try {
-        await request('/admin/alert-email/customer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
-          customer_id: customers.value,
-          email_config: {
-            language: document.getElementById('language').value, brand: document.getElementById('brand').value,
-            recipients: addresses(document.getElementById('recipients').value),
-            cc: addresses(document.getElementById('cc').value),
-            bcc: addresses(document.getElementById('bcc').value),
-          },
-        }) })
-        setMessage('Customer recipients saved.'); await load()
-      } catch (error) { setMessage(error.message) }
-    })
-    document.getElementById('rule-form').addEventListener('submit', async event => {
-      event.preventDefault(); setMessage('Saving…')
-      try {
-        const severities = [...document.querySelectorAll('input[name=severity]:checked')].map(item => item.value)
-        await request('/admin/alert-email/rule', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
-          name: document.getElementById('rule-name').value,
-          customer_id: document.getElementById('rule-customer').value || null,
-          ruleset_id: document.getElementById('rule-ruleset').value || null,
-          severities,
-          routing: {
-            source_type_ids: [...document.getElementById('route-sources').selectedOptions].map(o => o.value),
-            ips: addresses(document.getElementById('route-ips').value),
-            hostnames: addresses(document.getElementById('route-hostnames').value),
-            ...(document.getElementById('route-recipients').value.trim() ? { recipients: { recipients: addresses(document.getElementById('route-recipients').value), cc: addresses(document.getElementById('route-cc').value), bcc: addresses(document.getElementById('route-bcc').value) } } : {}),
-          },
-          enabled: document.getElementById('rule-enabled').checked,
-        }) })
-        setMessage('Severity rule saved.'); await load()
-      } catch (error) { setMessage(error.message) }
-    })
-    const postPreview = payload => request('/admin/alert-email/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
-    document.getElementById('preview-button').onclick = async () => {
-      try { const value = await postPreview({ customer_id: customers.value, event_id: document.getElementById('preview-event').value });
-        document.getElementById('preview-info').textContent = JSON.stringify({ subject: value.subject, recipients: value.recipients, rules: value.matched_rules }, null, 2)
-        document.getElementById('preview-frame').srcdoc = value.html
-      } catch (e) { setMessage(e.message) }
-    }
-    document.getElementById('csv-preview').onclick = async () => {
-      try { const value = await postPreview({ customer_id: customers.value, csv: document.getElementById('csv-input').value });
-        document.getElementById('csv-result').replaceChildren(...value.rows.map(row => {
-          const p = document.createElement('p'); p.textContent = JSON.stringify(row)
-          if (row.status === 'ready') { const button = document.createElement('button'); button.textContent = 'Save disabled routes'; button.onclick = async () => {
-            try { for (const rule of row.rules) await request('/admin/alert-email/rule', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(rule) }); button.disabled = true; setMessage('Routes saved disabled.') } catch (e) { setMessage(e.message) }
-          }; p.append(button) }; return p
-        }))
-      } catch (e) { setMessage(e.message) }
-    }
-    async function load() { render(await request('/admin/alert-email/settings')) }
-    load().catch(error => setMessage(error.message))
-  </script>
-</body>
-</html>`
-
 function sendJson(response, status, value) {
   const data = Buffer.from(JSON.stringify(value))
   response.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
-    'cache-control': 'no-store',
-    'content-length': data.length,
-  })
-  response.end(data)
-}
-
-function sendHtml(response, status, html) {
-  const data = Buffer.from(html)
-  response.writeHead(status, {
-    'content-type': 'text/html; charset=utf-8',
     'cache-control': 'no-store',
     'content-length': data.length,
   })
@@ -305,17 +118,6 @@ async function requireHttpAdmin(ctx, request, response) {
   response.writeHead(401, { 'cache-control': 'no-store' })
   response.end('administrator authentication required')
   return undefined
-}
-
-async function serveAlertEmailPage(request, response, ctx) {
-  if (!(await requireHttpAdmin(ctx, request, response))) return
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    response.writeHead(405, { allow: 'GET, HEAD' }); response.end(); return
-  }
-  if (request.method === 'HEAD') {
-    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); response.end(); return
-  }
-  sendHtml(response, 200, ALERT_EMAIL_SETTINGS_PAGE)
 }
 
 async function serveAlertEmailSettings(request, response, ctx) {
@@ -1007,12 +809,12 @@ export function apply(ctx) {
       const alertEmailPage = ctx.webServer.register({
         kind: 'exact',
         path: '/admin/alert-email',
-        handler: (request, response) => serveAlertEmailPage(request, response, ctx),
+        handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
       })
       const alertEmailPageTrailing = ctx.webServer.register({
         kind: 'exact',
         path: '/admin/alert-email/',
-        handler: (request, response) => serveAlertEmailPage(request, response, ctx),
+        handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
       })
       const alertEmailSettings = ctx.webServer.register({
         kind: 'exact',
