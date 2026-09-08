@@ -190,7 +190,7 @@ async def save_detection(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("invalid detection save request")
     service, actor_id = await run_blocking(_splunk_service, payload, principal=str(payload.get("session_id", "")))
     try:
-        return await service.save_detection(
+        return await service.detection_service.save_detection(
             operation,
             detection,
             name=name,
@@ -216,7 +216,7 @@ async def save_lookup(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("invalid lookup save request")
     service, actor_id = await run_blocking(_splunk_service, payload, principal=str(payload.get("session_id", "")))
     try:
-        return await service.save_lookup(
+        return await service.search_service.save_lookup(
             operation,
             name,
             content=content,

@@ -3,7 +3,8 @@ import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import React, { useEffect, useMemo, useState } from 'react'
-import css from './SplunkDetectionToolview.module.css'
+import localCss from './SplunkDetectionToolview.module.css'
+import commonCss from './ToolviewCommon.module.css'
 import { rpc } from './settings-common.ts'
 import {
   actionFieldsFromDraft,
@@ -30,6 +31,8 @@ export {
   SPLUNK_WRITE_DETECTION_TOOL_NAME,
 } from './splunkDetection.ts'
 export type { DetectionActionField, DetectionDraftEnvelope, DetectionFormFields, DetectionOperation } from './splunkDetection.ts'
+
+const css = { ...commonCss, ...localCss }
 
 type DetectionEditorProps = ToolCallViewProps & { connection: ConnectionHandle }
 type EditorStatus = 'editing' | 'saving' | 'saved' | 'failed' | 'discarded'

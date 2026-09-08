@@ -206,7 +206,7 @@ async def test_resource_denial_happens_before_splunk_client_or_job_creation():
     )
 
     with pytest.raises(ServiceError) as error:
-        await service.search("index=main", earliest_time="0", principal_id="analyst-a")
+        await service.search_service.search("index=main", earliest_time="0", principal_id="analyst-a")
 
     assert error.value.code == "lookback_limit_exceeded"
     assert created == []
@@ -223,7 +223,7 @@ async def test_effective_result_limit_is_separate_from_splunk_workload_policy():
     )
     service, clients = make_service(resource)
 
-    result = await service.search("index=main", max_count=10, principal_id="analyst-a")
+    result = await service.search_service.search("index=main", max_count=10, principal_id="analyst-a")
 
     assert clients[0].search_calls[0]["max_count"] == 5
     assert clients[0].search_calls[0]["runtime_limit"] == 120
@@ -314,7 +314,7 @@ async def test_capacity_releases_after_search_failure_and_runtime_is_structured(
 
     service, _clients = make_service(resource, client_factory=FailedClient)
     with pytest.raises(ServiceError) as error:
-        await service.search("index=main", principal_id="analyst-a")
+        await service.search_service.search("index=main", principal_id="analyst-a")
 
     assert error.value.code == "runtime_limit_exceeded"
     assert service.search_service.executor.resource_manager.snapshot()["active_splunk_searches"] == 0
@@ -369,7 +369,7 @@ async def test_saved_search_is_governed_after_definition_lookup_but_before_dispa
 
     service, clients = make_service(resource, client_factory=AllTimeSavedClient)
     with pytest.raises(ServiceError) as error:
-        await service.run_saved_search("all-time", principal_id="analyst-a")
+        await service.search_service.run_saved_search("all-time", principal_id="analyst-a")
 
     assert error.value.code == "lookback_limit_exceeded"
     assert clients[0].saved_gets == [("all-time", "", "")]
@@ -398,13 +398,13 @@ async def test_backtests_use_dedicated_concurrency_profile():
     )
     payload = {"name": "test", "spl": "index=main"}
     first = asyncio.create_task(
-        service.backtest_detection(payload, earliest_time="-1h", principal_id="analyst-a")
+        service.detection_service.backtest_detection(payload, earliest_time="-1h", principal_id="analyst-a")
     )
     while not clients:
         await asyncio.sleep(0)
     await clients[0].started.wait()
     with pytest.raises(ServiceError) as second_error:
-        await service.backtest_detection(payload, earliest_time="-1h", principal_id="analyst-a")
+        await service.detection_service.backtest_detection(payload, earliest_time="-1h", principal_id="analyst-a")
     assert second_error.value.code == "resource_busy"
     release.set()
     await first

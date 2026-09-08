@@ -110,7 +110,7 @@ def test_service_compiler_is_read_only_and_returns_validation_results():
         lambda _: pytest.fail("compiler must not create a Splunk client"),
     )
 
-    result = service.compile_citic_detection(
+    result = service.detection_service.compile_citic_detection(
         detection_logic="index=main error",
         rulename="0724",
         threat_name="Error",

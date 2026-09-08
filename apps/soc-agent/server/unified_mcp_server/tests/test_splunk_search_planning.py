@@ -135,7 +135,7 @@ async def test_search_intent_plans_then_uses_the_existing_executor():
         return client
 
     service = SplunkService(settings(), factory)
-    result = await service.search_intent(
+    result = await service.search_service.search_intent(
         SearchIntent(
             objective="find failed authentication activity for this IP",
             entity_type="ip",
@@ -166,7 +166,7 @@ async def test_zero_result_is_reported_as_observed_scope_not_absolute_absence():
         return client
 
     service = SplunkService(settings(), factory)
-    result = await service.search_intent(
+    result = await service.search_service.search_intent(
         SearchIntent(
             objective="find failed authentication activity for this IP",
             entity_type="ip",
@@ -218,7 +218,7 @@ async def test_low_confidence_refinement_uses_a_bounded_trusted_alternative():
     service = SplunkService(settings(), factory)
     service.search_service.schema_registry = registry
     service.search_service.planner = SearchPlanner(max_refinements=1)
-    result = await service.search_intent(
+    result = await service.search_service.search_intent(
         SearchIntent(
             objective="generic",
             event_type="backup",

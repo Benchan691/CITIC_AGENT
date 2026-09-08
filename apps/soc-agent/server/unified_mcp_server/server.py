@@ -38,6 +38,7 @@ from .splunk_service import SplunkService
 from .splunk.search.tools import register_tools as register_search_tools
 from .splunk.detection.tools import register_tools as register_detection_tools
 from .splunk.security_queue.tools import register_tools as register_security_queue_tools
+from .zimbra.core.service import _EmptyAccountStore
 from .zimbra_service import ZimbraService
 from .zimbra.mail.service import ZimbraMailService
 from .zimbra.mail.tools import register_tools as register_mail_tools
@@ -185,20 +186,7 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
     # Normal operation never reads or writes the legacy stored-account table.
     # A no-op adapter keeps the compatibility service constructors simple while
     # ensuring an MCP caller cannot select a persisted mailbox credential.
-    class EmptyAccountStore:
-        def list(self):
-            return []
-
-        def list_agent(self):
-            return []
-
-        def count(self):
-            return 0
-
-        def get(self, _account_id):
-            return None
-
-    account_store = EmptyAccountStore()
+    account_store = _EmptyAccountStore()
 
     @asynccontextmanager
     async def server_lifespan(_):

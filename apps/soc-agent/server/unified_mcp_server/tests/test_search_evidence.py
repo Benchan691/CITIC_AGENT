@@ -153,11 +153,11 @@ async def test_durable_snapshot_restarts_without_redispatch_and_enforces_scope(t
 
 async def test_fresh_search_uses_new_window_and_new_evidence():
     service = SplunkService(settings(), RecordingClient)
-    first = await service.search("index=windows src_ip=10.1.2.3")
-    second = await service.search("index=windows src_ip=10.1.2.3")
+    first = await service.search_service.search("index=windows src_ip=10.1.2.3")
+    second = await service.search_service.search("index=windows src_ip=10.1.2.3")
     assert first["evidence"]["id"] == second["evidence"]["id"]
     assert first["search"]["latest_time"] == second["search"]["latest_time"]
-    fresh = await service.search("index=windows src_ip=10.1.2.3", fresh=True)
+    fresh = await service.search_service.search("index=windows src_ip=10.1.2.3", fresh=True)
     assert first["evidence"]["id"] != fresh["evidence"]["id"]
     assert float(fresh["search"]["latest_time"]) >= float(first["search"]["latest_time"])
     assert len(service.core._client.queries) == 2
@@ -327,35 +327,35 @@ def build_service(**overrides):
 
 async def test_service_search_reuses_retained_evidence_and_pages_it():
     service = build_service()
-    first = await service.search('index=windows src_ip="10.1.2.3"', "-24h", "now", 50, None, principal_id="analyst")
-    second = await service.search('index=windows src_ip="10.1.2.3"', "-24h", "now", 50, None, principal_id="analyst")
+    first = await service.search_service.search('index=windows src_ip="10.1.2.3"', "-24h", "now", 50, None, principal_id="analyst")
+    second = await service.search_service.search('index=windows src_ip="10.1.2.3"', "-24h", "now", 50, None, principal_id="analyst")
     assert second["evidence"]["reused"] is True
     assert first["evidence"]["id"] == second["evidence"]["id"]
 
-    page = service.read_evidence(second["evidence"]["id"], offset=0, limit=10)
+    page = service.search_service.read_evidence(second["evidence"]["id"], offset=0, limit=10)
     assert page["total_count"] >= 1
     assert page["rows"][0]["src_ip"] == "10.1.2.3"
 
-    changed = await service.search('index=windows src_ip="10.1.2.3"', "-1h", "now", 50, None, principal_id="analyst")
+    changed = await service.search_service.search('index=windows src_ip="10.1.2.3"', "-1h", "now", 50, None, principal_id="analyst")
     assert changed["evidence"]["reused"] is False
     assert changed["evidence"]["id"] != first["evidence"]["id"]
 
 
 async def test_service_search_refreshes_when_ttl_disabled():
     service = build_service(search_reuse_ttl_seconds=0)
-    await service.search("index=windows activity", "-24h", "now", 50, None, principal_id="a")
-    await service.search("index=windows activity", "-24h", "now", 50, None, principal_id="a")
+    await service.search_service.search("index=windows activity", "-24h", "now", 50, None, principal_id="a")
+    await service.search_service.search("index=windows activity", "-24h", "now", 50, None, principal_id="a")
     assert service.search_service.evidence.stats()["records"] == 2
 
 
 async def test_plan_search_is_disabled_until_flag_and_never_executes():
     service = build_service()
     with pytest.raises(ServiceError) as caught:
-        service.plan_search(SearchIntent(objective="find failed authentication activity for this IP", entity_type="ip", entity="10.1.2.3"))
+        service.search_service.plan_search(SearchIntent(objective="find failed authentication activity for this IP", entity_type="ip", entity="10.1.2.3"))
     assert caught.value.code == "operation_disabled"
 
     enabled = build_service(search_planner_enabled=True)
-    result = enabled.plan_search(
+    result = enabled.search_service.plan_search(
         SearchIntent(objective="find failed authentication activity for this IP", entity_type="ip", entity="10.1.2.3")
     )
     assert result["plan"]["objective"].startswith("find failed authentication")

@@ -52,3 +52,7 @@ Dependencies are intentionally ignored from version control. Recreate all
 JavaScript dependencies from the shared lockfile by running `pnpm install`
 from `vendor/deepseek-harness`. The Python MCP server remains separate and
 uses `uv`.
+
+The SOC client `lib/` directory is generated and ignored by Git. Build the
+harness first, then run `pnpm --filter dsh-soc-agent-client run build` before
+packaging or starting the product. `./setup.sh --plugins` handles this order.

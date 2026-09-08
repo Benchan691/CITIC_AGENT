@@ -10,3 +10,5 @@ coverage/
 *.egg-info/
 /.data/
 **/.state/
+
+/packages/soc-agent-client/lib/

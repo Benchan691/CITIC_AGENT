@@ -164,7 +164,7 @@ async def test_search_reuses_client_caps_results_and_sanitizes():
         return client
 
     service = SplunkService(settings(), factory)
-    result = await service.search("index=main | head 10", max_count=500)
+    result = await service.search_service.search("index=main | head 10", max_count=500)
 
     assert result["result"] == {
         "type": "events",
@@ -208,7 +208,7 @@ async def test_executor_owns_field_validation_before_splunk_execution():
     service = SplunkService(settings(), lambda _: pytest.fail("client should not be created"))
 
     with pytest.raises(ServiceError) as error:
-        await service.search("index=main", fields=["x" * 129])
+        await service.search_service.search("index=main", fields=["x" * 129])
 
     assert error.value.code == "invalid_input"
 
@@ -217,7 +217,7 @@ async def test_executor_owns_field_validation_before_splunk_execution():
 async def test_connection_checks_read_only_index_access():
     service = SplunkService(settings(), FakeClient)
 
-    result = await service.test_connection()
+    result = await service.search_service.test_connection()
 
     assert result == {"connected": True, "index_count": 2}
     await service.close()
@@ -234,7 +234,7 @@ async def test_connection_failure_keeps_actionable_client_message():
     service = SplunkService(settings(), FailedIndexClient)
 
     with pytest.raises(ServiceError, match="Could not reach Splunk at the configured URL"):
-        await service.test_connection()
+        await service.search_service.test_connection()
 
     await service.close()
 
@@ -243,7 +243,7 @@ async def test_connection_failure_keeps_actionable_client_message():
 async def test_saved_search_discovery_filters_partial_name_and_app():
     service = SplunkService(settings(), FakeClient)
 
-    result = await service.list_saved_searches(name="0723", app="search")
+    result = await service.search_service.list_saved_searches(name="0723", app="search")
 
     assert result["count"] == 1
     assert result["saved_searches"][0]["name"] == "0723 Suspicious Login"
@@ -252,7 +252,7 @@ async def test_saved_search_discovery_filters_partial_name_and_app():
     assert result["saved_searches"][0]["disabled"] is False
     assert result["saved_searches"][0]["actions"] == "email"
 
-    with_spl = await service.list_saved_searches(
+    with_spl = await service.search_service.list_saved_searches(
         name="0723", app="search", include_spl=True
     )
     assert with_spl["saved_searches"][0]["search"] == "index=main sourcetype=auth"
@@ -268,7 +268,7 @@ async def test_saved_search_disables_actions_and_sanitizes_results():
 
     service = SplunkService(settings(), SavedSearchClient)
 
-    result = await service.run_saved_search(
+    result = await service.search_service.run_saved_search(
         "Daily alerts", max_count=500, app="security", owner="nobody"
     )
 
@@ -298,7 +298,7 @@ async def test_saved_search_policy_blocks_side_effecting_saved_spl_before_dispat
 
     service = SplunkService(settings(), UnsafeSavedClient)
     with pytest.raises(ServiceError) as error:
-        await service.run_saved_search("Unsafe")
+        await service.search_service.run_saved_search("Unsafe")
     assert error.value.code == "query_blocked"
 
 
@@ -306,7 +306,7 @@ async def test_saved_search_policy_blocks_side_effecting_saved_spl_before_dispat
 async def test_search_projects_requested_fields_after_sanitizing():
     service = SplunkService(settings(), FakeClient)
 
-    result = await service.search("index=main", fields=["card"])
+    result = await service.search_service.search("index=main", fields=["card"])
 
     assert result["result"] == {
         "type": "events",
@@ -357,8 +357,8 @@ async def test_field_projection_happens_before_event_character_budget():
 
     service = SplunkService(settings(), LargeEventClient)
 
-    unprojected = await service.search("index=main")
-    projected = await service.search("index=main", fields=["keep"])
+    unprojected = await service.search_service.search("index=main")
+    projected = await service.search_service.search("index=main", fields=["keep"])
 
     assert unprojected["result"] == {"type": "events", "rows": []}
     assert unprojected["search"]["fetched_count"] == 2
@@ -395,7 +395,7 @@ async def test_search_formats_analytical_spl_as_a_table_and_preserves_columns():
 
     service = SplunkService(settings(), AnalyticalClient)
 
-    result = await service.search("index=security | stats count by rule")
+    result = await service.search_service.search("index=security | stats count by rule")
 
     assert result["query"] == "index=security | stats count by rule"
     assert result["result"] == {
@@ -438,7 +438,7 @@ async def test_search_combines_backend_and_context_truncation_flags():
             }
 
     service = SplunkService(settings(), TruncatedClient)
-    result = await service.search("index=main | stats count by value")
+    result = await service.search_service.search("index=main | stats count by value")
 
     assert result["search"]["result_count"] == 2
     assert result["search"]["fetched_count"] == 1
@@ -455,7 +455,7 @@ async def test_search_leaves_unavailable_job_metadata_null():
             return {"events": [{"value": "ok"}], "metadata": {}}
 
     service = SplunkService(settings(), MetadataClient)
-    result = await service.search("index=main")
+    result = await service.search_service.search("index=main")
 
     assert result["search"]["run_duration_ms"] is None
     assert result["search"]["scanned_events"] is None
@@ -479,7 +479,7 @@ async def test_search_maps_untrustworthy_job_metadata_to_null():
             }
 
     service = SplunkService(settings(), MalformedMetadataClient)
-    result = await service.search("index=main")
+    result = await service.search_service.search("index=main")
 
     assert result["search"]["result_count"] is None
     assert result["search"]["scanned_events"] is None
@@ -492,12 +492,12 @@ async def test_search_maps_untrustworthy_job_metadata_to_null():
 async def test_unconfigured_splunk_returns_configuration_error():
     service = SplunkService(settings(host="", token=""))
     with pytest.raises(ConfigurationError):
-        await service.test_connection()
+        await service.search_service.test_connection()
 
 
 def test_high_risk_query_is_reported_before_execution():
     service = SplunkService(settings(risk_tolerance=0))
-    result = service.validate("index=* | transaction host", earliest_time="0")
+    result = service.search_service.validate("index=* | transaction host", earliest_time="0")
     assert result["would_execute"] is False
     assert result["risk_score"] > 0
 
@@ -506,7 +506,7 @@ def test_high_risk_query_is_reported_before_execution():
 async def test_high_risk_query_is_blocked_before_client_creation():
     service = SplunkService(settings(risk_tolerance=0), lambda _: pytest.fail("client should not be created"))
     with pytest.raises(ServiceError, match="risk tolerance") as error:
-        await service.search("index=* | transaction host", earliest_time="0")
+        await service.search_service.search("index=* | transaction host", earliest_time="0")
     assert error.value.code == "query_blocked"
 
 
@@ -519,7 +519,7 @@ async def test_job_failures_are_returned_as_clean_service_errors():
     service = SplunkService(settings(), FailedJobClient)
 
     with pytest.raises(ServiceError) as error:
-        await service.search("index=main")
+        await service.search_service.search("index=main")
 
     assert error.value.code == "splunk_api_error"
     assert error.value.details == {"status_code": 400}
@@ -533,16 +533,16 @@ async def test_job_failures_are_returned_as_clean_service_errors():
 async def test_mutating_spl_is_blocked_independently_of_risk_tolerance(command):
     service = SplunkService(settings(risk_tolerance=100), lambda _: pytest.fail("client should not be created"))
 
-    validation = service.validate(f"index=main | {command}")
+    validation = service.search_service.validate(f"index=main | {command}")
     assert validation["would_execute"] is False
     assert command in validation["blocked_commands"]
     with pytest.raises(ServiceError, match="safety policy"):
-        await service.search(f"index=main | {command}")
+        await service.search_service.search(f"index=main | {command}")
 
 
 def test_detection_validation_reports_metadata_findings():
     service = SplunkService(settings())
-    result = service.validate_detection({
+    result = service.detection_service.validate_detection({
         "name": "PowerShell download",
         "spl": citic_spl("index=main EventCode=4688 powershell"),
         "cron_schedule": "*/5 * * * *",
@@ -558,7 +558,7 @@ def test_detection_validation_reports_metadata_findings():
 def test_detection_validation_supports_realtime_alerts_and_input_aliases():
     service = SplunkService(settings())
 
-    result = service.validate_detection({
+    result = service.detection_service.validate_detection({
         "name": "Realtime error alert",
         "spl": citic_spl(),
         "is_scheduled": True,
@@ -587,7 +587,7 @@ def test_detection_validation_supports_realtime_alerts_and_input_aliases():
 
 def test_detection_validation_allows_outputcsv_only_as_a_saved_search_definition():
     service = SplunkService(settings())
-    result = service.validate_detection({
+    result = service.detection_service.validate_detection({
         "name": "Client CSV alert",
         "spl": citic_spl(),
         "is_scheduled": True,
@@ -609,7 +609,7 @@ def test_detection_validation_keeps_other_writers_blocked(command):
         '\n| table ', f'\n| {command} destination\n| table ', 1
     )
 
-    result = service.validate_detection({"name": "unsafe", "spl": spl})
+    result = service.detection_service.validate_detection({"name": "unsafe", "spl": spl})
 
     assert result["valid"] is False
     assert command in result["query_validation"]["blocked_commands"]
@@ -619,7 +619,7 @@ def test_detection_validation_rejects_dual_spl_payloads():
     service = SplunkService(settings())
 
     with pytest.raises(ServiceError, match="dual SPL"):
-        service.validate_detection({
+        service.detection_service.validate_detection({
             "name": "dual",
             "spl": citic_spl(),
             "production_spl": citic_spl(),
@@ -634,7 +634,7 @@ async def test_backtest_rejects_outputcsv_before_execution():
         lambda _: pytest.fail("outputcsv backtest must not create a client"),
     )
     with pytest.raises(ServiceError) as error:
-        await service.backtest_detection({
+        await service.detection_service.backtest_detection({
             "name": "Client CSV alert",
             "spl": "index=main error | outputcsv [| stats count | return $filename]",
         }, earliest_time="-15m", latest_time="now")
@@ -645,7 +645,7 @@ async def test_backtest_rejects_outputcsv_before_execution():
 def test_detection_validation_supports_custom_condition_per_result_throttle_and_expiry():
     service = SplunkService(settings())
 
-    result = service.validate_detection({
+    result = service.detection_service.validate_detection({
         "name": "Custom throttled alert",
         "spl": citic_spl(),
         "alert_type": "custom",
@@ -695,7 +695,7 @@ def test_detection_validation_supports_custom_condition_per_result_throttle_and_
 )
 def test_detection_validation_rejects_invalid_alert_combinations(alert_fields):
     service = SplunkService(settings())
-    result = service.validate_detection({
+    result = service.detection_service.validate_detection({
         "name": "Invalid alert",
         "spl": "index=main error",
         **alert_fields,
@@ -709,7 +709,7 @@ def test_detection_validation_rejects_non_scalar_action_parameters():
     service = SplunkService(settings())
 
     with pytest.raises(ServiceError) as error:
-        service.validate_detection({
+        service.detection_service.validate_detection({
             "name": "Invalid action",
             "spl": "index=main error",
             "actions": "webhook",
@@ -722,20 +722,20 @@ def test_detection_validation_rejects_non_scalar_action_parameters():
 @pytest.mark.asyncio
 async def test_backtest_and_writes_are_guarded_and_structured():
     service = SplunkService(settings(), FakeClient)
-    draft_without_write_gate = await service.write_detection({"name": "x", "spl": citic_spl()})
+    draft_without_write_gate = await service.detection_service.write_detection({"name": "x", "spl": citic_spl()})
     assert draft_without_write_gate["status"] == "draft"
 
     writable = SplunkService(
         settings(detection_write_enabled=True), FakeClient
     )
     payload = {"name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *"}
-    draft = await writable.write_detection(payload)
+    draft = await writable.detection_service.write_detection(payload)
     assert draft["status"] == "draft"
     assert draft["enabled"] is False
     assert "splunk" not in draft
     assert draft["requires_action_configuration"] is False
     assert draft["review_only_metadata"]["persisted"] is False
-    backtest = await writable.backtest_detection(
+    backtest = await writable.detection_service.backtest_detection(
         {**payload, "spl": "index=main error"}, max_count=10, fields=["card"]
     )
     assert backtest["sample_count"] == 1
@@ -745,11 +745,11 @@ async def test_backtest_and_writes_are_guarded_and_structured():
     assert backtest["search_metadata"]["mcp_context_truncated"] is False
     assert backtest["fields"] == ["card"]
     assert backtest["sample_events"] == [{"card": "****-****-****-1111"}]
-    current = await writable.get_detection("x")
-    update_draft = await writable.update_detection(
+    current = await writable.detection_service.get_detection("x")
+    update_draft = await writable.detection_service.update_detection(
         "x", {"description": "updated"}, current["fingerprint"], actor_id="test-analyst"
     )
-    disabled = await writable.save_detection(
+    disabled = await writable.detection_service.save_detection(
         "update",
         update_draft["draft"],
         name="x",
@@ -768,16 +768,16 @@ async def test_detection_update_adds_company_log_event_and_forces_disabled_state
     service = SplunkService(
         settings(detection_write_enabled=True), FakeClient
     )
-    draft = await service.write_detection({
+    draft = await service.detection_service.write_detection({
         "name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *",
     })
     assert draft["status"] == "draft"
-    current = await service.get_detection("x")
-    update_draft = await service.update_detection(
+    current = await service.detection_service.get_detection("x")
+    update_draft = await service.detection_service.update_detection(
         "x", {"description": "reviewed"}, current["fingerprint"], actor_id="test-analyst"
     )
     assert update_draft["draft"]["disabled"] is True
-    updated = await service.save_detection(
+    updated = await service.detection_service.save_detection(
         "update",
         update_draft["draft"],
         name="x",
@@ -793,9 +793,9 @@ async def test_detection_update_adds_company_log_event_and_forces_disabled_state
 @pytest.mark.asyncio
 async def test_detection_modification_rejects_a_stale_fingerprint():
     service = SplunkService(settings(detection_write_enabled=True), FakeClient)
-    current = await service.get_detection("x")
+    current = await service.detection_service.get_detection("x")
 
     with pytest.raises(ServiceError) as error:
-        await service.update_detection("x", {"description": "changed"}, "stale")
+        await service.detection_service.update_detection("x", {"description": "changed"}, "stale")
 
     assert error.value.code == "detection_changed"

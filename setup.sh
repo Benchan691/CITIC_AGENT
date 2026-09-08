@@ -688,12 +688,8 @@ write_files() {
 #      its lib/ exists silently emits require("@deepseek-ai/schemastery"),
 #      which the browser module table can never answer ("missed the module
 #      table" at boot).
-#   3. The SOC client bundle artifact is drift-free. packages/soc-agent-client's
-#      `prepare` script rebuilds it during EVERY pnpm install — on a fresh
-#      clone that runs before schemastery exists, so the committed healthy
-#      artifact gets overwritten with a drifted one. The guard below detects
-#      the drift and the repair rebuilds the package after the framework
-#      build, when inlining succeeds.
+#   3. The SOC client is built after the framework so inline dependencies exist.
+#      Generated bundles are not tracked in Git.
 #
 # The wiring itself (registering the product bundle in the harness `web`
 # profile) then follows in ensure_soc_bundle.
@@ -789,7 +785,7 @@ ensure_harness_ready() {
     fi
   fi
 
-  local source_fingerprint build_recorded
+  local source_fingerprint build_recorded client_rebuild=0
   source_fingerprint="$(harness_source_fingerprint)"
   build_recorded="$(cat "$HARNESS_BUILD_MARKER" 2>/dev/null || true)"
   if [ "$FORCE_REBUILD" != "1" ] && [ -n "$build_recorded" ] \
@@ -801,7 +797,7 @@ ensure_harness_ready() {
     echo "Building the harness (framework libs, client bundles, and web dist) — this can take several minutes…"
     if (cd "$HARNESS_DIR" && pnpm run build); then
       ok "framework build complete"
-      printf '%s' "$source_fingerprint" > "$HARNESS_BUILD_MARKER"
+      client_rebuild=1
     else
       bad "pnpm run build failed — fix the error above and re-run ./setup.sh"
       PREREQ_WARNINGS+=("harness build")
@@ -809,7 +805,7 @@ ensure_harness_ready() {
     fi
   fi
 
-  local need_repair=0 violations
+  local need_repair="$client_rebuild" violations
   if [ ! -f "$SOC_CLIENT_LIB" ]; then
     warn "SOC client bundle artifact is missing"
     need_repair=1
@@ -837,6 +833,7 @@ ensure_harness_ready() {
       return 1
     fi
   fi
+  printf '%s' "$source_fingerprint" > "$HARNESS_BUILD_MARKER"
   ok "SOC client bundle artifact verified"
 }
 

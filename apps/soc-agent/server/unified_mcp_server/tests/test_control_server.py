@@ -19,6 +19,9 @@ async def test_lookup_save_dispatches_through_persistent_channel(monkeypatch, op
     calls = []
 
     class LookupService:
+        def __init__(self):
+            self.search_service = self
+
         async def save_lookup(self, *args, **kwargs):
             calls.append((args, kwargs))
             return {"status": "saved", "operation": operation}

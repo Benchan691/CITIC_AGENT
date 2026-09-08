@@ -235,7 +235,7 @@ async def test_require_approval_never_creates_or_executes_a_splunk_client():
     )
 
     with pytest.raises(ServiceError) as error:
-        await service.search("index=*")
+        await service.search_service.search("index=*")
     assert error.value.code == "query_approval_required"
     assert error.value.details["policy"]["decision"] == "require_approval"
 
@@ -256,7 +256,7 @@ def test_risk_tolerance_is_not_the_authorization_decision():
         lambda _: pytest.fail("validation must not create a client"),
     )
 
-    result = service.validate("index=main")
+    result = service.search_service.validate("index=main")
 
     assert result["decision"] == "allow"
     assert result["would_execute"] is True
@@ -280,7 +280,7 @@ async def test_detection_backtest_honors_the_same_approval_gate():
     )
 
     with pytest.raises(ServiceError) as error:
-        await service.backtest_detection(
+        await service.detection_service.backtest_detection(
             {"name": "wildcard", "spl": "index=*"},
             max_count=10,
         )

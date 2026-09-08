@@ -36,7 +36,7 @@ from .config import MarkItDownSettings, ZimbraSettings
 from .errors import ConfigurationError, ServiceError
 from .blocking_io import run_blocking
 from .request_context import remaining_seconds
-from .zimbra.core.service import _EmptyAccountStore
+from .zimbra.core.service import ZimbraCore
 
 
 _HEADER_NAMES = {
@@ -153,36 +153,18 @@ class ZimbraService:
         markitdown_settings: MarkItDownSettings | None = None,
         identity: ZimbraIdentity | None = None,
     ) -> None:
-        self.settings = settings
-        self.identity = identity
-        if accounts is not None:
-            self.accounts = accounts
-        elif identity is not None:
-            self.accounts = _EmptyAccountStore()
-        else:
-            self.accounts = AccountStore(settings.accounts_file, settings.key_file, settings.explicit_key)
+        self.core = ZimbraCore(settings, accounts, identity)
+        self.settings = self.core.settings
+        self.identity = self.core.identity
+        self.accounts = self.core.accounts
         self.markitdown_settings = markitdown_settings or MarkItDownSettings()
         self._attachment_converter = AttachmentConverter(self.markitdown_settings, factory=_create_markitdown)
 
     def account_count(self) -> int:
-        if self.identity is not None:
-            return 1
-        return self.accounts.count() + (1 if self._legacy_account() else 0)
+        return self.core.account_count()
 
     def list_accounts(self) -> list[dict[str, Any]]:
-        if self.identity is not None:
-            return [StoredAccount(
-                "authenticated",
-                "Authenticated Zimbra account",
-                self.identity.zimbra_email,
-                "",
-                "",
-            ).agent_dict()]
-        accounts = self.accounts.list_agent()
-        legacy = self._legacy_account()
-        if legacy:
-            accounts.append(legacy.agent_dict())
-        return accounts
+        return self.core.list_accounts()
 
     async def test_account(self, account: StoredAccount) -> None:
         await self._run_login(account)
@@ -483,43 +465,11 @@ class ZimbraService:
             **result,
         }
 
-    def _legacy_account(self) -> StoredAccount | None:
-        if self.identity is not None:
-            return None
-        if self.settings.email and self.settings.password:
-            return StoredAccount("legacy", "Legacy account", self.settings.email, "", self.settings.password)
-        return None
-
     def _resolve_account(self, account_id: str, *, require_host: bool = True) -> StoredAccount:
-        if require_host and not self.settings.host:
-            raise ConfigurationError("Zimbra", ["ZIMBRA_HOST"])
-        if self.identity is not None:
-            if account_id.strip():
-                raise ServiceError("account_selection_disabled", "Zimbra uses the authenticated user's account.")
-            return StoredAccount(
-                "authenticated",
-                "Authenticated Zimbra account",
-                self.identity.zimbra_email,
-                "",
-                "",
-            )
-        account_id = account_id.strip()
-        if account_id:
-            account = self.accounts.get(account_id)
-            if account is None and account_id == "legacy":
-                account = self._legacy_account()
-            if account is None:
-                raise ServiceError("account_not_found", "The selected email account was not found.")
-            return account
-        legacy = self._legacy_account()
-        if legacy:
-            return legacy
-        if self.accounts.count() == 1:
-            return self.accounts.list()[0]
-        raise ServiceError("account_required", "Select an email account before using Zimbra tools.")
+        return self.core.resolve_account(account_id, require_host=require_host)
 
     def _config(self, account: StoredAccount) -> dict[str, object]:
-        return {**self.settings.client_config(email=account.email, username=account.username, password=account.password), "timeout": remaining_seconds(self.settings.timeout)}
+        return self.core.client_config(account)
 
     def _token(self, account: StoredAccount) -> str:
         return self.identity.zimbra_token if self.identity is not None else zimbra_login(self._config(account))

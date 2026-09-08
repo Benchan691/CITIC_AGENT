@@ -113,9 +113,6 @@ refusals; permanent failures have no retry timestamp. Interrupted sends and data
 acknowledgement failures require operator review, including after restart. Do not
 manually requeue uncertain rows without checking the relay delivery records.
 
-The checked-in `spl_config.json` is retained for legacy reference only and is
-not loaded by the server.
-
 Standalone MCP clients should set `cwd` to this directory and pass `MCP_SERVER_ROOT` when workspace data lives elsewhere (for example the repository root `.data/` directory). The former misspelling `MCP_SEVER_ROOT` remains accepted for compatibility.
 
 Splunk event outputs keep complete events within a 20,000-character budget and

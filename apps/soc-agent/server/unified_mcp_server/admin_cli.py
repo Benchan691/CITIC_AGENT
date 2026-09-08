@@ -76,7 +76,7 @@ async def test_splunk(store: PostgresStore) -> dict[str, Any]:
     settings = _settings(store)
     service = SplunkService(settings.splunk)
     try:
-        await service.test_connection()
+        await service.search_service.test_connection()
         return {"ok": True}
     finally:
         await service.close()

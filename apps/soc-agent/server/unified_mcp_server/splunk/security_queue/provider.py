@@ -7,35 +7,20 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import re
-from typing import Any, Protocol
+from typing import Any
 
 from unified_mcp_server.errors import ServiceError
 
 from .model import (
     FindingFilters,
-    FindingPage,
     FindingSummary,
     OpaqueIdCodec,
-    QueueCapabilities,
     normalize_array,
     normalize_disposition,
     normalize_severity,
     normalize_status,
     normalize_urgency,
 )
-
-
-class FindingProvider(Protocol):
-    source: str
-
-    async def capabilities(self) -> QueueCapabilities:
-        ...
-
-    async def list_findings(self, filters: FindingFilters) -> FindingPage:
-        ...
-
-    async def get_finding(self, reference: Mapping[str, Any]) -> dict[str, Any]:
-        ...
 
 
 def first_value(value: Mapping[str, Any], *keys: str) -> Any:
@@ -234,10 +219,6 @@ def common_summary(
         event_count=event_count if event_count is not None else fallback_event_count,
         source_status=text_value(raw_status),
     )
-
-
-def matches_filters(summary: FindingSummary, filters: FindingFilters) -> bool:
-    return matches_filters_at(summary, filters)
 
 
 def matches_filters_at(

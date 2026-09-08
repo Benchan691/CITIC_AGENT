@@ -17,7 +17,6 @@ from .model import (
     FindingFilters,
     OpaqueIdCodec,
 )
-from .provider import FindingProvider
 
 
 class SplunkSecurityQueueService:
@@ -39,11 +38,7 @@ class SplunkSecurityQueueService:
         self.core = core
         self.executor = executor if executor is not None else SearchExecutor(core)
         self.codec = codec or OpaqueIdCodec()
-        self._provider: FindingProvider = StandardSplunkProvider(self.core, self.codec, self.executor)
-
-    @property
-    def provider(self) -> FindingProvider:
-        return self._provider
+        self.provider = StandardSplunkProvider(self.core, self.codec, self.executor)
 
     @staticmethod
     def _text(name: str, value: Any, *, required: bool = False, limit: int = MAX_FILTER_CHARS) -> str:
@@ -164,7 +159,7 @@ class SplunkSecurityQueueService:
             )
         return exc
 
-    async def _reference(self, value: str, kind: str) -> tuple[FindingProvider, dict[str, Any]]:
+    async def _reference(self, value: str, kind: str) -> tuple[StandardSplunkProvider, dict[str, Any]]:
         if not isinstance(value, str) or not value.strip() or len(value) > self.MAX_REFERENCE_CHARS:
             raise ServiceError("invalid_input", f"{kind}_id is invalid.")
         prefix = value.split(":", 1)[0]
@@ -179,7 +174,7 @@ class SplunkSecurityQueueService:
     def _bounded_public_result(
         self,
         value: Any,
-        provider: FindingProvider,
+        provider: StandardSplunkProvider,
         capabilities: dict[str, Any],
     ) -> dict[str, Any]:
         if not isinstance(value, dict):

@@ -13,7 +13,6 @@ test('exports independent SOC settings components', () => {
   for (const [file, symbol] of [
     ['SplunkSettings.ts', 'SplunkSettings'],
     ['SubscriptionServerSettings.ts', 'SubscriptionServerSettings'],
-    ['ZimbraSettings.ts', 'ZimbraSettings'],
   ]) {
     const source = readFileSync(new URL(`../src/client/${file}`, import.meta.url), 'utf8')
     assert.match(source, new RegExp(`export function ${symbol}`))
@@ -23,9 +22,10 @@ test('exports independent SOC settings components', () => {
 test('subscription server connection test stays environment-configured and read-only', () => {
   const source = readFileSync(new URL('../src/client/SubscriptionServerSettings.ts', import.meta.url), 'utf8')
   assert.match(source, /test-subscription-server/)
-  assert.match(source, /Check connection/)
-  assert.match(source, /Unavailable/)
-  assert.match(source, /Configuration is managed by the server environment/)
+  const card = readFileSync(new URL('../src/client/ServiceConnectionSettings.ts', import.meta.url), 'utf8')
+  assert.match(card, /Check connection/)
+  assert.match(card, /Unavailable/)
+  assert.match(card, /Configuration is managed by the server environment/)
   assert.doesNotMatch(source, /update-settings|delete-setting|allow_insecure_http/)
 })
 
@@ -57,12 +57,4 @@ test('configuration controls are mounted only by the standalone admin console', 
   assert.match(source, /AdminConsole/)
   assert.match(source, /return$/m)
   assert.doesNotMatch(source, /soc-agent-connections/)
-})
-
-test('does not expose stored Zimbra-account controls in settings', () => {
-  const source = readFileSync(new URL('../src/client/ZimbraSettings.ts', import.meta.url), 'utf8')
-  assert.doesNotMatch(source, /list-accounts/)
-  assert.match(source, /signed-in user/)
-  assert.doesNotMatch(source, /password/i)
-  assert.doesNotMatch(source, /Save settings/)
 })

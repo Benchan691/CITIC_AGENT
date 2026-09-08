@@ -75,7 +75,7 @@ class MutableClient:
 async def test_write_and_update_return_editable_drafts_without_writing():
     service = SplunkService(settings(detection_write_enabled=False), MutableClient)
 
-    created = await service.write_detection({"name": "new-rule", "spl": CURRENT_SPL})
+    created = await service.detection_service.write_detection({"name": "new-rule", "spl": CURRENT_SPL})
     assert created["status"] == "draft"
     assert created["operation"] == "write"
     assert created["draft"]["name"] == "new-rule"
@@ -92,8 +92,8 @@ async def test_write_and_update_return_editable_drafts_without_writing():
     assert created["save_requires_explicit_action"] is True
     assert service.core._client is None
 
-    current = await service.get_detection("rule")
-    updated = await service.update_detection(
+    current = await service.detection_service.get_detection("rule")
+    updated = await service.detection_service.update_detection(
         "rule", {"spl": UPDATED_SPL, "description": "reviewed"}, current["fingerprint"], actor_id="analyst-a"
     )
     assert updated["status"] == "draft"
@@ -112,14 +112,14 @@ async def test_save_create_is_explicit_scoped_and_disabled():
             self.exists = False
 
     service = SplunkService(settings(), EmptyClient)
-    draft = await service.write_detection({
+    draft = await service.detection_service.write_detection({
         "name": "new-rule",
         "spl": CURRENT_SPL,
         "cron_schedule": "*/5 * * * *",
         "actions": "notable",
         "action.notable": True,
     })
-    result = await service.save_detection(
+    result = await service.detection_service.save_detection(
         "write", draft["draft"], name="new-rule", actor_id="analyst-a"
     )
 
@@ -138,8 +138,8 @@ async def test_save_create_is_explicit_scoped_and_disabled():
 @pytest.mark.asyncio
 async def test_save_update_persists_complete_alert_settings_and_stays_disabled():
     service = SplunkService(settings(), MutableClient)
-    current = await service.get_detection("rule")
-    draft = await service.update_detection(
+    current = await service.detection_service.get_detection("rule")
+    draft = await service.detection_service.update_detection(
         "rule",
         {
             "spl": UPDATED_SPL,
@@ -160,7 +160,7 @@ async def test_save_update_persists_complete_alert_settings_and_stays_disabled()
         },
         current["fingerprint"],
     )
-    result = await service.save_detection(
+    result = await service.detection_service.save_detection(
         "update",
         draft["draft"],
         name="rule",
@@ -188,20 +188,20 @@ async def test_save_update_persists_complete_alert_settings_and_stays_disabled()
 @pytest.mark.asyncio
 async def test_save_rejects_disabled_gate_enablement_existing_target_and_stale_update():
     disabled = SplunkService(settings(detection_write_enabled=False), MutableClient)
-    draft = await disabled.write_detection({"name": "new-rule", "spl": CURRENT_SPL})
+    draft = await disabled.detection_service.write_detection({"name": "new-rule", "spl": CURRENT_SPL})
     with pytest.raises(ServiceError) as gate:
-        await disabled.save_detection("write", draft["draft"], actor_id="analyst-a")
+        await disabled.detection_service.save_detection("write", draft["draft"], actor_id="analyst-a")
     assert gate.value.code == "operation_disabled"
 
     service = SplunkService(settings(), MutableClient)
-    existing = await service.write_detection({"name": "rule", "spl": CURRENT_SPL})
+    existing = await service.detection_service.write_detection({"name": "rule", "spl": CURRENT_SPL})
     with pytest.raises(ServiceError) as target:
-        await service.save_detection("write", existing["draft"], actor_id="analyst-a")
+        await service.detection_service.save_detection("write", existing["draft"], actor_id="analyst-a")
     assert target.value.code == "target_mismatch"
     assert service.core._client.writes == []
 
     with pytest.raises(ServiceError) as invalid:
-        await service.save_detection(
+        await service.detection_service.save_detection(
             "write",
             {"name": "invalid", "spl": CURRENT_SPL, "alert_type": "number of events"},
             actor_id="analyst-a",
@@ -209,11 +209,11 @@ async def test_save_rejects_disabled_gate_enablement_existing_target_and_stale_u
     assert invalid.value.code == "detection_invalid"
     assert service.core._client.writes == []
 
-    current = await service.get_detection("rule")
-    update = await service.update_detection("rule", {"description": "new"}, current["fingerprint"])
+    current = await service.detection_service.get_detection("rule")
+    update = await service.detection_service.update_detection("rule", {"description": "new"}, current["fingerprint"])
     service.core._client.content["description"] = "changed outside editor"
     with pytest.raises(ServiceError) as stale:
-        await service.save_detection(
+        await service.detection_service.save_detection(
             "update",
             update["draft"],
             name="rule",
@@ -227,14 +227,14 @@ async def test_save_rejects_disabled_gate_enablement_existing_target_and_stale_u
 @pytest.mark.asyncio
 async def test_save_requires_authenticated_actor_and_rejects_enablement():
     service = SplunkService(settings(), MutableClient)
-    draft = await service.write_detection({"name": "new-rule", "spl": CURRENT_SPL})
+    draft = await service.detection_service.write_detection({"name": "new-rule", "spl": CURRENT_SPL})
 
     with pytest.raises(ServiceError) as unauthorized:
-        await service.save_detection("write", draft["draft"])
+        await service.detection_service.save_detection("write", draft["draft"])
     assert unauthorized.value.code == "not_authorized"
 
     with pytest.raises(ServiceError) as enabled:
-        await service.save_detection(
+        await service.detection_service.save_detection(
             "write", {"name": "new-rule", "spl": CURRENT_SPL, "enabled": True}, actor_id="analyst-a"
         )
     assert enabled.value.code == "invalid_input"
@@ -252,11 +252,11 @@ async def test_secret_action_fields_are_hidden_preserved_and_rejected():
             })
 
     service = SplunkService(settings(), SecretClient)
-    current = await service.get_detection("rule")
+    current = await service.detection_service.get_detection("rule")
     assert "action.email.auth_password" not in current
-    draft = await service.update_detection("rule", {"description": "reviewed"}, current["fingerprint"])
+    draft = await service.detection_service.update_detection("rule", {"description": "reviewed"}, current["fingerprint"])
     assert "auth_password" not in str(draft)
-    result = await service.save_detection(
+    result = await service.detection_service.save_detection(
         "update",
         draft["draft"],
         name="rule",
@@ -266,9 +266,9 @@ async def test_secret_action_fields_are_hidden_preserved_and_rejected():
     assert service.core._client.content["action.email.auth_password"] == "remote-secret"
     assert "action.email.auth_password" not in result["detection"]
 
-    refreshed = await service.get_detection("rule")
+    refreshed = await service.detection_service.get_detection("rule")
     with pytest.raises(ServiceError) as error:
-        await service.save_detection(
+        await service.detection_service.save_detection(
             "update",
             {"description": "bad", "action.email.auth_password": "secret"},
             name="rule",
@@ -286,7 +286,7 @@ async def test_outputcsv_draft_is_saveable_without_execution():
             self.exists = False
 
     service = SplunkService(settings(), EmptyClient)
-    draft = await service.write_detection({
+    draft = await service.detection_service.write_detection({
         "name": "client-csv-rule",
         "spl": CURRENT_SPL,
         "is_scheduled": True,
@@ -296,7 +296,7 @@ async def test_outputcsv_draft_is_saveable_without_execution():
     })
     assert any("outputcsv" in warning for warning in draft["validation_warnings"])
     assert service.core._client is None
-    result = await service.save_detection("write", draft["draft"], actor_id="analyst-a")
+    result = await service.detection_service.save_detection("write", draft["draft"], actor_id="analyst-a")
     assert result["created"] is True
     assert service.core._client.writes[0][1]["search"] == CURRENT_SPL
     assert service.core._client.writes[0][1]["disabled"] == "1"
