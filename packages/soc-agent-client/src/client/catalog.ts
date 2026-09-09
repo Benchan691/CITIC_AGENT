@@ -54,7 +54,6 @@ export const RULE_FIELDS = [
 export const CUSTOMER_FIELDS = [
   'customer_code',
   'display_name',
-  'tenant_number',
   'gid',
   'lifecycle_status',
   'notes',

@@ -1,4 +1,5 @@
 from unified_mcp_server.catalog.publish import (
+    CUSTOMER_COLUMNS,
     RULESET_COLUMNS,
     canonical_checksum,
     lookup_rows,
@@ -95,6 +96,20 @@ def test_publication_fix_source_type_index_must_match_customer_gid():
 def test_publication_customer_requires_code_and_display_name():
     report = validate_publication("customer", [{"record_id": "c1", "customer_code": "", "display_name": ""}], {})
     assert report["valid"] is False
+
+
+def test_customer_lookup_uses_gid_as_the_only_tenant_identifier():
+    record = {
+        "record_id": "c1",
+        "customer_code": "fubon",
+        "display_name": "Fubon Securities",
+        "gid": "g41228",
+        "lifecycle_status": "active",
+    }
+    row = lookup_rows("customer", [record], {})[0]
+    assert CUSTOMER_COLUMNS == ["CustomerID", "CustomerCode", "DisplayName", "GID", "LifecycleStatus"]
+    assert row["GID"] == "g41228"
+    assert "TenantNumber" not in row
 
 
 def test_lookup_rows_rejects_unknown_catalog():

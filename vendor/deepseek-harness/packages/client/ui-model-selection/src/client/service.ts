@@ -49,8 +49,8 @@ export class ModelDirectoryResolver extends Service {
     ctx.on('connection/reset', () => {
       for (const directory of this.live.directories.values()) directory.resetConnected()
     })
-    // Either source can change the directory: registry topology commits and
-    // settings documents that carry provider catalogs or default selection.
+    // Any provider source can change the directory: registry topology,
+    // settings documents, or credential readiness.
     const refresh = (): void => {
       for (const directory of this.live.directories.values()) {
         directory.load().catch(() => undefined)
@@ -58,6 +58,7 @@ export class ModelDirectoryResolver extends Service {
     }
     ctx.remote.$on('llm/adapters-updated', refresh)
     ctx.remote.$on('settings/document-updated', refresh)
+    ctx.remote.$on('credentials/reference-updated', refresh)
   }
 
   /**

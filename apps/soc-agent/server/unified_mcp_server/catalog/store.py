@@ -38,7 +38,6 @@ CREATE TABLE IF NOT EXISTS soc_customer (
     customer_id TEXT PRIMARY KEY,
     customer_code TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL,
-    tenant_number TEXT NOT NULL DEFAULT '',
     gid TEXT NOT NULL DEFAULT '',
     lifecycle_status TEXT NOT NULL DEFAULT 'active'
         CHECK (lifecycle_status IN ('active', 'provisioning', 'suspended', 'retired')),
@@ -161,6 +160,31 @@ PENDING_MIGRATION_SQL = {
     ),
 }
 
+# GID is the canonical customer tenant identifier. Version 1 of this catalog
+# briefly exposed both ``tenant_number`` and ``gid``; this automatic migration
+# copies the old value only when GID is empty, then removes the duplicate
+# column. It is intentionally separate from deferred operator migrations.
+CUSTOMER_GID_MIGRATION_VERSION = 3
+CUSTOMER_GID_MIGRATION_NAME = "customer_gid_canonical"
+CUSTOMER_GID_MIGRATION_SQL = """
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'soc_customer'
+          AND column_name = 'tenant_number'
+    ) THEN
+        UPDATE soc_customer
+        SET gid = tenant_number
+        WHERE gid = '' AND tenant_number <> '';
+        ALTER TABLE soc_customer DROP COLUMN tenant_number;
+    END IF;
+END
+$$;
+"""
+
 # Map database unique-constraint names back to the editable field to highlight.
 _UNIQUE_FIELDS = {
     "soc_customer_customer_code_key": "customer_code",
@@ -169,7 +193,7 @@ _UNIQUE_FIELDS = {
 }
 
 _SEARCH_COLUMNS = {
-    "customer": ("customer_code", "display_name", "tenant_number", "gid"),
+    "customer": ("customer_code", "display_name", "gid"),
     "rule": ("rule_number", "rule_name_en", "rule_name_zh", "description_en"),
     "fix_source_type": ("system_name", "fix_source_type_value", "default_fix_index", "description"),
 }
@@ -242,6 +266,20 @@ class CatalogStore:
 
     def _ensure_schema(self) -> None:
         self._apply_script(1, "initial_catalog_schema", INITIAL_SCHEMA)
+        self._apply_customer_gid_migration()
+
+    def _apply_customer_gid_migration(self) -> None:
+        if CUSTOMER_GID_MIGRATION_VERSION in self._applied_versions():
+            return
+        with self._connect() as connection:
+            with connection.transaction():
+                # Execute the DO block as one statement; splitting it on
+                # semicolons would break the PL/pgSQL body.
+                connection.execute(CUSTOMER_GID_MIGRATION_SQL)
+                connection.execute(
+                    "INSERT INTO soc_catalog_migrations (version, name) VALUES (%s, %s)",
+                    (CUSTOMER_GID_MIGRATION_VERSION, CUSTOMER_GID_MIGRATION_NAME),
+                )
 
     def _apply_script(self, version: int, name: str, script: str) -> None:
         if version in self._applied_versions():

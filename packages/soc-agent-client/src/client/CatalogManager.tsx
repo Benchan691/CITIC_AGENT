@@ -22,6 +22,7 @@ type PageStatus = 'idle' | 'busy' | 'saved' | 'failed'
 
 const CATALOGS: CatalogName[] = ['rule', 'customer', 'fix_source_type']
 export const CUSTOMER_CATALOGS: readonly CatalogName[] = ['customer']
+const FIELD_LABELS: Record<string, string> = { gid: 'GID' }
 
 function valueText(value: unknown): string {
   if (typeof value === 'string') return value
@@ -52,7 +53,7 @@ function FieldRow({
   onChange: (value: string) => void
 }) {
   const options = SELECT_FIELDS[fieldKey]
-  const label = fieldKey.replace(/_/g, ' ')
+  const label = FIELD_LABELS[fieldKey] ?? fieldKey.replace(/_/g, ' ')
   const multiline = fieldKey.startsWith('description') || fieldKey === 'notes' || fieldKey.startsWith('remediation')
   return (
     <label className={`${css.field} ${error ? css.fieldInvalid : ''}`}>

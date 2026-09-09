@@ -290,19 +290,67 @@ function ok<T>(request: RpcRequest<unknown>, value: T): RpcResponse<T> {
   return { rpcId: request.rpcId, result: { ok: true, value } }
 }
 
+/** Read one provider profile from a redacted settings descriptor. */
+function valueAtPath(value: unknown, path: readonly string[]): unknown {
+  let current = value
+  for (const segment of path) {
+    if (typeof current !== 'object' || current === null || Array.isArray(current)) return undefined
+    current = (current as Record<string, unknown>)[segment]
+  }
+  return current
+}
+
+/**
+ * Return whether a registered provider still has the credential it names.
+ * Routes without a named credential, or compositions without the optional
+ * settings/credentials seams, remain visible because their authentication is
+ * provider-native or ambient rather than managed here.
+ */
+async function providerCredentialConfigured(ctx: Context, provider: string): Promise<boolean> {
+  const settings = ctx.get('settings')
+  const credentials = ctx.get('credentials')
+  if (settings === undefined || credentials === undefined) return true
+
+  const entry = ctx.llm.listConfigurableProviders().find(candidate => candidate.provider === provider)
+  if (entry === undefined) return true
+  const descriptor = settings.describe({ redactSecrets: true })
+    .find(candidate => String(candidate.ns) === entry.settingsNs)
+  const profile = valueAtPath(descriptor?.value, entry.settingsPath)
+  if (typeof profile !== 'object' || profile === null || Array.isArray(profile)) return true
+  const ref = (profile as Record<string, unknown>).apiKeyEnv
+  if (typeof ref !== 'string' || ref.length === 0) return true
+
+  try {
+    return (await credentials.describe(credentialRef(ref))).configured
+  } catch {
+    // A credential-store read failure is not proof that the credential is
+    // absent; preserve the route and let the request surface the real error.
+    return true
+  }
+}
+
+/** Keep only routes that the user can currently authenticate. */
+async function visibleProviders(ctx: Context) {
+  const providers = ctx.llm.listProviders()
+  const visible = await Promise.all(providers.map(provider => providerCredentialConfigured(ctx, provider.id)))
+  return providers.filter((_provider, index) => visible[index] === true)
+}
+
 /**
  * Build the provider/model catalog over every registered route. Shared by the
  * session-scoped `session.models` and host-scoped `llm.models`. Catalog
  * membership stays advisory: an unlisted session selection remains valid for
  * provider dispatch, but is not injected back into the selector after its
- * owning catalog stops advertising it. Per-provider failures ride `failures`
- * without failing the sound groups; groups that advertise nothing are dropped.
+ * owning catalog stops advertising it. Credential-backed routes are omitted
+ * while their credential is absent so the user picker does not offer a route
+ * that cannot authenticate. Per-provider failures ride `failures` without
+ * failing the sound groups; groups that advertise nothing are dropped.
  */
 async function buildModelCatalog(ctx: Context): Promise<{
   groups: ModelProviderGroup[]
   failures: ModelCatalogFailure[]
 }> {
-  const catalog = await Promise.all(ctx.llm.listProviders().map(async (provider) => {
+  const catalog = await Promise.all((await visibleProviders(ctx)).map(async (provider) => {
     try {
       const models = await ctx.llm.listModels(provider.id)
       const entries = await Promise.all(models.map(async (model) => {
@@ -1850,9 +1898,11 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
    * A composition with no llm registry at all cannot judge and says yes —
    * the dispatch it would have refused fails on its own terms.
    */
-  function routeServed(provider: string): boolean {
+  async function routeServed(provider: string): Promise<boolean> {
     const llm = ctx.get('llm')
-    return llm === undefined || llm.listProviders().some(entry => entry.id === provider)
+    if (llm === undefined) return true
+    if (!llm.listProviders().some(entry => entry.id === provider)) return false
+    return providerCredentialConfigured(ctx, provider)
   }
 
   /**
@@ -1871,7 +1921,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
     if ('error' in found) return { refused: err(request, found.error) }
     const agent = found.agent
     const selection = selectionFor(agent).current
-    if (!routeServed(selection.provider)) {
+    if (!(await routeServed(selection.provider))) {
       return {
         refused: err(request, {
           code: 'model-unavailable',
@@ -2325,7 +2375,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         if ('error' in found) return err(request, found.error)
         const current = selectionFor(found.agent).current
         const { groups, failures } = await buildModelCatalog(ctx)
-        const routable = routeServed(current.provider)
+        const routable = await routeServed(current.provider)
         return ok(request, { current: { ...current }, routable, groups, failures })
       },
 

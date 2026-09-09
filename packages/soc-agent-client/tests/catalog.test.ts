@@ -55,7 +55,7 @@ test('catalog draft tool names follow the MCP wire convention', () => {
 
 test('catalog field sets cover the editable columns per catalog', () => {
   assert.deepEqual([...CATALOG_FIELDS.customer], [
-    'customer_code', 'display_name', 'tenant_number', 'gid', 'lifecycle_status', 'notes',
+    'customer_code', 'display_name', 'gid', 'lifecycle_status', 'notes',
   ])
   assert.ok(CATALOG_FIELDS.rule.includes('rule_number'))
   assert.ok(CATALOG_FIELDS.rule.includes('rule_name_cn'))
@@ -91,7 +91,7 @@ test('validateCatalogForm reports the exact missing fields', () => {
 
 test('new customer forms start with the server default lifecycle', () => {
   assert.deepEqual(emptyCatalogForm('customer'), {
-    customer_code: '', display_name: '', tenant_number: '', gid: '', lifecycle_status: 'active', notes: '',
+    customer_code: '', display_name: '', gid: '', lifecycle_status: 'active', notes: '',
   })
 })
 

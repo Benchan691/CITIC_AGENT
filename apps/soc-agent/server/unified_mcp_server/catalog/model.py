@@ -32,7 +32,6 @@ RULE_STATUSES = ("draft", "active", "disabled", "retired")
 CUSTOMER_EDITABLE_COLUMNS = (
     "customer_code",
     "display_name",
-    "tenant_number",
     "gid",
     "lifecycle_status",
     "notes",
@@ -104,7 +103,6 @@ def customer_from_row(row: Any) -> dict[str, Any]:
         customer_id,
         customer_code,
         display_name,
-        tenant_number,
         gid,
         lifecycle_status,
         notes,
@@ -120,7 +118,6 @@ def customer_from_row(row: Any) -> dict[str, Any]:
         "record_id": _text(customer_id),
         "customer_code": _text(customer_code),
         "display_name": _text(display_name),
-        "tenant_number": _text(tenant_number),
         "gid": _text(gid),
         "lifecycle_status": _text(lifecycle_status),
         "notes": _text(notes),

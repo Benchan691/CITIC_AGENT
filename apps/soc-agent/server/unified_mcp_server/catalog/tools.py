@@ -68,7 +68,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
         offset: int = 0,
         include_archived: bool = False,
     ) -> dict[str, Any]:
-        """Search the Customer Information catalog by code, name, tenant, or GID; read-only."""
+        """Search the Customer Information catalog by code, name, or GID; read-only."""
         return await execute(
             ctx,
             "catalog",

@@ -391,6 +391,43 @@ describe('Web session model selection', () => {
     await ctx.fiber.dispose()
   })
 
+  it('hides a credential-backed provider after its credential is removed', async () => {
+    const { ctx, sessionId } = await harness()
+    let configured = true
+    ctx.llm.registerConfigurableProviders([{
+      provider: 'openrouter',
+      displayName: 'OpenRouter',
+      settingsNs: 'llm-pi-ai',
+      settingsPath: ['providers', 'openrouter'],
+    }])
+    ctx.llm.registerAdapter(['openrouter'], new CatalogAdapter('OpenRouter', [
+      { provider: 'openrouter', id: 'openrouter-model', name: 'OpenRouter Model' },
+    ]))
+    ctx.provide('settings', {
+      describe: () => [{
+        ns: 'llm-pi-ai',
+        value: { providers: { openrouter: { apiKeyEnv: 'OPENROUTER_API_KEY' } } },
+      }],
+    } as never)
+    ctx.provide('credentials', {
+      describe: async () => ({ configured, writable: true }),
+    } as never)
+    const api = createApiProxy(ctx, {
+      defaultModelSelection: () => ({ provider: 'openrouter', model: 'openrouter-model' }),
+      cwd: '/tmp',
+    })
+
+    const visible = expectValue(await api.sessions.models(request({ sessionId })))
+    expect(visible.groups.map(group => group.id)).toContain('openrouter')
+    expect(visible.routable).toBe(true)
+
+    configured = false
+    const removed = expectValue(await api.sessions.models(request({ sessionId })))
+    expect(removed.groups.map(group => group.id)).not.toContain('openrouter')
+    expect(removed.routable).toBe(false)
+    await ctx.fiber.dispose()
+  })
+
   it('accepts an advisory-unlisted model, rejects an unavailable provider, and switches only after the next assembly', async () => {
     const { ctx, agent, sessionId } = await harness()
     const api = createApiProxy(ctx, { defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }), cwd: '/tmp' })

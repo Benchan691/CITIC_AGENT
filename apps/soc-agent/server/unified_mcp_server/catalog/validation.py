@@ -23,13 +23,11 @@ _RULE_NUMBER_RE = re.compile(r"^[0-9]{1,4}$")
 # preserves legacy values such as "0" that reconciliation must review.
 _CITIC_RULE_NUMBER_RE = re.compile(r"^[0-9]{4}$")
 _CUSTOMER_CODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
-_TENANT_NUMBER_RE = re.compile(r"^[0-9]{1,10}$")
 _GID_RE = re.compile(r"^(?:Default|default|[0-9]{1,10}|g[0-9]{1,10})$")
 
 MAX_TEXT_LENGTHS = {
     "customer_code": 64,
     "display_name": 200,
-    "tenant_number": 10,
     "gid": 16,
     "notes": 4000,
     "rule_number": 4,
@@ -93,9 +91,6 @@ def validate_customer(payload: dict[str, Any], *, partial: bool) -> dict[str, st
     if not partial or "display_name" in payload:
         if not values["display_name"]:
             fields["display_name"] = "display name is required."
-    if not partial or "tenant_number" in payload:
-        if values["tenant_number"] and not _TENANT_NUMBER_RE.fullmatch(values["tenant_number"]):
-            fields["tenant_number"] = "use digits only (the g<tenant> index prefix number)."
     if not partial or "gid" in payload:
         if values["gid"] and not _GID_RE.fullmatch(values["gid"]):
             fields["gid"] = "use Default or a numeric tenant GID (optionally g-prefixed)."

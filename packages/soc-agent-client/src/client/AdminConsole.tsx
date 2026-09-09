@@ -59,6 +59,15 @@ const SUPPORTED_PROTOCOLS = [
   { value: 'openai-responses', label: 'OpenAI Responses' },
   { value: 'anthropic-messages', label: 'Anthropic Messages' },
 ] as const
+const REASONING_EFFORTS = [
+  { value: 'off', label: 'Off' },
+  { value: 'minimal', label: 'Minimal' },
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'xhigh', label: 'X-high' },
+  { value: 'max', label: 'Max' },
+] as const
 
 function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -95,6 +104,60 @@ function modelIds(profile: ProviderProfile): string[] {
 function mergeModels(profile: ProviderProfile, ids: string[]): Record<string, unknown>[] {
   const existing = new Map(modelEntries(profile).map((model) => [stringValue(model.id), model]))
   return ids.map((id) => ({ ...(existing.get(id) ?? {}), id }))
+}
+
+function reasoningEffortIds(profile: ProviderProfile): string[] {
+  const efforts = objectValue(modelEntries(profile)[0]?.reasoningEfforts)
+  return REASONING_EFFORTS.map((effort) => effort.value).filter((value) => value in efforts)
+}
+
+function reasoningEffortMap(selected: readonly string[]): Record<string, string | null> | undefined {
+  const values = REASONING_EFFORTS.filter((effort) => selected.includes(effort.value))
+  if (!values.length || values.every((effort) => effort.value === 'off')) return undefined
+  return Object.fromEntries(values.map((effort) => [effort.value, effort.value === 'off' ? null : effort.value]))
+}
+
+function reasoningSelectionValid(selected: readonly string[]): boolean {
+  return !selected.includes('off') || selected.some((value) => value !== 'off')
+}
+
+function ReasoningEffortFields({
+  selected,
+  defaultEffort,
+  disabled,
+  onToggle,
+  onDefaultChange,
+}: {
+  selected: readonly string[]
+  defaultEffort: string
+  disabled: boolean
+  onToggle: (value: string) => void
+  onDefaultChange: (value: string) => void
+}) {
+  const invalid = !reasoningSelectionValid(selected)
+  return (
+    <>
+      <fieldset className={styles.checkboxGroup}>
+        <legend>Available reasoning efforts <em>optional</em></legend>
+        {REASONING_EFFORTS.map((effort) => (
+          <label key={effort.value}>
+            <input type="checkbox" checked={selected.includes(effort.value)} onChange={() => onToggle(effort.value)} disabled={disabled} />
+            {effort.label}
+          </label>
+        ))}
+      </fieldset>
+      {selected.length ? (
+        <label className={styles.field}>
+          <span>Default reasoning effort <em>optional</em></span>
+          <select className={styles.input} value={defaultEffort} onChange={(event) => onDefaultChange(event.target.value)} disabled={disabled}>
+            <option value="">Provider default</option>
+            {REASONING_EFFORTS.filter((effort) => selected.includes(effort.value)).map((effort) => <option value={effort.value} key={effort.value}>{effort.label}</option>)}
+          </select>
+          <small className={styles.fieldHint}>{invalid ? 'Select at least one effort besides Off.' : 'These levels will be available when choosing this model.'}</small>
+        </label>
+      ) : null}
+    </>
+  )
 }
 
 function deriveCredentialRef(provider: ConfigurableProviderView, profile: ProviderProfile): string {
@@ -508,10 +571,13 @@ function ProviderSettings({ connection }: { connection: any }) {
 function ProviderEditor({ connection, row, onChanged }: { connection: any; row: ProviderRow; onChanged: () => Promise<void> }) {
   const { provider, namespace, profile } = row
   const initialModels = modelIds(profile)
+  const initialReasoningEfforts = reasoningEffortIds(profile)
   const [displayName, setDisplayName] = useState(stringValue(profile.displayName))
   const [baseURL, setBaseURL] = useState(stringValue(profile.baseURL))
   const [api, setApi] = useState(stringValue(profile.api))
   const [models, setModels] = useState(initialModels.join('\n'))
+  const [reasoningEfforts, setReasoningEfforts] = useState(initialReasoningEfforts)
+  const [defaultReasoningEffort, setDefaultReasoningEffort] = useState(stringValue(profile.reasoning))
   const [secret, setSecret] = useState('')
   const [discovered, setDiscovered] = useState<DiscoveredModelView[]>([])
   const [message, setMessage] = useState<StatusMessage | null>(null)
@@ -525,8 +591,20 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
     if (!current.includes(id)) setModels([...current, id].join('\n'))
   }
 
+  function toggleReasoningEffort(value: string) {
+    const next = reasoningEfforts.includes(value)
+      ? reasoningEfforts.filter((effort) => effort !== value)
+      : [...reasoningEfforts, value]
+    setReasoningEfforts(next)
+    if (defaultReasoningEffort && !next.includes(defaultReasoningEffort)) setDefaultReasoningEffort('')
+  }
+
   async function save() {
     if (!namespace || !row.writable) return
+    if (!reasoningSelectionValid(reasoningEfforts)) {
+      setMessage({ kind: 'error', text: 'Select at least one reasoning effort besides Off.' })
+      return
+    }
     setBusy(true)
     setMessage(null)
     try {
@@ -542,10 +620,26 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
         ops.push(api.trim() ? { op: 'set', path: [...provider.settingsPath, 'api'], value: api.trim() } : { op: 'unset', path: [...provider.settingsPath, 'api'] })
       }
       const nextModels = models.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
-      if (JSON.stringify(nextModels) !== JSON.stringify(initialModels)) {
+      const nextModelProfiles = mergeModels(profile, nextModels)
+      const nextEffortMap = reasoningEffortMap(reasoningEfforts)
+      const nextModelsWithReasoning = JSON.stringify(reasoningEfforts) !== JSON.stringify(initialReasoningEfforts)
+        ? nextModelProfiles.map((model) => {
+          const next = { ...model }
+          if (nextEffortMap) next.reasoningEfforts = nextEffortMap
+          else delete next.reasoningEfforts
+          return next
+        })
+        : nextModelProfiles
+      if (JSON.stringify(nextModelsWithReasoning) !== JSON.stringify(modelEntries(profile))) {
         ops.push(nextModels.length
-          ? { op: 'set', path: [...provider.settingsPath, 'models'], value: mergeModels(profile, nextModels) }
+          ? { op: 'set', path: [...provider.settingsPath, 'models'], value: nextModelsWithReasoning }
           : { op: 'unset', path: [...provider.settingsPath, 'models'] })
+      }
+      const nextDefaultReasoningEffort = reasoningEfforts.includes(defaultReasoningEffort) ? defaultReasoningEffort : ''
+      if (nextDefaultReasoningEffort !== stringValue(profile.reasoning)) {
+        ops.push(nextDefaultReasoningEffort
+          ? { op: 'set', path: [...provider.settingsPath, 'reasoning'], value: nextDefaultReasoningEffort }
+          : { op: 'unset', path: [...provider.settingsPath, 'reasoning'] })
       }
       if (secret.trim() && !stringValue(profile.apiKeyEnv)) {
         ops.push({ op: 'set', path: [...provider.settingsPath, 'apiKeyEnv'], value: row.credentialRef })
@@ -619,7 +713,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
         </label>
 
         {isCustomProvider ? (
-          <details className={styles.advanced} open={Boolean(baseURL || api || initialModels.length)}>
+          <details className={styles.advanced} open={Boolean(baseURL || api || initialModels.length || reasoningEfforts.length || defaultReasoningEffort)}>
             <summary>Advanced provider settings</summary>
             <div className={styles.advancedBody}>
               {canEditProtocol ? (
@@ -645,6 +739,15 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
                 <span>Model IDs <em>one per line</em></span>
                 <textarea className={`${styles.input} ${styles.textarea}`} value={models} onChange={(event) => setModels(event.target.value)} placeholder="deepseek-chat" rows={4} disabled={!row.writable || busy} />
               </label>
+              {canEditProtocol ? (
+                <ReasoningEffortFields
+                  selected={reasoningEfforts}
+                  defaultEffort={defaultReasoningEffort}
+                  disabled={!row.writable || busy}
+                  onToggle={toggleReasoningEffort}
+                  onDefaultChange={setDefaultReasoningEffort}
+                />
+              ) : null}
               <div className={styles.discoveryRow}>
                 <button className={styles.button} type="button" onClick={() => void discover()} disabled={busy || !provider.settingsNs}>
                   {busy ? 'Working…' : 'Discover models'}
@@ -663,7 +766,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
 
       {message ? <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p> : null}
       <div className={styles.actions}>
-        <button className={`${styles.button} ${styles.primary}`} type="button" onClick={() => void save()} disabled={!row.writable || busy}>{busy ? 'Saving…' : 'Save provider'}</button>
+        <button className={`${styles.button} ${styles.primary}`} type="button" onClick={() => void save()} disabled={!row.writable || busy || !reasoningSelectionValid(reasoningEfforts)}>{busy ? 'Saving…' : 'Save provider'}</button>
         {row.credential?.configured ? <button className={styles.button} type="button" onClick={() => void removeCredential()} disabled={!row.credential.writable || busy}>Remove credential</button> : null}
         {canRemoveProvider ? <CustomProviderRemoval connection={connection} row={row} onChanged={onChanged} disabled={busy || !row.writable || (row.credential?.configured === true && !row.credential.writable)} /> : null}
       </div>
@@ -711,6 +814,8 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
   const [baseURL, setBaseURL] = useState('')
   const [api, setApi] = useState('openai-completions')
   const [model, setModel] = useState('')
+  const [reasoningEfforts, setReasoningEfforts] = useState<string[]>([])
+  const [defaultReasoningEffort, setDefaultReasoningEffort] = useState('')
   const [secret, setSecret] = useState('')
   const [savedRoute, setSavedRoute] = useState('')
   const [message, setMessage] = useState<StatusMessage | null>(null)
@@ -719,8 +824,16 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
   const normalizedRoute = route.trim().toLowerCase()
   const routeTaken = providers.some((row) => row.provider.provider === normalizedRoute)
   const routeValid = PROVIDER_ROUTE_PATTERN.test(normalizedRoute)
-  const canSave = Boolean(namespace && writable && routeValid && !routeTaken && baseURL.trim() && model.trim())
+  const canSave = Boolean(namespace && writable && routeValid && !routeTaken && baseURL.trim() && model.trim() && reasoningSelectionValid(reasoningEfforts) && (!defaultReasoningEffort || reasoningEfforts.includes(defaultReasoningEffort)))
   const credentialRef = `${normalizedRoute.replace(/[^a-z0-9]+/gi, '_').toUpperCase()}_API_KEY`
+
+  function toggleReasoningEffort(value: string) {
+    const next = reasoningEfforts.includes(value)
+      ? reasoningEfforts.filter((effort) => effort !== value)
+      : [...reasoningEfforts, value]
+    setReasoningEfforts(next)
+    if (defaultReasoningEffort && !next.includes(defaultReasoningEffort)) setDefaultReasoningEffort('')
+  }
 
   async function save() {
     if (!namespace || !canSave) return
@@ -729,6 +842,7 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
     try {
       if (savedRoute && savedRoute !== normalizedRoute) throw new Error('The route cannot be changed after saving.')
       if (!savedRoute) {
+        const configuredReasoningEfforts = reasoningEffortMap(reasoningEfforts)
         apiValue(await connection.api.settings.mutate({
           ns: namespace.ns,
           ops: [{
@@ -739,7 +853,11 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
               ...(secret.trim() ? { apiKeyEnv: credentialRef } : {}),
               api,
               baseURL: baseURL.trim(),
-              models: [{ id: model.trim() }],
+              ...(defaultReasoningEffort ? { reasoning: defaultReasoningEffort } : {}),
+              models: [{
+                id: model.trim(),
+                ...(configuredReasoningEfforts ? { reasoningEfforts: configuredReasoningEfforts } : {}),
+              }],
             },
           }],
           expectedRevision: namespace.revision,
@@ -796,6 +914,13 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
             <input className={styles.input} value={model} onChange={(event) => setModel(event.target.value)} placeholder="model-name" disabled={busy} required />
           </label>
         </div>
+        <ReasoningEffortFields
+          selected={reasoningEfforts}
+          defaultEffort={defaultReasoningEffort}
+          disabled={busy}
+          onToggle={toggleReasoningEffort}
+          onDefaultChange={setDefaultReasoningEffort}
+        />
         <label className={styles.field}>
           <span>API key <em>optional for provider-native auth</em></span>
           <input className={styles.input} type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="Enter the provider API key" autoComplete="new-password" disabled={busy} />

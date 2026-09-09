@@ -36,7 +36,6 @@ CUSTOMER_COLUMNS = [
     "CustomerID",
     "CustomerCode",
     "DisplayName",
-    "TenantNumber",
     "GID",
     "LifecycleStatus",
 ]
@@ -79,7 +78,6 @@ def customer_row(record: dict[str, Any]) -> dict[str, str]:
         "CustomerID": record.get("record_id", ""),
         "CustomerCode": record.get("customer_code", ""),
         "DisplayName": record.get("display_name", ""),
-        "TenantNumber": record.get("tenant_number", ""),
         "GID": record.get("gid", ""),
         "LifecycleStatus": record.get("lifecycle_status", ""),
     }

@@ -34,6 +34,9 @@ authenticated editor workflow and published to Splunk lookups explicitly
 (gated by `SPLUNK_ALLOW_LOOKUP_WRITE`). The
 `/admin` console shows service status and manages LLM provider credentials, but
 does not expose or edit deployment variables.
+Customer Information uses `gid` as the single tenant identifier; older catalog
+rows with a separate `tenant_number` are consolidated automatically when the
+catalog store starts.
 
 Supported Splunk reads use the official Splunk MCP Server when
 `SPLUNK_MCP_ENDPOINT` is set. Configure the endpoint and the MCP bearer token

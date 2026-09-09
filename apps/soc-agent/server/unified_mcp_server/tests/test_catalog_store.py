@@ -16,6 +16,7 @@ class FakeConnection:
         self.migrations: list[tuple] = []
         self.history: list[tuple] = []
         self.sequences = {"transaction": 0}
+        self.customer_has_tenant_number = False
 
     def __enter__(self):
         return self
@@ -56,12 +57,22 @@ class FakeConnection:
         if sql.startswith("INSERT INTO SOC_CATALOG_MIGRATIONS"):
             self.migrations.append((params[0], params[1]))
             return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
+        if sql.startswith("DO $$"):
+            if self.customer_has_tenant_number:
+                for row in self.tables.get("soc_customer", []):
+                    if not row.get("gid") and row.get("tenant_number"):
+                        row["gid"] = row["tenant_number"]
+                    row.pop("tenant_number", None)
+                self.customer_has_tenant_number = False
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
         if sql.startswith("CREATE"):
             return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
 
         if sql.startswith("INSERT INTO SOC_CUSTOMER"):
             columns = self._column_list(query.split("(", 1)[1].split(")")[0])
             row = dict(zip(columns, params))
+            if "tenant_number" in row:
+                self.customer_has_tenant_number = True
             for existing in self.tables.setdefault("soc_customer", []):
                 if existing["customer_code"] == row["customer_code"]:
                     raise psycopg.errors.UniqueViolation(
@@ -117,7 +128,7 @@ def store(monkeypatch):
 def test_bootstrap_records_the_initial_migration(store):
     catalog_store, connection = store
     assert catalog_store.pending_migrations()[0]["version"] == 2
-    assert [version for version, _name in connection.migrations] == [1]
+    assert [version for version, _name in connection.migrations] == [1, 3]
 
 
 def test_create_customer_writes_history_in_one_transaction(store):
@@ -127,8 +138,7 @@ def test_create_customer_writes_history_in_one_transaction(store):
         {
             "customer_code": "fubon",
             "display_name": "Fubon Securities",
-            "tenant_number": "41228",
-            "gid": "50176",
+            "gid": "g41228",
             "lifecycle_status": "active",
             "notes": "",
         },
@@ -146,6 +156,29 @@ def test_create_customer_writes_history_in_one_transaction(store):
         "create",
         "analyst-1",
     )
+
+
+def test_customer_gid_migration_preserves_a_legacy_value(monkeypatch):
+    connection = FakeConnection()
+    connection.customer_has_tenant_number = True
+    connection.tables["soc_customer"] = [{
+        "customer_id": "legacy",
+        "customer_code": "legacy",
+        "display_name": "Legacy",
+        "tenant_number": "41228",
+        "gid": "",
+    }]
+    monkeypatch.setattr(
+        store_module,
+        "psycopg",
+        SimpleNamespace(connect=lambda _uri, **_kwargs: connection, errors=psycopg.errors),
+    )
+
+    CatalogStore("postgresql://example.test/catalog")
+
+    assert connection.tables["soc_customer"][0]["gid"] == "41228"
+    assert "tenant_number" not in connection.tables["soc_customer"][0]
+    assert [version for version, _name in connection.migrations] == [1, 3]
 
 
 def test_update_rejects_stale_revision_and_writes_history_when_current(store):

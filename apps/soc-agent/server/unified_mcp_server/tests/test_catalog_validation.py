@@ -22,17 +22,15 @@ def test_customer_requires_code_display_and_known_status():
     assert "lifecycle_status" in fields
 
 
-def test_customer_rejects_bad_tenant_and_gid_formats():
+def test_customer_rejects_bad_gid_formats():
     with pytest.raises(ServiceError) as caught:
         validate_payload("customer", {
             "customer_code": "fubon",
             "display_name": "Fubon",
-            "tenant_number": "4a1228",
             "gid": "not valid!",
             "lifecycle_status": "active",
         }, partial=False)
     fields = field_messages(caught.value)
-    assert "tenant_number" in fields
     assert "gid" in fields
 
 

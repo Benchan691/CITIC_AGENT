@@ -265,6 +265,22 @@ describe('ui-model-selection dual entry', () => {
     expect(b.blockOf('s1')).toBeUndefined()
   })
 
+  it('refreshes the model directory when a provider credential changes', async () => {
+    const b = await bench()
+    b.mint('s1')
+    const face = b.seat().inject!(sid('s1'))
+    face.load()
+    await Promise.resolve()
+    await Promise.resolve()
+    const before = b.calls.models
+
+    b.ctx.remote.$dispatch('credentials/reference-updated', ['OPENROUTER_API_KEY'])
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(b.calls.models).toBe(before + 1)
+  })
+
   it('never blocks on catalog membership alone', async () => {
     const b = await bench()
     b.mint('s1')

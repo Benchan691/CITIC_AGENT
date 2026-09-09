@@ -5,7 +5,7 @@ import { AdminConsole } from '../../src/client/AdminConsole'
 
 const ok = (value: unknown) => ({ result: { ok: true, value } })
 const rpcOk = (value: unknown) => ({ ok: true, value })
-const customers = [{ catalog: 'customer', record_id: 'customer-a', customer_code: 'demo', display_name: 'Example customer', tenant_number: '1001', gid: 'Default', lifecycle_status: 'active', notes: '', revision: 1, archived: false }]
+const customers = [{ catalog: 'customer', record_id: 'customer-a', customer_code: 'demo', display_name: 'Example customer', gid: 'Default', lifecycle_status: 'active', notes: '', revision: 1, archived: false }]
 const connection = {
   rpc: { call: async (_channel: string, name: string, payload: Record<string, unknown> = {}) => {
     if (name === 'test-splunk') return { ok: false, error: { message: 'Test connection unavailable' } }
