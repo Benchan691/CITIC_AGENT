@@ -45,6 +45,35 @@ function requireUser(ctx) {
   return auth.requireSession()
 }
 
+// Catalog editors normally run under the authenticated workspace session. The
+// admin console has its own cookie, so allow that principal only for the
+// customer catalog and pass its server-resolved email to the audit writer.
+function requireCatalogPrincipal(ctx, catalog) {
+  const auth = ctx.get?.('socAuth')
+  if (!auth) throw new Error('authentication required')
+  let sessionError
+  try {
+    if (typeof auth.requireSession !== 'function') throw new Error('authentication required')
+    const session = auth.requireSession()
+    if (session?.id === undefined || session?.id === null) throw new Error('authentication required')
+    return { session_id: String(session.id) }
+  } catch (error) {
+    sessionError = error
+  }
+  try {
+    const admin = auth.requireAdmin()
+    if (catalog !== 'customer') {
+      throw new Error('administrator customer catalog access is limited to customer records')
+    }
+    const actor = String(admin?.email ?? '').trim()
+    if (!actor) throw new Error('admin authentication required')
+    return { actor_id: actor }
+  } catch (error) {
+    if (error instanceof Error && error.message === 'administrator customer catalog access is limited to customer records') throw error
+    throw sessionError ?? error
+  }
+}
+
 async function serveAdminPage(request, response, webServer) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.writeHead(405, { allow: 'GET, HEAD' })
@@ -693,55 +722,53 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       return ok(await runAuthCommand('save-detection', { ...request, session_id: session.id }))
     }
     case 'catalog-list': {
-      const session = requireUser(ctx)
-      return ok(await runAuthCommand('catalog-list', { ...validateCatalogNamePayload(payload), session_id: session.id }))
+      const request = validateCatalogNamePayload(payload)
+      return ok(await runAuthCommand('catalog-list', { ...request, ...requireCatalogPrincipal(ctx, request.catalog) }))
     }
     case 'catalog-get':
     case 'catalog-history': {
-      const session = requireUser(ctx)
       if (typeof payload?.record_id !== 'string' || payload.record_id.trim() === '') {
         return badRequest('The catalog record ID is invalid.')
       }
       const command = endpoint === 'catalog-get' ? 'catalog-get' : 'catalog-history'
+      const request = validateCatalogNamePayload(payload)
       return ok(await runAuthCommand(command, {
-        catalog: validateCatalogNamePayload(payload).catalog,
+        catalog: request.catalog,
         record_id: payload.record_id,
-        session_id: session.id,
+        ...requireCatalogPrincipal(ctx, request.catalog),
       }))
     }
     case 'catalog-publications': {
-      const session = requireUser(ctx)
-      return ok(await runAuthCommand('catalog-publications', { ...validateCatalogNamePayload(payload), session_id: session.id }))
+      const request = validateCatalogNamePayload(payload)
+      return ok(await runAuthCommand('catalog-publications', { ...request, ...requireCatalogPrincipal(ctx, request.catalog) }))
     }
     case 'catalog-preview-publish': {
-      const session = requireUser(ctx)
-      return ok(await runAuthCommand('catalog-preview-publish', { ...validateCatalogNamePayload(payload), session_id: session.id }))
+      const request = validateCatalogNamePayload(payload)
+      return ok(await runAuthCommand('catalog-preview-publish', { ...request, ...requireCatalogPrincipal(ctx, request.catalog) }))
     }
     case 'save-catalog-record': {
-      const session = requireUser(ctx)
       let request
       try {
         request = validateCatalogSavePayload(payload)
       } catch (error) {
         return badRequest(error instanceof Error ? error.message : 'The catalog save request is invalid.')
       }
-      return ok(await runAuthCommand('save-catalog-record', { ...request, session_id: session.id }))
+      return ok(await runAuthCommand('save-catalog-record', { ...request, ...requireCatalogPrincipal(ctx, request.catalog) }))
     }
     case 'archive-catalog-record': {
-      const session = requireUser(ctx)
       let request
       try {
         request = validateCatalogArchivePayload(payload)
       } catch (error) {
         return badRequest(error instanceof Error ? error.message : 'The catalog archive request is invalid.')
       }
-      return ok(await runAuthCommand('archive-catalog-record', { ...request, session_id: session.id }))
+      return ok(await runAuthCommand('archive-catalog-record', { ...request, ...requireCatalogPrincipal(ctx, request.catalog) }))
     }
     case 'publish-catalog': {
       const session = requireAdmin(ctx)
       return ok(await runAuthCommand('publish-catalog', {
         ...validateCatalogNamePayload(payload),
-        session_id: session.id,
+        actor_id: session.email,
       }))
     }
     case 'rollback-publication': {
@@ -751,7 +778,7 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       }
       return ok(await runAuthCommand('rollback-publication', {
         publication_id: payload.publication_id,
-        session_id: session.id,
+        actor_id: session.email,
       }))
     }
     case 'save-lookup': {

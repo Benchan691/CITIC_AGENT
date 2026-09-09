@@ -189,6 +189,9 @@
         cwd: !!js "process.env.DSH_SOC_AGENT_SERVER ?? ((process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]) + '/apps/soc-agent/server')"
         env:
           MCP_SERVER_ROOT: !!js "process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]"
+          # Non-secret override for deployments that keep the official
+          # Splunk MCP endpoint outside apps/soc-agent/server/.env.
+          SPLUNK_MCP_ENDPOINT: !!js "process.env.SPLUNK_MCP_ENDPOINT || ''"
           APP_POSTGRES_URI: !!js "process.env.APP_POSTGRES_URI || process.env.LANGGRAPH_POSTGRES_URI || process.env.POSTGRES_URI || ''"
           APP_SETTINGS_ENCRYPTION_KEY: !!js process.env.APP_SETTINGS_ENCRYPTION_KEY ?? ''
           SOC_EVIDENCE_STORE: !!js "process.env.SOC_EVIDENCE_STORE ?? ((process.env.DSH_HOME ?? process.env.HOME + '/.dsh') + '/soc-evidence.sqlite3')"

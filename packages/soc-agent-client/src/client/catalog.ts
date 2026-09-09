@@ -109,8 +109,8 @@ export const SELECT_FIELDS: Record<string, readonly { value: string; label: stri
 }
 
 const REQUIRED_FIELDS: Record<CatalogName, readonly string[]> = {
-  customer: ['customer_code', 'display_name'],
-  rule: ['rule_number', 'rule_name_en'],
+  customer: ['customer_code', 'display_name', 'lifecycle_status'],
+  rule: ['rule_number', 'rule_name_en', 'severity', 'status'],
   fix_source_type: ['customer_id', 'system_name', 'fix_source_type_value'],
 }
 
@@ -156,6 +156,16 @@ export function recordFromForm(
     record[key] = fields[key] ?? ''
   }
   return record
+}
+
+export function emptyCatalogForm(catalog: CatalogName): CatalogFormFields {
+  const fields = recordFromForm(catalog, {}) as CatalogFormFields
+  if (catalog === 'customer') fields.lifecycle_status = 'active'
+  if (catalog === 'rule') {
+    fields.severity = 'info'
+    fields.status = 'active'
+  }
+  return fields
 }
 
 /** Quick client-side validation; the server remains authoritative. */

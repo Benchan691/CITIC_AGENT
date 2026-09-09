@@ -341,6 +341,27 @@ test('save-catalog-record is an authenticated editor RPC with strict request val
   })
 })
 
+test('admin catalog access is limited to customer records', async () => {
+  let rpcHandler
+  apply({
+    get(name) {
+      if (name !== 'socAuth') return undefined
+      return {
+        requireSession() { throw new Error('authentication required') },
+        requireAdmin() { return { email: 'admin@example.com' } },
+      }
+    },
+    on() {},
+    agents: { roots: () => [] },
+    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+  })
+
+  const result = await rpcHandler('catalog-list', { catalog: 'rule' })
+
+  assert.equal(result.ok, false)
+  assert.equal(result.error.message, 'The catalog operation failed.')
+})
+
 test('save-detection is an authenticated editor RPC with strict request validation', async () => {
   let rpcHandler
   apply({

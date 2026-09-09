@@ -35,6 +35,30 @@ authenticated editor workflow and published to Splunk lookups explicitly
 `/admin` console shows service status and manages LLM provider credentials, but
 does not expose or edit deployment variables.
 
+Supported Splunk reads use the official Splunk MCP Server when
+`SPLUNK_MCP_ENDPOINT` is set. Configure the endpoint and the MCP bearer token
+in the ignored `.env` file, for example:
+
+```dotenv
+SPLUNK_MCP_ENDPOINT=http://splunk.example:8000/en-US/splunkd/__raw/services/mcp
+SPLUNK_TOKEN=
+SPLUNK_ALLOW_INSECURE_HTTP=false
+```
+
+The adapter routes searches, index and metadata discovery, sourcetypes,
+knowledge objects, saved-search execution, and fired-alert reads through MCP.
+The existing query policy, resource admission, evidence retention, customer
+isolation, sanitization, and approval flow remain in the CITIC server. Lookup
+CSV editing, detection writes, and selected search-job result reads stay on
+the bounded REST compatibility path because MCP Server 2.0 does not expose
+equivalent operations. A complete lookup read falls back to the read-only
+REST search path only when MCP reports its 1,000-row result ceiling; an MCP
+tool rejection is surfaced and is never silently retried through REST.
+
+To roll back the integration, remove `SPLUNK_MCP_ENDPOINT` and restart the
+backend. The legacy REST client remains available for that recovery path and
+for the unsupported CITIC-specific operations described above.
+
 Manual fired-alert ingestion is available after the alert-ingestion migration
 has been applied:
 

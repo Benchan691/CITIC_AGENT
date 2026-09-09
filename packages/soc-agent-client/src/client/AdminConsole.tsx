@@ -8,6 +8,7 @@ import type {
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import styles from './AdminConsole.module.css'
 import { AlertEmailSettings, emailRequest, type EmailSettings } from './AlertEmailSettings'
+import { CatalogManager, CUSTOMER_CATALOGS } from './CatalogManager'
 import { errorText, rpc } from './settings-common'
 
 type AdminAuth = {
@@ -209,10 +210,11 @@ const ADMIN_PAGES = [
   { id: 'overview', name: 'Overview', icon: 'overview', copy: 'Your workspace, at a glance.' },
   { id: 'connections', name: 'Connections', icon: 'connections', copy: 'Review service setup and verify connections when needed.' },
   { id: 'providers', name: 'AI providers', icon: 'providers', copy: 'Manage model access and credentials in one place.' },
+  { id: 'customers', name: 'Customers', icon: 'customers', copy: 'Create and maintain customer catalog records.' },
   { id: 'notifications', name: 'Alert email', icon: 'notifications', copy: 'Manage recipients, routing, and delivery for new security alerts.' },
 ] as const
 function AdminIcon({ name }: { name: string }) {
-  const paths: Record<string, string> = { overview: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z', connections: 'M8 3v5 M16 3v5 M6 8h12v3a6 6 0 0 1-12 0z M12 17v4', providers: 'M12 3l9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5', notifications: 'M3 5h18v14H3z M3 5l9 8 9-8' }
+  const paths: Record<string, string> = { overview: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z', connections: 'M8 3v5 M16 3v5 M6 8h12v3a6 6 0 0 1-12 0z M12 17v4', providers: 'M12 3l9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5', customers: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75', notifications: 'M3 5h18v14H3z M3 5l9 8 9-8' }
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.overview} /></svg>
 }
 function currentPage() {
@@ -253,6 +255,7 @@ function AdminWorkspace({ connection, email, onSignedOut }: { connection: any; e
       {visited.has('overview') && <div hidden={page !== 'overview'}><AdminOverview connection={connection} /></div>}
       {visited.has('connections') && <div hidden={page !== 'connections'}><ServiceStatusPanel connection={connection} /></div>}
       {visited.has('providers') && <div hidden={page !== 'providers'}><ProviderSettings connection={connection} /></div>}
+      {visited.has('customers') && <div hidden={page !== 'customers'}><CatalogManager connection={connection} catalogs={CUSTOMER_CATALOGS} title="Customer Information" showPublication={false} /></div>}
       {visited.has('notifications') && <div hidden={page !== 'notifications'}><AlertEmailSettings /></div>}
       <footer className={styles.pageFoot}>Sentinel administration · CITICTEL-CPC</footer>
     </main>

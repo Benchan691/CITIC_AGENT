@@ -10,6 +10,7 @@ import {
   catalogTitle,
   formFromRecord,
   catalogSavePayload,
+  emptyCatalogForm,
   requireCatalogRecord,
   isRecord,
   validateCatalogForm,
@@ -20,6 +21,7 @@ type ViewMode = 'view' | 'edit' | 'create'
 type PageStatus = 'idle' | 'busy' | 'saved' | 'failed'
 
 const CATALOGS: CatalogName[] = ['rule', 'customer', 'fix_source_type']
+export const CUSTOMER_CATALOGS: readonly CatalogName[] = ['customer']
 
 function valueText(value: unknown): string {
   if (typeof value === 'string') return value
@@ -92,8 +94,19 @@ function HistoryView({ history }: { history: Record<string, unknown>[] }) {
   )
 }
 
-export function CatalogManager({ connection }: { connection: ConnectionHandle }) {
-  const [catalog, setCatalog] = useState<CatalogName>('rule')
+export function CatalogManager({
+  connection,
+  catalogs = CATALOGS,
+  title = 'SOC Catalogs',
+  showPublication = true,
+}: {
+  connection: ConnectionHandle
+  catalogs?: readonly CatalogName[]
+  title?: string
+  showPublication?: boolean
+}) {
+  const availableCatalogs = catalogs.length > 0 ? catalogs : CATALOGS
+  const [catalog, setCatalog] = useState<CatalogName>(availableCatalogs[0])
   const [search, setSearch] = useState('')
   const [list, setList] = useState<{ items: Record<string, unknown>[]; total: number } | null>(null)
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null)
@@ -138,16 +151,20 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
     try {
       const [historyResult, publicationsResult] = await Promise.all([
         recordId ? rpc(connection, 'catalog-history', { catalog, record_id: recordId }) : Promise.resolve(null),
-        rpc(connection, 'catalog-publications', { catalog }),
+        showPublication ? rpc(connection, 'catalog-publications', { catalog }) : Promise.resolve(null),
       ])
       if (request !== selectionRequest.current) return
       setHistory(Array.isArray(historyResult?.history) ? historyResult.history.filter(isRecord) : [])
-      setPublications(Array.isArray(publicationsResult.publications) ? publicationsResult.publications.filter(isRecord) : [])
+      setPublications(Array.isArray(publicationsResult?.publications) ? publicationsResult.publications.filter(isRecord) : [])
     } catch (cause) {
       if (request !== selectionRequest.current) return
       setError(cause instanceof Error ? cause.message : String(cause))
     }
-  }, [connection, catalog])
+  }, [connection, catalog, showPublication])
+
+  useEffect(() => {
+    if (!availableCatalogs.includes(catalog)) setCatalog(availableCatalogs[0])
+  }, [availableCatalogs, catalog])
 
   useEffect(() => {
     ++listRequest.current
@@ -182,9 +199,7 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
 
   const startCreate = () => {
     ++selectionRequest.current
-    const empty: Record<string, string> = {}
-    for (const key of CATALOG_FIELDS[catalog]) empty[key] = ''
-    setFields(empty)
+    setFields(emptyCatalogForm(catalog))
     setSelected(null)
     setMode('create')
     setFieldErrors({})
@@ -313,9 +328,9 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
   return (
     <div className={css.page}>
       <header className={css.header}>
-        <h1 className={css.title}>SOC Catalogs</h1>
-        <div className={css.tabs} role="tablist">
-          {CATALOGS.map(name => (
+        <h1 className={css.title}>{title}</h1>
+        {availableCatalogs.length > 1 && <div className={css.tabs} role="tablist">
+          {availableCatalogs.map(name => (
             <button
               key={name}
               role="tab"
@@ -326,7 +341,7 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
               {CATALOG_LABELS[name]}
             </button>
           ))}
-        </div>
+        </div>}
       </header>
 
       {error && <div className={`${css.message} ${css.error}`} role="alert">{error}</div>}
@@ -419,7 +434,7 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
             <div className={css.hint}>Select a record from the list, or create a new one.</div>
           )}
 
-          <details className={css.section} open>
+          {showPublication && <details className={css.section} open>
             <summary>Publication to Splunk</summary>
             <div className={css.publishBar}>
               <button className={css.button} type="button" disabled={status === 'busy'} onClick={() => { void loadPreview() }}>Preview snapshot</button>
@@ -463,7 +478,7 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
                 </tbody>
               </table>
             )}
-          </details>
+          </details>}
         </section>
       </div>
     </div>

@@ -19,7 +19,7 @@ class SplunkService:
     def __init__(
         self,
         settings: SplunkSettings,
-        client_factory: Callable[[dict[str, object]], SplunkClient] = SplunkClient,
+        client_factory: Callable[[dict[str, object]], SplunkClient] | None = None,
         *,
         core: SplunkCore | None = None,
     ) -> None:

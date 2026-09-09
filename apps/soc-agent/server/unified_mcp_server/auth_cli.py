@@ -236,7 +236,10 @@ def _catalog_session(payload: dict[str, Any]) -> str:
 
 
 def _catalog_context(payload: dict[str, Any]) -> tuple[CatalogService, str]:
-    actor_id = _catalog_session(payload)
+    session_id = str(payload.get("session_id", "")).strip()
+    actor_id = _catalog_session(payload) if session_id else str(payload.get("actor_id", "")).strip()
+    if not actor_id:
+        raise ValueError("authentication failed")
     runtime = _command_runtime.get()
     service = runtime.catalog_service() if runtime else CatalogService.from_env(_settings().splunk)
     return service, actor_id

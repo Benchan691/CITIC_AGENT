@@ -705,16 +705,22 @@ class SplunkSearchService:
             principal_id=principal_id,
             workload_type="saved_search",
         ) as resource:
-            result = await self.core.request(
-                lambda client: client.run_saved_search(
+            async def run_saved(client: Any) -> dict[str, Any]:
+                kwargs = {
+                    "runtime_limit": resource.admission.max_runtime_seconds,
+                }
+                if getattr(client, "supports_saved_search_time_overrides", False):
+                    kwargs.update({"earliest_time": earliest, "latest_time": latest})
+                return await client.run_saved_search(
                     name,
                     False,
                     resource.effective_max_results,
                     app,
                     owner,
-                    runtime_limit=resource.admission.max_runtime_seconds,
+                    **kwargs,
                 )
-            )
+
+            result = await self.core.request(run_saved)
         result = self.core.sanitize(result)
         events = result.get("events") if isinstance(result, dict) else None
         if isinstance(events, list):

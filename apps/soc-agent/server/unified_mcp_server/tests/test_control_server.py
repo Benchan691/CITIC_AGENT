@@ -72,6 +72,22 @@ async def test_dispatch_rejects_unknown_command():
         await dispatch_command("definitely-not-a-command", {})
 
 
+def test_catalog_context_accepts_server_resolved_admin_actor(monkeypatch):
+    from types import SimpleNamespace
+    from unified_mcp_server import auth_cli
+
+    service = object()
+    monkeypatch.setattr(auth_cli.CatalogService, "from_env", lambda _settings: service)
+    monkeypatch.setattr(auth_cli.ServerSettings, "from_env", lambda: SimpleNamespace(splunk=object()))
+
+    resolved, actor = auth_cli._catalog_context({"actor_id": "admin@example.test"})
+
+    assert resolved is service
+    assert actor == "admin@example.test"
+    with pytest.raises(ValueError, match="authentication failed"):
+        auth_cli._catalog_context({})
+
+
 def test_response_bound_preserves_the_complete_protocol_envelope(monkeypatch):
     from io import BytesIO
     from unified_mcp_server import control_server

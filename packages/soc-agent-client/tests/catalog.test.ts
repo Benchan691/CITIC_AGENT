@@ -10,6 +10,7 @@ import {
   catalogSubtitle,
   catalogTitle,
   formFromRecord,
+  emptyCatalogForm,
   parseCatalogEnvelope,
   parseEnvelopeText,
   recordFromForm,
@@ -88,6 +89,12 @@ test('validateCatalogForm reports the exact missing fields', () => {
   assert.match(ruleErrors.rule_number ?? '', /1-4 digits/)
 })
 
+test('new customer forms start with the server default lifecycle', () => {
+  assert.deepEqual(emptyCatalogForm('customer'), {
+    customer_code: '', display_name: '', tenant_number: '', gid: '', lifecycle_status: 'active', notes: '',
+  })
+})
+
 test('parseCatalogEnvelope unwraps the success envelope and errors', () => {
   const ok = parseCatalogEnvelope(textBlock({
     ok: true,
@@ -151,8 +158,14 @@ test('toolview registers every draft tool and saves through the authenticated RP
   for (const endpoint of ['catalog-list', 'catalog-get', 'catalog-history', 'save-catalog-record', 'archive-catalog-record', 'catalog-preview-publish', 'publish-catalog', 'rollback-publication']) {
     assert.ok(manager.includes(endpoint), `manager must call ${endpoint}`)
   }
+  assert.match(manager, /showPublication = true/)
+  assert.match(manager, /emptyCatalogForm\(catalog\)/)
 
   const index = readFileSync(join(ROOT, 'src/client/index.ts'), 'utf8')
   assert.match(index, /\/catalogs/)
   assert.match(index, /installCatalogToolview/)
+
+  const admin = readFileSync(join(ROOT, 'src/client/AdminConsole.tsx'), 'utf8')
+  assert.match(admin, /id: 'customers'/)
+  assert.match(admin, /CUSTOMER_CATALOGS/)
 })
