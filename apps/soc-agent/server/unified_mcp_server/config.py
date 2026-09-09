@@ -137,12 +137,10 @@ def _storage_path(env: Mapping[str, str], name: str, default: str) -> str:
 
 @dataclass(frozen=True)
 class SplunkSettings:
-    host: str
-    port: int
-    username: str
-    password: str
+    mcp_endpoint: str
     token: str
     verify_ssl: bool
+    allow_insecure_http: bool
     request_timeout: int
     job_timeout: int
     max_events: int
@@ -164,24 +162,12 @@ class SplunkSettings:
     lookup_max_bytes: int = 5_000_000
     lookup_max_rows: int = 50_000
     lookup_max_columns: int = 100
-    url: str = ""
     query_policy: QueryPolicyConfig = field(default_factory=QueryPolicyConfig)
     search_resource: SearchResourceConfig = field(default_factory=SearchResourceConfig)
     security_queue: SecurityQueueConfig = field(default_factory=SecurityQueueConfig)
     search_planner_max_refinements: int = 0
-    allow_insecure_http: bool = False
-    # When configured, supported read operations use Splunk's official MCP
-    # Server.  The REST URL remains available for CITIC-specific operations
-    # that the official server does not expose (for example lookup editing).
-    mcp_endpoint: str = ""
 
     def __post_init__(self) -> None:
-        _validate_http_endpoint(
-            self.url or self.host,
-            "SPLUNK_URL" if self.url else "SPLUNK_HOST",
-            allow_bare_host=not bool(self.url),
-            allow_insecure_http=self.allow_insecure_http,
-        )
         _validate_http_endpoint(
             self.mcp_endpoint,
             "SPLUNK_MCP_ENDPOINT",
@@ -190,31 +176,23 @@ class SplunkSettings:
 
     @property
     def configured(self) -> bool:
-        return bool(
-            (self.host or self.mcp_endpoint)
-            and (self.token or (self.username and self.password))
-        )
+        return bool(self.mcp_endpoint and self.token)
 
     @property
     def missing(self) -> list[str]:
-        missing = [] if (self.host or self.mcp_endpoint) else ["SPLUNK_HOST or SPLUNK_MCP_ENDPOINT"]
-        if not self.token and not (self.username and self.password):
-            missing.append("SPLUNK_TOKEN or SPLUNK_USERNAME/SPLUNK_PASSWORD")
+        missing = [] if self.mcp_endpoint else ["SPLUNK_MCP_ENDPOINT"]
+        if not self.token:
+            missing.append("SPLUNK_TOKEN")
         return missing
 
     def client_config(self) -> dict[str, object]:
         return {
-            "splunk_url": self.url,
-            "splunk_host": self.host,
-            "splunk_port": self.port,
-            "splunk_username": self.username,
-            "splunk_password": self.password,
+            "splunk_mcp_endpoint": self.mcp_endpoint,
             "splunk_token": self.token,
             "verify_ssl": self.verify_ssl,
             "allow_insecure_http": self.allow_insecure_http,
             "request_timeout": self.request_timeout,
             "job_timeout": self.job_timeout,
-            "splunk_mcp_endpoint": self.mcp_endpoint,
             "splunk_lookup_app": self.lookup_app,
             "splunk_lookup_owner": self.lookup_owner,
         }
@@ -434,53 +412,19 @@ class ServerSettings:
             ),
             standard_concurrency=_integer(env, "SECURITY_QUEUE_STANDARD_CONCURRENCY", 5, 1, 32),
         )
-        splunk_host = (
-            _value(env, "SPLUNK_HOST_FOR_DOCKER")
-            if _value(env, "RUNNING_INSIDE_DOCKER") == "1"
-            else _value(env, "SPLUNK_HOST")
-        )
         splunk_allow_insecure_http = _boolean(env, "SPLUNK_ALLOW_INSECURE_HTTP", False)
         splunk_mcp_endpoint = _value(env, "SPLUNK_MCP_ENDPOINT")
-        splunk_url = _value(env, "SPLUNK_URL")
-        splunk_port = 8089
-        if splunk_url:
-            _validate_http_endpoint(
-                splunk_url,
-                "SPLUNK_URL",
-                allow_insecure_http=splunk_allow_insecure_http,
-            )
-            parsed_splunk_url = urlsplit(splunk_url)
-            splunk_host = parsed_splunk_url.hostname or splunk_host
-            splunk_port = parsed_splunk_url.port or splunk_port
         if splunk_mcp_endpoint:
             _validate_http_endpoint(
                 splunk_mcp_endpoint,
                 "SPLUNK_MCP_ENDPOINT",
                 allow_insecure_http=splunk_allow_insecure_http,
             )
-            if not splunk_host:
-                parsed_mcp_endpoint = urlsplit(splunk_mcp_endpoint)
-                splunk_host = parsed_mcp_endpoint.hostname or splunk_host
-                if not splunk_url and parsed_mcp_endpoint.port:
-                    splunk_port = parsed_mcp_endpoint.port
-        if not splunk_url and splunk_host:
-            splunk_port = _integer(env, "SPLUNK_PORT", 8089, 1, 65535)
-            scheme = _value(env, "SPLUNK_SCHEME", "https").lower()
-            if scheme not in {"http", "https"}:
-                raise ValueError("SPLUNK_SCHEME must be http or https")
-            splunk_url = f"{scheme}://{splunk_host}:{splunk_port}"
-            _validate_http_endpoint(
-                splunk_url,
-                "SPLUNK_URL",
-                allow_insecure_http=splunk_allow_insecure_http,
-            )
         splunk = SplunkSettings(
-            host=splunk_host,
-            port=splunk_port,
-            username=_value(env, "SPLUNK_USERNAME"),
-            password=_value(env, "SPLUNK_PASSWORD"),
+            mcp_endpoint=splunk_mcp_endpoint,
             token=_value(env, "SPLUNK_TOKEN"),
             verify_ssl=_boolean(env, splunk_verify_name, True),
+            allow_insecure_http=splunk_allow_insecure_http,
             request_timeout=_integer(env, "SPLUNK_REQUEST_TIMEOUT", 30, 1, 600),
             job_timeout=_integer(env, "SPLUNK_JOB_TIMEOUT", 120, 1, 3600),
             max_events=_integer(env, splunk_max_name, 1000, 1, 100000),
@@ -502,13 +446,10 @@ class ServerSettings:
             lookup_max_bytes=_integer(env, "SPLUNK_LOOKUP_MAX_BYTES", 5_000_000, 1, 50_000_000),
             lookup_max_rows=_integer(env, "SPLUNK_LOOKUP_MAX_ROWS", 50_000, 1, 1_000_000),
             lookup_max_columns=_integer(env, "SPLUNK_LOOKUP_MAX_COLUMNS", 100, 1, 1_000),
-            url=splunk_url,
             query_policy=query_policy,
             search_resource=search_resource,
             security_queue=security_queue,
             search_planner_max_refinements=search_planner_max_refinements,
-            allow_insecure_http=splunk_allow_insecure_http,
-            mcp_endpoint=splunk_mcp_endpoint,
         )
         zimbra_host = _value(env, "ZIMBRA_HOST")
         zimbra_allow_insecure_http = _boolean(env, "ZIMBRA_ALLOW_INSECURE_HTTP", False)
@@ -617,8 +558,6 @@ class ServerSettings:
             "server": {"name": self.name, "transport": self.transport},
             "splunk": {
                 "configured": self.splunk.configured,
-                "host": redact_endpoint(self.splunk.host, allow_bare_host=True),
-                "port": self.splunk.port,
                 "verify_ssl": self.splunk.verify_ssl,
                 "allow_insecure_http": self.splunk.allow_insecure_http,
                 "max_events": self.splunk.max_events,

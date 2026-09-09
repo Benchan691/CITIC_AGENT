@@ -30,37 +30,31 @@ ignored `.env` file. PostgreSQL stores authenticated users, sessions, and
 workspace ownership, plus the SOC catalogs (Ruleset, Customer Information,
 Fix Source type) with their audit history and publication records; it is not a
 service-configuration source. Catalog records are edited through the
-authenticated editor workflow and published to Splunk lookups explicitly
-(gated by `SPLUNK_ALLOW_LOOKUP_WRITE`). The
+authenticated editor workflow. The official Splunk MCP server currently
+exposes no mutation tool, so lookup publication remains unavailable until an
+upstream MCP write tool is provided. The
 `/admin` console shows service status and manages LLM provider credentials, but
 does not expose or edit deployment variables.
 Customer Information uses `gid` as the single tenant identifier; older catalog
 rows with a separate `tenant_number` are consolidated automatically when the
 catalog store starts.
 
-Supported Splunk reads use the official Splunk MCP Server when
-`SPLUNK_MCP_ENDPOINT` is set. Configure the endpoint and the MCP bearer token
-in the ignored `.env` file, for example:
+Splunk uses only the official Splunk MCP Server. Configure the endpoint and the
+MCP bearer token in the ignored `.env` file, for example:
 
 ```dotenv
-SPLUNK_MCP_ENDPOINT=http://splunk.example:8000/en-US/splunkd/__raw/services/mcp
+SPLUNK_MCP_ENDPOINT=https://splunk.example:8000/en-US/splunkd/__raw/services/mcp
 SPLUNK_TOKEN=
 SPLUNK_ALLOW_INSECURE_HTTP=false
 ```
 
 The adapter routes searches, index and metadata discovery, sourcetypes,
-knowledge objects, saved-search execution, and fired-alert reads through MCP.
-The existing query policy, resource admission, evidence retention, customer
-isolation, sanitization, and approval flow remain in the CITIC server. Lookup
-CSV editing, detection writes, and selected search-job result reads stay on
-the bounded REST compatibility path because MCP Server 2.0 does not expose
-equivalent operations. A complete lookup read falls back to the read-only
-REST search path only when MCP reports its 1,000-row result ceiling; an MCP
-tool rejection is surfaced and is never silently retried through REST.
-
-To roll back the integration, remove `SPLUNK_MCP_ENDPOINT` and restart the
-backend. The legacy REST client remains available for that recovery path and
-for the unsupported CITIC-specific operations described above.
+knowledge objects, saved-search execution, lookup reads, and fired-alert reads
+through MCP. The existing query policy, resource admission, evidence
+retention, customer isolation, sanitization, and approval flow remain in the
+CITIC server. Splunk MCP Server 2.0 currently exposes read-only tools, so
+lookup and detection writes are unavailable until the upstream MCP server
+provides write tools.
 
 Manual fired-alert ingestion is available after the alert-ingestion migration
 has been applied:
@@ -70,8 +64,8 @@ uv run python -m unified_mcp_server.alert_ingest --limit 100 --dry-run
 uv run python -m unified_mcp_server.alert_ingest --limit 100
 ```
 
-The command reads fired-alert metadata and selected `Event_GID`/
-`Event_Rulenum` fields from existing Splunk search SIDs. It stores alert
+The command reads fired-alert metadata and `Event_GID`/`Event_Rulenum` fields
+returned in the MCP alert payload. It stores alert
 metadata in PostgreSQL, skips duplicates, and quarantines alerts whose mapping
 is missing or ambiguous. It never dispatches searches or writes to Splunk.
 
@@ -88,8 +82,8 @@ The worker runs once at backend startup and then at the configured interval. A
 PostgreSQL advisory lock prevents a second backend process from polling at the
 same time. It retries transient failures with bounded backoff, rechecks
 unresolved quarantine rows, and records counters in `sec_alert_ingestion_status`.
-It only reads Splunk fired-alert and existing search-job result endpoints; all
-database inserts and quarantine decisions happen in the application backend.
+It only reads Splunk MCP results; all database inserts and quarantine decisions
+happen in the application backend.
 
 Automatic alert email uses the PostgreSQL outbox and a separate SMTP worker.
 Apply migration 013 after 012 with sending stopped and `ALERT_EMAIL_ENABLED=false`.
@@ -169,7 +163,7 @@ outside the provider's result cap.
 An operation has one 180-second budget including authentication and admission;
 the host MCP transport allows 185 seconds for cleanup. Splunk job time includes
 dispatch, polling and retrieval, and cleanup is bounded to five seconds. Only
-transient Splunk GET failures receive one retry. Zimbra blocking calls retain
+transient Splunk MCP read failures receive one retry. Zimbra blocking calls retain
 their admission slots until their worker exits, even if a caller cancels; each
 SOAP request checks the remaining deadline. PostgreSQL pooling defaults on,
 with up to four connections per store, a five-second connection/pool wait and
@@ -179,10 +173,10 @@ connections. Deployment configuration changes require a host/backend restart.
 See the [implementation and validation report](../../../docs/PERFORMANCE_REDESIGN_IMPLEMENTATION.md)
 for measured offline results, remaining work and rollout steps.
 
-Persistent CSV lookups can be read with `splunk_get_lookup` and edited through
-approval-gated draft tools. The authenticated editor performs the final Save or
-Delete through the Lookup File Editing API; enable that write path separately
-with `SPLUNK_ALLOW_LOOKUP_WRITE=true` and keep its app/owner scope fixed in
+Persistent CSV lookups can be read with the official MCP knowledge-object and
+query tools. The authenticated editor can still validate and stage drafts, but
+the final remote Save or Delete is unavailable because the official MCP server
+does not expose lookup mutation tools. Keep the app/owner scope fixed in
 `SPLUNK_LOOKUP_APP` and `SPLUNK_LOOKUP_OWNER`.
 
 Search resource settings limit admission, lookback, runtime, concurrency,

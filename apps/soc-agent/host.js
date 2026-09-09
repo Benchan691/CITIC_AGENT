@@ -16,6 +16,7 @@ const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
 const CATALOG_ENDPOINTS = new Set([
   'catalog-list',
   'catalog-get',
+  'catalog-customer-options',
   'catalog-history',
   'catalog-publications',
   'catalog-preview-publish',
@@ -157,11 +158,12 @@ async function serveAlertEmailSettings(request, response, ctx) {
 }
 
 async function saveAlertEmailAdminResource(request, response, ctx, command, validator) {
-  if (!(await requireHttpAdmin(ctx, request, response))) return
+  const admin = await requireHttpAdmin(ctx, request, response)
+  if (!admin) return
   if (request.method !== 'POST') { response.writeHead(405, { allow: 'POST' }); response.end(); return }
   try {
     const payload = validator(await readJsonRequest(request))
-    sendJson(response, 200, await runAdmin(command, undefined, payload, request.signal))
+    sendJson(response, 200, await runAdmin(command, undefined, { ...payload, actor_id: admin.email }, request.signal))
   } catch (error) {
     const message = error instanceof Error ? error.message : 'request failed'
     sendJson(response, message.startsWith('The ') ? 400 : 500, { error: message.slice(0, 400) })
@@ -650,8 +652,11 @@ function validateCustomerEmailConfigPayload(payload) {
     }
     lists[key] = [...new Set(value.map(item => item.trim()))]
   }
-  if (lists.recipients.length === 0) throw new Error('The customer recipients list must not be empty.')
-  return { customer_id: payload.customer_id.trim(), email_config: { ...lists, language: config.language || 'EN', brand: config.brand || 'CPC' } }
+  const language = String(config.language || 'EN').toUpperCase()
+  const brand = String(config.brand || 'CPC').toUpperCase()
+  if (!['EN', 'CN', 'ZH'].includes(language)) throw new Error('The customer language is invalid.')
+  if (!['CPC', 'CEC'].includes(brand)) throw new Error('The customer brand is invalid.')
+  return { customer_id: payload.customer_id.trim(), email_config: { ...lists, language, brand } }
 }
 
 async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
@@ -693,14 +698,14 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       return ok(await runAdmin('save-alert-email-rule', undefined, request, signal))
     }
     case 'save-customer-email-config': {
-      requireAdmin(ctx)
+      const admin = requireAdmin(ctx)
       let request
       try {
         request = validateCustomerEmailConfigPayload(payload)
       } catch (error) {
         return badRequest(error instanceof Error ? error.message : 'The customer email configuration is invalid.')
       }
-      return ok(await runAdmin('save-customer-email-config', undefined, request, signal))
+      return ok(await runAdmin('save-customer-email-config', undefined, { ...request, actor_id: admin.email }, signal))
     }
     case 'list-accounts': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'add-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
@@ -736,6 +741,12 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
         catalog: request.catalog,
         record_id: payload.record_id,
         ...requireCatalogPrincipal(ctx, request.catalog),
+      }))
+    }
+    case 'catalog-customer-options': {
+      return ok(await runAuthCommand('catalog-customer-options', {
+        catalog: 'customer',
+        ...requireCatalogPrincipal(ctx, 'customer'),
       }))
     }
     case 'catalog-publications': {

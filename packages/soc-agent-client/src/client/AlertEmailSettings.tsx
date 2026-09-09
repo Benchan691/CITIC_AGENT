@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import styles from './AdminConsole.module.css'
 
 type Recipients = { recipients?: string[]; cc?: string[]; bcc?: string[]; language?: string; brand?: string }
-type Customer = { id: string; gid: string; name: string; email_config: Recipients }
+type Customer = { id: string; record_id?: string; revision?: number; gid: string; name: string; display_name?: string; lifecycle_status?: string; email_config: Recipients }
 type Routing = { source_type_ids?: string[]; ips?: string[]; hostnames?: string[]; recipients?: Recipients }
 type Rule = { id?: string; name: string; customer_id?: string | null; ruleset_id?: string | null; severities: string[]; enabled: boolean; routing?: Routing }
 type Delivery = { event_id: string; customer: string; status: string; created: string; smtp_accepted?: string; accepted: string[]; rejected: Record<string, number>; error?: string }
@@ -70,7 +70,7 @@ export function AlertEmailSettings() {
       <div className={styles.notice}><span className={`${styles.statusPill} ${data.runtime.enabled && data.runtime.configured ? styles.statusReady : styles.statusMuted}`}>{data.runtime.enabled && data.runtime.configured ? 'Sending enabled' : data.runtime.enabled ? 'Setup incomplete' : 'Sending paused'}</span><span>{data.runtime.enabled && data.runtime.configured ? 'New matching events enter the delivery queue.' : 'You can prepare recipients and rules while sending is paused.'} SMTP relay settings are managed on the server.</span></div>
       <nav className={styles.tabs} aria-label="Email sections">{[['routes','Notification rules'],['customers','Customer defaults'],['preview','Preview email'],['history','Delivery history'],['import','Import routes']].map(([id,label]) => <button key={id} className={tab === id ? styles.activeTab : ''} onClick={() => { setTab(id); setMessage(''); window.history.replaceState(null,'','#notifications/' + id) }} aria-current={tab === id ? 'page' : undefined}>{label}</button>)}</nav>
       <div hidden={tab !== 'routes'}><RulesPanel data={data} onSaved={saved} /></div>
-      <div hidden={tab !== 'customers'}><CustomerPanel data={data} onSaved={saved} /></div>
+      <div hidden={tab !== 'customers'}><CustomerPanel data={data} /></div>
       <div hidden={tab !== 'preview'}><PreviewPanel data={data} /></div>
       <div hidden={tab !== 'history'}><HistoryPanel data={data} /></div>
       <div hidden={tab !== 'import'}><ImportPanel data={data} onSaved={saved} /></div>
@@ -80,26 +80,8 @@ export function AlertEmailSettings() {
 function CustomerOptions({ data }: { data: EmailSettings }) {
   return <>{data.customers.map(c => <option key={c.id} value={c.id}>{c.gid} · {c.name}</option>)}</>
 }
-function CustomerPanel({ data, onSaved }: { data: EmailSettings; onSaved: (message: string) => Promise<void> }) {
-  const [customerId, setCustomerId] = useState(data.customers[0]?.id || '')
-  const [config, setConfig] = useState<Recipients>(data.customers[0]?.email_config || {})
-  const [dirty, setDirty] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  useEffect(() => {
-    if (!dirty) setConfig(data.customers.find(c => c.id === customerId)?.email_config || {})
-  }, [data.customers, customerId, dirty])
-  const change = (value: Recipients) => { setConfig(value); setDirty(true) }
-  async function save(e: FormEvent) {
-    e.preventDefault(); setBusy(true); setError('')
-    try { await emailRequest('customer', { customer_id: customerId, email_config: cleanRecipients(config) }); setDirty(false); await onSaved('Customer defaults saved.') } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
-  }
-  return <div className={styles.contentGrid}><form className={styles.card} onSubmit={save}><h3 className={styles.editorTitle}>Customer defaults</h3><p className={styles.editorCopy}>Used when a matching rule has no recipient override.</p><fieldset className={styles.formFields} disabled={busy || !data.customers.length}>
-    <label className={styles.field}><span>Customer</span><select className={styles.input} value={customerId} onChange={e => { if (dirty && !window.confirm('Discard unsaved customer changes?')) return; setCustomerId(e.target.value); setConfig(data.customers.find(c => c.id === e.target.value)?.email_config || {}); setDirty(false); setError('') }}><CustomerOptions data={data} /></select></label>
-    <AddressFields value={config} onChange={change} />
-    <div className={styles.fieldGrid}><label className={styles.field}><span>Email language</span><select className={styles.input} value={config.language || 'EN'} onChange={e => change({ ...config, language: e.target.value })}><option value="EN">English</option><option value="CN">简体中文</option><option value="ZH">繁體中文</option></select></label><label className={styles.field}><span>Brand template</span><select className={styles.input} value={config.brand || 'CPC'} onChange={e => change({ ...config, brand: e.target.value })}><option>CPC</option><option>CEC</option></select></label></div>
-    {error && <p className={styles.error} role="alert">{error}</p>}<div className={styles.actions}><button className={`${styles.button} ${styles.primary}`} disabled={!dirty} type="submit">{busy ? 'Saving…' : 'Save defaults'}</button>{dirty && <span className={styles.fieldHint}>Unsaved changes</span>}</div>
-  </fieldset>{!data.customers.length && <p className={styles.empty}>No customers available. Add a customer to the catalog first.</p>}</form><aside className={styles.helpCard}><p className={styles.sectionKicker}>How defaults work</p><h3>One customer. One destination.</h3><p>Routes only use the event’s own customer. A rule can replace the default recipients for a specific team.</p><p>BCC recipients remain hidden in the message. Language and brand apply to every alert for this customer.</p><p>Saving defaults does not replay earlier events.</p></aside></div>
+function CustomerPanel({ data }: { data: EmailSettings }) {
+  return <div className={styles.contentGrid}><div className={styles.card}><h3 className={styles.editorTitle}>Customer defaults</h3><p className={styles.editorCopy}>Customer email defaults are managed in the Customers catalog so identity, routing, and delivery settings stay together.</p>{data.customers.length ? <div className={styles.formFields}>{data.customers.map(customer => <article className={styles.importRow} key={customer.id}><div><strong>{customer.display_name || customer.name}</strong><p className={styles.fieldHint}>{customer.gid || 'No GID'} · {customer.lifecycle_status || 'unknown'}{customer.revision ? ` · revision ${customer.revision}` : ''}</p><p>To: {customer.email_config?.recipients?.join(', ') || 'No recipients configured'}{customer.email_config?.cc?.length ? ` · CC: ${customer.email_config.cc.join(', ')}` : ''}{customer.email_config?.bcc?.length ? ` · BCC: ${customer.email_config.bcc.join(', ')}` : ''}</p><p>Language: {customer.email_config?.language || 'EN'} · Brand: {customer.email_config?.brand || 'CPC'}</p></div><button className={styles.button} type="button" onClick={() => { window.location.hash = `#customers/${customer.record_id || ''}` }}>Edit in Customers</button></article>)}</div> : <p className={styles.empty}>No customers available. Add a customer to the catalog first.</p>}</div><aside className={styles.helpCard}><p className={styles.sectionKicker}>How defaults work</p><h3>One customer. One destination.</h3><p>Routes use the event’s customer. A rule can replace the default recipients for a specific team.</p><p>An empty recipient list keeps a provisioned customer from sending until recipients are configured.</p><p>Customer configuration changes are recorded in the catalog history.</p></aside></div>
 }
 const newRule = (): Rule => ({ name: '', customer_id: '', ruleset_id: '', severities: ['high','critical'], enabled: false, routing: {} })
 function RulesPanel({ data, onSaved }: { data: EmailSettings; onSaved: (message: string) => Promise<void> }) {

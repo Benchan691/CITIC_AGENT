@@ -460,78 +460,11 @@ collect_parameters() {
   cur="$(lookup SOC_ADMIN_PASSWORD)"
   ask_value SOC_ADMIN_PASSWORD "Admin console password" is_nonempty "$cur" secret
 
-  # -- Splunk connection ---------------------------------------------------
-  local cur_host cur_url default_splunk
-  cur_host="$(lookup SPLUNK_HOST)"
-  cur_url="$(lookup SPLUNK_URL)"
-  if [ -n "$cur_url" ]; then default_splunk="$cur_url"; else default_splunk="$cur_host"; fi
-  while :; do
-    printf 'Splunk connection (hostname, or full URL like https://splunk.example.com:8089)'
-    if [ -n "$default_splunk" ]; then printf ' [%s]' "$default_splunk"; fi
-    printf ': ' >&2
-    IFS= read -r input || exit 1
-    input="${input%$'\r'}"
-    if [ -z "$input" ]; then input="$default_splunk"; fi
-    if [ -z "$input" ]; then
-      printf '%s  A Splunk host or URL is required. Please type it again.%s\n' "$Y" "$N" >&2
-      continue
-    fi
-    case "$input" in
-      *://*)
-        if is_http_url "$input"; then
-          VALUES[SPLUNK_URL]="$input"; VALUES[SPLUNK_HOST]=""; VALUES[SPLUNK_PORT]=""
-          break
-        fi
-        printf '%s  invalid: %s. Please type it again.%s\n' "$Y" "$REASON" "$N" >&2
-        ;;
-      *)
-        if is_host_or_url "$input"; then
-          VALUES[SPLUNK_HOST]="$input"; VALUES[SPLUNK_URL]=""
-          break
-        fi
-        printf '%s  invalid: %s. Please type it again.%s\n' "$Y" "$REASON" "$N" >&2
-        ;;
-    esac
-  done
-
-  # Splunk port: only relevant for the plain-host form without an embedded port.
-  if [ -n "${VALUES[SPLUNK_HOST]-}" ]; then
-    cur="$(lookup SPLUNK_SCHEME)"
-    ask_value SPLUNK_SCHEME "Splunk URL scheme" is_http_scheme "${cur:-https}"
-    cur="$(lookup SPLUNK_PORT)"
-    ask_value SPLUNK_PORT "Splunk management port" is_port "${cur:-8089}"
-  fi
-
-  # Splunk credentials: a token wins over user/password when both exist.
-  if [ -n "$(lookup SPLUNK_TOKEN)" ]; then
-    ok "Splunk token found (SPLUNK_TOKEN)"
-    VALUES[SPLUNK_TOKEN]="$(lookup SPLUNK_TOKEN)"
-    VALUES[SPLUNK_USERNAME]=""; VALUES[SPLUNK_PASSWORD]=""
-  elif [ -n "$(lookup SPLUNK_USERNAME)" ] && [ -n "$(lookup SPLUNK_PASSWORD)" ]; then
-    ok "Splunk basic auth found (SPLUNK_USERNAME / SPLUNK_PASSWORD)"
-    VALUES[SPLUNK_USERNAME]="$(lookup SPLUNK_USERNAME)"
-    VALUES[SPLUNK_PASSWORD]="$(lookup SPLUNK_PASSWORD)"
-    VALUES[SPLUNK_TOKEN]=""
-  else
-    while :; do
-      printf 'Splunk authentication — enter %s1%s for a session token, %s2%s for username/password: ' "$B" "$N" "$B" "$N" >&2
-      IFS= read -r answer || exit 1
-      case "${answer%$'\r'}" in
-        1)
-          ask_value SPLUNK_TOKEN "Splunk token" is_nonempty "" secret
-          VALUES[SPLUNK_USERNAME]=""; VALUES[SPLUNK_PASSWORD]=""
-          break
-          ;;
-        2)
-          ask_value SPLUNK_USERNAME "Splunk username" is_nonempty ""
-          ask_value SPLUNK_PASSWORD "Splunk password" is_nonempty "" secret
-          VALUES[SPLUNK_TOKEN]=""
-          break
-          ;;
-        *) printf '%s  Please answer 1 or 2.%s\n' "$Y" "$N" >&2 ;;
-      esac
-    done
-  fi
+  # -- Splunk MCP connection ----------------------------------------------
+  cur="$(lookup SPLUNK_MCP_ENDPOINT)"
+  ask_value SPLUNK_MCP_ENDPOINT "Splunk MCP endpoint" is_http_url "$cur"
+  cur="$(lookup SPLUNK_TOKEN)"
+  ask_value SPLUNK_TOKEN "Splunk MCP token" is_nonempty "$cur" secret
 
   cur="$(lookup SPLUNK_VERIFY_SSL)"
   ask_bool SPLUNK_VERIFY_SSL "Verify Splunk TLS certificate" "${cur:-true}"
@@ -626,6 +559,29 @@ upsert_env_file() { # $1=file $2...=keys
   TMPFILES="${TMPFILES// $tmp/}"
 }
 
+remove_env_keys() { # $1=file $2...=keys
+  local file="$1"; shift
+  local -A removed=()
+  local key line tmp
+  for key in "$@"; do removed["$key"]=1; done
+  tmp="$(mktemp "${file}.XXXXXX")"
+  TMPFILES="$TMPFILES $tmp"
+  while IFS= read -r line || [ -n "$line" ]; do
+    key=""
+    case "$line" in
+      ''|\#*) : ;;
+      *=*) key="$(trim "${line%%=*}")" ;;
+    esac
+    if [ -n "$key" ] && [ -n "${removed[$key]+x}" ]; then
+      continue
+    fi
+    printf '%s\n' "$line"
+  done < "$file" > "$tmp"
+  mv "$tmp" "$file"
+  chmod 600 "$file"
+  TMPFILES="${TMPFILES// $tmp/}"
+}
+
 ensure_git_ignored() { # $1 = repo-relative path
   if git -C "$REPO_ROOT" check-ignore -q "$1" 2>/dev/null; then return 0; fi
   if [ -f "$REPO_ROOT/.gitignore" ] && grep -qE '(^|[[:space:]])\.env([[:space:]]|$)' "$REPO_ROOT/.gitignore"; then
@@ -649,13 +605,16 @@ write_files() {
   upsert_env_file "$SERVER_ENV" \
     SOC_ADMIN_EMAIL SOC_ADMIN_PASSWORD \
     APP_POSTGRES_URI APP_SETTINGS_ENCRYPTION_KEY \
-    SPLUNK_URL SPLUNK_HOST SPLUNK_PORT SPLUNK_SCHEME \
-    SPLUNK_TOKEN SPLUNK_USERNAME SPLUNK_PASSWORD SPLUNK_VERIFY_SSL \
+    SPLUNK_MCP_ENDPOINT SPLUNK_TOKEN SPLUNK_VERIFY_SSL \
     SPLUNK_ALLOW_INSECURE_HTTP \
     ZIMBRA_HOST ZIMBRA_VERIFY_SSL ZIMBRA_ALLOW_INSECURE_HTTP \
     MARKITDOWN_LLM_ENABLED MARKITDOWN_LLM_API_KEY MARKITDOWN_LLM_MODEL \
     SUBSCRIPTION_SERVER_URL SUBSCRIPTION_SERVER_USER SUBSCRIPTION_SERVER_PASSWORD \
     SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP
+
+  remove_env_keys "$SERVER_ENV" \
+    SPLUNK_URL SPLUNK_HOST SPLUNK_HOST_FOR_DOCKER SPLUNK_PORT SPLUNK_SCHEME \
+    SPLUNK_USERNAME SPLUNK_PASSWORD RUNNING_INSIDE_DOCKER
 
   if [ ! -f "$HARNESS_ENV" ]; then
     printf '# Loaded by the DeepSeek Harness boot when `pnpm dsh web` runs from\n# vendor/deepseek-harness (cwd .env layer). Managed by setup.sh.\n' > "$HARNESS_ENV"
@@ -1168,16 +1127,8 @@ summary() {
   printf '  %-32s %s\n' "SOC_ADMIN_EMAIL" "${VALUES[SOC_ADMIN_EMAIL]}"
   printf '  %-32s %s\n' "APP_POSTGRES_URI" "${VALUES[APP_POSTGRES_URI]}"
   printf '  %-32s %s\n' "APP_SETTINGS_ENCRYPTION_KEY" "$(mask "${VALUES[APP_SETTINGS_ENCRYPTION_KEY]}")"
-  if [ -n "${VALUES[SPLUNK_URL]-}" ]; then
-    printf '  %-32s %s\n' "Splunk URL" "${VALUES[SPLUNK_URL]}"
-  else
-    printf '  %-32s %s:%s\n' "Splunk" "${VALUES[SPLUNK_HOST]}" "${VALUES[SPLUNK_PORT]}"
-  fi
-  if [ -n "${VALUES[SPLUNK_TOKEN]-}" ]; then
-    printf '  %-32s %s\n' "Splunk auth" "token $(mask "${VALUES[SPLUNK_TOKEN]}")"
-  else
-    printf '  %-32s %s / %s\n' "Splunk auth" "${VALUES[SPLUNK_USERNAME]}" "$(mask "${VALUES[SPLUNK_PASSWORD]}")"
-  fi
+  printf '  %-32s %s\n' "SPLUNK_MCP_ENDPOINT" "${VALUES[SPLUNK_MCP_ENDPOINT]}"
+  printf '  %-32s %s\n' "Splunk MCP auth" "token $(mask "${VALUES[SPLUNK_TOKEN]}")"
   printf '  %-32s %s\n' "SPLUNK_VERIFY_SSL" "${VALUES[SPLUNK_VERIFY_SSL]}"
   printf '  %-32s %s\n' "SPLUNK_ALLOW_INSECURE_HTTP" "${VALUES[SPLUNK_ALLOW_INSECURE_HTTP]}"
   printf '  %-32s %s\n' "ZIMBRA_HOST" "${VALUES[ZIMBRA_HOST]}"
@@ -1213,20 +1164,7 @@ summary() {
 # ------------------------------------------------------------- check mode ---
 
 effective_splunk_endpoint() {
-  local url host scheme port
-  url="$(lookup SPLUNK_URL)"
-  if [ -n "$url" ]; then
-    printf '%s' "$url"
-    return 0
-  fi
-  host="$(lookup SPLUNK_HOST)"
-  if [ "$(lookup RUNNING_INSIDE_DOCKER)" = "1" ] && [ -n "$(lookup SPLUNK_HOST_FOR_DOCKER)" ]; then
-    host="$(lookup SPLUNK_HOST_FOR_DOCKER)"
-  fi
-  [ -n "$host" ] || return 0
-  scheme="$(lookup SPLUNK_SCHEME)"
-  port="$(lookup SPLUNK_PORT)"
-  printf '%s://%s:%s' "${scheme:-https}" "$host" "${port:-8089}"
+  lookup SPLUNK_MCP_ENDPOINT
 }
 
 check_boolean_parameter() {
@@ -1263,7 +1201,7 @@ run_check_mode() {
   echo
   echo "${B}Parameters${N} ${D}(environment > apps/soc-agent/server/.env > vendor/deepseek-harness/.env > .env.example)${N}"
 
-  local v splunk_url splunk_host splunk_endpoint markitdown_enabled
+  local v splunk_endpoint markitdown_enabled
   v="$(lookup APP_POSTGRES_URI)"
   if is_pg_uri "$v"; then
     if pg_reachable "$v"; then ok "APP_POSTGRES_URI (and psql can connect)"
@@ -1280,29 +1218,20 @@ run_check_mode() {
     fails=$((fails+1))
   fi
 
-  splunk_url="$(lookup SPLUNK_URL)"
-  splunk_host="$(lookup SPLUNK_HOST)"
-  if [ "$(lookup RUNNING_INSIDE_DOCKER)" = "1" ] && [ -n "$(lookup SPLUNK_HOST_FOR_DOCKER)" ]; then
-    splunk_host="$(lookup SPLUNK_HOST_FOR_DOCKER)"
-  fi
-  if { [ -n "$splunk_url" ] && is_http_url "$splunk_url"; } || { [ -z "$splunk_url" ] && is_host_or_url "$splunk_host"; }; then
-    ok "Splunk host/URL"
+  splunk_endpoint="$(lookup SPLUNK_MCP_ENDPOINT)"
+  if is_http_url "$splunk_endpoint"; then
+    ok "SPLUNK_MCP_ENDPOINT"
   else
-    bad "SPLUNK_URL / SPLUNK_HOST missing or invalid"
+    bad "SPLUNK_MCP_ENDPOINT missing or invalid"
     fails=$((fails+1))
   fi
-  if [ -z "$splunk_url" ]; then
-    v="$(lookup SPLUNK_SCHEME)"
-    if is_http_scheme "$v"; then ok "SPLUNK_SCHEME"
-    else bad "SPLUNK_SCHEME must be http or https"; fails=$((fails+1)); fi
-    v="$(lookup SPLUNK_PORT)"
-    if is_port "$v"; then ok "SPLUNK_PORT"
-    else bad "SPLUNK_PORT missing or invalid"; fails=$((fails+1)); fi
-  fi
 
-  if [ -n "$(lookup SPLUNK_TOKEN)" ] || { [ -n "$(lookup SPLUNK_USERNAME)" ] && [ -n "$(lookup SPLUNK_PASSWORD)" ]; }; then
-    ok "Splunk credentials (token or username/password)"
-  else bad "SPLUNK_TOKEN or SPLUNK_USERNAME+SPLUNK_PASSWORD missing"; fails=$((fails+1)); fi
+  if [ -n "$(lookup SPLUNK_TOKEN)" ]; then
+    ok "SPLUNK_TOKEN"
+  else
+    bad "SPLUNK_TOKEN missing"
+    fails=$((fails+1))
+  fi
 
   for v in SPLUNK_VERIFY_SSL SPLUNK_ALLOW_INSECURE_HTTP ZIMBRA_VERIFY_SSL ZIMBRA_ALLOW_INSECURE_HTTP SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP; do
     if check_boolean_parameter "$v"; then :; else fails=$((fails+1)); fi

@@ -268,6 +268,14 @@ async def catalog_get(payload: dict[str, Any]) -> dict[str, Any]:
         await _close_service(service)
 
 
+async def catalog_customer_options(payload: dict[str, Any]) -> dict[str, Any]:
+    service, _actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
+    try:
+        return await run_blocking(service.customer_options)
+    finally:
+        await _close_service(service)
+
+
 async def catalog_history(payload: dict[str, Any]) -> dict[str, Any]:
     service, _actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
@@ -375,6 +383,7 @@ _ASYNC_COMMANDS = {
     "save-lookup": save_lookup,
     "catalog-list": catalog_list,
     "catalog-get": catalog_get,
+    "catalog-customer-options": catalog_customer_options,
     "catalog-history": catalog_history,
     "catalog-publications": catalog_publications,
     "catalog-preview-publish": catalog_preview_publish,

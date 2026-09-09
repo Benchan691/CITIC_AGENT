@@ -2,8 +2,9 @@
 
 The service mirrors the detection workflow: MCP tools prepare draft envelopes
 without writing, and an explicit editor Save (actor resolved server-side from
-the application session) performs the single transactional write. Publication
-to Splunk is a separate operator action gated by SPLUNK_ALLOW_LOOKUP_WRITE.
+the application session) performs the single transactional catalog write.
+Publication to Splunk is unavailable because the official Splunk MCP server
+exposes no lookup mutation tool.
 """
 
 from __future__ import annotations
@@ -101,6 +102,9 @@ class CatalogService:
 
     def get_record(self, catalog: str, record_id: str) -> dict[str, Any]:
         return self._require_store().require_record(self._require_catalog(catalog), record_id)
+
+    def customer_options(self) -> dict[str, list[dict[str, Any]]]:
+        return self._require_store().customer_options()
 
     def record_history(self, catalog: str, record_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
         return self._require_store().record_history(self._require_catalog(catalog), record_id, limit=limit)
@@ -208,7 +212,7 @@ class CatalogService:
         catalog: str,
         current: dict[str, Any],
         payload: dict[str, Any],
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         """Merge a partial payload over the current record and validate fully.
 
         Updates always write every editable column, so an omitted field keeps
@@ -251,6 +255,11 @@ class CatalogService:
     def _verify_references(self, catalog: str, values: dict[str, Any]) -> None:
         """Cross-catalog reference checks with field-level errors."""
         if catalog == "customer":
+            verifier = getattr(self._require_store(), "verify_customer_references", None)
+            if verifier is not None:
+                fields = verifier(values)
+                if fields:
+                    raise validation_error(catalog, fields)
             return
         customer_id = str(values.get("customer_id", "") or "")
         if catalog == "rule" and not customer_id:
@@ -293,7 +302,7 @@ class CatalogService:
         return names[catalog]
 
     def _destination(self, lookup_name: str) -> str:
-        endpoint = redact_endpoint(self.settings.url or self.settings.host, allow_bare_host=True)
+        endpoint = redact_endpoint(self.settings.mcp_endpoint)
         return f"{endpoint} app={self.settings.lookup_app} owner={self.settings.lookup_owner} lookup={lookup_name}"
 
     def _customers_by_id(self) -> dict[str, dict[str, Any]]:
@@ -331,7 +340,7 @@ class CatalogService:
         if not self.settings.lookup_write_enabled:
             raise ServiceError(
                 "operation_disabled",
-                "Lookup publication is disabled. Set SPLUNK_ALLOW_LOOKUP_WRITE=true after review.",
+                "Lookup publication is unavailable: the official Splunk MCP server exposes no lookup mutation tool.",
             )
         splunk = self._splunk
         if splunk is None:
@@ -420,7 +429,7 @@ class CatalogService:
         if not self.settings.lookup_write_enabled:
             raise ServiceError(
                 "operation_disabled",
-                "Lookup publication is disabled. Set SPLUNK_ALLOW_LOOKUP_WRITE=true after review.",
+                "Lookup publication is unavailable: the official Splunk MCP server exposes no lookup mutation tool.",
             )
         splunk = self._splunk
         if splunk is None:

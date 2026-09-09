@@ -1,7 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-import httpx
 import pytest
 
 from unified_mcp_server.config import SplunkSettings
@@ -17,7 +16,7 @@ from unified_mcp_server.splunk.security_queue.model import (
 )
 from unified_mcp_server.splunk.security_queue.provider import normalize_timestamp
 from unified_mcp_server.splunk.security_queue.service import SplunkSecurityQueueService
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError, SplunkClient
+from unified_mcp_server.splunk.errors import SplunkAPIError
 from unified_mcp_server.splunk_service import SplunkService
 
 
@@ -30,12 +29,10 @@ def _recent_timestamp(hours=1):
 
 def settings(**overrides):
     values = {
-        "host": "splunk.example.com",
-        "port": 8089,
-        "username": "",
-        "password": "",
+        "mcp_endpoint": "https://splunk.example.com/services/mcp",
         "token": "token",
         "verify_ssl": True,
+        "allow_insecure_http": False,
         "request_timeout": 30,
         "job_timeout": 120,
         "max_events": 100,
@@ -234,57 +231,6 @@ def test_splunk_service_injects_one_executor_into_search_detection_and_queue():
     service = SplunkService(settings(), QueueClient)
     assert service.search_service.executor is service.detection_service.executor
     assert service.search_service.executor is service.security_queue_service.executor
-
-
-def response(payload=None, *, status_code=200, text=None):
-    request = httpx.Request("GET", "https://splunk.example.com")
-    return httpx.Response(status_code, text=text, json=None if text is not None else payload, request=request)
-
-
-class QueueHTTP:
-    def __init__(self, response_payload, *, path_response=None):
-        self.response_payload = response_payload
-        self.path_response = path_response or {}
-        self.calls = []
-
-    async def get(self, path, params):
-        self.calls.append((path, params))
-        return self.path_response.get(path, response(self.response_payload))
-
-
-def raw_client(http):
-    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
-    client._client = http
-    return client
-
-
-@pytest.mark.asyncio
-async def test_queue_client_parses_pages_and_quotes_resource_ids():
-    http = QueueHTTP({"entry": [{"name": "alert-1", "content": {"savedsearch_name": "alert-1"}}], "total": "1"})
-    client = raw_client(http)
-    page = await client.get_fired_alerts(limit=1, offset=0)
-    assert page == {
-        "items": [{"name": "alert-1", "content": {"savedsearch_name": "alert-1"}}],
-        "total": 1,
-        "next_offset": None,
-    }
-
-    direct = QueueHTTP({"entry": [{"name": "alert/1", "content": {"sid": "sid-1"}}]})
-    direct_client = raw_client(direct)
-    assert await direct_client.get_fired_alert("alert/1") == [{"name": "alert/1", "content": {"sid": "sid-1"}}]
-    assert direct.calls[0][0].endswith("/alert%2F1")
-
-
-@pytest.mark.asyncio
-async def test_queue_client_rejects_http_and_malformed_payloads():
-    denied = QueueHTTP({}, path_response={"/services/alerts/fired_alerts": response({}, status_code=403)})
-    with pytest.raises(SplunkAPIError) as error:
-        await raw_client(denied).get_fired_alerts()
-    assert error.value.status_code == 403
-
-    malformed = QueueHTTP({"entry": ["bad"]})
-    with pytest.raises(SplunkAPIError, match="malformed"):
-        await raw_client(malformed).get_fired_alerts()
 
 
 @pytest.mark.asyncio

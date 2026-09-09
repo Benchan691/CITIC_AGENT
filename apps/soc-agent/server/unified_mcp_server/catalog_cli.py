@@ -1,7 +1,7 @@
 """Operator CLI for catalog migration and deferred schema maintenance.
 
-Reads the authoritative lookup data from the source Splunk environment
-(SPLUNK_SOURCE_*, defaulting to the main SPLUNK_* target) into PostgreSQL
+Reads the authoritative lookup data from the source Splunk MCP environment
+(SPLUNK_SOURCE_MCP_*, defaulting to the main SPLUNK_* target) into PostgreSQL
 staging, produces a reconciliation report, and promotes staged rows only on
 an explicit operator command. Publications stay behind the regular publish
 flow; imports never write to Splunk.
@@ -58,21 +58,18 @@ def _store() -> CatalogStore:
 
 
 def _source_config(settings: ServerSettings) -> dict[str, Any]:
-    """Splunk client config for the read-only source environment."""
+    """MCP client config for the read-only source environment."""
     import os
 
-    source_url = os.environ.get("SPLUNK_SOURCE_URL", "").strip()
-    if source_url:
+    source_endpoint = os.environ.get("SPLUNK_SOURCE_MCP_ENDPOINT", "").strip()
+    if source_endpoint:
         return {
-            "splunk_url": source_url,
-            "splunk_host": "",
-            "splunk_port": 8089,
-            "splunk_username": os.environ.get("SPLUNK_SOURCE_USERNAME", "").strip(),
-            "splunk_password": os.environ.get("SPLUNK_SOURCE_PASSWORD", "").strip(),
-            "splunk_token": "",
-            "verify_ssl": os.environ.get("SPLUNK_SOURCE_VERIFY_SSL", "false").strip().lower()
+            "splunk_mcp_endpoint": source_endpoint,
+            "splunk_token": os.environ.get("SPLUNK_SOURCE_TOKEN", "").strip(),
+            "verify_ssl": os.environ.get("SPLUNK_SOURCE_VERIFY_SSL", "true").strip().lower()
             in {"1", "true", "yes", "on"},
-            "allow_insecure_http": False,
+            "allow_insecure_http": os.environ.get("SPLUNK_SOURCE_ALLOW_INSECURE_HTTP", "false").strip().lower()
+            in {"1", "true", "yes", "on"},
             "request_timeout": settings.splunk.request_timeout,
             "job_timeout": settings.splunk.job_timeout,
         }
@@ -81,18 +78,27 @@ def _source_config(settings: ServerSettings) -> dict[str, Any]:
 
 
 async def _read_lookup_rows(settings: ServerSettings, lookup_name: str) -> list[dict[str, str]]:
-    from .splunk.splunk_client import SplunkAPIError, SplunkClient
+    from .splunk.errors import SplunkAPIError
+    from .splunk.official_mcp_client import OfficialSplunkMCPClient
 
     config = _source_config(settings)
-    client = SplunkClient(config)
+    client = OfficialSplunkMCPClient(config)
     try:
         await client.connect()
-        rows = await client.search_oneshot(
+        result = await client.run_search_job(
             f'| inputlookup "{lookup_name}"',
             earliest_time="0",
             latest_time="now",
             max_count=100000,
         )
+        metadata = result.get("metadata", {})
+        if isinstance(metadata, dict) and metadata.get("splunk_result_truncated") is True:
+            raise SplunkAPIError(
+                "Splunk MCP truncated the lookup result; import requires a complete read."
+            )
+        rows = result.get("events", [])
+        if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+            raise SplunkAPIError("Splunk MCP returned malformed lookup rows.")
     except SplunkAPIError as exc:
         raise SystemExit(f"Reading {lookup_name} from the source Splunk failed: {exc.message}") from exc
     finally:

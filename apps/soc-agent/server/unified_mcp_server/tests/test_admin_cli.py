@@ -63,6 +63,41 @@ def test_admin_service_settings_are_status_only(monkeypatch):
     }
 
 
+def test_splunk_connection_test_requires_the_mcp_endpoint(monkeypatch):
+    monkeypatch.setattr(
+        module,
+        "_settings",
+        lambda _store: SimpleNamespace(splunk=SimpleNamespace(mcp_endpoint="")),
+    )
+
+    with pytest.raises(ServiceError, match="SPLUNK_MCP_ENDPOINT"):
+        asyncio.run(module.test_splunk("store"))
+
+
+def test_splunk_connection_test_uses_the_mcp_backed_service(monkeypatch):
+    captured = {}
+
+    class FakeSearchService:
+        async def test_connection(self):
+            captured["tested"] = True
+            return {"connected": True, "index_count": 2}
+
+    class FakeService:
+        def __init__(self, settings):
+            captured["settings"] = settings
+            self.search_service = FakeSearchService()
+
+        async def close(self):
+            captured["closed"] = True
+
+    splunk_settings = SimpleNamespace(mcp_endpoint="https://splunk.example.test/services/mcp")
+    monkeypatch.setattr(module, "_settings", lambda _store: SimpleNamespace(splunk=splunk_settings))
+    monkeypatch.setattr(module, "SplunkService", FakeService)
+
+    assert asyncio.run(module.test_splunk("store")) == {"ok": True}
+    assert captured == {"settings": splunk_settings, "tested": True, "closed": True}
+
+
 def test_service_setting_writes_are_disabled():
     class Store:
         def __init__(self):
@@ -87,10 +122,10 @@ def test_service_setting_writes_are_disabled():
 def test_service_errors_are_emitted_as_safe_structured_diagnostics(capsys):
     module._write_service_error(ServiceError(
         "splunk_api_error",
-        "Could not reach Splunk at the configured URL. Check SPLUNK_URL and network access.",
+        "Could not initialize the official Splunk MCP connection.",
         details={
             "status_code": 502,
-            "missing_environment_variables": ["SPLUNK_URL"],
+            "missing_environment_variables": ["SPLUNK_MCP_ENDPOINT"],
             "secret": "must not cross the boundary",
         },
     ))
@@ -99,9 +134,9 @@ def test_service_errors_are_emitted_as_safe_structured_diagnostics(capsys):
     assert stderr.endswith("\n")
     assert json.loads(stderr) == {
         "code": "splunk_api_error",
-        "message": "Could not reach Splunk at the configured URL. Check SPLUNK_URL and network access.",
+        "message": "Could not initialize the official Splunk MCP connection.",
         "details": {
             "status_code": 502,
-            "missing_environment_variables": ["SPLUNK_URL"],
+            "missing_environment_variables": ["SPLUNK_MCP_ENDPOINT"],
         },
     }

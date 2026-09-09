@@ -230,7 +230,7 @@ class FindingPage:
 
 
 class OpaqueIdCodec:
-    """Sign short-lived provider references without exposing REST paths."""
+    """Sign short-lived provider references without exposing transport paths."""
 
     def __init__(self, secret: bytes | None = None) -> None:
         self._secret = secret or secrets.token_bytes(32)

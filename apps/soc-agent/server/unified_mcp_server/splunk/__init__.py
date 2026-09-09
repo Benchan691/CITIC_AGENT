@@ -1,14 +1,15 @@
-"""Reusable Splunk client, guardrails, and formatting helpers."""
+"""Reusable Splunk MCP client, guardrails, and formatting helpers."""
 
 from .guardrails import analyze_spl_query, sanitize_output, validate_spl_query
 from .query_policy import QueryPolicyConfig, QueryPolicyResult, SplunkQueryPolicy
-from .splunk_client import SplunkAPIError, SplunkClient
+from .errors import SplunkAPIError
+from .official_mcp_client import OfficialSplunkMCPClient
 
 __all__ = [
     "QueryPolicyConfig",
     "QueryPolicyResult",
+    "OfficialSplunkMCPClient",
     "SplunkAPIError",
-    "SplunkClient",
     "SplunkQueryPolicy",
     "analyze_spl_query",
     "sanitize_output",

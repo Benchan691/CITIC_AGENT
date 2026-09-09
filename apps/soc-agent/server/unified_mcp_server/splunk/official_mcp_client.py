@@ -1,11 +1,4 @@
-"""Adapter for Splunk's official MCP Server.
-
-The SOC services depend on the small interface historically provided by
-``SplunkClient``.  This adapter keeps that interface stable while routing the
-supported read operations through Splunk MCP Server 2.0.  CITIC-only writes
-and search-job result reads remain available through the existing REST client
-until the official server exposes equivalent, approval-aware operations.
-"""
+"""Client for Splunk's official MCP Server."""
 
 from __future__ import annotations
 
@@ -21,7 +14,7 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
-from .splunk_client import SplunkAPIError, SplunkClient
+from .errors import SplunkAPIError
 
 
 _LOOKUP_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\.csv$", re.IGNORECASE)
@@ -41,7 +34,6 @@ class OfficialSplunkMCPClient:
         self._stack: AsyncExitStack | None = None
         self._session: ClientSession | None = None
         self._call_lock = asyncio.Lock()
-        self._rest_client: SplunkClient | None = None
         self._connected = False
         self.server_version = ""
 
@@ -106,9 +98,6 @@ class OfficialSplunkMCPClient:
     async def disconnect(self) -> None:
         self._connected = False
         self._session = None
-        if self._rest_client is not None:
-            await self._rest_client.disconnect()
-            self._rest_client = None
         if self._stack is not None:
             await self._stack.aclose()
             self._stack = None
@@ -463,39 +452,9 @@ class OfficialSplunkMCPClient:
         )
         rows, truncated, _total, _page_info = self._rows(payload, "lookup CSV")
         if truncated is True:
-            # MCP Server 2.0 caps query results at 1,000 rows and does not
-            # expose a lookup-file download operation.  Preserve the existing
-            # Ruleset.csv workflow through the bounded REST reader only for
-            # this explicit completeness gap; a rejected official query never
-            # falls through here.
-            rest = await self._rest()
-            try:
-                return await rest.get_lookup_contents(name, app, owner)
-            except SplunkAPIError as exc:
-                if exc.status_code not in {401, 403, 404}:
-                    raise
-                # Some deployments do not install the Lookup File Editing
-                # app.  The legacy REST search endpoint can still read the
-                # CSV without writing it, so retain that bounded fallback for
-                # this one unsupported official operation.
-                legacy = await rest.run_search_job(
-                    f"| inputlookup {name.strip()}",
-                    max_count=10_000,
-                )
-                legacy_rows = legacy.get("events", [])
-                legacy_meta = legacy.get("metadata", {})
-                if legacy_meta.get("splunk_result_truncated") is True:
-                    raise SplunkAPIError(
-                        "The lookup CSV is larger than the supported complete-read limit."
-                    )
-                legacy_headers: list[str] = []
-                for row in legacy_rows:
-                    for key in row:
-                        if key not in legacy_headers:
-                            legacy_headers.append(key)
-                return [legacy_headers] + [
-                    [_cell(row.get(key)) for key in legacy_headers] for row in legacy_rows
-                ] if legacy_headers else []
+            raise SplunkAPIError(
+                "The lookup CSV exceeds the official Splunk MCP result limit."
+            )
         headers: list[str] = []
         for row in rows:
             for key in row:
@@ -623,38 +582,52 @@ class OfficialSplunkMCPClient:
         *,
         max_count: int = 10,
     ) -> list[dict[str, Any]]:
-        # No equivalent official MCP operation exists; this is a bounded GET
-        # against an already-created SID and remains a local compatibility path.
-        return await (await self._rest()).get_job_result_fields(sid, fields, max_count=max_count)
+        del sid, fields, max_count
+        raise SplunkAPIError(
+            "The official Splunk MCP server does not expose search-job result reads."
+        )
 
     async def create_lookup_contents(self, name: str, app: str, owner: str, rows: list[list[str]]) -> dict[str, Any]:
-        return await (await self._rest()).create_lookup_contents(name, app, owner, rows)
+        del name, app, owner, rows
+        raise SplunkAPIError(
+            "The official Splunk MCP server does not expose lookup writes."
+        )
 
     async def update_lookup_contents(self, name: str, app: str, owner: str, rows: list[list[str]]) -> dict[str, Any]:
-        return await (await self._rest()).update_lookup_contents(name, app, owner, rows)
+        del name, app, owner, rows
+        raise SplunkAPIError(
+            "The official Splunk MCP server does not expose lookup writes."
+        )
 
     async def delete_lookup_table_file(self, name: str, app: str = "", owner: str = "") -> dict[str, Any]:
-        return await (await self._rest()).delete_lookup_table_file(name, app, owner)
+        del name, app, owner
+        raise SplunkAPIError(
+            "The official Splunk MCP server does not expose lookup writes."
+        )
+
+    async def upload_lookup_contents(
+        self,
+        name: str,
+        app: str,
+        owner: str,
+        content: str,
+    ) -> dict[str, Any]:
+        del name, app, owner, content
+        raise SplunkAPIError(
+            "The official Splunk MCP server does not expose lookup writes."
+        )
 
     async def create_saved_search(self, fields: dict[str, Any]) -> dict[str, Any]:
-        return await (await self._rest()).create_saved_search(fields)
+        del fields
+        raise SplunkAPIError(
+            "The official Splunk MCP server does not expose saved-search writes."
+        )
 
     async def update_saved_search(self, search_name: str, fields: dict[str, Any]) -> dict[str, Any]:
-        return await (await self._rest()).update_saved_search(search_name, fields)
-
-    async def _rest(self) -> SplunkClient:
-        if self._rest_client is None:
-            config = dict(self.config)
-            config.pop("splunk_mcp_endpoint", None)
-            # MCP bearer tokens can be audience-bound and are not necessarily
-            # accepted by Splunk's legacy REST listener.  When the deployment
-            # also supplies the existing scoped REST credentials, use those
-            # for the explicitly retained compatibility path.
-            if config.get("splunk_username") and config.get("splunk_password"):
-                config["splunk_token"] = ""
-            self._rest_client = SplunkClient(config)
-            await self._rest_client.connect()
-        return self._rest_client
+        del search_name, fields
+        raise SplunkAPIError(
+            "The official Splunk MCP server does not expose saved-search writes."
+        )
 
 
 def _flag(value: object) -> bool:

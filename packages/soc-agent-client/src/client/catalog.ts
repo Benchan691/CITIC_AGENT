@@ -19,7 +19,7 @@ export const CATALOG_DRAFT_TOOL_NAMES = [
 
 export type CatalogName = 'customer' | 'rule' | 'fix_source_type'
 export type CatalogOperation = 'write' | 'update'
-export type CatalogFormFields = Record<string, string>
+export type CatalogFormFields = Record<string, any>
 
 export interface CatalogDraftEnvelope {
   status?: string
@@ -54,9 +54,19 @@ export const RULE_FIELDS = [
 export const CUSTOMER_FIELDS = [
   'customer_code',
   'display_name',
+  'short_name',
   'gid',
   'lifecycle_status',
   'notes',
+  'source_type_id',
+  'related_staff_id',
+  'splunk_indexes',
+  'field_mapping',
+  'email_config',
+] as const
+
+export const CUSTOMER_FIELD_MAPPING_KEYS = [
+  'username', 'hostname', 'src_ip', 'dest_ip', 'event_id', 'title', 'description', 'severity', 'status',
 ] as const
 
 export const FIX_SOURCE_TYPE_FIELDS = [
@@ -141,7 +151,11 @@ export function formFromRecord(record: Record<string, unknown>): CatalogFormFiel
   const catalog = text(record.catalog, 'rule') as CatalogName
   const fields: CatalogFormFields = {}
   for (const key of CATALOG_FIELDS[catalog] ?? RULE_FIELDS) {
-    fields[key] = text(record[key])
+    if (catalog === 'customer' && (key === 'splunk_indexes' || key === 'field_mapping' || key === 'email_config')) {
+      fields[key] = record[key]
+    } else {
+      fields[key] = text(record[key])
+    }
   }
   return fields
 }
@@ -159,7 +173,12 @@ export function recordFromForm(
 
 export function emptyCatalogForm(catalog: CatalogName): CatalogFormFields {
   const fields = recordFromForm(catalog, {}) as CatalogFormFields
-  if (catalog === 'customer') fields.lifecycle_status = 'active'
+  if (catalog === 'customer') {
+    fields.lifecycle_status = 'active'
+    fields.splunk_indexes = []
+    fields.field_mapping = Object.fromEntries(CUSTOMER_FIELD_MAPPING_KEYS.map(key => [key, '']))
+    fields.email_config = { recipients: [], cc: [], bcc: [], language: 'EN', brand: 'CPC' }
+  }
   if (catalog === 'rule') {
     fields.severity = 'info'
     fields.status = 'active'

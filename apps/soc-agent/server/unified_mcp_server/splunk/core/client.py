@@ -1,8 +1,5 @@
-"""Canonical Core import for the low-level Splunk REST client.
+"""Canonical Core import for Splunk MCP errors."""
 
-The legacy module remains as a compatibility import path.
-"""
+from ..errors import SplunkAPIError
 
-from ..splunk_client import SplunkAPIError, SplunkClient
-
-__all__ = ["SplunkAPIError", "SplunkClient"]
+__all__ = ["SplunkAPIError"]

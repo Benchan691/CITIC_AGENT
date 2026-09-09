@@ -4,6 +4,7 @@ import css from './CatalogManager.module.css'
 import { rpcObject as rpc } from './settings-common.ts'
 import {
   CATALOG_FIELDS,
+  CUSTOMER_FIELD_MAPPING_KEYS,
   CATALOG_LABELS,
   SELECT_FIELDS,
   catalogSubtitle,
@@ -72,6 +73,41 @@ function FieldRow({
   )
 }
 
+type CustomerOptions = { source_types: { id: string; name: string }[]; staff: { id: string; name: string; email?: string; role?: string }[] }
+
+function CustomerEditorFields({
+  fields,
+  errors,
+  disabled,
+  options,
+  onChange,
+}: {
+  fields: Record<string, any>
+  errors: Record<string, string>
+  disabled: boolean
+  options: CustomerOptions
+  onChange: (key: string, value: any) => void
+}) {
+  const indexes = Array.isArray(fields.splunk_indexes) ? fields.splunk_indexes : []
+  const mapping = fields.field_mapping && typeof fields.field_mapping === 'object' && !Array.isArray(fields.field_mapping) ? fields.field_mapping : {}
+  const email = fields.email_config && typeof fields.email_config === 'object' && !Array.isArray(fields.email_config) ? fields.email_config : {}
+  const custom = Object.entries(mapping).filter(([key]) => !(CUSTOMER_FIELD_MAPPING_KEYS as readonly string[]).includes(key))
+  const addressList = (key: string) => Array.isArray(email[key]) ? email[key] : []
+  const updateMapping = (key: string, value: string) => onChange('field_mapping', { ...mapping, [key]: value })
+  const updateEmail = (key: string, value: any) => onChange('email_config', { recipients: [], cc: [], bcc: [], language: 'EN', brand: 'CPC', ...email, [key]: value })
+  const identity = ['customer_code', 'display_name', 'short_name', 'gid', 'lifecycle_status', 'notes']
+  return <div className={css.customerFields}>
+    <section className={css.section}><h3>Identity</h3><div className={css.fieldGrid}>{identity.map(key => <FieldRow key={key} fieldKey={key} value={String(fields[key] ?? '')} error={errors[key]} disabled={disabled} onChange={value => onChange(key, value)} />)}</div></section>
+    <section className={css.section}><h3>Relationships</h3><div className={css.fieldGrid}>
+      <label className={css.field}><span className={css.label}>Source type</span><select className={css.control} value={String(fields.source_type_id ?? '')} disabled={disabled} onChange={event => onChange('source_type_id', event.target.value)}><option value="">Not assigned</option>{options.source_types.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{errors.source_type_id && <span className={css.fieldError}>{errors.source_type_id}</span>}</label>
+      <label className={css.field}><span className={css.label}>Related staff</span><select className={css.control} value={String(fields.related_staff_id ?? '')} disabled={disabled} onChange={event => onChange('related_staff_id', event.target.value)}><option value="">Not assigned</option>{options.staff.map(item => <option key={item.id} value={item.id}>{item.name}{item.email ? ` · ${item.email}` : ''}</option>)}</select>{errors.related_staff_id && <span className={css.fieldError}>{errors.related_staff_id}</span>}</label>
+    </div></section>
+    <section className={css.section}><h3>Splunk indexes</h3><p className={css.hint}>Add the indexes this customer is allowed to use. Duplicates are removed when saved.</p>{indexes.map((value: any, index: number) => <div className={css.row} key={`${index}-${String(value)}`}><input className={css.control} aria-label={`Splunk index ${index + 1}`} value={String(value ?? '')} disabled={disabled} onChange={event => { const next = [...indexes]; next[index] = event.target.value; onChange('splunk_indexes', next) }} /><button className={css.button} type="button" disabled={disabled} onClick={() => onChange('splunk_indexes', indexes.filter((_: any, current: number) => current !== index))}>Remove</button></div>)}<button className={css.button} type="button" disabled={disabled} onClick={() => onChange('splunk_indexes', [...indexes, ''])}>Add index</button></section>
+    <section className={css.section}><h3>Field mapping</h3><p className={css.hint}>Map normalized event fields to customer log fields. Custom keys are optional.</p><div className={css.fieldGrid}>{CUSTOMER_FIELD_MAPPING_KEYS.map(key => <label className={css.field} key={key}><span className={css.label}>{key.replace(/_/g, ' ')}</span><input className={css.control} value={String(mapping[key] ?? '')} disabled={disabled} onChange={event => updateMapping(key, event.target.value)} /></label>)}</div>{custom.map(([key, value]) => <div className={css.row} key={key}><input className={css.control} aria-label={`Custom mapping key ${key}`} value={key} disabled={disabled} onChange={event => { const next = { ...mapping }; delete next[key]; next[event.target.value] = value; onChange('field_mapping', next) }} /><input className={css.control} aria-label={`Custom mapping value ${key}`} value={String(value ?? '')} disabled={disabled} onChange={event => updateMapping(key, event.target.value)} /><button className={css.button} type="button" disabled={disabled} onClick={() => { const next = { ...mapping }; delete next[key]; onChange('field_mapping', next) }}>Remove</button></div>)}<button className={css.button} type="button" disabled={disabled} onClick={() => onChange('field_mapping', { ...mapping, custom_field: '' })}>Add custom field</button>{errors.field_mapping && <span className={css.fieldError}>{errors.field_mapping}</span>}</section>
+    <section className={css.section}><h3>Email</h3><p className={css.hint}>Leave To empty while provisioning. Alert delivery stays skipped until recipients are configured.</p><div className={css.fieldGrid}>{(['recipients', 'cc', 'bcc'] as const).map(key => <label className={css.field} key={key}><span className={css.label}>{key === 'recipients' ? 'To recipients' : key.toUpperCase()}</span><textarea className={css.control} rows={3} value={addressList(key).join('\n')} disabled={disabled} onChange={event => updateEmail(key, event.target.value.split(/[\n,;]/).map(item => item.trim()).filter(Boolean))} placeholder="One address per line" />{errors[`email_config.${key}`] && <span className={css.fieldError}>{errors[`email_config.${key}`]}</span>}</label>)}</div><div className={css.fieldGrid}><label className={css.field}><span className={css.label}>Language</span><select className={css.control} value={String(email.language || 'EN')} disabled={disabled} onChange={event => updateEmail('language', event.target.value)}><option value="EN">English</option><option value="CN">简体中文</option><option value="ZH">繁體中文</option></select></label><label className={css.field}><span className={css.label}>Brand</span><select className={css.control} value={String(email.brand || 'CPC')} disabled={disabled} onChange={event => updateEmail('brand', event.target.value)}><option value="CPC">CPC</option><option value="CEC">CEC</option></select></label></div></section>
+  </div>
+}
+
 function HistoryView({ history }: { history: Record<string, unknown>[] }) {
   if (!history.length) return <div className={css.hint}>No recorded changes yet.</div>
   return (
@@ -112,13 +148,14 @@ export function CatalogManager({
   const [list, setList] = useState<{ items: Record<string, unknown>[]; total: number } | null>(null)
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null)
   const [mode, setMode] = useState<ViewMode>('view')
-  const [fields, setFields] = useState<Record<string, string>>({})
+  const [fields, setFields] = useState<Record<string, any>>({})
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<PageStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [history, setHistory] = useState<Record<string, unknown>[]>([])
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null)
   const [publications, setPublications] = useState<Record<string, unknown>[]>([])
+  const [customerOptions, setCustomerOptions] = useState<CustomerOptions>({ source_types: [], staff: [] })
   const listRequest = useRef(0)
   const selectionRequest = useRef(0)
 
@@ -177,6 +214,16 @@ export function CatalogManager({
     return () => { clearTimeout(timer); ++listRequest.current; ++selectionRequest.current }
   }, [loadList])
 
+  useEffect(() => {
+    if (catalog !== 'customer') return
+    void rpc(connection, 'catalog-customer-options', {}).then(result => {
+      setCustomerOptions({
+        source_types: Array.isArray(result.source_types) ? result.source_types.filter(isRecord).map(item => ({ id: valueText(item.id), name: valueText(item.name) })) : [],
+        staff: Array.isArray(result.staff) ? result.staff.filter(isRecord).map(item => ({ id: valueText(item.id), name: valueText(item.name), email: valueText(item.email), role: valueText(item.role) })) : [],
+      })
+    }).catch(cause => setError(cause instanceof Error ? cause.message : String(cause)))
+  }, [connection, catalog])
+
   const selectRecord = async (recordId: string) => {
     const request = ++selectionRequest.current
     setStatus('busy')
@@ -197,6 +244,15 @@ export function CatalogManager({
       setStatus('failed')
     }
   }
+
+  const routedRecord = useRef('')
+  useEffect(() => {
+    if (catalog !== 'customer' || !list) return
+    const route = window.location.hash.match(/^#customers\/([^/]+)$/)?.[1]
+    if (!route || routedRecord.current === route || !list.items.some(item => valueText(item.record_id) === route)) return
+    routedRecord.current = route
+    void selectRecord(route)
+  }, [catalog, list])
 
   const startCreate = () => {
     ++selectionRequest.current
@@ -413,18 +469,9 @@ export function CatalogManager({
                   )}
                 </div>
               </div>
-              <div className={css.fieldGrid}>
-                {CATALOG_FIELDS[catalog].map(key => (
-                  <FieldRow
-                    key={key}
-                    fieldKey={key}
-                    value={fields[key] ?? ''}
-                    error={fieldErrors[key] ?? ''}
-                    disabled={mode === 'view'}
-                    onChange={value => setFields(current => ({ ...current, [key]: value }))}
-                  />
-                ))}
-              </div>
+              {catalog === 'customer' ? <CustomerEditorFields fields={fields} errors={fieldErrors} disabled={mode === 'view'} options={customerOptions} onChange={(key, value) => setFields(current => ({ ...current, [key]: value }))} /> : <div className={css.fieldGrid}>
+                {CATALOG_FIELDS[catalog].map(key => <FieldRow key={key} fieldKey={key} value={String(fields[key] ?? '')} error={fieldErrors[key] ?? ''} disabled={mode === 'view'} onChange={value => setFields(current => ({ ...current, [key]: value }))} />)}
+              </div>}
 
               <details className={css.section} open>
                 <summary>Revision history</summary>

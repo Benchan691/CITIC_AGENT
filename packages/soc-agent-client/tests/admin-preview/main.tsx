@@ -5,12 +5,13 @@ import { AdminConsole } from '../../src/client/AdminConsole'
 
 const ok = (value: unknown) => ({ result: { ok: true, value } })
 const rpcOk = (value: unknown) => ({ ok: true, value })
-const customers = [{ catalog: 'customer', record_id: 'customer-a', customer_code: 'demo', display_name: 'Example customer', gid: 'Default', lifecycle_status: 'active', notes: '', revision: 1, archived: false }]
+const customers = [{ catalog: 'customer', record_id: 'customer-a', customer_code: 'demo', display_name: 'Example customer', short_name: 'Demo', gid: 'Default', lifecycle_status: 'active', notes: '', source_type_id: '', related_staff_id: '', splunk_indexes: [], field_mapping: { username: '', hostname: '', src_ip: '', dest_ip: '', event_id: '', title: '', description: '', severity: '', status: '' }, email_config: { recipients: ['soc@example.test'], cc: [], bcc: [], language: 'EN', brand: 'CPC' }, revision: 1, archived: false }]
 const connection = {
   rpc: { call: async (_channel: string, name: string, payload: Record<string, unknown> = {}) => {
     if (name === 'test-splunk') return { ok: false, error: { message: 'Test connection unavailable' } }
     if (name === 'catalog-list') return rpcOk({ items: customers, total: customers.length })
     if (name === 'catalog-get') return rpcOk({ record: customers.find(item => item.record_id === payload.record_id) })
+    if (name === 'catalog-customer-options') return rpcOk({ source_types: [{ id: 'source-a', name: 'Firewall' }], staff: [{ id: 'staff-a', name: 'Analyst', email: 'analyst@example.test', role: 'analyst' }] })
     if (name === 'catalog-history') return rpcOk({ history: [] })
     if (name === 'save-catalog-record') {
       const draft = payload.record as Record<string, unknown>

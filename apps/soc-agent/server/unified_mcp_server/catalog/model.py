@@ -9,6 +9,7 @@ dataclasses. Every mapper returns timestamps as ISO strings and keeps
 from __future__ import annotations
 
 from datetime import datetime
+import json
 from typing import Any
 
 CATALOGS = ("customer", "rule", "fix_source_type")
@@ -32,11 +33,19 @@ RULE_STATUSES = ("draft", "active", "disabled", "retired")
 CUSTOMER_EDITABLE_COLUMNS = (
     "customer_code",
     "display_name",
+    "short_name",
     "gid",
     "lifecycle_status",
     "notes",
+    "source_type_id",
+    "related_staff_id",
+    "splunk_indexes",
+    "field_mapping",
+    "email_config",
 )
-CUSTOMER_COLUMNS = ("customer_id", *CUSTOMER_EDITABLE_COLUMNS)
+# ``legacy_customer_id`` is deliberately read-only.  It is the UUID used by
+# existing events, rules, staff links, and the alert outbox.
+CUSTOMER_COLUMNS = ("customer_id", *CUSTOMER_EDITABLE_COLUMNS, "legacy_customer_id")
 
 RULE_EDITABLE_COLUMNS = (
     "rule_number",
@@ -98,14 +107,33 @@ def _text(value: Any) -> str:
     return value if isinstance(value, str) else ("" if value is None else str(value))
 
 
+def _json_object(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return dict(parsed) if isinstance(parsed, dict) else {}
+        except (TypeError, ValueError):
+            return {}
+    return {}
+
+
 def customer_from_row(row: Any) -> dict[str, Any]:
     (
         customer_id,
         customer_code,
         display_name,
+        short_name,
         gid,
         lifecycle_status,
         notes,
+        source_type_id,
+        related_staff_id,
+        splunk_indexes,
+        field_mapping,
+        email_config,
+        legacy_customer_id,
         revision,
         archived_at,
         created_by,
@@ -118,9 +146,16 @@ def customer_from_row(row: Any) -> dict[str, Any]:
         "record_id": _text(customer_id),
         "customer_code": _text(customer_code),
         "display_name": _text(display_name),
+        "short_name": _text(short_name),
         "gid": _text(gid),
         "lifecycle_status": _text(lifecycle_status),
         "notes": _text(notes),
+        "source_type_id": _text(source_type_id),
+        "related_staff_id": _text(related_staff_id),
+        "splunk_indexes": list(splunk_indexes or []),
+        "field_mapping": _json_object(field_mapping),
+        "email_config": _json_object(email_config),
+        "legacy_customer_id": _text(legacy_customer_id),
         "revision": int(revision),
         "archived": archived_at is not None,
         "archived_at": _iso(archived_at),
@@ -244,6 +279,18 @@ def empty_record(catalog: str) -> dict[str, Any]:
     if catalog == "customer":
         base["lifecycle_status"] = "active"
         base["customer_code"] = ""
+        base["splunk_indexes"] = []
+        base["field_mapping"] = {
+            "username": "", "hostname": "", "src_ip": "", "dest_ip": "", "event_id": "",
+            "title": "", "description": "", "severity": "", "status": "",
+        }
+        base["email_config"] = {
+            "recipients": [],
+            "cc": [],
+            "bcc": [],
+            "language": "EN",
+            "brand": "CPC",
+        }
     if catalog == "rule":
         base["severity"] = "info"
         base["status"] = "active"

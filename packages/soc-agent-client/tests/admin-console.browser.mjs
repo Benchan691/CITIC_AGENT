@@ -13,7 +13,7 @@ page.on('dialog',dialog=>dialog.accept())
 let authenticated=true
 let unavailable=false
 const writes=[]
-const data={runtime:{enabled:false,configured:false},customers:[{id:'customer-a',gid:'DEMO-A',name:'Example customer',email_config:{recipients:['soc@example.test'],cc:[],bcc:[],language:'EN',brand:'CPC'}},{id:'customer-b',gid:'DEMO-B',name:'Second customer',email_config:{recipients:['team@example.test']}}],rules:[{id:'rule-a',name:'Critical infrastructure',customer_id:'customer-a',severities:['high','critical'],enabled:true,routing:{}}],source_types:[{id:'source-a',name:'Firewall'}],history:[{event_id:'event-fixture-001',customer:'DEMO-A',status:'uncertain',created:'2026-09-08T06:00:00Z',accepted:[],rejected:{},error:'Relay acknowledgement interrupted'}],delivery:{uncertain:1,failed:0}}
+const data={runtime:{enabled:false,configured:false},customers:[{id:'customer-a',record_id:'customer-a',revision:1,gid:'DEMO-A',name:'Example customer',display_name:'Example customer',lifecycle_status:'active',email_config:{recipients:['soc@example.test'],cc:[],bcc:[],language:'EN',brand:'CPC'}},{id:'customer-b',record_id:'customer-b',revision:1,gid:'DEMO-B',name:'Second customer',display_name:'Second customer',lifecycle_status:'provisioning',email_config:{recipients:[]}}],rules:[{id:'rule-a',name:'Critical infrastructure',customer_id:'customer-a',severities:['high','critical'],enabled:true,routing:{}}],source_types:[{id:'source-a',name:'Firewall'}],history:[{event_id:'event-fixture-001',customer:'DEMO-A',status:'uncertain',created:'2026-09-08T06:00:00Z',accepted:[],rejected:{},error:'Relay acknowledgement interrupted'}],delivery:{uncertain:1,failed:0}}
 await page.route('**/admin/**',async route=>{
  const req=route.request(),path=new URL(req.url()).pathname
  let body={}
@@ -66,10 +66,11 @@ try {
  assert.equal(writes.at(-1).payload.id,'rule-a')
  assert.equal(writes.at(-1).payload.enabled,false)
  await page.getByRole('button',{name:'Customer defaults',exact:true}).click()
- await page.getByLabel('Email language').selectOption('ZH')
- await page.getByRole('button',{name:'Save defaults',exact:true}).click()
- await page.getByText('Customer defaults saved.',{exact:true}).waitFor()
- assert.equal(writes.at(-1).payload.email_config.language,'ZH')
+ await page.getByRole('button',{name:'Edit in Customers'}).first().click()
+ await page.getByRole('heading',{name:'Customer Information',exact:true}).waitFor()
+ await page.getByLabel('display name',{exact:true}).waitFor()
+ assert.equal(writes.at(-1).payload.enabled,false)
+ await page.getByRole('navigation',{name:'Administration'}).getByRole('link',{name:'Alert email',exact:true}).click()
  await page.getByRole('button',{name:'Preview email',exact:true}).click()
  await page.getByLabel('Event ID',{exact:true}).fill('event-fixture-001')
  await page.getByRole('button',{name:'Preview email',exact:true}).last().click()

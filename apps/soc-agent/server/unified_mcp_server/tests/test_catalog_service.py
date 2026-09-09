@@ -47,12 +47,10 @@ class StubStore:
 
 def make_service(store=None):
     settings = SplunkSettings(
-        host="splunk.test",
-        port=8089,
-        username="u",
-        password="p",
-        token="",
+        mcp_endpoint="https://splunk.test/services/mcp",
+        token="token",
         verify_ssl=False,
+        allow_insecure_http=False,
         request_timeout=5,
         job_timeout=30,
         max_events=10,

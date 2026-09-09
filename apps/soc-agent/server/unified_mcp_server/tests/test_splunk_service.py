@@ -2,11 +2,9 @@ import json
 
 import pytest
 
-import unified_mcp_server.splunk.splunk_client as splunk_client_module
 from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
-from unified_mcp_server.splunk.splunk_client import SplunkClient
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError
+from unified_mcp_server.splunk.errors import SplunkAPIError
 from unified_mcp_server.splunk.search.executor import SearchExecutor
 from unified_mcp_server.splunk_service import SplunkService
 from unified_mcp_server.tests.citic_fixtures import citic_spl
@@ -14,12 +12,10 @@ from unified_mcp_server.tests.citic_fixtures import citic_spl
 
 def settings(**overrides):
     values = {
-        "host": "splunk.example.com",
-        "port": 8089,
-        "username": "",
-        "password": "",
+        "mcp_endpoint": "https://splunk.example.com/services/mcp",
         "token": "token",
         "verify_ssl": True,
+        "allow_insecure_http": False,
         "request_timeout": 30,
         "job_timeout": 120,
         "max_events": 2,
@@ -29,33 +25,6 @@ def settings(**overrides):
     }
     values.update(overrides)
     return SplunkSettings(**values)
-
-
-@pytest.mark.asyncio
-async def test_low_level_splunk_client_requires_https_and_defaults_to_certificate_verification(monkeypatch):
-    with pytest.raises(SplunkAPIError, match="must use HTTPS"):
-        await SplunkClient({
-            "splunk_url": "http://splunk.example.com:8089",
-            "splunk_token": "token",
-        }).connect()
-
-    captured = {}
-
-    class FakeAsyncClient:
-        def __init__(self, **kwargs):
-            captured.update(kwargs)
-
-        async def aclose(self):
-            return None
-
-    monkeypatch.setattr(splunk_client_module.httpx, "AsyncClient", FakeAsyncClient)
-    client = SplunkClient({
-        "splunk_url": "https://splunk.example.com:8089",
-        "splunk_token": "token",
-    })
-    await client.connect()
-    assert captured["verify"] is True
-    await client.disconnect()
 
 
 class FakeClient:
@@ -228,12 +197,12 @@ async def test_connection_failure_keeps_actionable_client_message():
     class FailedIndexClient(FakeClient):
         async def get_indexes(self):
             raise SplunkAPIError(
-                "Could not reach Splunk at the configured URL. Check SPLUNK_URL and network access."
+                "Could not initialize the official Splunk MCP connection."
             )
 
     service = SplunkService(settings(), FailedIndexClient)
 
-    with pytest.raises(ServiceError, match="Could not reach Splunk at the configured URL"):
+    with pytest.raises(ServiceError, match="Could not initialize the official Splunk MCP connection"):
         await service.search_service.test_connection()
 
     await service.close()
@@ -490,7 +459,7 @@ async def test_search_maps_untrustworthy_job_metadata_to_null():
 
 @pytest.mark.asyncio
 async def test_unconfigured_splunk_returns_configuration_error():
-    service = SplunkService(settings(host="", token=""))
+    service = SplunkService(settings(mcp_endpoint="", token=""))
     with pytest.raises(ConfigurationError):
         await service.search_service.test_connection()
 

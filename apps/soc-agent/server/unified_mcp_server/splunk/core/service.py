@@ -14,7 +14,7 @@ from typing import Any
 from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 
-from .client import SplunkAPIError, SplunkClient
+from ..errors import SplunkAPIError
 from ..official_mcp_client import OfficialSplunkMCPClient
 from ..query_policy import QueryPolicyConfig, SplunkQueryPolicy
 from .guardrails import sanitize_output
@@ -34,7 +34,7 @@ class SplunkCore:
         self.query_policy = query_policy or SplunkQueryPolicy(
             getattr(settings, "query_policy", QueryPolicyConfig())
         )
-        self._client: SplunkClient | None = None
+        self._client: Any | None = None
         self._connect_lock = asyncio.Lock()
 
     def validate_query(
@@ -116,7 +116,7 @@ class SplunkCore:
 
     async def request(
         self,
-        operation: Callable[[SplunkClient], Coroutine[Any, Any, Any]],
+        operation: Callable[[Any], Coroutine[Any, Any, Any]],
     ) -> Any:
         client = await self._connected_client()
         try:
@@ -129,7 +129,7 @@ class SplunkCore:
             await self._client.disconnect()
             self._client = None
 
-    async def _connected_client(self) -> SplunkClient:
+    async def _connected_client(self) -> Any:
         if not self.settings.configured:
             raise ConfigurationError("Splunk", self.settings.missing)
         if self._client is not None:
@@ -171,7 +171,5 @@ class SplunkCore:
 
 
 def _default_client_factory(config: dict[str, object]) -> Any:
-    """Select the official MCP adapter when its endpoint is configured."""
-    if str(config.get("splunk_mcp_endpoint", "")).strip():
-        return OfficialSplunkMCPClient(config)
-    return SplunkClient(config)
+    """Create the only supported Splunk client."""
+    return OfficialSplunkMCPClient(config)

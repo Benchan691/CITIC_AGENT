@@ -738,7 +738,7 @@ class SplunkQueryPolicy:
         )
         estimated_lookback: int | None = None
         # Validate both dispatch bounds even if the SPL contains an override.
-        # The REST request still carries the caller-supplied values, so an
+        # The MCP request still carries the caller-supplied values, so an
         # invalid bound must never become safe merely because another value was
         # found later in the query text.
         time_known = (

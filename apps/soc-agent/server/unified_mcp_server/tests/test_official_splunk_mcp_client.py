@@ -1,7 +1,7 @@
 import pytest
 
 from unified_mcp_server.splunk.official_mcp_client import OfficialSplunkMCPClient
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError
+from unified_mcp_server.splunk.errors import SplunkAPIError
 
 
 def client() -> OfficialSplunkMCPClient:
@@ -99,23 +99,15 @@ async def test_lookup_catalog_fetches_full_page_for_exact_ruleset_lookup(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_lookup_content_uses_bounded_rest_fallback_only_when_mcp_truncates(monkeypatch):
+async def test_lookup_content_rejects_mcp_truncation_without_fallback(monkeypatch):
     adapter = client()
 
     async def call(_name, _arguments):
         return {"results": [{"rule": "one"}], "truncated": True}
 
-    class Rest:
-        async def get_lookup_contents(self, name, app, owner):
-            assert (name, app, owner) == ("Ruleset.csv", "search", "nobody")
-            return [["rule"], ["one"]]
-
-    async def rest():
-        return Rest()
-
     monkeypatch.setattr(adapter, "_call", call)
-    monkeypatch.setattr(adapter, "_rest", rest)
-    assert await adapter.get_lookup_contents("Ruleset.csv", "search", "nobody") == [["rule"], ["one"]]
+    with pytest.raises(SplunkAPIError, match="exceeds the official Splunk MCP result limit"):
+        await adapter.get_lookup_contents("Ruleset.csv", "search", "nobody")
 
 
 @pytest.mark.asyncio
@@ -177,17 +169,13 @@ async def test_saved_search_execution_passes_service_time_bounds(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_official_tool_rejection_never_falls_back_to_rest(monkeypatch):
+async def test_official_tool_rejection_is_propagated(monkeypatch):
     adapter = client()
 
     async def call(_name, _arguments):
         raise SplunkAPIError("The official Splunk MCP server rejected splunk_run_query.")
 
-    async def rest():
-        raise AssertionError("rejected official calls must not use REST fallback")
-
     monkeypatch.setattr(adapter, "_call", call)
-    monkeypatch.setattr(adapter, "_rest", rest)
     with pytest.raises(SplunkAPIError):
         await adapter.run_search_job("index=main")
 

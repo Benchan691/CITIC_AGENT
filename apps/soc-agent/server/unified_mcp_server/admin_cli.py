@@ -74,6 +74,11 @@ def delete_setting(store: PostgresStore, key: str) -> dict[str, Any]:
 
 async def test_splunk(store: PostgresStore) -> dict[str, Any]:
     settings = _settings(store)
+    if not settings.splunk.mcp_endpoint:
+        raise ServiceError(
+            "splunk_configuration_error",
+            "SPLUNK_MCP_ENDPOINT is required for the Splunk connection test.",
+        )
     service = SplunkService(settings.splunk)
     try:
         await service.search_service.test_connection()
@@ -140,7 +145,8 @@ def save_customer_email_config(_store: PostgresStore, payload: Mapping[str, Any]
         raise RuntimeError("APP_POSTGRES_URI is required for alert email settings.")
     try:
         value = payload.get("email_config", payload)
-        return {"customer": alert_store.save_customer_email_config(customer_id.strip(), value)}
+        actor = payload.get("actor_id")
+        return {"customer": alert_store.save_customer_email_config(customer_id.strip(), value, actor=str(actor or "admin"))}
     finally:
         alert_store.close()
 

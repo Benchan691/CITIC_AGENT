@@ -16,7 +16,7 @@ from .lookup import (
     lookup_summary,
     normalize_lookup_name,
     normalize_lookups,
-    rest_search_filter,
+    lookup_name_filter,
     serialize_csv_rows,
 )
 from .planner import SearchIntent, SearchPlanner
@@ -336,7 +336,7 @@ class SplunkSearchService:
         if not name:
             raise ServiceError("invalid_input", "name cannot be empty")
         entries = await self.core.request(
-            lambda client: client.get_lookup_table_files(search=rest_search_filter(name), count=20)
+            lambda client: client.get_lookup_table_files(search=lookup_name_filter(name), count=20)
         )
         lookup = next(
             (item for item in normalize_lookups(entries) if item["name"] == name),
@@ -380,7 +380,7 @@ class SplunkSearchService:
         if not getattr(self.core.settings, "lookup_write_enabled", False):
             raise ServiceError(
                 "operation_disabled",
-                "Lookup CSV writes are disabled. Set SPLUNK_ALLOW_LOOKUP_WRITE=true after review.",
+                "Lookup CSV writes are unavailable: the official Splunk MCP server exposes no mutation tool.",
             )
 
     async def _lookup_metadata(
@@ -394,7 +394,7 @@ class SplunkSearchService:
         entries = await self.core.request(
             lambda client: client.get_lookup_table_files(
                 app=app,
-                search=rest_search_filter(name),
+                search=lookup_name_filter(name),
                 count=20,
             )
         )

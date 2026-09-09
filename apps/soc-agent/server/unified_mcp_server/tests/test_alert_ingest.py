@@ -5,12 +5,8 @@ from datetime import datetime, timezone
 import pytest
 
 from unified_mcp_server.alert_ingest import AlertIngestionService
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError
-
-
 class FakeSplunk:
-    def __init__(self, *, rows=None, instances=None):
-        self.rows = rows or [{"Event_GID": "TEST-G0001", "Event_Rulenum": "0101"}]
+    def __init__(self, *, instances=None):
         self.instances = instances or [
             {
                 "content": {
@@ -18,6 +14,8 @@ class FakeSplunk:
                     "trigger_time": "2026-09-07T08:00:00Z",
                     "result_count": "3",
                     "severity": "high",
+                    "Event_GID": "TEST-G0001",
+                    "Event_Rulenum": "0101",
                     "raw_event": "must not be persisted",
                 }
             }
@@ -29,13 +27,6 @@ class FakeSplunk:
     async def get_fired_alert(self, name):
         assert name == "0101_Test_Alert"
         return self.instances
-
-    async def get_job_result_fields(self, sid, fields, *, max_count):
-        assert sid == "scheduler_test_1"
-        assert fields == ("Event_GID", "Event_Rulenum")
-        assert max_count == 10
-        return self.rows
-
 
 class FakeStore:
     def __init__(self, *, mapping=("customer-1", "ruleset-1"), event_exists=False):
@@ -107,23 +98,6 @@ async def test_unresolved_alert_is_quarantined():
     assert store.quarantined[0][1].startswith("Event_GID/Event_Rulenum")
 
 
-@pytest.mark.asyncio
-async def test_multiple_mapping_pairs_are_quarantined():
-    store = FakeStore()
-    client = FakeSplunk(
-        rows=[
-            {"Event_GID": "TEST-G0001", "Event_Rulenum": "0101"},
-            {"Event_GID": "TEST-G0002", "Event_Rulenum": "0102"},
-        ]
-    )
-
-    report = await AlertIngestionService(client, store).ingest(limit=10)
-
-    assert report.quarantined == 1
-    assert report.inserted == 0
-    assert store.events == []
-
-
 class PagedSplunk:
     def __init__(self):
         self.catalog_offsets = []
@@ -166,19 +140,3 @@ async def test_catalog_and_instances_are_paginated():
     assert report.inserted == 2
     assert client.catalog_offsets == [0, 1]
     assert client.instance_offsets == [("alert-a", 0), ("alert-b", 0)]
-
-
-class TransientSidSplunk(FakeSplunk):
-    async def get_job_result_fields(self, sid, fields, *, max_count):
-        raise SplunkAPIError("temporary outage")
-
-
-@pytest.mark.asyncio
-async def test_transient_sid_failure_is_retried_instead_of_quarantined():
-    store = FakeStore()
-    report = await AlertIngestionService(TransientSidSplunk(), store).ingest(limit=10)
-
-    assert report.failed == 1
-    assert report.retryable is True
-    assert report.quarantined == 0
-    assert store.quarantined == []

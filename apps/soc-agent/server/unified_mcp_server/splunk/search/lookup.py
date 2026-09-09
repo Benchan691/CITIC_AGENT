@@ -15,11 +15,10 @@ _LOOKUP_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\.csv$", re.IGNORECASE)
 _FORMULA_LIKE = re.compile(r"^-\s*(?:[A-Za-z(=])")
 
 
-def rest_search_filter(name: str) -> str:
+def lookup_name_filter(name: str) -> str:
     escaped = name.replace("\\", "\\\\").replace('"', '\\"')
-    # The lookup-table-files handler accepts exact name predicates.  Broader
-    # filtering is done after normalization so case-insensitive substring
-    # matching remains consistent across Splunk versions.
+    # The MCP knowledge-object tool accepts exact name predicates. Broader
+    # filtering is done after normalization so matching stays consistent.
     return f'name="{escaped}"'
 
 
@@ -203,6 +202,6 @@ __all__ = [
     "normalize_lookup_name",
     "normalize_lookups",
     "parse_csv_text",
-    "rest_search_filter",
+    "lookup_name_filter",
     "serialize_csv_rows",
 ]

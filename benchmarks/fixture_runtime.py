@@ -267,7 +267,7 @@ class Mail(ZimbraMailService):
 def create_fixture_server(item, session_id, record):
     from contextlib import asynccontextmanager
     from functools import wraps
-    settings = ServerSettings.from_env({"SPLUNK_HOST": "splunk.fixture.invalid", "SPLUNK_TOKEN": "fixture-token", "SPLUNK_MAX_EVENTS": "20", "ZIMBRA_HOST": "zimbra.fixture.invalid"})
+    settings = ServerSettings.from_env({"SPLUNK_MCP_ENDPOINT": "https://splunk.fixture.invalid/services/mcp", "SPLUNK_TOKEN": "fixture-token", "SPLUNK_MAX_EVENTS": "20", "ZIMBRA_HOST": "zimbra.fixture.invalid"})
     client = FixtureSplunk(item)
     splunk = SplunkService(settings.splunk, lambda _: client)
     # Existing-rule update validates the real compiled production format.

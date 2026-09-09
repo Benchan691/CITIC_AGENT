@@ -144,6 +144,20 @@ async def test_worker_disables_unmatched_event_without_sending():
 
 
 @pytest.mark.asyncio
+async def test_worker_skips_provisioned_customer_without_recipients():
+    settings = ServerSettings.from_env({})
+    store = FakeStore(
+        [context(email_config={"recipients": []})],
+        [AlertEmailRule("rule-1", "high alerts", "customer-1", None, ("high",), True)],
+    )
+    sender = FakeSender()
+    report = await AlertEmailWorker(settings, store, sender)._cycle()
+    assert report == EmailCycleReport(claimed=1, skipped=1)
+    assert store.actions[0][0] == "disabled"
+    assert sender.calls == []
+
+
+@pytest.mark.asyncio
 async def test_uncertain_delivery_is_not_retried_automatically():
     settings = ServerSettings.from_env({})
     store = FakeStore(

@@ -36,6 +36,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "catalog_list_rules",
         "catalog_get_rule",
         "catalog_list_customers",
+        "catalog_customer_options",
         "catalog_get_customer",
         "catalog_list_fix_source_types",
         "catalog_get_fix_source_type",

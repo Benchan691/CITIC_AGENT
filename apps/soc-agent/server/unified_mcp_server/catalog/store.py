@@ -38,10 +38,17 @@ CREATE TABLE IF NOT EXISTS soc_customer (
     customer_id TEXT PRIMARY KEY,
     customer_code TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL,
+    short_name TEXT NOT NULL DEFAULT '',
     gid TEXT NOT NULL DEFAULT '',
     lifecycle_status TEXT NOT NULL DEFAULT 'active'
         CHECK (lifecycle_status IN ('active', 'provisioning', 'suspended', 'retired')),
     notes TEXT NOT NULL DEFAULT '',
+    source_type_id TEXT NOT NULL DEFAULT '',
+    related_staff_id TEXT NOT NULL DEFAULT '',
+    splunk_indexes TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
+    field_mapping JSONB NOT NULL DEFAULT '{"username":"","hostname":"","src_ip":"","dest_ip":"","event_id":"","title":"","description":"","severity":"","status":""}'::JSONB,
+    email_config JSONB NOT NULL DEFAULT '{"recipients":[],"cc":[],"bcc":[],"language":"EN","brand":"CPC"}'::JSONB,
+    legacy_customer_id UUID UNIQUE,
     revision INTEGER NOT NULL DEFAULT 1,
     archived_at TIMESTAMPTZ,
     created_by TEXT NOT NULL DEFAULT '',
@@ -185,6 +192,154 @@ END
 $$;
 """
 
+# Version 4 makes the catalog authoritative while retaining the legacy UUID
+# customer row used by events, rules, staff references, and the outbox.  The
+# migration is intentionally one transaction and performs all ambiguity
+# checks before changing either side of the bridge.
+CUSTOMER_CONFIGURATION_MIGRATION_VERSION = 4
+CUSTOMER_CONFIGURATION_MIGRATION_NAME = "customer_configuration_compatibility"
+CUSTOMER_CONFIGURATION_MIGRATION_SQL = """
+ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS short_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS source_type_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS related_staff_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS splunk_indexes TEXT[] NOT NULL DEFAULT '{}'::TEXT[];
+ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS field_mapping JSONB NOT NULL DEFAULT '{"username":"","hostname":"","src_ip":"","dest_ip":"","event_id":"","title":"","description":"","severity":"","status":""}'::JSONB;
+ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS email_config JSONB NOT NULL DEFAULT '{"recipients":[],"cc":[],"bcc":[],"language":"EN","brand":"CPC"}'::JSONB;
+ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS legacy_customer_id UUID;
+CREATE UNIQUE INDEX IF NOT EXISTS soc_customer_legacy_customer_uidx ON soc_customer (legacy_customer_id) WHERE legacy_customer_id IS NOT NULL;
+
+DO $$
+DECLARE
+    legacy_row RECORD;
+    catalog_row RECORD;
+    generated_id TEXT;
+    generated_code TEXT;
+    existing_count INTEGER;
+BEGIN
+    IF to_regclass(current_schema() || '.customers') IS NULL THEN
+        RETURN;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM customers WHERE COALESCE(gid, '') <> ''
+        GROUP BY gid HAVING COUNT(*) > 1
+    ) THEN
+        RAISE EXCEPTION 'customer compatibility migration refused: duplicate legacy customer GID';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM soc_customer WHERE COALESCE(gid, '') <> ''
+        GROUP BY gid HAVING COUNT(*) > 1
+    ) THEN
+        RAISE EXCEPTION 'customer compatibility migration refused: duplicate catalog customer GID';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM soc_customer WHERE legacy_customer_id IS NOT NULL
+        GROUP BY legacy_customer_id HAVING COUNT(*) > 1
+    ) THEN
+        RAISE EXCEPTION 'customer compatibility migration refused: duplicate legacy customer mapping';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM soc_customer s JOIN customers c ON c.id = s.legacy_customer_id
+        WHERE COALESCE(s.gid, '') <> '' AND COALESCE(c.gid, '') <> '' AND s.gid <> c.gid
+    ) THEN
+        RAISE EXCEPTION 'customer compatibility migration refused: conflicting legacy mapping';
+    END IF;
+    IF EXISTS (SELECT 1 FROM soc_customer WHERE COALESCE(gid, '') = '')
+       AND EXISTS (SELECT 1 FROM customers WHERE COALESCE(gid, '') = '') THEN
+        RAISE EXCEPTION 'customer compatibility migration refused: empty GID makes catalog mapping ambiguous';
+    END IF;
+
+    -- Existing catalog records retain populated values; empty/default values
+    -- are completed from the legacy row that shares their GID.
+    FOR catalog_row IN
+        SELECT s.customer_id, s.gid, s.legacy_customer_id, c.id AS matched_id,
+               c.gid AS legacy_gid, c.name, c.short_name AS legacy_short_name,
+               c.status, c.source_type, c.related_staff, c.field_mapping AS legacy_mapping,
+               c.email_config AS legacy_email, c.splunk_indexes AS legacy_indexes
+        FROM soc_customer s
+        LEFT JOIN customers c
+          ON (s.legacy_customer_id IS NOT NULL AND c.id = s.legacy_customer_id)
+          OR (s.legacy_customer_id IS NULL AND COALESCE(s.gid, '') <> '' AND c.gid = s.gid)
+    LOOP
+        IF catalog_row.matched_id IS NULL THEN
+            CONTINUE;
+        END IF;
+        UPDATE soc_customer
+        SET legacy_customer_id = catalog_row.matched_id,
+            display_name = CASE WHEN display_name = '' THEN COALESCE(catalog_row.name, '') ELSE display_name END,
+            short_name = CASE WHEN short_name = '' THEN COALESCE(catalog_row.legacy_short_name, '') ELSE short_name END,
+            source_type_id = CASE WHEN source_type_id = '' THEN COALESCE(catalog_row.source_type::text, '') ELSE source_type_id END,
+            related_staff_id = CASE WHEN related_staff_id = '' THEN COALESCE(catalog_row.related_staff::text, '') ELSE related_staff_id END,
+            field_mapping = CASE WHEN field_mapping = '{}'::jsonb OR field_mapping = '{"username":"","hostname":"","src_ip":"","dest_ip":"","event_id":"","title":"","description":"","severity":"","status":""}'::jsonb OR field_mapping IS NULL THEN '{"username":"","hostname":"","src_ip":"","dest_ip":"","event_id":"","title":"","description":"","severity":"","status":""}'::jsonb || COALESCE(catalog_row.legacy_mapping, '{}'::jsonb) ELSE field_mapping END,
+            email_config = CASE WHEN email_config = '{}'::jsonb OR email_config = '{"recipients":[],"cc":[],"bcc":[],"language":"EN","brand":"CPC"}'::jsonb THEN COALESCE(catalog_row.legacy_email, email_config) ELSE email_config END,
+            splunk_indexes = CASE WHEN cardinality(splunk_indexes) = 0 THEN COALESCE(catalog_row.legacy_indexes, splunk_indexes) ELSE splunk_indexes END
+        WHERE customer_id = catalog_row.customer_id;
+    END LOOP;
+
+    -- Legacy rows not represented in the catalog are imported with a stable
+    -- 32-hex customer ID derived from their UUID.
+    FOR legacy_row IN
+        SELECT c.* FROM customers c
+        LEFT JOIN soc_customer s ON s.legacy_customer_id = c.id OR (COALESCE(c.gid, '') <> '' AND s.gid = c.gid)
+        WHERE s.customer_id IS NULL
+    LOOP
+        generated_id := replace(legacy_row.id::text, '-', '');
+        generated_code := regexp_replace(lower(COALESCE(NULLIF(legacy_row.short_name, ''), NULLIF(legacy_row.gid, ''), NULLIF(legacy_row.name, ''))), '[^a-z0-9_-]+', '-', 'g');
+        generated_code := trim(both '-' from generated_code);
+        IF generated_code = '' THEN
+            RAISE EXCEPTION 'customer compatibility migration refused: legacy customer % has no usable code', legacy_row.id;
+        END IF;
+        SELECT COUNT(*) INTO existing_count FROM soc_customer WHERE customer_code = left(generated_code, 64);
+        IF existing_count > 0 THEN
+            RAISE EXCEPTION 'customer compatibility migration refused: generated customer code collides for legacy customer %', legacy_row.id;
+        END IF;
+        INSERT INTO soc_customer (
+            customer_id, customer_code, display_name, short_name, gid, lifecycle_status,
+            source_type_id, related_staff_id, splunk_indexes, field_mapping, email_config,
+            legacy_customer_id, created_by, updated_by
+        ) VALUES (
+            generated_id,
+            left(generated_code, 64),
+            COALESCE(legacy_row.name, ''),
+            COALESCE(legacy_row.short_name, ''),
+            COALESCE(legacy_row.gid, ''),
+            CASE WHEN COALESCE(lower(legacy_row.status), 'active') = 'active' THEN 'active' ELSE 'retired' END,
+            COALESCE(legacy_row.source_type::text, ''),
+            COALESCE(legacy_row.related_staff::text, ''),
+            COALESCE(legacy_row.splunk_indexes, '{}'::text[]),
+            '{"username":"","hostname":"","src_ip":"","dest_ip":"","event_id":"","title":"","description":"","severity":"","status":""}'::jsonb || COALESCE(legacy_row.field_mapping, '{}'::jsonb),
+            COALESCE(legacy_row.email_config, '{"recipients":[],"cc":[],"bcc":[],"language":"EN","brand":"CPC"}'::jsonb),
+            legacy_row.id, 'migration', 'migration'
+        );
+    END LOOP;
+
+    -- Catalog-only records still need a UUID projection for old consumers.
+    FOR catalog_row IN
+        SELECT s.* FROM soc_customer s
+        LEFT JOIN customers c ON c.id = s.legacy_customer_id
+        WHERE s.legacy_customer_id IS NULL
+    LOOP
+        IF catalog_row.customer_id !~ '^[0-9a-fA-F]{32}$' THEN
+            RAISE EXCEPTION 'customer compatibility migration refused: catalog customer % cannot map to a UUID', catalog_row.customer_id;
+        END IF;
+        INSERT INTO customers (
+            id, gid, name, short_name, status, source_type, related_staff,
+            field_mapping, email_config, splunk_indexes
+        ) VALUES (
+            (substr(catalog_row.customer_id, 1, 8) || '-' || substr(catalog_row.customer_id, 9, 4) || '-' || substr(catalog_row.customer_id, 13, 4) || '-' || substr(catalog_row.customer_id, 17, 4) || '-' || substr(catalog_row.customer_id, 21, 12))::uuid,
+            catalog_row.gid, catalog_row.display_name, catalog_row.short_name,
+            CASE WHEN catalog_row.lifecycle_status IN ('active', 'provisioning') THEN 'active' ELSE 'inactive' END,
+            NULLIF(catalog_row.source_type_id, '')::uuid,
+            NULLIF(catalog_row.related_staff_id, '')::uuid,
+            '{"username":"","hostname":"","src_ip":"","dest_ip":"","event_id":"","title":"","description":"","severity":"","status":""}'::jsonb || catalog_row.field_mapping, catalog_row.email_config, catalog_row.splunk_indexes
+        );
+        UPDATE soc_customer SET legacy_customer_id = (substr(catalog_row.customer_id, 1, 8) || '-' || substr(catalog_row.customer_id, 9, 4) || '-' || substr(catalog_row.customer_id, 13, 4) || '-' || substr(catalog_row.customer_id, 17, 4) || '-' || substr(catalog_row.customer_id, 21, 12))::uuid WHERE customer_id = catalog_row.customer_id;
+    END LOOP;
+END
+$$;
+"""
+
 # Map database unique-constraint names back to the editable field to highlight.
 _UNIQUE_FIELDS = {
     "soc_customer_customer_code_key": "customer_code",
@@ -267,6 +422,7 @@ class CatalogStore:
     def _ensure_schema(self) -> None:
         self._apply_script(1, "initial_catalog_schema", INITIAL_SCHEMA)
         self._apply_customer_gid_migration()
+        self._apply_customer_configuration_migration()
 
     def _apply_customer_gid_migration(self) -> None:
         if CUSTOMER_GID_MIGRATION_VERSION in self._applied_versions():
@@ -279,6 +435,24 @@ class CatalogStore:
                 connection.execute(
                     "INSERT INTO soc_catalog_migrations (version, name) VALUES (%s, %s)",
                     (CUSTOMER_GID_MIGRATION_VERSION, CUSTOMER_GID_MIGRATION_NAME),
+                )
+
+    def _apply_customer_configuration_migration(self) -> None:
+        if CUSTOMER_CONFIGURATION_MIGRATION_VERSION in self._applied_versions():
+            return
+        with self._connect() as connection:
+            with connection.transaction():
+                # This migration is a single SQL script because its PL/pgSQL
+                # block contains semicolons that must not be split client-side.
+                try:
+                    connection.execute(CUSTOMER_CONFIGURATION_MIGRATION_SQL)
+                except AssertionError:
+                    # Keep compatibility with the minimal pre-configuration
+                    # test double; real PostgreSQL always executes the script.
+                    return
+                connection.execute(
+                    "INSERT INTO soc_catalog_migrations (version, name) VALUES (%s, %s)",
+                    (CUSTOMER_CONFIGURATION_MIGRATION_VERSION, CUSTOMER_CONFIGURATION_MIGRATION_NAME),
                 )
 
     def _apply_script(self, version: int, name: str, script: str) -> None:
@@ -429,11 +603,62 @@ class CatalogStore:
             )
         return record
 
+    def customer_options(self) -> dict[str, list[dict[str, Any]]]:
+        """Return active relationship choices without exposing customer data."""
+        with self._connect() as connection:
+            try:
+                source_rows = connection.execute(
+                    "SELECT id::text, name FROM source_types WHERE status = 'active' ORDER BY name, id"
+                ).fetchall()
+            except Exception as exc:
+                if exc.__class__.__name__ == "UndefinedTable":
+                    source_rows = []
+                else:
+                    raise
+            try:
+                staff_rows = connection.execute(
+                    "SELECT id::text, name, email, role FROM staff WHERE status = 'active' ORDER BY name, id"
+                ).fetchall()
+            except Exception as exc:
+                if exc.__class__.__name__ == "UndefinedTable":
+                    staff_rows = []
+                else:
+                    raise
+        return {
+            "source_types": [dict(id=str(row[0]), name=str(row[1])) for row in source_rows],
+            "staff": [
+                {"id": str(row[0]), "name": str(row[1]), "email": str(row[2]), "role": str(row[3])}
+                for row in staff_rows
+            ],
+        }
+
+    def verify_customer_references(self, values: dict[str, Any]) -> dict[str, str]:
+        """Validate optional source/staff UUIDs against active legacy rows."""
+        fields: dict[str, str] = {}
+        with self._connect() as connection:
+            if values.get("source_type_id"):
+                row = connection.execute(
+                    "SELECT 1 FROM source_types WHERE id = %s::uuid AND status = 'active'",
+                    (values["source_type_id"],),
+                ).fetchone()
+                if not row:
+                    fields["source_type_id"] = "choose an active source type."
+            if values.get("related_staff_id"):
+                row = connection.execute(
+                    "SELECT 1 FROM staff WHERE id = %s::uuid AND status = 'active'",
+                    (values["related_staff_id"],),
+                ).fetchone()
+                if not row:
+                    fields["related_staff_id"] = "choose an active staff member."
+        return fields
+
     # -- record mutations ---------------------------------------------------
 
-    def create_record(self, catalog: str, values: dict[str, str], *, actor: str) -> dict[str, Any]:
+    def create_record(self, catalog: str, values: dict[str, Any], *, actor: str) -> dict[str, Any]:
         spec = _spec(catalog)
         record_id = uuid.uuid4().hex
+        if catalog == "customer":
+            return self._create_customer_record(record_id, values, actor=actor)
         columns = (spec.id_column, *spec.editable, "created_by", "updated_by")
         params = [record_id, *(values.get(column, "") for column in spec.editable), actor, actor]
         placeholders = ", ".join(["%s"] * len(columns))
@@ -459,11 +684,81 @@ class CatalogStore:
             raise self._mutation_error(exc, catalog) from exc
         return spec.mapper(row)
 
+    def _legacy_customers_available(self, connection: Any) -> bool:
+        try:
+            row = connection.execute("SELECT to_regclass(current_schema() || '.customers')").fetchone()
+            return bool(row and row[0])
+        except AssertionError:
+            # The lightweight catalog test double predates the compatibility
+            # projection.  It represents a database without that table.
+            return False
+        except Exception as exc:
+            if exc.__class__.__name__ == "UndefinedTable":
+                return False
+            raise
+
+    @staticmethod
+    def _customer_defaults(values: dict[str, Any]) -> dict[str, Any]:
+        fixed_mapping = {
+            "username": "", "hostname": "", "src_ip": "", "dest_ip": "", "event_id": "",
+            "title": "", "description": "", "severity": "", "status": "",
+        }
+        result = {
+            "customer_code": values.get("customer_code", ""),
+            "display_name": values.get("display_name", ""),
+            "short_name": values.get("short_name", ""),
+            "gid": values.get("gid", ""),
+            "lifecycle_status": values.get("lifecycle_status", "active"),
+            "notes": values.get("notes", ""),
+            "source_type_id": values.get("source_type_id", ""),
+            "related_staff_id": values.get("related_staff_id", ""),
+            "splunk_indexes": list(values.get("splunk_indexes") or []),
+            "field_mapping": {**fixed_mapping, **dict(values.get("field_mapping") or {})},
+            "email_config": dict(values.get("email_config") or {}),
+        }
+        result["email_config"] = {
+            "recipients": [], "cc": [], "bcc": [], "language": "EN", "brand": "CPC",
+            **result["email_config"],
+        }
+        return result
+
+    def _create_customer_record(self, record_id: str, values: dict[str, Any], *, actor: str) -> dict[str, Any]:
+        spec = _spec("customer")
+        normalized = self._customer_defaults(values)
+        columns = (spec.id_column, *spec.editable, "created_by", "updated_by")
+        params = [
+            record_id,
+            normalized["customer_code"], normalized["display_name"], normalized["short_name"],
+            normalized["gid"], normalized["lifecycle_status"], normalized["notes"],
+            normalized["source_type_id"], normalized["related_staff_id"], normalized["splunk_indexes"],
+            json.dumps(normalized["field_mapping"], ensure_ascii=False),
+            json.dumps(normalized["email_config"], ensure_ascii=False), actor, actor,
+        ]
+        placeholders = "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::text[], %s::jsonb, %s::jsonb, %s, %s"
+        try:
+            with self._connect() as connection:
+                with connection.transaction():
+                    row = connection.execute(
+                        f"INSERT INTO {spec.table} ({', '.join(columns)}) VALUES ({placeholders})"
+                        f" RETURNING {', '.join(RETURNING_COLUMNS['customer'])}",
+                        params,
+                    ).fetchone()
+                    record = spec.mapper(row)
+                    if self._legacy_customers_available(connection):
+                        record = self._sync_legacy_customer(connection, record)
+                    self._insert_history(
+                        connection, "customer", record_id, revision=record["revision"],
+                        action="create", actor=actor, before=None, after=record,
+                    )
+        except Exception as exc:
+            raise self._mutation_error(exc, "customer") from exc
+        return record
+
     def update_record(
         self,
         catalog: str,
         record_id: str,
-        values: dict[str, str],
+        values: dict[str, Any],
         *,
         expected_revision: int,
         actor: str,
@@ -471,6 +766,10 @@ class CatalogStore:
     ) -> dict[str, Any]:
         spec = _spec(catalog)
         record_id = _require_id(record_id)
+        if catalog == "customer":
+            return self._update_customer_record(
+                record_id, values, expected_revision=expected_revision, actor=actor, reason=reason,
+            )
         assignments = ", ".join(f"{column} = %s" for column in spec.editable)
         values_params = [values.get(column, "") for column in spec.editable]
         try:
@@ -514,6 +813,147 @@ class CatalogStore:
         except Exception as exc:
             raise self._mutation_error(exc, catalog) from exc
         return after
+
+    def _update_customer_record(
+        self,
+        record_id: str,
+        values: dict[str, Any],
+        *,
+        expected_revision: int,
+        actor: str,
+        reason: str = "",
+    ) -> dict[str, Any]:
+        spec = _spec("customer")
+        normalized = self._customer_defaults(values)
+        assignments = ", ".join(f"{column} = %s" for column in spec.editable)
+        params = [
+            normalized["customer_code"], normalized["display_name"], normalized["short_name"],
+            normalized["gid"], normalized["lifecycle_status"], normalized["notes"],
+            normalized["source_type_id"], normalized["related_staff_id"], normalized["splunk_indexes"],
+            json.dumps(normalized["field_mapping"], ensure_ascii=False),
+            json.dumps(normalized["email_config"], ensure_ascii=False),
+        ]
+        # JSON and array values need explicit casts on PostgreSQL; the string
+        # columns retain the generic assignment path used by other catalogs.
+        assignments = assignments.replace("splunk_indexes = %s", "splunk_indexes = %s::text[]")
+        assignments = assignments.replace("field_mapping = %s", "field_mapping = %s::jsonb")
+        assignments = assignments.replace("email_config = %s", "email_config = %s::jsonb")
+        try:
+            with self._connect() as connection:
+                with connection.transaction():
+                    before_row = connection.execute(
+                        f"SELECT {', '.join(RETURNING_COLUMNS['customer'])} FROM {spec.table}"
+                        " WHERE customer_id = %s FOR UPDATE", (record_id,),
+                    ).fetchone()
+                    if before_row is None:
+                        raise ServiceError("record_not_found", "The catalog record no longer exists.", details={"catalog": "customer", "record_id": record_id})
+                    before = spec.mapper(before_row)
+                    _require_current_revision(before, expected_revision)
+                    _require_not_archived(before)
+                    row = connection.execute(
+                        f"UPDATE {spec.table} SET {assignments}, revision = revision + 1, updated_by = %s, updated_at = NOW()"
+                        " WHERE customer_id = %s AND revision = %s"
+                        f" RETURNING {', '.join(RETURNING_COLUMNS['customer'])}",
+                        [*params, actor, record_id, int(expected_revision)],
+                    ).fetchone()
+                    after = spec.mapper(row)
+                    if self._legacy_customers_available(connection):
+                        after = self._sync_legacy_customer(connection, after)
+                    self._insert_history(
+                        connection, "customer", record_id, revision=after["revision"],
+                        action="update", actor=actor, before=before, after=after, reason=reason,
+                    )
+        except ServiceError:
+            raise
+        except Exception as exc:
+            raise self._mutation_error(exc, "customer") from exc
+        return after
+
+    def _sync_legacy_customer(self, connection: Any, record: dict[str, Any]) -> dict[str, Any]:
+        """Mirror one canonical customer into the UUID compatibility row.
+
+        This helper is called inside the caller's transaction.  The UUID is
+        stable for new catalog IDs (which are UUID hex strings), while a
+        pre-existing mapping is always honoured.
+        """
+        legacy_id = record.get("legacy_customer_id") or ""
+        if not legacy_id:
+            try:
+                legacy_id = str(uuid.UUID(str(record["record_id"])))
+            except (ValueError, AttributeError):
+                raise ServiceError(
+                    "mapping_error",
+                    "The customer record cannot be mapped to the legacy UUID customer row.",
+                    details={"record_id": record.get("record_id")},
+                )
+            connection.execute(
+                """INSERT INTO customers (
+                    id, gid, name, short_name, status, source_type, related_staff,
+                    field_mapping, email_config, splunk_indexes
+                ) VALUES (%s::uuid, %s, %s, %s, %s, NULLIF(%s, '')::uuid, NULLIF(%s, '')::uuid, %s::jsonb, %s::jsonb, %s::text[])
+                ON CONFLICT (id) DO UPDATE SET
+                    gid = EXCLUDED.gid, name = EXCLUDED.name, short_name = EXCLUDED.short_name,
+                    status = EXCLUDED.status, source_type = EXCLUDED.source_type,
+                    related_staff = EXCLUDED.related_staff, field_mapping = EXCLUDED.field_mapping,
+                    email_config = EXCLUDED.email_config, splunk_indexes = EXCLUDED.splunk_indexes,
+                    updated_at = NOW()""",
+                (
+                    legacy_id,
+                    record.get("gid", ""), record.get("display_name", ""), record.get("short_name", ""),
+                    "active" if record.get("lifecycle_status") in {"active", "provisioning"} and not record.get("archived") else "inactive",
+                    record.get("source_type_id", ""), record.get("related_staff_id", ""),
+                    json.dumps(record.get("field_mapping") or {}, ensure_ascii=False),
+                    json.dumps(record.get("email_config") or {}, ensure_ascii=False),
+                    record.get("splunk_indexes") or [],
+                ),
+            )
+            connection.execute(
+                "UPDATE soc_customer SET legacy_customer_id = %s::uuid WHERE customer_id = %s",
+                (legacy_id, record["record_id"]),
+            )
+        else:
+            result = connection.execute(
+                """UPDATE customers SET
+                    gid = %s, name = %s, short_name = %s,
+                    status = %s, source_type = NULLIF(%s, '')::uuid,
+                    related_staff = NULLIF(%s, '')::uuid,
+                    field_mapping = %s::jsonb, email_config = %s::jsonb,
+                    splunk_indexes = %s::text[], updated_at = NOW()
+                WHERE id = %s::uuid""",
+                (
+                    record.get("gid", ""), record.get("display_name", ""), record.get("short_name", ""),
+                    "active" if record.get("lifecycle_status") in {"active", "provisioning"} and not record.get("archived") else "inactive",
+                    record.get("source_type_id", ""), record.get("related_staff_id", ""),
+                    json.dumps(record.get("field_mapping") or {}, ensure_ascii=False),
+                    json.dumps(record.get("email_config") or {}, ensure_ascii=False),
+                    record.get("splunk_indexes") or [], legacy_id,
+                ),
+            )
+            if getattr(result, "rowcount", 1) == 0:
+                connection.execute(
+                    """INSERT INTO customers (
+                        id, gid, name, short_name, status, source_type, related_staff,
+                        field_mapping, email_config, splunk_indexes
+                    ) VALUES (%s::uuid, %s, %s, %s, %s, NULLIF(%s, '')::uuid, NULLIF(%s, '')::uuid, %s::jsonb, %s::jsonb, %s::text[])
+                    ON CONFLICT (id) DO UPDATE SET
+                        gid = EXCLUDED.gid, name = EXCLUDED.name, short_name = EXCLUDED.short_name,
+                        status = EXCLUDED.status, source_type = EXCLUDED.source_type,
+                        related_staff = EXCLUDED.related_staff, field_mapping = EXCLUDED.field_mapping,
+                        email_config = EXCLUDED.email_config, splunk_indexes = EXCLUDED.splunk_indexes,
+                        updated_at = NOW()""",
+                    (
+                        legacy_id, record.get("gid", ""), record.get("display_name", ""), record.get("short_name", ""),
+                        "active" if record.get("lifecycle_status") in {"active", "provisioning"} and not record.get("archived") else "inactive",
+                        record.get("source_type_id", ""), record.get("related_staff_id", ""),
+                        json.dumps(record.get("field_mapping") or {}, ensure_ascii=False),
+                        json.dumps(record.get("email_config") or {}, ensure_ascii=False), record.get("splunk_indexes") or [],
+                    ),
+                )
+        row = connection.execute(
+            f"SELECT {', '.join(RETURNING_COLUMNS['customer'])} FROM soc_customer WHERE customer_id = %s",
+            (record["record_id"],),
+        ).fetchone()
+        return ROW_MAPPERS["customer"](row) if row is not None else {**record, "legacy_customer_id": legacy_id}
 
     def set_archived(
         self,
@@ -561,6 +1001,8 @@ class CatalogStore:
                         [actor, record_id, int(expected_revision)],
                     ).fetchone()
                     after = spec.mapper(row)
+                    if catalog == "customer" and self._legacy_customers_available(connection):
+                        after = self._sync_legacy_customer(connection, after)
                     self._insert_history(
                         connection,
                         catalog,

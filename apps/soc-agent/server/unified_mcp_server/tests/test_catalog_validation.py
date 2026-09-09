@@ -34,6 +34,33 @@ def test_customer_rejects_bad_gid_formats():
     assert "gid" in fields
 
 
+def test_customer_normalizes_provisioning_configuration():
+    values = validate_payload("customer", {
+        "customer_code": "fubon",
+        "display_name": "Fubon",
+        "lifecycle_status": "provisioning",
+        "splunk_indexes": ["security", "security", " audit "],
+        "field_mapping": {"username": "user", "custom_field": "custom"},
+        "email_config": {"recipients": [], "cc": ["CC@example.test", "cc@example.test"], "language": "cn", "brand": "cpc"},
+    }, partial=False)
+    assert values["splunk_indexes"] == ["security", "audit"]
+    assert values["field_mapping"]["hostname"] == ""
+    assert values["email_config"] == {
+        "recipients": [], "cc": ["CC@example.test"], "bcc": [], "language": "CN", "brand": "CPC",
+    }
+
+
+def test_customer_rejects_invalid_nested_configuration():
+    with pytest.raises(ServiceError) as caught:
+        validate_payload("customer", {
+            "customer_code": "fubon", "display_name": "Fubon", "lifecycle_status": "active",
+            "source_type_id": "not-a-uuid", "email_config": {"recipients": ["bad"]},
+        }, partial=False)
+    fields = field_messages(caught.value)
+    assert "source_type_id" in fields
+    assert "email_config.recipients" in fields
+
+
 def test_rule_number_preserves_digits_only_and_rejects_other_input():
     values = validate_payload("rule", {
         "rule_number": "0042",

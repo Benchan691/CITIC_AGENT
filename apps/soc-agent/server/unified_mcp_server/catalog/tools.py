@@ -89,6 +89,16 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
         )
 
     @server.tool(annotations={"readOnlyHint": True})
+    async def catalog_customer_options(ctx: Context) -> dict[str, Any]:
+        """List active source-type and staff choices for the customer editor; read-only."""
+        return await execute(
+            ctx,
+            "catalog",
+            "customer_options",
+            lambda: _catalog_service(get_runtime, ctx).customer_options(),
+        )
+
+    @server.tool(annotations={"readOnlyHint": True})
     async def catalog_list_fix_source_types(
         ctx: Context,
         search: str = "",

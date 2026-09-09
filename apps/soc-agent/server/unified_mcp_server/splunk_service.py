@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from unified_mcp_server.config import SplunkSettings
-from unified_mcp_server.splunk.core.client import SplunkClient
+from unified_mcp_server.splunk.official_mcp_client import OfficialSplunkMCPClient
 from unified_mcp_server.splunk.core.service import SplunkCore
 from unified_mcp_server.splunk.detection.service import SplunkDetectionService
 from unified_mcp_server.splunk.search.executor import SearchExecutor
@@ -19,7 +19,7 @@ class SplunkService:
     def __init__(
         self,
         settings: SplunkSettings,
-        client_factory: Callable[[dict[str, object]], SplunkClient] | None = None,
+        client_factory: Callable[[dict[str, object]], OfficialSplunkMCPClient] | None = None,
         *,
         core: SplunkCore | None = None,
     ) -> None:

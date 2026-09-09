@@ -321,11 +321,16 @@ class AlertEmailStore:
                 SELECT claimed.id::text, claimed.event_id::text, claimed.customer_id::text,
                        claimed.attempt_count, event.severity, event.alert_name,
                        event.trigger_time, event.result_count, event.splunk_sid,
-                       customer.gid, customer.name, customer.email_config,
+                       COALESCE(catalog.gid, customer.gid),
+                       COALESCE(catalog.display_name, customer.name),
+                       COALESCE(catalog.email_config, customer.email_config),
                        ruleset.id::text, ruleset.rule_number,
                        jsonb_build_object('src_ip', event.src_ip, 'dest_ip', event.dest_ip,
                            'hostname', event.hostname, 'source_type_ids', event.source_type_ids,
-                           'customer_active', customer.status = 'active',
+                           'customer_active', COALESCE(
+                               catalog.archived_at IS NULL AND catalog.lifecycle_status IN ('active', 'provisioning'),
+                               customer.status = 'active'
+                           ),
                            'content', ruleset.email_content,
                            'description', template.common_logic_summary,
                            'source_types', (SELECT jsonb_agg(st.name) FROM source_types st WHERE st.id = ANY(event.source_type_ids))),
@@ -333,6 +338,7 @@ class AlertEmailStore:
                 FROM claimed
                 JOIN sec_events AS event ON event.id = claimed.event_id
                 JOIN customers AS customer ON customer.id = claimed.customer_id AND customer.id = event.customer_id
+                LEFT JOIN soc_customer AS catalog ON catalog.legacy_customer_id = customer.id
                 LEFT JOIN rulesets AS ruleset ON ruleset.id = event.ruleset_id AND ruleset.customer_id = customer.id
                 LEFT JOIN rule_templates AS template ON template.id = ruleset.rule_template_id
                 ORDER BY event.created_at, event.id
@@ -364,9 +370,10 @@ class AlertEmailStore:
     def admin_details(self):
         with self._connect() as connection:
             sources = connection.execute("SELECT id::text,name FROM source_types ORDER BY name").fetchall()
-            history = connection.execute("""SELECT o.event_id::text,c.gid,o.status,o.created_at::text,
+            history = connection.execute("""SELECT o.event_id::text,COALESCE(sc.gid,c.gid),o.status,o.created_at::text,
                 o.smtp_accepted_at::text,o.accepted_recipients,o.rejected_recipients,o.last_error
                 FROM sec_event_email_outbox o JOIN customers c ON c.id=o.customer_id
+                LEFT JOIN soc_customer sc ON sc.legacy_customer_id = c.id
                 ORDER BY o.created_at DESC LIMIT 100""").fetchall()
         return dict(source_types=[dict(id=r[0], name=r[1]) for r in sources],
                     history=[dict(zip(('event_id','customer','status','created','smtp_accepted','accepted','rejected','error'), r)) for r in history])
@@ -374,12 +381,13 @@ class AlertEmailStore:
     def preview(self, customer_id, event_id):
         with self._connect() as connection:
             row = connection.execute("""SELECT '',e.id::text,c.id::text,0,e.severity,e.alert_name,
-                e.trigger_time,e.result_count,e.splunk_sid,c.gid,c.name,c.email_config,r.id::text,r.rule_number,
+                e.trigger_time,e.result_count,e.splunk_sid,COALESCE(sc.gid,c.gid),COALESCE(sc.display_name,c.name),COALESCE(sc.email_config,c.email_config),r.id::text,r.rule_number,
                 jsonb_build_object('src_ip',e.src_ip,'dest_ip',e.dest_ip,'hostname',e.hostname,
-                'source_type_ids',e.source_type_ids,'customer_active',c.status='active','content',r.email_content,
+                'source_type_ids',e.source_type_ids,'customer_active',COALESCE(sc.archived_at IS NULL AND sc.lifecycle_status IN ('active','provisioning'),c.status='active'),'content',r.email_content,
                 'description',t.common_logic_summary,'source_types',(SELECT jsonb_agg(s.name) FROM source_types s WHERE s.id=ANY(e.source_type_ids))),
                 '[]'::jsonb,NULL
                 FROM sec_events e JOIN customers c ON c.id=e.customer_id
+                LEFT JOIN soc_customer sc ON sc.legacy_customer_id = c.id
                 LEFT JOIN rulesets r ON r.id=e.ruleset_id AND r.customer_id=c.id
                 LEFT JOIN rule_templates t ON t.id=r.rule_template_id
                 WHERE e.id=%s::uuid AND e.customer_id=%s::uuid""", (event_id,customer_id)).fetchone()
@@ -533,31 +541,143 @@ class AlertEmailStore:
         with self._connect() as connection:
             rows = connection.execute(
                 """
-                SELECT id::text, gid, name, email_config
-                FROM customers
-                ORDER BY gid, id
+                SELECT c.id::text, COALESCE(sc.customer_id, ''), COALESCE(sc.revision, 0),
+                       COALESCE(sc.gid, c.gid), COALESCE(sc.display_name, c.name),
+                       COALESCE(sc.lifecycle_status, CASE WHEN c.status = 'active' THEN 'active' ELSE 'retired' END),
+                       COALESCE(sc.email_config, c.email_config)
+                FROM customers c
+                LEFT JOIN soc_customer sc ON sc.legacy_customer_id = c.id
+                ORDER BY COALESCE(sc.gid, c.gid), c.id
                 """
             ).fetchall()
         return [
-            {"id": str(row[0]), "gid": row[1], "name": row[2], "email_config": row[3] or {}}
+            {
+                "id": str(row[0]), "record_id": str(row[1]) if row[1] else "",
+                "revision": int(row[2] or 0), "gid": row[3], "name": row[4],
+                "display_name": row[4], "lifecycle_status": row[5], "email_config": row[6] or {},
+            }
             for row in rows
         ]
 
-    def save_customer_email_config(self, customer_id: str, value: Any) -> dict[str, Any]:
-        normalized = normalize_email_config(value)
+    def save_customer_email_config(self, customer_id: str, value: Any, *, actor: str = "admin") -> dict[str, Any]:
+        """Compatibility wrapper; the catalog update owns the transaction."""
+        normalized = normalize_email_config(value, require_recipient=False)
+        normalized.setdefault("language", "EN")
+        normalized.setdefault("brand", "CPC")
+        # A few isolated PostgreSQL fixtures install only the legacy
+        # migrations. Bootstrap the compatibility table in that same schema
+        # so the wrapper remains usable while the normal server path uses the
+        # versioned CatalogStore migration below.
+        with self._connect() as connection:
+            table = connection.execute("SELECT to_regclass(current_schema() || '.soc_customer')").fetchone()
+            if not table or not table[0]:
+                connection.execute(
+                    """CREATE TABLE IF NOT EXISTS soc_customer (
+                        customer_id TEXT PRIMARY KEY, customer_code TEXT NOT NULL UNIQUE,
+                        display_name TEXT NOT NULL, short_name TEXT NOT NULL DEFAULT '',
+                        gid TEXT NOT NULL DEFAULT '', lifecycle_status TEXT NOT NULL DEFAULT 'active',
+                        notes TEXT NOT NULL DEFAULT '', source_type_id TEXT NOT NULL DEFAULT '',
+                        related_staff_id TEXT NOT NULL DEFAULT '', splunk_indexes TEXT[] NOT NULL DEFAULT '{}',
+                        field_mapping JSONB NOT NULL DEFAULT '{}', email_config JSONB NOT NULL DEFAULT '{}',
+                        legacy_customer_id UUID UNIQUE, revision INTEGER NOT NULL DEFAULT 1,
+                        archived_at TIMESTAMPTZ, created_by TEXT NOT NULL DEFAULT '', updated_by TEXT NOT NULL DEFAULT '',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )"""
+                )
+                connection.execute(
+                    """CREATE TABLE IF NOT EXISTS soc_catalog_history (
+                        history_id BIGSERIAL PRIMARY KEY, catalog TEXT NOT NULL, record_id TEXT NOT NULL,
+                        revision INTEGER NOT NULL, action TEXT NOT NULL, actor TEXT NOT NULL DEFAULT '',
+                        reason TEXT NOT NULL DEFAULT '', before_json JSONB, after_json JSONB,
+                        changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )"""
+                )
+                if not hasattr(self, "uri"):
+                    return self._save_customer_email_config_local(connection, customer_id, normalized, actor)
+        from .catalog.store import CatalogStore
+
         with self._connect() as connection:
             row = connection.execute(
-                """
-                UPDATE customers
-                SET email_config = %s::jsonb, updated_at = NOW()
-                WHERE id = %s::uuid
-                RETURNING id::text, gid, name, email_config
-                """,
-                (json.dumps(normalized, separators=(",", ":")), customer_id),
+                """SELECT sc.customer_id, sc.revision, c.id::text
+                   FROM customers c LEFT JOIN soc_customer sc ON sc.legacy_customer_id = c.id
+                   WHERE c.id = %s::uuid OR sc.customer_id = %s
+                   ORDER BY sc.customer_id NULLS LAST LIMIT 1""",
+                (customer_id, customer_id),
             ).fetchone()
-            if row is None:
-                raise ValueError("customer was not found")
-        return {"id": str(row[0]), "gid": row[1], "name": row[2], "email_config": row[3] or normalized}
+        if row is None or not row[0]:
+            raise ValueError("customer was not found")
+        catalog = CatalogStore(self.uri)
+        try:
+            current = catalog.require_record("customer", str(row[0]))
+            values = {key: current.get(key) for key in (
+                "customer_code", "display_name", "short_name", "gid", "lifecycle_status", "notes",
+                "source_type_id", "related_staff_id", "splunk_indexes", "field_mapping", "email_config",
+            )}
+            values["email_config"] = normalized
+            saved = catalog.update_record(
+                "customer", str(row[0]), values, expected_revision=int(current["revision"]), actor=actor,
+                reason="alert email compatibility update",
+            )
+        finally:
+            catalog.close()
+        return {
+            "id": str(saved.get("legacy_customer_id") or row[2]),
+            "record_id": saved["record_id"], "revision": saved["revision"],
+            "gid": saved.get("gid", ""), "name": saved.get("display_name", ""),
+            "display_name": saved.get("display_name", ""),
+            "lifecycle_status": saved.get("lifecycle_status", ""),
+            "email_config": saved.get("email_config", normalized),
+        }
+
+    @staticmethod
+    def _save_customer_email_config_local(connection: Any, customer_id: str, normalized: dict[str, Any], actor: str) -> dict[str, Any]:
+        row = connection.execute(
+            "SELECT id::text, gid, name, short_name, status, source_type::text, related_staff::text, field_mapping, splunk_indexes FROM customers WHERE id = %s::uuid",
+            (customer_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("customer was not found")
+        legacy_id, gid, name, short_name, status, source_type, related_staff, mapping, indexes = row
+        customer_id_text = str(legacy_id).replace("-", "")
+        code = re.sub(r"[^a-z0-9_-]+", "-", str(short_name or gid or name or "customer").lower()).strip("-")[:64] or "customer"
+        current = connection.execute(
+            "SELECT customer_id, revision, email_config, display_name, lifecycle_status FROM soc_customer WHERE legacy_customer_id = %s::uuid FOR UPDATE",
+            (customer_id,),
+        ).fetchone()
+        before_json = None
+        if current:
+            revision = int(current[1]) + 1
+            before_json = {"email_config": current[2] or {}}
+            connection.execute(
+                "UPDATE soc_customer SET email_config=%s::jsonb, revision=%s, updated_by=%s, updated_at=NOW() WHERE customer_id=%s",
+                (json.dumps(normalized), revision, actor, current[0]),
+            )
+            record_id = str(current[0])
+            display_name = current[3]
+            lifecycle = current[4]
+        else:
+            revision = 1
+            record_id = customer_id_text
+            display_name = name or ""
+            lifecycle = "active" if str(status or "active").lower() == "active" else "retired"
+            connection.execute(
+                """INSERT INTO soc_customer (
+                    customer_id, customer_code, display_name, short_name, gid, lifecycle_status,
+                    source_type_id, related_staff_id, splunk_indexes, field_mapping, email_config,
+                    legacy_customer_id, created_by, updated_by
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::uuid,%s,%s)""",
+                (record_id, code, display_name, short_name or "", gid or "", lifecycle,
+                 source_type or "", related_staff or "", indexes or [], json.dumps(mapping or {}),
+                 json.dumps(normalized), customer_id, actor, actor),
+            )
+        after = {"email_config": normalized, "record_id": record_id, "revision": revision}
+        connection.execute(
+            """INSERT INTO soc_catalog_history (catalog,record_id,revision,action,actor,before_json,after_json)
+               VALUES ('customer',%s,%s,%s,%s,%s::jsonb,%s::jsonb)""",
+            (record_id, revision, "create" if before_json is None else "update", actor,
+             json.dumps(before_json) if before_json is not None else None, json.dumps(after)),
+        )
+        return {"id": str(legacy_id), "record_id": record_id, "revision": revision, "gid": gid or "", "name": display_name, "display_name": display_name, "lifecycle_status": lifecycle, "email_config": normalized}
 
     def save_snapshot(self, outbox_id, snapshot):
         with self._connect() as connection:
@@ -817,10 +937,19 @@ class AlertEmailWorker:
                 report.skipped += 1
                 continue
             try:
+                configured_recipients = merge_recipients(matching, context)
+                if not any(configured_recipients.get(key) for key in ("recipients", "cc", "bcc")):
+                    await asyncio.to_thread(
+                        self.store.mark_disabled,
+                        context.outbox_id,
+                        "customer email recipients are empty; add recipients in Customers",
+                    )
+                    report.skipped += 1
+                    continue
                 snapshot = context.delivery_snapshot
                 if snapshot is None:
                     subject, body = render_alert_email(context)
-                    snapshot = dict(recipients=merge_recipients(matching, context), subject=subject,
+                    snapshot = dict(recipients=configured_recipients, subject=subject,
                                     body=body, html=render_html(context),
                                     message_id=f"<{uuid.uuid4()}@soc-alert.local>")
                     await asyncio.to_thread(self.store.save_snapshot, context.outbox_id, snapshot)

@@ -80,8 +80,8 @@ def test_postgres_store_round_trips_config_and_accounts(monkeypatch):
     monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri, **_kwargs: connection))
 
     store = PostgresStore("postgresql://example.test/settings", "test-encryption-key")
-    store.set_config("SPLUNK_URL", "http://127.0.0.1:8089")
-    store.set_config("SPLUNK_PASSWORD", "splunk-secret")
+    store.set_config("SPLUNK_MCP_ENDPOINT", "http://127.0.0.1:8000/services/mcp")
+    store.set_config("SPLUNK_TOKEN", "splunk-token")
     account = store.add_account(
         label="Inbox",
         email="analyst@example.com",
@@ -89,9 +89,9 @@ def test_postgres_store_round_trips_config_and_accounts(monkeypatch):
         password="mail-secret",
     )
 
-    assert "splunk-secret" not in connection.config["SPLUNK_PASSWORD"]
+    assert "splunk-token" not in connection.config["SPLUNK_TOKEN"]
     assert "mail-secret" not in connection.accounts[account.id]["password_encrypted"]
-    assert store.get_config("SPLUNK_URL") == "http://127.0.0.1:8089"
+    assert store.get_config("SPLUNK_MCP_ENDPOINT") == "http://127.0.0.1:8000/services/mcp"
     assert store.get_account(account.id).password == "mail-secret"
     assert store.count_accounts() == 1
 
@@ -102,10 +102,8 @@ def test_server_settings_ignores_postgres_service_configuration(monkeypatch):
     store = PostgresStore("postgresql://example.test/settings", "test-encryption-key")
     store.set_configs(
         {
-            "SPLUNK_HOST": "splunk.internal",
-            "SPLUNK_PORT": "8089",
-            "SPLUNK_USERNAME": "admin",
-            "SPLUNK_PASSWORD": "secret",
+            "SPLUNK_MCP_ENDPOINT": "https://splunk.internal/services/mcp",
+            "SPLUNK_TOKEN": "secret",
             "SPLUNK_VERIFY_SSL": "false",
             "ZIMBRA_HOST": "mail.internal",
             "ZIMBRA_VERIFY_SSL": "false",
@@ -114,8 +112,8 @@ def test_server_settings_ignores_postgres_service_configuration(monkeypatch):
 
     settings = ServerSettings.from_store(store, {"MCP_TRANSPORT": "stdio"})
 
-    assert settings.splunk.host == ""
-    assert settings.splunk.password == ""
+    assert settings.splunk.mcp_endpoint == ""
+    assert settings.splunk.token == ""
     assert settings.splunk.verify_ssl is True
     assert settings.zimbra.host == ""
     assert settings.zimbra.verify_ssl is True

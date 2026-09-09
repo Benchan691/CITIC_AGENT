@@ -18,11 +18,11 @@ The Ruleset, Customer Information, and Fix Source type catalogs live in
 PostgreSQL. Analysts edit records through authenticated forms (`/catalogs`, or
 the catalog MCP tools with the editor's explicit Save); every change is
 recorded in an audit history table with the actor, timestamp, reason, and
-before/after values. Splunk consumers keep reading their lookup files:
-publishing generates the lookup snapshot from the catalog, validates it, and
-uploads it through the controlled write path (`SPLUNK_ALLOW_LOOKUP_WRITE`,
-admin-only), then verifies the published content by reading it back. Imports
-of existing lookup data go through staging and a reconciliation report via
+before/after values. Splunk consumers keep reading their lookup files. The
+catalog workflow still generates and validates lookup snapshots, but the
+official Splunk MCP server is currently read-only, so remote publication is
+unavailable until an upstream MCP mutation tool is provided. Imports of
+existing lookup data go through staging and a reconciliation report via
 `python -m unified_mcp_server.catalog_cli --help`.
 
 ## First-time setup
@@ -53,9 +53,9 @@ already running, restart it manually after the update.
 ## Configure Splunk alerts
 
 Use the Splunk detection MCP workflow to validate and stage saved-search alert
-settings. The harness approves the draft tool call, then the inline editor's
-Save action performs the authenticated write. For example, a scheduled alert
-can include:
+settings. The official MCP server currently exposes read-only tools, so the
+inline editor can review drafts but cannot commit a remote detection change.
+For example, a scheduled alert can include:
 
 For production detections, write only the detection logic first. Run
 `splunk_compile_citic_detection` with the four-digit rule number, explicit
@@ -97,23 +97,17 @@ themselves. Credential-like action settings are preserved by Splunk and are
 not returned or accepted for replacement.
 
 The harness asks for approval before either detection draft tool runs. After
-approval, review the inline editor and use its explicit Save action to write
-the detection. Cancel makes no Splunk change. MCP does not expose an
-enable/disable operation and never enables a detection. Every saved
-write/update persists the detection disabled; authorized staff must use a
-separately controlled Splunk process outside MCP when activation or rollback
-is required.
-The detection write gate is `SPLUNK_ALLOW_DETECTION_WRITE`; the legacy
-`SPLUNK_ALLOW_DETECTION_ENABLE` setting is ignored and is not reported.
+approval, review the inline editor; Save remains unavailable because MCP does
+not expose detection mutation tools. Cancel makes no Splunk change. MCP does
+not expose an enable/disable operation and never enables a detection.
 
 Persistent CSV lookups use the same draft/editor pattern. `splunk_get_lookup`
 reads the canonical CSV, while `splunk_write_lookup`, `splunk_update_lookup`,
-and `splunk_delete_lookup` prepare approval-gated drafts. The inline editor's
-Save or Delete action is the only commit path and rechecks the authenticated
-user, fixed `SPLUNK_LOOKUP_APP`/`SPLUNK_LOOKUP_OWNER` scope, CSV validity, and
-the update fingerprint. Enable this separately with
-`SPLUNK_ALLOW_LOOKUP_WRITE=true`; configure the Splunk Lookup File Editing API
-for content writes. The CSV editor does not execute `outputlookup` or
+and `splunk_delete_lookup` prepare approval-gated drafts. The inline editor
+continues to validate the authenticated user, fixed
+`SPLUNK_LOOKUP_APP`/`SPLUNK_LOOKUP_OWNER` scope, CSV validity, and update
+fingerprints, but Save and Delete are unavailable until MCP exposes lookup
+mutation tools. The CSV editor does not execute `outputlookup` or
 `outputcsv`.
 
 For new rules, follow the detection-writing workflow in

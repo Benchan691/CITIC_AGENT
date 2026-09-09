@@ -8,6 +8,8 @@ point at the offending input instead of one blended message.
 from __future__ import annotations
 
 import re
+import uuid
+from email.utils import parseaddr
 from typing import Any
 
 from ..errors import ServiceError
@@ -24,10 +26,27 @@ _RULE_NUMBER_RE = re.compile(r"^[0-9]{1,4}$")
 _CITIC_RULE_NUMBER_RE = re.compile(r"^[0-9]{4}$")
 _CUSTOMER_CODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 _GID_RE = re.compile(r"^(?:Default|default|[0-9]{1,10}|g[0-9]{1,10})$")
+_FIELD_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+$")
+
+FIELD_MAPPING_KEYS = (
+    "username",
+    "hostname",
+    "src_ip",
+    "dest_ip",
+    "event_id",
+    "title",
+    "description",
+    "severity",
+    "status",
+)
+EMAIL_LANGUAGES = ("EN", "CN", "ZH")
+EMAIL_BRANDS = ("CPC", "CEC")
 
 MAX_TEXT_LENGTHS = {
     "customer_code": 64,
     "display_name": 200,
+    "short_name": 100,
     "gid": 16,
     "notes": 4000,
     "rule_number": 4,
@@ -77,11 +96,125 @@ def _apply_common_rules(column: str, value: str, fields: dict[str, str]) -> str:
     return value
 
 
-def validate_customer(payload: dict[str, Any], *, partial: bool) -> dict[str, str]:
+def _uuid_value(payload: dict[str, Any], column: str, fields: dict[str, str]) -> str:
+    value = payload.get(column, "")
+    if value in (None, ""):
+        return ""
+    if not isinstance(value, str):
+        fields[column] = "must be a UUID or empty."
+        return ""
+    value = value.strip()
+    try:
+        return str(uuid.UUID(value))
+    except (ValueError, AttributeError):
+        fields[column] = "must be a valid UUID or empty."
+        return value
+
+
+def _email_list(value: Any, column: str, fields: dict[str, str]) -> list[str]:
+    if value in (None, ""):
+        return []
+    values = [value] if isinstance(value, str) else value if isinstance(value, list) else None
+    if values is None:
+        fields[column] = "must be a list of email addresses."
+        return []
+    if len(values) > 50:
+        fields[column] = "contains too many recipients."
+        return []
+    result: list[str] = []
+    for item in values:
+        if not isinstance(item, str):
+            fields[column] = "must contain only email addresses."
+            continue
+        address = item.strip()
+        name, parsed = parseaddr(address)
+        if name or parsed != address or not _EMAIL_RE.fullmatch(address) or len(address) > 320:
+            fields[column] = "contains an invalid email address."
+            continue
+        if address.casefold() not in {existing.casefold() for existing in result}:
+            result.append(address)
+    return result
+
+
+def _email_config(value: Any, fields: dict[str, str]) -> dict[str, Any]:
+    if value in (None, ""):
+        value = {}
+    if not isinstance(value, dict):
+        fields["email_config"] = "must be an object."
+        value = {}
+    result = {
+        "recipients": _email_list(value.get("recipients", value.get("to", [])), "email_config.recipients", fields),
+        "cc": _email_list(value.get("cc", []), "email_config.cc", fields),
+        "bcc": _email_list(value.get("bcc", []), "email_config.bcc", fields),
+        "language": str(value.get("language", "EN") or "EN").upper(),
+        "brand": str(value.get("brand", "CPC") or "CPC").upper(),
+    }
+    if result["language"] not in EMAIL_LANGUAGES:
+        fields["email_config.language"] = "choose EN, CN, or ZH."
+    if result["brand"] not in EMAIL_BRANDS:
+        fields["email_config.brand"] = "choose CPC or CEC."
+    return result
+
+
+def _field_mapping(value: Any, fields: dict[str, str]) -> dict[str, str]:
+    if value in (None, ""):
+        value = {}
+    if not isinstance(value, dict):
+        fields["field_mapping"] = "must be an object."
+        value = {}
+    result: dict[str, str] = {}
+    for key in FIELD_MAPPING_KEYS:
+        item = value.get(key, "")
+        if not isinstance(item, str):
+            fields[f"field_mapping.{key}"] = "must be text."
+            item = ""
+        result[key] = item.strip()[:255]
+    for key, item in value.items():
+        if key in FIELD_MAPPING_KEYS:
+            continue
+        if not isinstance(key, str) or not _FIELD_KEY_RE.fullmatch(key):
+            fields[f"field_mapping.{key}"] = "must use a simple field name."
+            continue
+        if not isinstance(item, str):
+            fields[f"field_mapping.{key}"] = "must be text."
+            continue
+        result[key] = item.strip()[:255]
+    return result
+
+
+def _splunk_indexes(value: Any, fields: dict[str, str]) -> list[str]:
+    if value in (None, ""):
+        return []
+    if not isinstance(value, list):
+        fields["splunk_indexes"] = "must be a list of index names."
+        return []
+    if len(value) > 100:
+        fields["splunk_indexes"] = "contains too many indexes."
+        return []
+    result: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            fields["splunk_indexes"] = "must contain only text index names."
+            continue
+        name = item.strip()
+        if not name or len(name) > 255:
+            fields["splunk_indexes"] = "contains an invalid index name."
+            continue
+        if name.casefold() not in {existing.casefold() for existing in result}:
+            result.append(name)
+    return result
+
+
+def validate_customer(payload: dict[str, Any], *, partial: bool) -> dict[str, Any]:
     fields: dict[str, str] = {}
-    values: dict[str, str] = {}
-    for column in CATALOG_EDITABLE_COLUMNS["customer"]:
+    values: dict[str, Any] = {}
+    for column in ("customer_code", "display_name", "short_name", "gid", "lifecycle_status", "notes"):
         values[column] = _apply_common_rules(column, _text_value(payload, column, fields), fields)
+    values["source_type_id"] = _uuid_value(payload, "source_type_id", fields)
+    values["related_staff_id"] = _uuid_value(payload, "related_staff_id", fields)
+    values["splunk_indexes"] = _splunk_indexes(payload.get("splunk_indexes", []), fields)
+    values["field_mapping"] = _field_mapping(payload.get("field_mapping", {}), fields)
+    values["email_config"] = _email_config(payload.get("email_config", {}), fields)
 
     if not partial or "customer_code" in payload:
         if not values["customer_code"]:
@@ -102,7 +235,7 @@ def validate_customer(payload: dict[str, Any], *, partial: bool) -> dict[str, st
     return values
 
 
-def validate_rule(payload: dict[str, Any], *, partial: bool) -> dict[str, str]:
+def validate_rule(payload: dict[str, Any], *, partial: bool) -> dict[str, Any]:
     fields: dict[str, str] = {}
     values: dict[str, str] = {}
     for column in CATALOG_EDITABLE_COLUMNS["rule"]:
@@ -130,7 +263,7 @@ def validate_rule(payload: dict[str, Any], *, partial: bool) -> dict[str, str]:
     return values
 
 
-def validate_fix_source_type(payload: dict[str, Any], *, partial: bool) -> dict[str, str]:
+def validate_fix_source_type(payload: dict[str, Any], *, partial: bool) -> dict[str, Any]:
     fields: dict[str, str] = {}
     values: dict[str, str] = {}
     for column in CATALOG_EDITABLE_COLUMNS["fix_source_type"]:
@@ -163,7 +296,7 @@ VALIDATORS = {
 }
 
 
-def validate_payload(catalog: str, payload: dict[str, Any], *, partial: bool = False) -> dict[str, str]:
+def validate_payload(catalog: str, payload: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
     validator = VALIDATORS.get(catalog)
     if validator is None:
         raise ServiceError("invalid_input", f"Unknown catalog: {catalog}")

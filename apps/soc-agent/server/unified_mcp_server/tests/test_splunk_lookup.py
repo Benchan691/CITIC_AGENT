@@ -1,13 +1,11 @@
 import json
 
 import pytest
-import httpx
-
 from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.splunk.core.service import SplunkCore
 from unified_mcp_server.splunk.search.service import SplunkSearchService
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError, SplunkClient
+from unified_mcp_server.splunk.errors import SplunkAPIError
 from unified_mcp_server.splunk.search.lookup import (
     canonical_csv_text,
     lookup_fingerprint,
@@ -17,12 +15,10 @@ from unified_mcp_server.splunk.search.lookup import (
 
 def settings(**overrides):
     values = {
-        "host": "splunk.example.com",
-        "port": 8089,
-        "username": "",
-        "password": "",
+        "mcp_endpoint": "https://splunk.example.com/services/mcp",
         "token": "token",
         "verify_ssl": True,
+        "allow_insecure_http": False,
         "request_timeout": 30,
         "job_timeout": 120,
         "max_events": 100,
@@ -123,148 +119,6 @@ async def test_list_lookups_filters_app_and_name_and_tolerates_missing_acl():
     assert all_result["lookups"][2]["acl"] == {}
     assert all_result["lookups"][2]["app"] == ""
     await core.close()
-
-
-@pytest.mark.asyncio
-async def test_lookup_client_uses_read_only_rest_endpoint_and_filters():
-    class Response:
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            return {"entry": LOOKUPS}
-
-    class HttpClient:
-        def __init__(self):
-            self.call = None
-
-        async def get(self, path, params):
-            self.call = (path, params)
-            return Response()
-
-    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
-    client._client = HttpClient()
-
-    result = await client.get_lookup_table_files(app="search", search='name="Ruleset.csv"')
-
-    assert result == LOOKUPS[:2]
-    assert client._client.call == (
-        "/services/data/lookup-table-files",
-        {"output_mode": "json", "count": 50, "search": 'name="Ruleset.csv"'},
-    )
-
-
-@pytest.mark.asyncio
-async def test_lookup_client_uses_content_editor_for_create_update_and_delete():
-    class Response:
-        def __init__(self, payload=None):
-            self.payload = payload or {"ok": True}
-
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            return self.payload
-
-    class HttpClient:
-        def __init__(self):
-            self.calls = []
-
-        async def get(self, path, params):
-            self.calls.append(("get", path, params))
-            return Response([["id"], ["1"]])
-
-        async def post(self, path, data, params=None):
-            self.calls.append(("post", path, data, params))
-            return Response()
-
-        async def delete(self, path, params=None):
-            self.calls.append(("delete", path, params))
-            return Response()
-
-    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
-    client._client = HttpClient()
-
-    assert await client.get_lookup_contents("Ruleset.csv", "search", "nobody") == [["id"], ["1"]]
-    await client.create_lookup_contents("Ruleset.csv", "search", "nobody", [["id"], ["1"]])
-    await client.update_lookup_contents("Ruleset.csv", "search", "nobody", [["id"], ["2"]])
-    await client.delete_lookup_table_file("Ruleset.csv", "search", "nobody")
-
-    assert client._client.calls[0] == (
-        "get",
-        "/services/data/lookup_edit/lookup_contents",
-        {
-            "output_mode": "json",
-            "lookup_file": "Ruleset.csv",
-            "namespace": "search",
-            "lookup_type": "csv",
-            "owner": "nobody",
-        },
-    )
-    for call in client._client.calls[1:3]:
-        assert call[0:2] == ("post", "/services/data/lookup_edit/lookup_contents")
-        assert json.loads(call[2]["contents"]) == [["id"], ["1"]] or json.loads(call[2]["contents"]) == [["id"], ["2"]]
-    assert client._client.calls[3] == (
-        "delete",
-        "/servicesNS/nobody/search/data/lookup-table-files/Ruleset.csv",
-        {"output_mode": "json"},
-    )
-
-
-@pytest.mark.asyncio
-async def test_index_connection_failure_has_actionable_message():
-    class HttpClient:
-        async def get(self, _path, params=None):
-            raise httpx.ConnectError("All connection attempts failed")
-
-    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
-    client._client = HttpClient()
-
-    with pytest.raises(SplunkAPIError, match="Could not reach Splunk at the configured URL"):
-        await client.get_indexes()
-
-
-@pytest.mark.asyncio
-async def test_saved_search_client_uses_read_only_name_filter():
-    class Response:
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            return {"entry": [
-                {
-                    "name": "0723 Suspicious Login",
-                    "content": {"search": "index=main error", "disabled": "0"},
-                    "acl": {"app": "search", "owner": "nobody"},
-                },
-            ]}
-
-    class HttpClient:
-        def __init__(self):
-            self.call = None
-
-        async def get(self, path, params):
-            self.call = (path, params)
-            return Response()
-
-    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
-    client._client = HttpClient()
-
-    result = await client.get_saved_searches(name="0723", app="search")
-
-    assert result[0]["name"] == "0723 Suspicious Login"
-    assert result[0]["app"] == "search"
-    assert result[0]["owner"] == "nobody"
-    assert client._client.call == (
-        "/services/saved/searches",
-        {"output_mode": "json", "count": 50, "search": 'name="*0723*" AND app="search"'},
-    )
-
-    await client.get_saved_searches(app="search")
-    assert client._client.call == (
-        "/services/saved/searches",
-        {"output_mode": "json", "count": 50, "search": 'app="search"'},
-    )
 
 
 def test_inputlookup_is_readable_and_outputlookup_is_blocked():
@@ -439,90 +293,3 @@ async def test_lookup_save_gate_and_target_checks_fail_before_writes():
         )
     assert absent.value.code == "target_not_found"
     await core.close()
-
-
-@pytest.mark.asyncio
-async def test_saved_search_stops_polling_on_failed_job_state():
-    class Response:
-        text = "{}"
-
-        def __init__(self, payload):
-            self.payload = payload
-
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            return self.payload
-
-    class HttpClient:
-        async def post(self, path, data, params=None):
-            return Response({"sid": "job-1"})
-
-        async def get(self, path, params):
-            return Response({"entry": [{"content": {"dispatchState": "FAILED"}}]})
-
-    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
-    client._client = HttpClient()
-
-    with pytest.raises(Exception, match="terminal state FAILED"):
-        await client.run_saved_search("Failed search")
-
-
-@pytest.mark.asyncio
-@pytest.mark.asyncio
-async def test_saved_search_timeout_cancels_the_remote_job(monkeypatch):
-    class Response:
-        text = "{}"
-
-        def __init__(self, payload=None):
-            self.payload = payload or {}
-
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            return self.payload
-
-    class HttpClient:
-        def __init__(self):
-            self.posts = []
-
-        async def post(self, path, data, params=None):
-            self.posts.append((path, data, params))
-            return Response({"sid": "job-2"})
-
-        async def get(self, path, params):
-            return Response({"entry": [{"content": {"dispatchState": "RUNNING"}}]})
-
-    client = SplunkClient({
-        "splunk_host": "splunk.example.com", "splunk_port": 8089, "job_timeout": 5,
-    })
-    client._client = HttpClient()
-
-    # The job budget bounds the dispatch too; force the timeout inside the
-    # poll phase so the SID exists and the finally block cancels the job.
-    async def timed_out_poll(*_args, **_kwargs):
-        raise client._deadline_error("saved search")
-
-    monkeypatch.setattr(client, "_poll_job", timed_out_poll)
-
-    with pytest.raises(Exception, match="timed out"):
-        await client.run_saved_search("Slow search")
-
-    assert client._client.posts[-1] == (
-        "/services/search/jobs/job-2/control",
-        {"action": "cancel"},
-        {"output_mode": "json"},
-    )
-
-
-@pytest.mark.parametrize(
-    "payload",
-    ["{broken", '{"messages":[{"type":"ERROR","text":"failed"}]}', '{"results":["not-an-object"]}'],
-)
-def test_splunk_result_parser_rejects_malformed_or_message_only_payloads(payload):
-    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
-
-    with pytest.raises(SplunkAPIError):
-        client._parse_response(payload)

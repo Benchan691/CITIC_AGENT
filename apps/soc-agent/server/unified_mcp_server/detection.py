@@ -61,7 +61,7 @@ _FIELD_ALIASES = {
 
 
 def canonical_alert_field_name(key: Any) -> str | None:
-    """Return the supported REST field name for one payload/content key."""
+    """Return the supported Splunk field name for one payload/content key."""
     if not isinstance(key, str):
         return None
     if key in _FIELD_ALIASES:
@@ -90,7 +90,7 @@ def _scalar_value(key: str, value: Any) -> str:
 
 
 def canonical_alert_fields(payload: Mapping[str, Any]) -> dict[str, str]:
-    """Extract supported alert fields and normalize them for REST writes."""
+    """Extract supported alert fields and normalize them for persistence."""
     if not isinstance(payload, Mapping):
         raise ValueError("detection must be a JSON object")
     fields: dict[str, str] = {}

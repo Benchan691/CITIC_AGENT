@@ -194,7 +194,7 @@ class SplunkDetectionService:
             raise ServiceError("invalid_input", str(exc)) from exc
         merged = {**current, **payload, "name": name, "enabled": False}
         # Apply canonical values after the shallow merge so an alias such as
-        # earliest_time or counttype cannot be masked by the current raw REST
+        # earliest_time or counttype cannot be masked by the current MCP
         # field. Empty canonical values intentionally clear the setting.
         merged.update(alert_fields)
         return merged
@@ -309,7 +309,7 @@ class SplunkDetectionService:
             "sharing": acl.get("sharing", ""),
         }
         detection.update(alert_fields)
-        # Keep the legacy aliases in reads while exposing the raw REST names
+        # Keep the legacy aliases in reads while exposing the source names
         # beside them. The raw values are the canonical source for editor drafts.
         detection["earliest_time"] = alert_fields.get(
             "dispatch.earliest_time", detection["earliest_time"]
@@ -490,7 +490,7 @@ class SplunkDetectionService:
             alert_fields = canonical_alert_fields(state)
             # The editor uses "auto" as a display-only sentinel when Splunk
             # has no explicit tracking setting; do not send that sentinel to
-            # the REST API as a saved-search value.
+            # the MCP saved-search tool as a saved-search value.
             if alert_fields.get("alert.track") == "auto":
                 alert_fields.pop("alert.track")
             fields.update(alert_fields)
@@ -520,7 +520,7 @@ class SplunkDetectionService:
         if not settings.detection_write_enabled:
             raise ServiceError(
                 "operation_disabled",
-                "Detection writes are disabled. Set SPLUNK_ALLOW_DETECTION_WRITE=true after review.",
+                "Detection writes are unavailable: the official Splunk MCP server exposes no mutation tool.",
             )
 
     def _prepare_write(self, payload: dict[str, Any]) -> tuple[dict[str, Any], DetectionDraft, dict[str, Any]]:

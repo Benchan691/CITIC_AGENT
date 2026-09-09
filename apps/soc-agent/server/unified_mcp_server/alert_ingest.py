@@ -1,10 +1,10 @@
-"""Read-only Splunk fired-alert ingestion into PostgreSQL.
+"""Read-only Splunk MCP fired-alert ingestion into PostgreSQL.
 
-The Splunk side of this module only performs GET requests against the fired
-alert catalog and existing search-job result SIDs.  PostgreSQL receives alert
-metadata after the required ``Event_GID``/``Event_Rulenum`` contract resolves
-to one active customer/ruleset pair; everything else is retained in the
-quarantine table for operator review.
+The Splunk side of this module only calls the official fired-alert catalog and
+detail tools. PostgreSQL receives alert metadata after the required
+``Event_GID``/``Event_Rulenum`` contract resolves to one active
+customer/ruleset pair; everything else is retained in the quarantine table for
+operator review.
 
 Run from ``apps/soc-agent/server``::
 
@@ -29,7 +29,7 @@ from typing import Any
 from .config import ServerSettings
 from .env_loader import load_server_env
 from .postgres_store import PostgresBootstrap, create_connection_pool
-from .splunk.splunk_client import SplunkAPIError, SplunkClient
+from .splunk.official_mcp_client import OfficialSplunkMCPClient
 
 try:
     import psycopg
@@ -38,7 +38,6 @@ except ImportError:  # pragma: no cover - optional runtime guard
 
 
 LOGGER = logging.getLogger(__name__)
-REQUIRED_FIELDS = ("Event_GID", "Event_Rulenum")
 ALLOWED_SEVERITIES = {"info", "low", "medium", "high", "critical"}
 EVENT_DATA_KEYS = {
     "sid",
@@ -61,10 +60,6 @@ EVENT_DATA_KEYS = {
     "GID",
     "rulename",
 }
-
-
-class RetryableAlertError(Exception):
-    """A temporary SID lookup failure that should not be quarantined."""
 
 
 def _content(value: Mapping[str, Any]) -> dict[str, Any]:
@@ -506,7 +501,7 @@ class AlertIngestionService:
         self.max_pages = max(1, int(max_pages))
 
     async def _pages(self, method: Any, *, page_size: int):
-        """Yield paged REST resources without trusting a single response page."""
+        """Yield paged MCP results without trusting a single response page."""
         offset = 0
         seen_offsets: set[int] = set()
         for _ in range(self.max_pages):
@@ -567,28 +562,12 @@ class AlertIngestionService:
         ):
             yield items
 
-    async def _field_pair(self, payload: Mapping[str, Any], sid: str | None) -> tuple[str | None, str | None, str | None]:
+    def _field_pair(self, payload: Mapping[str, Any]) -> tuple[str | None, str | None, str | None]:
         direct_gid = _text(_first(payload, "Event_GID", "event_gid", "GID"), limit=128)
         direct_rule = _text(_first(payload, "Event_Rulenum", "event_rulenum", "rulename"), limit=128)
         pairs: set[tuple[str, str]] = set()
         if direct_gid and direct_rule:
             pairs.add((direct_gid, direct_rule))
-        if sid and not pairs:
-            try:
-                rows = await self.client.get_job_result_fields(sid, REQUIRED_FIELDS, max_count=10)
-            except SplunkAPIError as exc:
-                if exc.status_code is None or exc.status_code in {408, 425, 429, 500, 502, 503, 504}:
-                    raise RetryableAlertError(
-                        f"temporary selected-field lookup failure for Splunk SID: {exc.message}"
-                    ) from exc
-                return None, None, f"could not retrieve selected fields for Splunk SID: {exc.message}"
-            for row in rows:
-                if not isinstance(row, Mapping):
-                    continue
-                gid = _text(_first(row, "Event_GID", "event_gid", "GID"), limit=128)
-                rule = _text(_first(row, "Event_Rulenum", "event_rulenum", "rulename"), limit=128)
-                if gid and rule:
-                    pairs.add((gid, rule))
         if len(pairs) == 1:
             gid, rule = next(iter(pairs))
             return gid, rule, None
@@ -613,7 +592,7 @@ class AlertIngestionService:
         sid = _text(_first(payload, "sid", "search_id", "searchId"), limit=1_024)
         trigger_time = _timestamp(_first(payload, "trigger_time", "triggerTime", "triggered_time"))
         result_count = _count(_first(payload, "result_count", "event_count", "triggered_alert_count"))
-        event_gid, event_rulenum, mapping_error = await self._field_pair(payload, sid)
+        event_gid, event_rulenum, mapping_error = self._field_pair(payload)
         data = _event_data(payload, event_gid=event_gid, event_rulenum=event_rulenum)
         alert = NormalizedAlert(
             splunk_sid=sid,
@@ -701,10 +680,6 @@ class AlertIngestionService:
                 report.inserted += 1
             else:
                 report.skipped += 1
-        except RetryableAlertError as exc:
-            report.failed += 1
-            report.retryable = True
-            report.errors.append(str(exc)[:240])
         except Exception as exc:  # keep one bad alert from losing the batch
             report.failed += 1
             report.errors.append(str(exc)[:240])
@@ -762,7 +737,7 @@ class AlertIngestionWorker:
 
     def __init__(
         self,
-        client: SplunkClient,
+        client: OfficialSplunkMCPClient,
         store: AlertIngestionStore,
         *,
         interval_seconds: int = 60,
@@ -797,7 +772,7 @@ class AlertIngestionWorker:
             LOGGER.warning("Alert ingestion is enabled but APP_POSTGRES_URI is not configured.")
             return None
         return cls(
-            SplunkClient(settings.splunk.client_config()),
+            OfficialSplunkMCPClient(settings.splunk.client_config()),
             store,
             interval_seconds=settings.alert_ingest_interval_seconds,
             limit=settings.alert_ingest_limit,
@@ -909,7 +884,7 @@ async def _run(args: argparse.Namespace) -> int:
     store = AlertIngestionStore.from_env()
     if store is None:
         raise SystemExit("APP_POSTGRES_URI is required for alert ingestion.")
-    client = SplunkClient(settings.splunk.client_config())
+    client = OfficialSplunkMCPClient(settings.splunk.client_config())
     try:
         await client.connect()
         print("[OK] Connected to Splunk")

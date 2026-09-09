@@ -91,14 +91,14 @@ def test_service_configuration_comes_from_environment_only(tmp_path):
         Store(),
         {
             "SPL_CONFIG_FILE": str(ignored_path),
-            "SPLUNK_URL": "https://env.example.com:8089",
+            "SPLUNK_MCP_ENDPOINT": "https://env.example.com/services/mcp",
             "SPLUNK_TOKEN": "env-token",
             "SPLUNK_MAX_EVENTS": "9",
             "ZIMBRA_HOST": "https://mail.example.com",
         },
     )
 
-    assert settings.splunk.host == "env.example.com"
+    assert settings.splunk.mcp_endpoint == "https://env.example.com/services/mcp"
     assert settings.splunk.token == "env-token"
     assert settings.splunk.max_events == 9
     assert settings.zimbra.host == "https://mail.example.com"
@@ -184,7 +184,7 @@ def test_persisted_configuration_is_not_a_fallback():
 def test_status_redacts_credentials_and_does_not_include_mailbox_identity():
     settings = ServerSettings.from_env(
         {
-            "SPLUNK_HOST": "splunk.example.com",
+            "SPLUNK_MCP_ENDPOINT": "https://splunk.example.com/services/mcp",
             "SPLUNK_TOKEN": "splunk-secret",
             "ZIMBRA_HOST": "mail.example.com",
             "ZIMBRA_EMAIL": "analyst@example.com",
@@ -202,7 +202,7 @@ def test_status_redacts_credentials_and_does_not_include_mailbox_identity():
 def test_public_status_redacts_credential_bearing_endpoint_parts():
     settings = ServerSettings.from_env(
         {
-            "SPLUNK_URL": "https://splunk.example.com:8089",
+            "SPLUNK_MCP_ENDPOINT": "https://splunk.example.com/services/mcp",
             "ZIMBRA_HOST": "https://mail.example.com/",
             "MARKITDOWN_LLM_BASE_URL": "https://llm.example.com/v1?api_key=llm-query-secret",
             "SUBSCRIPTION_SERVER_URL": "https://email.example.com/api?password=email-query-secret",
@@ -216,9 +216,9 @@ def test_public_status_redacts_credential_bearing_endpoint_parts():
 
 
 def test_credential_bearing_splunk_and_zimbra_endpoints_are_rejected():
-    with pytest.raises(ValueError, match="SPLUNK_URL"):
+    with pytest.raises(ValueError, match="SPLUNK_MCP_ENDPOINT"):
         ServerSettings.from_env({
-            "SPLUNK_URL": "https://user:password@splunk.example.com:8089",
+            "SPLUNK_MCP_ENDPOINT": "https://user:password@splunk.example.com/services/mcp",
         })
     with pytest.raises(ValueError, match="ZIMBRA_HOST"):
         ServerSettings.from_env({
@@ -239,7 +239,7 @@ def test_public_status_does_not_echo_non_url_llm_endpoint_values():
 def test_public_readiness_contains_no_endpoint_or_llm_configuration():
     settings = ServerSettings.from_env(
         {
-            "SPLUNK_HOST": "splunk.example.com",
+            "SPLUNK_MCP_ENDPOINT": "https://splunk.example.com/services/mcp",
             "ZIMBRA_HOST": "mail.example.com",
             "MARKITDOWN_LLM_ENABLED": "true",
             "MARKITDOWN_LLM_API_KEY": "llm-secret",
@@ -340,51 +340,38 @@ def test_zimbra_email_and_password_load_from_environment():
     assert settings.zimbra.configured is True
 
 
-def test_splunk_url_preserves_scheme_and_port():
+def test_splunk_mcp_endpoint_is_used_for_client_configuration():
     settings = ServerSettings.from_env(
         {
-            "SPLUNK_URL": "http://127.0.0.1:8089",
-            "SPLUNK_PORT": "",
+            "SPLUNK_MCP_ENDPOINT": "http://127.0.0.1:8000/services/mcp",
             "SPLUNK_ALLOW_INSECURE_HTTP": "true",
-            "SPLUNK_USERNAME": "admin",
-            "SPLUNK_PASSWORD": "secret",
-        }
-    )
-
-    assert settings.splunk.host == "127.0.0.1"
-    assert settings.splunk.port == 8089
-    assert settings.splunk.client_config()["splunk_url"] == "http://127.0.0.1:8089"
-
-
-def test_splunk_port_is_only_required_for_hostname_configuration():
-    settings = ServerSettings.from_env(
-        {
-            "SPLUNK_URL": "https://splunk.example.com:9443",
-            "SPLUNK_PORT": "not-used",
             "SPLUNK_TOKEN": "token",
         }
     )
 
-    assert settings.splunk.host == "splunk.example.com"
-    assert settings.splunk.port == 9443
+    assert settings.splunk.mcp_endpoint == "http://127.0.0.1:8000/services/mcp"
+    assert settings.splunk.client_config()["splunk_mcp_endpoint"] == "http://127.0.0.1:8000/services/mcp"
 
-    with pytest.raises(ValueError, match="SPLUNK_PORT"):
-        ServerSettings.from_env(
-            {
-                "SPLUNK_HOST": "splunk.example.com",
-                "SPLUNK_PORT": "",
-            }
-        )
+
+def test_splunk_mcp_endpoint_does_not_use_legacy_host_configuration():
+    settings = ServerSettings.from_env(
+        {
+            "SPLUNK_MCP_ENDPOINT": "https://splunk.example.com:9443/services/mcp",
+            "SPLUNK_TOKEN": "token",
+        }
+    )
+
+    assert settings.splunk.mcp_endpoint == "https://splunk.example.com:9443/services/mcp"
 
 
 def test_splunk_and_zimbra_http_require_explicit_opt_out():
-    with pytest.raises(ValueError, match="SPLUNK_URL"):
-        ServerSettings.from_env({"SPLUNK_URL": "http://splunk.example.com:8089"})
+    with pytest.raises(ValueError, match="SPLUNK_MCP_ENDPOINT"):
+        ServerSettings.from_env({"SPLUNK_MCP_ENDPOINT": "http://splunk.example.com:8000/services/mcp"})
     with pytest.raises(ValueError, match="ZIMBRA_HOST"):
         ServerSettings.from_env({"ZIMBRA_HOST": "http://mail.example.com"})
 
     splunk = ServerSettings.from_env({
-        "SPLUNK_URL": "http://splunk.example.com:8089",
+        "SPLUNK_MCP_ENDPOINT": "http://splunk.example.com:8000/en-US/splunkd/__raw/services/mcp",
         "SPLUNK_ALLOW_INSECURE_HTTP": "true",
     })
     zimbra = ServerSettings.from_env({
@@ -398,7 +385,6 @@ def test_splunk_and_zimbra_http_require_explicit_opt_out():
 def test_official_splunk_mcp_endpoint_is_explicit_and_redacted():
     settings = ServerSettings.from_env(
         {
-            "SPLUNK_URL": "https://splunk.example.com:8089",
             "SPLUNK_MCP_ENDPOINT": "http://splunk.example.com:8000/en-US/splunkd/__raw/services/mcp",
             "SPLUNK_ALLOW_INSECURE_HTTP": "true",
             "SPLUNK_TOKEN": "mcp-secret",

@@ -118,38 +118,6 @@ async def test_interactive_search_gets_next_free_slot_before_waiting_scheduled_w
     assert manager._waiters == []
 
 
-async def test_only_transient_reads_are_retried_once():
-    import httpx
-    from unified_mcp_server.splunk.splunk_client import SplunkClient
-    client = SplunkClient({"splunk_host": "fixture.invalid", "splunk_port": 8089})
-    calls = []
-    async def get(*_args, **_kwargs):
-        calls.append("get")
-        if len(calls) == 1:
-            raise httpx.ConnectError("offline fixture")
-        return SimpleNamespace(status_code=200)
-    client._client = SimpleNamespace(get=get)
-    assert (await client._get("/fixture")).status_code == 200
-    assert calls == ["get", "get"]
-
-
-async def test_splunk_dispatch_itself_is_bounded_by_the_job_budget():
-    from unified_mcp_server.splunk.splunk_client import SplunkClient, SplunkAPIError
-    client = SplunkClient({"splunk_host": "fixture.invalid", "splunk_port": 8089})
-    stopped = asyncio.Event()
-    async def dispatch(*_args, **_kwargs):
-        try:
-            await asyncio.Event().wait()
-        finally:
-            stopped.set()
-    client._client = SimpleNamespace(post=dispatch)
-    with pytest.raises(SplunkAPIError) as error:
-        await asyncio.wait_for(client._run_job(dispatch_url="/fixture", dispatch_params={}, max_count=1,
-                                               results_path_prefix="/fixture", label="fixture", runtime_limit=0.01), 1)
-    assert error.value.error_code == "runtime_limit_exceeded"
-    assert stopped.is_set()
-
-
 def test_scheduled_relative_window_uses_original_run_time():
     from dataclasses import replace
     from unified_mcp_server.splunk.search.evidence import resolve_time_window

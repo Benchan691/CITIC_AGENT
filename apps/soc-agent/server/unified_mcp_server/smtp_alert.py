@@ -62,7 +62,9 @@ def routing_matches(route, context):
 
 def merge_recipients(rules, context):
     from .alert_email import normalize_email_config
-    configs = [normalize_email_config(r.routing.get('recipients', context.email_config)) for r in rules]
+    # Provisioned customers may intentionally have no recipients yet; the
+    # worker treats the resulting empty merged route as a disabled delivery.
+    configs = [normalize_email_config(r.routing.get('recipients', context.email_config), require_recipient=False) for r in rules]
     result, seen = {}, set()
     # BCC wins if two routes disagree about visibility.
     for key in ('bcc', 'recipients', 'cc'):

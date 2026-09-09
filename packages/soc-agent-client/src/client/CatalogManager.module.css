@@ -198,6 +198,28 @@
   margin-bottom: 8px;
 }
 
+.customerFields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customerFields h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.row .control {
+  flex: 1;
+}
+
 .publishBar {
   display: flex;
   gap: 8px;

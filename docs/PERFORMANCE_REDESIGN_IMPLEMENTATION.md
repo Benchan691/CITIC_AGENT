@@ -15,7 +15,7 @@ flowchart TD
     Agent --> Bridge[MCP bridge and SDK metadata patch]
     Bridge --> MCP[Python runtime refresh and identity services]
     MCP --> Search[Search executor and process-local evidence]
-    Search --> Splunk[Splunk REST jobs]
+    Search --> Splunk[Splunk MCP queries]
     MCP --> Mail[Blocking mail adapter and conversion]
     Mail --> Zimbra[Zimbra SOAP]
     UI --> Control[Persistent control channel with per-command services]
@@ -56,7 +56,7 @@ flowchart TD
     Agent --> MCP[MCP: host metadata, deadline and correlation]
     MCP --> Runtime[Stable Python runtime]
     Runtime --> Coordinator[Validation, admission and coalescing]
-    Coordinator --> Splunk[Splunk: up to two searches per principal]
+    Coordinator --> Splunk[Splunk MCP: up to two searches per principal]
     Coordinator --> Evidence[Bounded memory and SQLite evidence]
     Evidence --> Preview[Compact JSON and evidence paging]
     Preview --> Agent

@@ -2,7 +2,7 @@ import pytest
 
 from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ServiceError
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError
+from unified_mcp_server.splunk.errors import SplunkAPIError
 from unified_mcp_server.splunk_service import SplunkService
 from unified_mcp_server.tests.citic_fixtures import citic_spl
 
@@ -13,12 +13,10 @@ UPDATED_SPL = citic_spl("index=main critical")
 
 def settings(**overrides):
     values = {
-        "host": "splunk.example.com",
-        "port": 8089,
-        "username": "",
-        "password": "",
+        "mcp_endpoint": "https://splunk.example.com/services/mcp",
         "token": "token",
         "verify_ssl": True,
+        "allow_insecure_http": False,
         "request_timeout": 30,
         "job_timeout": 120,
         "max_events": 2,

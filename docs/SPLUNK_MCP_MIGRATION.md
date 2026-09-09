@@ -1,8 +1,8 @@
 # Splunk MCP Server 2.0 migration report
 
-The CITIC_AGENT backend now selects the official Splunk MCP adapter whenever
-`SPLUNK_MCP_ENDPOINT` is configured. The agent-facing SOC tools and their
-response contracts are unchanged.
+The CITIC_AGENT backend now uses the official Splunk MCP adapter exclusively.
+`SPLUNK_MCP_ENDPOINT` and `SPLUNK_TOKEN` are required for Splunk access. The
+agent-facing SOC tools and their response contracts are unchanged.
 
 ## Verification
 
@@ -34,21 +34,19 @@ tests passes under Python 3.12.
 | Alert catalog/details/throttles | Verified official replacement | Official 2.0 tools are exposed; fired-alert ingestion uses the official catalog tool. |
 | Saved-search catalog/execution | Verified official replacement | Official knowledge-object and saved-search tools are used for supported reads. |
 | Ruleset.csv lookup discovery | Verified official replacement | Official lookup knowledge objects are used. |
-| Ruleset.csv complete contents | Retained CITIC compatibility path | MCP query responses are capped at 1,000 rows; complete reads use the existing bounded REST search fallback when available. |
+| Ruleset.csv complete contents | MCP bounded read | MCP query responses are capped at 1,000 rows; truncation is reported explicitly rather than using another transport. |
 | Lookup CSV writes | Unsupported official function | Existing approval-gated lookup editing remains local; MCP 2.0 exposes no equivalent mutation tool. |
-| Detection writes | Unsupported official function | Existing draft/Save approval flow and REST implementation remain local. |
-| Existing search-job SID result reads | Unsupported official function | Retained for alert ingestion because MCP exposes no SID result retrieval tool. |
+| Detection writes | Unsupported official function | Existing draft/Save approval flow remains local; MCP 2.0 exposes no equivalent mutation tool. |
+| Existing search-job SID result reads | Unsupported official function | Alert ingestion uses fields present in the MCP fired-alert payload and quarantines records that lack required identifiers. |
 | CITIC validation, planning, case correlation, evidence, and SOC logic | Retained CITIC logic | No UI, agent, prompt, or business-logic changes. |
 
-The live Ruleset.csv complete-read check reached the existing CSV safety
-validator, which rejected a formula-like cell. That rejection is preserved as
-the current security behavior; it is not converted into a successful or
-partial lookup result.
+The MCP Ruleset.csv read is still subject to the existing CSV safety validator.
+Formula-like cells remain rejected as a security behavior; they are not
+converted into a successful or partial lookup result.
 
 ## Rollback and controls
 
-Remove `SPLUNK_MCP_ENDPOINT` and restart the backend to select the legacy REST
-client for supported reads. No custom tools were deleted. Official MCP errors,
-authentication failures, and truncation are surfaced without unrestricted
-fallback; the only fallback is the explicitly bounded, read-only compatibility
-path needed for complete lookup reads.
+There is no legacy Splunk transport to select. Set `SPLUNK_MCP_ENDPOINT` and
+`SPLUNK_TOKEN`, then restart the backend. Official MCP errors,
+authentication failures, and truncation are surfaced directly. No custom tools
+were deleted.

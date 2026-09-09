@@ -55,7 +55,8 @@ test('catalog draft tool names follow the MCP wire convention', () => {
 
 test('catalog field sets cover the editable columns per catalog', () => {
   assert.deepEqual([...CATALOG_FIELDS.customer], [
-    'customer_code', 'display_name', 'gid', 'lifecycle_status', 'notes',
+    'customer_code', 'display_name', 'short_name', 'gid', 'lifecycle_status', 'notes',
+    'source_type_id', 'related_staff_id', 'splunk_indexes', 'field_mapping', 'email_config',
   ])
   assert.ok(CATALOG_FIELDS.rule.includes('rule_number'))
   assert.ok(CATALOG_FIELDS.rule.includes('rule_name_cn'))
@@ -91,7 +92,27 @@ test('validateCatalogForm reports the exact missing fields', () => {
 
 test('new customer forms start with the server default lifecycle', () => {
   assert.deepEqual(emptyCatalogForm('customer'), {
-    customer_code: '', display_name: '', gid: '', lifecycle_status: 'active', notes: '',
+    customer_code: '', display_name: '', short_name: '', gid: '', lifecycle_status: 'active', notes: '',
+    source_type_id: '', related_staff_id: '', splunk_indexes: [],
+    field_mapping: { username: '', hostname: '', src_ip: '', dest_ip: '', event_id: '', title: '', description: '', severity: '', status: '' },
+    email_config: { recipients: [], cc: [], bcc: [], language: 'EN', brand: 'CPC' },
+  })
+})
+
+test('customer configuration round-trips guided nested fields without JSON text', () => {
+  const record = {
+    catalog: 'customer', customer_code: 'fubon', display_name: 'Fubon', short_name: 'FB', gid: 'g1', lifecycle_status: 'provisioning', notes: 'note',
+    source_type_id: '11111111-1111-1111-1111-111111111111', related_staff_id: '',
+    splunk_indexes: ['security', 'audit'],
+    field_mapping: { username: 'user', custom_field: 'value' },
+    email_config: { recipients: [], cc: ['cc@example.test'], bcc: [], language: 'CN', brand: 'CPC' },
+  }
+  const fields = formFromRecord(record)
+  assert.deepEqual(recordFromForm('customer', fields), {
+    customer_code: 'fubon', display_name: 'Fubon', short_name: 'FB', gid: 'g1', lifecycle_status: 'provisioning', notes: 'note',
+    source_type_id: '11111111-1111-1111-1111-111111111111', related_staff_id: '', splunk_indexes: ['security', 'audit'],
+    field_mapping: { username: 'user', custom_field: 'value' },
+    email_config: { recipients: [], cc: ['cc@example.test'], bcc: [], language: 'CN', brand: 'CPC' },
   })
 })
 
