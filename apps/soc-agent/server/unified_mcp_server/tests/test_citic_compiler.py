@@ -45,21 +45,23 @@ def test_compiler_returns_valid_production_and_safe_backtest_forms():
     assert validate_citic_detection_spl(compiled["production_spl"])["valid"] is True
     assert compiled["production_validation"]["valid"] is True
     assert compiled["backtest_validation"]["valid"] is True
-    assert "| outputcsv" in compiled["production_spl"]
+    assert "| outputcsv" not in compiled["production_spl"]
     assert "| outputcsv" not in compiled["backtest_spl"]
+    assert "Event_GID" not in compiled["production_spl"]
+    assert "Event_Rulenum" not in compiled["production_spl"]
+    assert compiled["detection"]["actions"] == "citic_alert_delivery"
+    assert compiled["detection"]["action.citic_alert_delivery"] is True
     assert compiled["detection"]["spl"] == compiled["production_spl"]
     assert compiled["detection"]["enabled"] is False
-    assert compiled["table_fields"][:6] == [
-        "Fix_Ticketnumber",
-        "Fix_TriggerTime",
-        "Fix_Index",
+    assert compiled["table_fields"] == [
+        "Event_Threat Name",
+        "Event_Threat Type",
         "Fix_Source Type",
         "Event_Hostname",
-        "Event_Date Time",
     ]
 
 
-def test_compiler_appends_optional_fields_and_builds_log_event_text():
+def test_compiler_appends_optional_fields_without_legacy_event_identity():
     compiled = compile_definition(
         event_field_mappings={
             "Fix_Source Type": '"QiAnXin EDR"',
@@ -70,23 +72,16 @@ def test_compiler_appends_optional_fields_and_builds_log_event_text():
     )
 
     assert compiled["table_fields"] == [
-        "Fix_Ticketnumber",
-        "Fix_TriggerTime",
-        "Fix_Index",
-        "Fix_Source Type",
-        "Event_Hostname",
-        "Event_Date Time",
-        "Event_GID",
-        "Event_Rulenum",
         "Event_Threat Name",
         "Event_Threat Type",
+        "Fix_Source Type",
+        "Event_Hostname",
         "Event_Source IP",
         "Event_Custom",
         "Event_MITRE ATT&CK Technique",
     ]
     assert '| eval "Event_Source IP"=src_ip' in compiled["production_spl"]
-    assert 'SourceType="$result.Fix_Source Type$"' in compiled["event_template"]
-    assert 'SourceIP="$result.Event_Source IP$"' in compiled["event_template"]
+    assert compiled["event_template"] == ""
 
 
 @pytest.mark.parametrize(
@@ -122,5 +117,5 @@ def test_service_compiler_is_read_only_and_returns_validation_results():
 
     assert result["production_validation"]["valid"] is True
     assert result["backtest_validation"]["valid"] is True
-    assert any("outputcsv" in warning for warning in result["production_validation"]["warnings"])
+    assert not any("outputcsv" in warning for warning in result["production_validation"]["warnings"])
     assert service.core._client is None

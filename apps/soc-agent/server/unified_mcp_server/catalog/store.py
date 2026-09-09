@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS soc_customer (
     splunk_indexes TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
     field_mapping JSONB NOT NULL DEFAULT '{"username":"","hostname":"","src_ip":"","dest_ip":"","event_id":"","title":"","description":"","severity":"","status":""}'::JSONB,
     email_config JSONB NOT NULL DEFAULT '{"recipients":[],"cc":[],"bcc":[],"language":"EN","brand":"CPC"}'::JSONB,
+    alert_delivery_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     legacy_customer_id UUID UNIQUE,
     revision INTEGER NOT NULL DEFAULT 1,
     archived_at TIMESTAMPTZ,
@@ -205,8 +206,18 @@ ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS related_staff_id TEXT NOT NULL
 ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS splunk_indexes TEXT[] NOT NULL DEFAULT '{}'::TEXT[];
 ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS field_mapping JSONB NOT NULL DEFAULT '{"username":"","hostname":"","src_ip":"","dest_ip":"","event_id":"","title":"","description":"","severity":"","status":""}'::JSONB;
 ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS email_config JSONB NOT NULL DEFAULT '{"recipients":[],"cc":[],"bcc":[],"language":"EN","brand":"CPC"}'::JSONB;
+ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS alert_delivery_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS legacy_customer_id UUID;
 CREATE UNIQUE INDEX IF NOT EXISTS soc_customer_legacy_customer_uidx ON soc_customer (legacy_customer_id) WHERE legacy_customer_id IS NOT NULL;
+
+DO $$
+BEGIN
+    IF to_regclass(current_schema() || '.customers') IS NOT NULL THEN
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS cid TEXT;
+        ALTER TABLE customers ADD COLUMN IF NOT EXISTS alert_delivery_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+    END IF;
+END;
+$$;
 
 DO $$
 DECLARE
@@ -715,6 +726,7 @@ class CatalogStore:
             "splunk_indexes": list(values.get("splunk_indexes") or []),
             "field_mapping": {**fixed_mapping, **dict(values.get("field_mapping") or {})},
             "email_config": dict(values.get("email_config") or {}),
+            "alert_delivery_enabled": bool(values.get("alert_delivery_enabled", False)),
         }
         result["email_config"] = {
             "recipients": [], "cc": [], "bcc": [], "language": "EN", "brand": "CPC",
@@ -732,9 +744,9 @@ class CatalogStore:
             normalized["gid"], normalized["lifecycle_status"], normalized["notes"],
             normalized["source_type_id"], normalized["related_staff_id"], normalized["splunk_indexes"],
             json.dumps(normalized["field_mapping"], ensure_ascii=False),
-            json.dumps(normalized["email_config"], ensure_ascii=False), actor, actor,
+            json.dumps(normalized["email_config"], ensure_ascii=False), normalized["alert_delivery_enabled"], actor, actor,
         ]
-        placeholders = "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::text[], %s::jsonb, %s::jsonb, %s, %s"
+        placeholders = "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::text[], %s::jsonb, %s::jsonb, %s, %s, %s"
         try:
             with self._connect() as connection:
                 with connection.transaction():
@@ -831,7 +843,7 @@ class CatalogStore:
             normalized["gid"], normalized["lifecycle_status"], normalized["notes"],
             normalized["source_type_id"], normalized["related_staff_id"], normalized["splunk_indexes"],
             json.dumps(normalized["field_mapping"], ensure_ascii=False),
-            json.dumps(normalized["email_config"], ensure_ascii=False),
+            json.dumps(normalized["email_config"], ensure_ascii=False), normalized["alert_delivery_enabled"],
         ]
         # JSON and array values need explicit casts on PostgreSQL; the string
         # columns retain the generic assignment path used by other catalogs.
@@ -850,6 +862,25 @@ class CatalogStore:
                     before = spec.mapper(before_row)
                     _require_current_revision(before, expected_revision)
                     _require_not_archived(before)
+                    if normalized["customer_code"] != before.get("customer_code"):
+                        legacy_id = before.get("legacy_customer_id") or record_id
+                        try:
+                            identity_table = connection.execute(
+                                "SELECT to_regclass(current_schema() || '.sec_alert_registrations')"
+                            ).fetchone()
+                        except Exception:
+                            identity_table = None
+                        if identity_table and identity_table[0]:
+                            allocated = connection.execute(
+                                "SELECT 1 FROM sec_alert_registrations WHERE customer_id = %s::uuid LIMIT 1",
+                                (legacy_id,),
+                            ).fetchone()
+                            if allocated:
+                                raise ServiceError(
+                                    "cid_immutable",
+                                    "customer_code/CID cannot change after the first alert AID is allocated.",
+                                    details={"record_id": record_id},
+                                )
                     row = connection.execute(
                         f"UPDATE {spec.table} SET {assignments}, revision = revision + 1, updated_by = %s, updated_at = NOW()"
                         " WHERE customer_id = %s AND revision = %s"
@@ -889,13 +920,14 @@ class CatalogStore:
             connection.execute(
                 """INSERT INTO customers (
                     id, gid, name, short_name, status, source_type, related_staff,
-                    field_mapping, email_config, splunk_indexes
-                ) VALUES (%s::uuid, %s, %s, %s, %s, NULLIF(%s, '')::uuid, NULLIF(%s, '')::uuid, %s::jsonb, %s::jsonb, %s::text[])
+                    field_mapping, email_config, splunk_indexes, cid, alert_delivery_enabled
+                ) VALUES (%s::uuid, %s, %s, %s, %s, NULLIF(%s, '')::uuid, NULLIF(%s, '')::uuid, %s::jsonb, %s::jsonb, %s::text[], %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
                     gid = EXCLUDED.gid, name = EXCLUDED.name, short_name = EXCLUDED.short_name,
                     status = EXCLUDED.status, source_type = EXCLUDED.source_type,
                     related_staff = EXCLUDED.related_staff, field_mapping = EXCLUDED.field_mapping,
                     email_config = EXCLUDED.email_config, splunk_indexes = EXCLUDED.splunk_indexes,
+                    cid = EXCLUDED.cid, alert_delivery_enabled = EXCLUDED.alert_delivery_enabled,
                     updated_at = NOW()""",
                 (
                     legacy_id,
@@ -905,6 +937,7 @@ class CatalogStore:
                     json.dumps(record.get("field_mapping") or {}, ensure_ascii=False),
                     json.dumps(record.get("email_config") or {}, ensure_ascii=False),
                     record.get("splunk_indexes") or [],
+                    record.get("customer_code", ""), bool(record.get("alert_delivery_enabled", False)),
                 ),
             )
             connection.execute(
@@ -918,7 +951,7 @@ class CatalogStore:
                     status = %s, source_type = NULLIF(%s, '')::uuid,
                     related_staff = NULLIF(%s, '')::uuid,
                     field_mapping = %s::jsonb, email_config = %s::jsonb,
-                    splunk_indexes = %s::text[], updated_at = NOW()
+                    splunk_indexes = %s::text[], cid = %s, alert_delivery_enabled = %s, updated_at = NOW()
                 WHERE id = %s::uuid""",
                 (
                     record.get("gid", ""), record.get("display_name", ""), record.get("short_name", ""),
@@ -926,20 +959,22 @@ class CatalogStore:
                     record.get("source_type_id", ""), record.get("related_staff_id", ""),
                     json.dumps(record.get("field_mapping") or {}, ensure_ascii=False),
                     json.dumps(record.get("email_config") or {}, ensure_ascii=False),
-                    record.get("splunk_indexes") or [], legacy_id,
+                    record.get("splunk_indexes") or [], record.get("customer_code", ""),
+                    bool(record.get("alert_delivery_enabled", False)), legacy_id,
                 ),
             )
             if getattr(result, "rowcount", 1) == 0:
                 connection.execute(
                     """INSERT INTO customers (
                         id, gid, name, short_name, status, source_type, related_staff,
-                        field_mapping, email_config, splunk_indexes
-                    ) VALUES (%s::uuid, %s, %s, %s, %s, NULLIF(%s, '')::uuid, NULLIF(%s, '')::uuid, %s::jsonb, %s::jsonb, %s::text[])
+                        field_mapping, email_config, splunk_indexes, cid, alert_delivery_enabled
+                    ) VALUES (%s::uuid, %s, %s, %s, %s, NULLIF(%s, '')::uuid, NULLIF(%s, '')::uuid, %s::jsonb, %s::jsonb, %s::text[], %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                         gid = EXCLUDED.gid, name = EXCLUDED.name, short_name = EXCLUDED.short_name,
                         status = EXCLUDED.status, source_type = EXCLUDED.source_type,
                         related_staff = EXCLUDED.related_staff, field_mapping = EXCLUDED.field_mapping,
                         email_config = EXCLUDED.email_config, splunk_indexes = EXCLUDED.splunk_indexes,
+                        cid = EXCLUDED.cid, alert_delivery_enabled = EXCLUDED.alert_delivery_enabled,
                         updated_at = NOW()""",
                     (
                         legacy_id, record.get("gid", ""), record.get("display_name", ""), record.get("short_name", ""),
@@ -947,6 +982,7 @@ class CatalogStore:
                         record.get("source_type_id", ""), record.get("related_staff_id", ""),
                         json.dumps(record.get("field_mapping") or {}, ensure_ascii=False),
                         json.dumps(record.get("email_config") or {}, ensure_ascii=False), record.get("splunk_indexes") or [],
+                        record.get("customer_code", ""), bool(record.get("alert_delivery_enabled", False)),
                     ),
                 )
         row = connection.execute(

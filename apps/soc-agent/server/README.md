@@ -30,14 +30,16 @@ ignored `.env` file. PostgreSQL stores authenticated users, sessions, and
 workspace ownership, plus the SOC catalogs (Ruleset, Customer Information,
 Fix Source type) with their audit history and publication records; it is not a
 service-configuration source. Catalog records are edited through the
-authenticated editor workflow. The official Splunk MCP server currently
-exposes no mutation tool, so lookup publication remains unavailable until an
-upstream MCP write tool is provided. The
+authenticated editor workflow. Detection saves use a separately deployed,
+authenticated approved write-MCP extension when
+`SPLUNK_ALLOW_DETECTION_WRITE=true`; lookup publication remains unavailable
+until an approved lookup write extension is provided. The
 `/admin` console shows service status and manages LLM provider credentials, but
 does not expose or edit deployment variables.
-Customer Information uses `gid` as the single tenant identifier; older catalog
-rows with a separate `tenant_number` are consolidated automatically when the
-catalog store starts.
+Customer Information uses the unique `customer_code` as the public CID; legacy
+GID values remain available for compatibility and migration. Older catalog rows
+with a separate `tenant_number` are consolidated automatically when the catalog
+store starts.
 
 Splunk uses only the official Splunk MCP Server. Configure the endpoint and the
 MCP bearer token in the ignored `.env` file, for example:
@@ -46,28 +48,34 @@ MCP bearer token in the ignored `.env` file, for example:
 SPLUNK_MCP_ENDPOINT=https://splunk.example:8000/en-US/splunkd/__raw/services/mcp
 SPLUNK_TOKEN=
 SPLUNK_ALLOW_INSECURE_HTTP=false
+SPLUNK_WRITE_MCP_ENDPOINT=https://soc-write.example/services/mcp
+SPLUNK_WRITE_MCP_TOKEN=
+SPLUNK_WRITE_MCP_TOOL=citic_write_saved_search
 ```
 
 The adapter routes searches, index and metadata discovery, sourcetypes,
 knowledge objects, saved-search execution, lookup reads, and fired-alert reads
 through MCP. The existing query policy, resource admission, evidence
 retention, customer isolation, sanitization, and approval flow remain in the
-CITIC server. Splunk MCP Server 2.0 currently exposes read-only tools, so
-lookup and detection writes are unavailable until the upstream MCP server
-provides write tools.
+CITIC server. The approved write extension receives only the explicit
+saved-search operation, fields, and an idempotency key; it must enforce its
+own revision check and publish only disabled searches. The adapter does not
+fall back to direct Splunk REST calls.
 
-Manual fired-alert ingestion is available after the alert-ingestion migration
-has been applied:
+Manual fired-alert reconciliation is available after the alert-ingestion and
+alert-identity migrations have been applied:
 
 ```bash
 uv run python -m unified_mcp_server.alert_ingest --limit 100 --dry-run
 uv run python -m unified_mcp_server.alert_ingest --limit 100
 ```
 
-The command reads fired-alert metadata and `Event_GID`/`Event_Rulenum` fields
-returned in the MCP alert payload. It stores alert
-metadata in PostgreSQL, skips duplicates, and quarantines alerts whose mapping
-is missing or ambiguous. It never dispatches searches or writes to Splunk.
+The command is a reconciliation path. New delivery uses the Splunk custom
+action under `integrations/splunk_citic_alert_action`, which sends the original
+run result rows to `/api/soc-alerts/v1/runs`. The backend allocates CID/AID/EID
+values, stores selected rows in `sec_event_details`, deduplicates by registered
+alert and Splunk SID, and quarantines unknown or conflicting ownership. Legacy
+`Event_GID`/`Event_Rulenum` columns remain readable for migration only.
 
 For live ingestion, enable the backend worker in the server environment:
 
@@ -82,14 +90,26 @@ The worker runs once at backend startup and then at the configured interval. A
 PostgreSQL advisory lock prevents a second backend process from polling at the
 same time. It retries transient failures with bounded backoff, rechecks
 unresolved quarantine rows, and records counters in `sec_alert_ingestion_status`.
-It only reads Splunk MCP results; all database inserts and quarantine decisions
-happen in the application backend.
+For registered alerts polling is reconciliation-only: it records missing or
+already-received action deliveries and never creates a parallel event or email.
+The explicit legacy ingestion mode is retained only for unmigrated records.
 
 Automatic alert email uses the PostgreSQL outbox and a separate SMTP worker.
-Apply migration 013 after 012 with sending stopped and `ALERT_EMAIL_ENABLED=false`.
-Migration 013 disables existing rules and queued historical deliveries. Applied
-migration 012 is unchanged. Review routes before enabling them, then restart the
-backend with the following environment configuration:
+Apply migrations 014, 015, 016, 017, 018, 019, 020, and 021 after 013 with sending stopped and
+`ALERT_EMAIL_ENABLED=false`. Together they add the CID/AID/EID registry,
+deployment-scoped index ownership, transactional ID allocation, selected-result
+storage, administrator policy snapshots, signed webhook replay protection,
+review actions, database identity guards, and enforced historical-email suppression. Review the migration
+preview, registrations, ownership routes, publication state, and delivery gates
+before enabling them. Configure one webhook secret per Splunk deployment:
+
+```dotenv
+ALERT_INGEST_WEBHOOK_SECRETS_JSON={"splunk-prod":"replace-with-a-long-random-secret"}
+```
+
+The legacy `ALERT_INGEST_WEBHOOK_SECRET` is accepted only when it is explicitly
+bound with `ALERT_INGEST_WEBHOOK_DEPLOYMENT`; do not use one secret across
+deployments. Restart the backend with the following environment configuration:
 
 ```dotenv
 ALERT_EMAIL_ENABLED=false
@@ -110,6 +130,12 @@ have not been confirmed; obtain those before setting the host and enabling live 
 No live message is needed to validate rendering or the local SMTP test sink.
 Interactive user-controlled Zimbra email is unchanged.
 
+The custom action may call the signed `/api/soc-alerts/v1/action-context`
+endpoint before sending a run. This supplies the current registration and
+administrator policy for direct Splunk Web alerts, including copies that may
+have inherited a parent's action parameters. The final `/runs` payload is
+still authenticated and validated independently.
+
 Administrators use `/admin/alert-email` for customer defaults (`recipients`, `cc`,
 `bcc`, `language`: EN/CN/ZH, `brand`: CPC/CEC), source types, IP/subnet/range and
 hostname filters, recipient overrides, preview and delivery history. Filter categories
@@ -119,6 +145,16 @@ visibility preserved and duplicate addresses removed. Global rules use each even
 own customer defaults. Ruleset localized email content is stored as
 `rulesets.email_content = {"EN":{"description":"...","remediation":"..."}}`;
 the rule template summary is a fallback description. No raw logs are copied.
+
+The same administrator page receives `alert_registrations`,
+`alert_registration_review`, and `alert_index_ownership` in its settings
+response. Per-customer or per-alert result policies are saved at
+`/admin/alert-email/policy`; `detail_columns`, required/optional mappings,
+`max_display_rows`, and the severity fallback are validated by the backend.
+Only administrators can create, edit, archive, or restore customer records.
+The settings response also includes a bounded migration report covering CID,
+index ownership, alert registrations, unresolved reviews, and legacy events
+without EIDs. Historical events are never replayed as email.
 
 CSV preview requires selecting the exact customer and exact PostgreSQL source-type
 names. Supported headers are `gid` (optional, must match selected customer),

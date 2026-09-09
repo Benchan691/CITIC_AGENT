@@ -46,7 +46,7 @@ export const DETECTION_STANDARD_FIELDS = [
   'actions',
 ] as const
 
-const MANAGED_ACTION_PREFIX = 'action.logevent'
+const MANAGED_ACTION_PREFIX = 'action.citic_alert_delivery'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

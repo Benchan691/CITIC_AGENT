@@ -2,14 +2,19 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import styles from './AdminConsole.module.css'
 
 type Recipients = { recipients?: string[]; cc?: string[]; bcc?: string[]; language?: string; brand?: string }
-type Customer = { id: string; record_id?: string; revision?: number; gid: string; name: string; display_name?: string; lifecycle_status?: string; email_config: Recipients }
+type Customer = { id: string; record_id?: string; revision?: number; cid?: string; gid: string; name: string; display_name?: string; lifecycle_status?: string; alert_delivery_enabled?: boolean; email_config: Recipients }
 type Routing = { source_type_ids?: string[]; ips?: string[]; hostnames?: string[]; recipients?: Recipients }
 type Rule = { id?: string; name: string; customer_id?: string | null; ruleset_id?: string | null; severities: string[]; enabled: boolean; routing?: Routing }
-type Delivery = { event_id: string; customer: string; status: string; created: string; smtp_accepted?: string; accepted: string[]; rejected: Record<string, number>; error?: string }
+type Delivery = { event_id: string; eid?: string; event_eid?: string; customer_id?: string; cid?: string; aid?: string; customer: string; status: string; created: string; smtp_accepted?: string; accepted: string[]; rejected: Record<string, number>; error?: string }
+type AlertPolicy = { detail_columns?: string[]; required_columns?: string[]; optional_columns?: string[]; field_mappings?: { source: string; label?: string; required?: boolean }[]; row_filters?: Record<string, unknown>[]; max_display_rows?: number; max_stored_rows?: number; severity_source?: string; severity_mapping?: Record<string, string>; severity_fallback?: string }
+type PolicyRecord = { id?: string; customer_id: string; registration_id?: string | null; revision?: number; policy: AlertPolicy; invalid_reason?: string | null }
+type Registration = { id: string; customer_id: string; cid?: string; aid?: string; saved_search_name?: string; deployment?: string; app?: string; owner?: string; source_indexes?: string[]; registration_state?: string; delivery_state?: string; delivery_enabled?: boolean; presence_state?: string; publication_state?: string; definition_revision?: number; last_error?: string | null }
+type Ownership = { id?: string; deployment: string; index_name: string; customer_id: string; cid?: string; status: string }
+type Review = { id: string; deployment?: string; app?: string; owner?: string; saved_search_name?: string; source_indexes?: string[]; reason?: string; attempt_count?: number }
 export type EmailSettings = {
   runtime: { enabled?: boolean; configured?: boolean; host?: string; interval_seconds?: number }
   customers: Customer[]; rules: Rule[]; source_types: { id: string; name: string }[]; history: Delivery[]
-  delivery: Record<string, unknown>
+  delivery: Record<string, unknown>; metrics?: Record<string, number>; alert_registrations?: Registration[]; alert_registration_review?: Review[]; alert_index_ownership?: Ownership[]; alert_policies?: PolicyRecord[]; alert_quarantine?: Record<string, unknown>[]; migration_report?: Record<string, unknown>
 }
 type Preview = { subject: string; html: string; text: string; recipients: Recipients; matched_rules: string[] }
 type ImportRow = { row: number; status: string; error?: string; rules?: Rule[] }
@@ -23,6 +28,15 @@ export async function emailRequest<T>(path = 'settings', payload?: unknown): Pro
 }
 const addresses = (value: string) => value.split(/[\n,;]/).map(v => v.trim()).filter(Boolean)
 const joined = (value?: string[]) => (value || []).join('\n')
+const lines = (value?: string[] | null) => (value || []).join('\n')
+const parseLines = (value: string) => [...new Set(value.split(/[\n,]+/).map(item => item.trim()).filter(Boolean))]
+function cleanOptionalRecipients(value: Recipients): Recipients {
+  const result = { ...value, recipients: addresses(joined(value.recipients)), cc: addresses(joined(value.cc)), bcc: addresses(joined(value.bcc)) }
+  for (const key of ['recipients','cc','bcc'] as const) {
+    if (result[key].length > 50 || result[key].some(address => address.length > 320 || !/^[^\s@<>]+@[^\s@<>]+$/.test(address))) throw new Error('Use plain email addresses, one per line, with no more than 50 per field.')
+  }
+  return result
+}
 export function deliveryLabel(status: string): string {
   return ({ accepted: 'Relay accepted', sent: 'Legacy send recorded', failed: 'Failed / rejected', uncertain: 'Needs review', pending: 'Queued', processing: 'Sending', disabled: 'Skipped' } as Record<string,string>)[status] || status
 }
@@ -48,7 +62,7 @@ export function AlertEmailSettings() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const emailTab = () => ['routes','customers','preview','history','import'].includes(window.location.hash.split('/')[1]) ? window.location.hash.split('/')[1] : 'routes'
+  const emailTab = () => ['routes','customers','governance','preview','history','import'].includes(window.location.hash.split('/')[1]) ? window.location.hash.split('/')[1] : 'routes'
   const [tab, setTab] = useState(emailTab)
   useEffect(() => {
     const change = () => { if (window.location.hash.startsWith('#notifications')) setTab(emailTab()) }
@@ -68,9 +82,10 @@ export function AlertEmailSettings() {
     {!data && loading && <p className={styles.empty}>Loading email configuration…</p>}
     {data && <>
       <div className={styles.notice}><span className={`${styles.statusPill} ${data.runtime.enabled && data.runtime.configured ? styles.statusReady : styles.statusMuted}`}>{data.runtime.enabled && data.runtime.configured ? 'Sending enabled' : data.runtime.enabled ? 'Setup incomplete' : 'Sending paused'}</span><span>{data.runtime.enabled && data.runtime.configured ? 'New matching events enter the delivery queue.' : 'You can prepare recipients and rules while sending is paused.'} SMTP relay settings are managed on the server.</span></div>
-      <nav className={styles.tabs} aria-label="Email sections">{[['routes','Notification rules'],['customers','Customer defaults'],['preview','Preview email'],['history','Delivery history'],['import','Import routes']].map(([id,label]) => <button key={id} className={tab === id ? styles.activeTab : ''} onClick={() => { setTab(id); setMessage(''); window.history.replaceState(null,'','#notifications/' + id) }} aria-current={tab === id ? 'page' : undefined}>{label}</button>)}</nav>
+      <nav className={styles.tabs} aria-label="Email sections">{[['routes','Notification rules'],['customers','Customer defaults'],['governance','Identity & policies'],['preview','Preview email'],['history','Delivery history'],['import','Import routes']].map(([id,label]) => <button key={id} className={tab === id ? styles.activeTab : ''} onClick={() => { setTab(id); setMessage(''); window.history.replaceState(null,'','#notifications/' + id) }} aria-current={tab === id ? 'page' : undefined}>{label}</button>)}</nav>
       <div hidden={tab !== 'routes'}><RulesPanel data={data} onSaved={saved} /></div>
-      <div hidden={tab !== 'customers'}><CustomerPanel data={data} /></div>
+      <div hidden={tab !== 'customers'}><CustomerPanel data={data} onSaved={saved} /></div>
+      <div hidden={tab !== 'governance'}><GovernancePanel data={data} onSaved={saved} /></div>
       <div hidden={tab !== 'preview'}><PreviewPanel data={data} /></div>
       <div hidden={tab !== 'history'}><HistoryPanel data={data} /></div>
       <div hidden={tab !== 'import'}><ImportPanel data={data} onSaved={saved} /></div>
@@ -78,11 +93,117 @@ export function AlertEmailSettings() {
   </section>
 }
 function CustomerOptions({ data }: { data: EmailSettings }) {
-  return <>{data.customers.map(c => <option key={c.id} value={c.id}>{c.gid} · {c.name}</option>)}</>
+  return <>{data.customers.map(c => <option key={c.id} value={c.id}>{c.cid || c.gid} · {c.name}</option>)}</>
 }
-function CustomerPanel({ data }: { data: EmailSettings }) {
-  return <div className={styles.contentGrid}><div className={styles.card}><h3 className={styles.editorTitle}>Customer defaults</h3><p className={styles.editorCopy}>Customer email defaults are managed in the Customers catalog so identity, routing, and delivery settings stay together.</p>{data.customers.length ? <div className={styles.formFields}>{data.customers.map(customer => <article className={styles.importRow} key={customer.id}><div><strong>{customer.display_name || customer.name}</strong><p className={styles.fieldHint}>{customer.gid || 'No GID'} · {customer.lifecycle_status || 'unknown'}{customer.revision ? ` · revision ${customer.revision}` : ''}</p><p>To: {customer.email_config?.recipients?.join(', ') || 'No recipients configured'}{customer.email_config?.cc?.length ? ` · CC: ${customer.email_config.cc.join(', ')}` : ''}{customer.email_config?.bcc?.length ? ` · BCC: ${customer.email_config.bcc.join(', ')}` : ''}</p><p>Language: {customer.email_config?.language || 'EN'} · Brand: {customer.email_config?.brand || 'CPC'}</p></div><button className={styles.button} type="button" onClick={() => { window.location.hash = `#customers/${customer.record_id || ''}` }}>Edit in Customers</button></article>)}</div> : <p className={styles.empty}>No customers available. Add a customer to the catalog first.</p>}</div><aside className={styles.helpCard}><p className={styles.sectionKicker}>How defaults work</p><h3>One customer. One destination.</h3><p>Routes use the event’s customer. A rule can replace the default recipients for a specific team.</p><p>An empty recipient list keeps a provisioned customer from sending until recipients are configured.</p><p>Customer configuration changes are recorded in the catalog history.</p></aside></div>
+function CustomerConfigEditor({ customer, onSaved }: { customer: Customer; onSaved: (message: string) => Promise<void> }) {
+  const [config, setConfig] = useState<Recipients>(() => ({ recipients: [], cc: [], bcc: [], ...customer.email_config }))
+  const [enabled, setEnabled] = useState(Boolean(customer.alert_delivery_enabled))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function save(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError('')
+    try {
+      const email_config = cleanOptionalRecipients(config)
+      await emailRequest('customer', { customer_id: customer.id, email_config, alert_delivery_enabled: enabled })
+      await onSaved(`Customer ${customer.cid || customer.gid || customer.name} defaults saved.`)
+    } catch (cause) { setError((cause as Error).message) } finally { setBusy(false) }
+  }
+  const update = (key: 'recipients' | 'cc' | 'bcc', value: string) => setConfig(current => ({ ...current, [key]: value.split(/[\n,;]/).map(item => item.trim()).filter(Boolean) }))
+  return <form className={styles.card} onSubmit={save} aria-label={`Email defaults for ${customer.name}`}>
+    <div className={styles.sectionHeading}><div><h3 className={styles.editorTitle}>{customer.display_name || customer.name}</h3><p className={styles.fieldHint}>{customer.cid || 'No CID'} · {customer.gid || 'No legacy GID'} · {customer.lifecycle_status || 'unknown'}{customer.revision ? ` · revision ${customer.revision}` : ''}</p></div><span className={`${styles.statusPill} ${enabled ? styles.statusReady : styles.statusMuted}`}>{enabled ? 'Future delivery enabled' : 'Future delivery disabled'}</span></div>
+    <div className={styles.fieldGrid}>{(['recipients','cc','bcc'] as const).map(key => <label className={styles.field} key={key}><span>{key === 'recipients' ? 'To recipients' : key.toUpperCase()}</span><textarea className={styles.input} rows={2} value={lines(config[key])} onChange={event => update(key, event.target.value)} placeholder={key === 'recipients' ? 'One address per line' : 'Optional'} /></label>)}</div>
+    <div className={styles.fieldGrid}><label className={styles.field}><span>Language</span><select className={styles.input} value={config.language || 'EN'} onChange={event => setConfig(current => ({ ...current, language: event.target.value }))}><option value="EN">English</option><option value="CN">简体中文</option><option value="ZH">繁體中文</option></select></label><label className={styles.field}><span>Brand</span><select className={styles.input} value={config.brand || 'CPC'} onChange={event => setConfig(current => ({ ...current, brand: event.target.value }))}><option value="CPC">CPC</option><option value="CEC">CEC</option></select></label></div>
+    <label className={styles.checkLabel}><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} />Allow new registered runs to enter the customer email queue</label>
+    {error && <p className={styles.error} role="alert">{error}</p>}<div className={styles.actions}><button className={`${styles.button} ${styles.primary}`} disabled={busy}>{busy ? 'Saving…' : 'Save customer defaults'}</button><button className={styles.button} type="button" onClick={() => { window.location.hash = `#customers/${customer.record_id || ''}` }}>Open customer catalog</button></div>
+  </form>
 }
+function CustomerPanel({ data, onSaved }: { data: EmailSettings; onSaved: (message: string) => Promise<void> }) {
+  return <div className={styles.contentGrid}><div>{data.customers.length ? data.customers.map(customer => <CustomerConfigEditor key={customer.id} customer={customer} onSaved={onSaved} />) : <div className={styles.card}><p className={styles.empty}>No customers available. Add a customer to the catalog first.</p></div>}</div><aside className={styles.helpCard}><p className={styles.sectionKicker}>Customer delivery gate</p><h3>Identity first, delivery second.</h3><p>The CID is the public customer identity. Administrators assign recipients and explicitly enable future registered alert runs.</p><p>Changing recipients or policy does not replay historical events. Held events need a separate review release.</p><p>Customer and index ownership changes can hold queued events automatically.</p></aside></div>
+}
+
+function jsonText(value: unknown, fallback: unknown = []) {
+  return JSON.stringify(value ?? fallback, null, 2)
+}
+function PolicyEditor({ record, customer, onSaved }: { record: PolicyRecord; customer: Customer; onSaved: (message: string) => Promise<void> }) {
+  const initial = record.policy || {}
+  const [detail, setDetail] = useState(lines(initial.detail_columns))
+  const [required, setRequired] = useState(lines(initial.required_columns))
+  const [optional, setOptional] = useState(lines(initial.optional_columns))
+  const [mappings, setMappings] = useState((initial.field_mappings || []).map(item => `${item.source} | ${item.label || item.source} | ${item.required ? 'required' : 'optional'}`).join('\n'))
+  const [filters, setFilters] = useState(jsonText(initial.row_filters, []))
+  const [severityMapping, setSeverityMapping] = useState(jsonText(initial.severity_mapping, {}))
+  const [severitySource, setSeveritySource] = useState(initial.severity_source || '')
+  const [fallback, setFallback] = useState(initial.severity_fallback || 'unknown')
+  const [displayRows, setDisplayRows] = useState(String(initial.max_display_rows || 50))
+  const [storedRows, setStoredRows] = useState(String(initial.max_stored_rows || 1000))
+  const [busy, setBusy] = useState(false); const [error, setError] = useState('')
+  async function save(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError('')
+    try {
+      const field_mappings = mappings.split('\n').map(item => item.trim()).filter(Boolean).map(item => { const [source, label, requiredFlag] = item.split('|').map(value => value.trim()); if (!source) throw new Error('Every field mapping needs a source field.'); return { source, label: label || source, required: requiredFlag?.toLowerCase() === 'required' } })
+      const policy: AlertPolicy = { detail_columns: parseLines(detail), required_columns: parseLines(required), optional_columns: parseLines(optional), field_mappings, row_filters: JSON.parse(filters || '[]'), severity_source: severitySource.trim(), severity_mapping: JSON.parse(severityMapping || '{}'), severity_fallback: fallback, max_display_rows: Number(displayRows), max_stored_rows: Number(storedRows) }
+      await emailRequest('policy', { customer_id: customer.id, ...(record.registration_id ? { registration_id: record.registration_id } : {}), policy })
+      await onSaved(`Email policy for ${customer.cid || customer.gid || customer.name} saved.`)
+    } catch (cause) { setError((cause as Error).message) } finally { setBusy(false) }
+  }
+  return <form className={styles.card} onSubmit={save} aria-label={`Alert email policy for ${customer.name}`}>
+    <div className={styles.sectionHeading}><div><h3 className={styles.editorTitle}>{record.registration_id ? 'Per-alert override' : 'Customer default policy'}</h3><p className={styles.fieldHint}>{customer.cid || customer.gid} · {record.id ? `policy ${record.id} · revision ${record.revision || 0}` : 'new policy'}</p></div><span className={`${styles.statusPill} ${record.invalid_reason ? styles.statusError : styles.statusInfo}`}>{record.invalid_reason || 'Administrator controlled'}</span></div>
+    <div className={styles.fieldGrid}><label className={styles.field}><span>Detail columns <em>one per line, order is preserved</em></span><textarea className={styles.input} rows={4} value={detail} onChange={event => setDetail(event.target.value)} placeholder="device\nsource_ip\nhostname" /></label><label className={styles.field}><span>Required columns</span><textarea className={styles.input} rows={4} value={required} onChange={event => setRequired(event.target.value)} placeholder="device" /></label></div>
+    <div className={styles.fieldGrid}><label className={styles.field}><span>Optional columns</span><textarea className={styles.input} rows={3} value={optional} onChange={event => setOptional(event.target.value)} /></label><label className={styles.field}><span>Field mappings <em>source | display label | required</em></span><textarea className={styles.input} rows={3} value={mappings} onChange={event => setMappings(event.target.value)} placeholder="device | Device | required" /></label></div>
+    <div className={styles.fieldGrid}><label className={styles.field}><span>Row filters <em>JSON only; no SPL</em></span><textarea className={`${styles.input} ${styles.mono}`} rows={4} value={filters} onChange={event => setFilters(event.target.value)} /></label><label className={styles.field}><span>Severity mapping <em>JSON source value to severity</em></span><textarea className={`${styles.input} ${styles.mono}`} rows={4} value={severityMapping} onChange={event => setSeverityMapping(event.target.value)} /></label></div>
+    <div className={styles.fieldGrid}><label className={styles.field}><span>Severity source</span><input className={styles.input} value={severitySource} onChange={event => setSeveritySource(event.target.value)} placeholder="severity" /></label><label className={styles.field}><span>Fallback severity</span><select className={styles.input} value={fallback} onChange={event => setFallback(event.target.value)}>{['unknown','info','low','medium','high','critical'].map(value => <option key={value}>{value}</option>)}</select></label></div>
+    <div className={styles.fieldGrid}><label className={styles.field}><span>Maximum displayed rows</span><input className={styles.input} type="number" min={1} max={1000} value={displayRows} onChange={event => setDisplayRows(event.target.value)} /></label><label className={styles.field}><span>Maximum stored rows</span><input className={styles.input} type="number" min={1} max={1000} value={storedRows} onChange={event => setStoredRows(event.target.value)} /></label></div>
+    {error && <p className={styles.error} role="alert">{error}</p>}<div className={styles.actions}><button className={`${styles.button} ${styles.primary}`} disabled={busy}>{busy ? 'Saving…' : 'Save policy'}</button></div>
+  </form>
+}
+
+function RegistrationRow({ registration, data, onSaved }: { registration: Registration; data: EmailSettings; onSaved: (message: string) => Promise<void> }) {
+  const [indexes, setIndexes] = useState((registration.source_indexes || []).join('\n'))
+  const [customer, setCustomer] = useState(registration.customer_id)
+  const [busy, setBusy] = useState(false); const [error, setError] = useState('')
+  async function toggle() {
+    setBusy(true); setError('')
+    try { await emailRequest('registration', { registration_id: registration.id, enabled: !registration.delivery_enabled }); await onSaved(`Delivery ${registration.delivery_enabled ? 'disabled' : 'enabled'} for ${registration.aid || registration.saved_search_name}.`) } catch (cause) { setError((cause as Error).message) } finally { setBusy(false) }
+  }
+  async function relink(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError('')
+    try { const source_indexes = parseLines(indexes); if (!source_indexes.length) throw new Error('Add at least one exact source index.'); await emailRequest('relink', { registration_id: registration.id, customer_id: customer, source_indexes }); await onSaved(`Registration ${registration.aid || registration.saved_search_name} relinked for review.`) } catch (cause) { setError((cause as Error).message) } finally { setBusy(false) }
+  }
+  return <tr><td><strong>{registration.aid || 'No AID'}</strong><small>{registration.cid || registration.customer_id}<br />{registration.saved_search_name}</small></td><td><span className={styles.mono}>{registration.deployment}</span><small>{registration.app || '—'} / {registration.owner || '—'}</small></td><td>{registration.registration_state || 'unknown'}<small>{registration.delivery_state || '—'} · {registration.presence_state || '—'} · {registration.publication_state || '—'}</small></td><td>{registration.source_indexes?.join(', ') || 'No verified indexes'}<small>definition revision {registration.definition_revision || 0}</small></td><td><label className={styles.checkLabel}><input type="checkbox" checked={Boolean(registration.delivery_enabled)} disabled={busy} onChange={() => void toggle()} />Allow future delivery</label><form className={styles.formFields} onSubmit={relink}><select className={styles.input} value={customer} disabled={busy} onChange={event => setCustomer(event.target.value)}>{data.customers.map(item => <option key={item.id} value={item.id}>{item.cid || item.gid} · {item.name}</option>)}</select><textarea className={styles.input} rows={2} value={indexes} disabled={busy} onChange={event => setIndexes(event.target.value)} placeholder="exact-index-name" /><button className={styles.button} disabled={busy}>Review/relink scope</button></form>{registration.last_error && <p className={styles.fieldHint}>{registration.last_error}</p>}{error && <p className={styles.error} role="alert">{error}</p>}</td></tr>
+}
+
+function GovernancePanel({ data, onSaved }: { data: EmailSettings; onSaved: (message: string) => Promise<void> }) {
+  const [ownership, setOwnership] = useState({ deployment: data.alert_index_ownership?.[0]?.deployment || '', index_name: '', customer_id: data.customers[0]?.id || '', status: 'active' })
+  const [migrationBusy, setMigrationBusy] = useState(false); const [migrationError, setMigrationError] = useState('')
+  const [ownershipBusy, setOwnershipBusy] = useState(false); const [ownershipError, setOwnershipError] = useState('')
+  const policies = data.alert_policies || []
+  const registrations = data.alert_registrations || []
+  const reviews = data.alert_registration_review || []
+  const quarantine = data.alert_quarantine || []
+  const migrationReport = data.migration_report || {}
+  const metrics = data.metrics || {}
+  const recordsFor = (customer: Customer): PolicyRecord[] => {
+    const records = policies.filter(record => record.customer_id === customer.id)
+    return records.length ? records : [{ customer_id: customer.id, policy: { detail_columns: [], required_columns: [], optional_columns: [], field_mappings: [], row_filters: [], severity_mapping: {}, severity_fallback: 'unknown', max_display_rows: 50, max_stored_rows: 1000 } }]
+  }
+  async function saveOwnership(event: FormEvent) {
+    event.preventDefault(); setOwnershipBusy(true); setOwnershipError('')
+    try { if (!ownership.deployment.trim() || !ownership.index_name.trim()) throw new Error('Deployment and exact index name are required.'); await emailRequest('ownership', ownership); await onSaved(`Index ${ownership.index_name} ownership saved.`); setOwnership(current => ({ ...current, index_name: '' })) } catch (cause) { setOwnershipError((cause as Error).message) } finally { setOwnershipBusy(false) }
+  }
+  async function migration(path: 'preview' | 'backfill') {
+    setMigrationBusy(true); setMigrationError('')
+    try { await emailRequest(`migration/${path}`, path === 'preview' ? { limit: 1000 } : {}); await onSaved(path === 'preview' ? 'Migration preview generated.' : 'Migration backfill completed with historical email replay suppressed.') } catch (cause) { setMigrationError((cause as Error).message) } finally { setMigrationBusy(false) }
+  }
+  return <>
+    <div className={styles.metrics}>{[['Open reviews', metrics.registration_reviews || reviews.length], ['Held events', metrics.held_events || data.history.filter(row => row.status === 'held').length], ['Missing deliveries', metrics.missing_deliveries || 0], ['Queue age', `${metrics.queue_age_seconds || 0}s`], ['Discovery incomplete', metrics.discovery_incomplete_24h || 0], ['Publication failures', metrics.publication_failures || 0]].map(([label,value]) => <div className={styles.metric} key={String(label)}><span className={styles.metricLabel}>{label}</span><strong>{value}</strong><small><span>Administrator review signal</span></small></div>)}</div>
+    <div className={styles.card}><div className={styles.sectionHeading}><div><h3 className={styles.editorTitle}>Migration and operations</h3><p className={styles.editorCopy}>Preview mappings before backfill. Backfill never sends historical email and keeps unresolved legacy events explicitly suppressed.</p></div><div className={styles.actions}><button className={styles.button} disabled={migrationBusy} onClick={() => void migration('preview')}>Preview migration</button><button className={`${styles.button} ${styles.primary}`} disabled={migrationBusy} onClick={() => { if (window.confirm('Backfill reliable legacy identities now? Historical email replay remains suppressed.')) void migration('backfill') }}>Backfill reliable identities</button></div></div>{migrationError && <p className={styles.error} role="alert">{migrationError}</p>}<pre className={styles.plainText}>{jsonText(migrationReport, {})}</pre></div>
+    <div className={styles.card}><h3 className={styles.editorTitle}>Verified deployment/index ownership</h3><p className={styles.editorCopy}>Names are only hints. Each exact index must be approved for one deployment and one customer before an alert can deliver.</p><form className={styles.formFields} onSubmit={saveOwnership}><div className={styles.fieldGrid}><label className={styles.field}><span>Splunk deployment</span><input className={styles.input} value={ownership.deployment} onChange={event => setOwnership(current => ({ ...current, deployment: event.target.value }))} placeholder="splunk-prod" required /></label><label className={styles.field}><span>Exact index name</span><input className={styles.input} value={ownership.index_name} onChange={event => setOwnership(current => ({ ...current, index_name: event.target.value }))} placeholder="CPC_security" required /></label></div><div className={styles.fieldGrid}><label className={styles.field}><span>Customer</span><select className={styles.input} value={ownership.customer_id} onChange={event => setOwnership(current => ({ ...current, customer_id: event.target.value }))} required><CustomerOptions data={data} /></select></label><label className={styles.field}><span>Ownership state</span><select className={styles.input} value={ownership.status} onChange={event => setOwnership(current => ({ ...current, status: event.target.value }))}><option value="active">Active and verified</option><option value="review">Needs review</option><option value="retired">Retired</option></select></label></div>{ownershipError && <p className={styles.error} role="alert">{ownershipError}</p>}<button className={`${styles.button} ${styles.primary}`} disabled={ownershipBusy}>{ownershipBusy ? 'Saving…' : 'Save ownership'}</button></form><div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Deployment</th><th>Index</th><th>Customer</th><th>Status</th></tr></thead><tbody>{(data.alert_index_ownership || []).map(item => <tr key={item.id || `${item.deployment}:${item.index_name}`}><td>{item.deployment}</td><td className={styles.mono}>{item.index_name}</td><td>{item.cid || item.customer_id}</td><td><StatusBadge status={item.status} /></td></tr>)}</tbody></table>{!data.alert_index_ownership?.length && <p className={styles.empty}>No explicit index ownership has been approved.</p>}</div></div>
+    <div className={styles.card}><h3 className={styles.editorTitle}>Alert registrations</h3><p className={styles.editorCopy}>AIDs are allocated by PostgreSQL. Delivery enablement is independent from Splunk activation and publication.</p><div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>CID / AID</th><th>Splunk identity</th><th>Lifecycle</th><th>Source scope</th><th>Administrator controls</th></tr></thead><tbody>{registrations.map(registration => <RegistrationRow key={registration.id} registration={registration} data={data} onSaved={onSaved} />)}</tbody></table>{!registrations.length && <p className={styles.empty}>No registered alerts yet.</p>}</div></div>
+    <div className={styles.card}><h3 className={styles.editorTitle}>Customer and per-alert policies</h3><p className={styles.editorCopy}>The sender cannot choose fields. Empty detail columns intentionally store and send no result details; CID, AID, EID, severity, trigger time, and counts remain backend-owned.</p>{data.customers.map(customer => recordsFor(customer).map(record => <PolicyEditor key={`${customer.id}:${record.registration_id || 'default'}`} record={record} customer={customer} onSaved={onSaved} />))}</div>
+    <div className={styles.contentGrid}><div className={styles.card}><h3 className={styles.editorTitle}>Registration review</h3>{reviews.length ? reviews.map(review => <article className={styles.importRow} key={review.id}><div><strong>{review.saved_search_name || 'Unnamed alert'}</strong><p className={styles.fieldHint}>{review.deployment} · {review.app || '—'} / {review.owner || '—'} · {review.source_indexes?.join(', ') || 'no exact indexes'}</p><p>{review.reason || 'Needs administrator review'}</p></div></article>) : <p className={styles.empty}>No unresolved registration reviews.</p>}</div><div className={styles.card}><h3 className={styles.editorTitle}>Quarantine and held delivery</h3>{quarantine.length ? quarantine.map(item => <article className={styles.importRow} key={String(item.id)}><div><strong>{String(item.alert_name || item.splunk_sid || item.id)}</strong><p>{String(item.reason || 'Quarantined payload')}</p></div></article>) : <p className={styles.empty}>No unresolved quarantine records.</p>}{data.history.filter(row => row.status === 'held').map(row => <article className={styles.importRow} key={`held-${row.event_id}`}><div><strong className={styles.mono}>{row.eid || row.event_id}</strong><p>{row.cid || row.customer} · {row.aid || 'No AID'}</p><p className={styles.fieldHint}>{row.error || 'Held for review'}</p></div><button className={styles.button} disabled={!row.customer_id} onClick={async () => { try { await emailRequest('release', { event_id: row.event_id, customer_id: row.customer_id }); await onSaved(`Held event ${row.eid || row.event_id} released for future delivery.`) } catch (cause) { setMigrationError((cause as Error).message) } }}>{'Release held run'}</button></article>)}</div></div>
+  </>
+}
+
 const newRule = (): Rule => ({ name: '', customer_id: '', ruleset_id: '', severities: ['high','critical'], enabled: false, routing: {} })
 function RulesPanel({ data, onSaved }: { data: EmailSettings; onSaved: (message: string) => Promise<void> }) {
   const [draft, setDraft] = useState<Rule | null>(null)

@@ -40,6 +40,8 @@ const PRIVILEGED_API_METHODS = new Set([
   'llm.discoverModels',
 ])
 const MIXED_API_METHODS = new Set(['llm.providers', 'llm.models'])
+const AUTH_BRIDGE_SECRET = randomBytes(32).toString('hex')
+const ADMIN_BRIDGE_COMMANDS = new Set(['publish-catalog', 'rollback-publication'])
 
 function storageUriFromServerEnv(serverRoot) {
   try {
@@ -95,7 +97,30 @@ function childEnvironment() {
   // never cross the process boundary into a Python child.
   delete environment[ADMIN_EMAIL_ENV]
   delete environment[ADMIN_PASSWORD_ENV]
+  environment.SOC_AGENT_BRIDGE_SECRET = AUTH_BRIDGE_SECRET
   return environment
+}
+
+function authBridgeToken(command, actorId = '') {
+  const claims = Buffer.from(JSON.stringify({
+    version: 1,
+    kind: 'admin',
+    command,
+    actor_id: String(actorId || '').trim(),
+    issued_at: Math.floor(Date.now() / 1000),
+  })).toString('base64url')
+  const signature = createHmac('sha256', AUTH_BRIDGE_SECRET).update(claims).digest('base64url')
+  return `${claims}.${signature}`
+}
+
+function authenticatedCommandPayload(command, payload) {
+  const value = payload && typeof payload === 'object' ? { ...payload } : {}
+  const catalog = String(value.catalog || '')
+  const needsAdmin = ADMIN_BRIDGE_COMMANDS.has(command)
+    || ((command === 'save-catalog-record' || command === 'archive-catalog-record') && catalog === 'customer')
+    || (typeof value.actor_id === 'string' && value.actor_id.trim() !== '' && !value.session_id)
+  if (needsAdmin) value._host_capability = authBridgeToken(command, value.actor_id)
+  return value
 }
 
 function configuredWorkspaceRoot() {
@@ -567,7 +592,7 @@ async function spawnAuthCommand(command, payload) {
       }
       try { resolvePromise(JSON.parse(stdout || '{}')) } catch { rejectPromise(authCommandError(command)) }
     })
-    child.stdin.end(JSON.stringify(payload ?? {}))
+    child.stdin.end(JSON.stringify(authenticatedCommandPayload(command, payload)))
   })
 }
 
@@ -731,15 +756,16 @@ async function withControlChannel(command, payload) {
 }
 
 export async function runAuthCommand(command, payload) {
-  if (controlChannelMode() === 'off') return spawnAuthCommand(command, payload)
+  const authorizedPayload = authenticatedCommandPayload(command, payload)
+  if (controlChannelMode() === 'off') return spawnAuthCommand(command, authorizedPayload)
   try {
-    return await withControlChannel(command, payload)
+    return await withControlChannel(command, authorizedPayload)
   } catch (error) {
     if (error?.controlUnavailable === true) {
       // Fall back only before transmission. Lost responses must never replay
       // an email send, catalog publication, or other ambiguous mutation.
       controlChannel = null
-      return spawnAuthCommand(command, payload)
+      return spawnAuthCommand(command, authorizedPayload)
     }
     throw error
   }

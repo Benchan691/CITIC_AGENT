@@ -23,6 +23,7 @@ from typing import Any
 
 from .config import ServerSettings
 from .env_loader import load_server_env
+from .alert_identity import DEFAULT_DISPLAY_ROWS
 from .postgres_store import PostgresBootstrap, create_connection_pool
 from .smtp_alert import AlertEmailSender, normalize_routing, routing_matches, render_html, merge_recipients
 
@@ -149,6 +150,13 @@ class AlertEmailContext:
     metadata: dict = field(default_factory=dict)
     accepted_recipients: list = field(default_factory=list)
     delivery_snapshot: dict | None = None
+    cid: str | None = None
+    aid: str | None = None
+    eid: str | None = None
+    detail_columns: list[str] = field(default_factory=list)
+    detail_labels: dict[str, str] = field(default_factory=dict)
+    detail_rows: list[dict[str, Any]] = field(default_factory=list)
+    detail_positions: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -178,18 +186,22 @@ def render_alert_email(context: AlertEmailContext) -> tuple[str, str]:
     subject = _bounded(f"[SOC][{severity}] {customer} {alert}", 250)
     trigger = context.trigger_time.isoformat() if context.trigger_time else "unknown"
     result_count = str(context.result_count) if context.result_count is not None else "unknown"
+    event_identifier = _bounded(context.eid or context.event_id, 256)
     body = "\n".join(
         (
             "A security alert was received.",
             "",
             f"Customer: {customer}",
+            f"Customer CID: {_bounded(context.cid, 128) or 'unknown'}",
             f"Customer GID: {_bounded(context.customer_gid, 128) or 'unknown'}",
             f"Alert: {alert}",
+            f"Alert AID: {_bounded(context.aid, 128) or 'unknown'}",
+            f"Alert EID: {event_identifier}",
             f"Severity: {severity}",
             f"Event time: {trigger}",
             f"Rule number: {_bounded(context.rule_number, 32) or 'unknown'}",
             f"Result count: {result_count}",
-            f"Event ID: {_bounded(context.event_id, 128)}",
+            f"Event ID: {event_identifier}",
             f"Splunk SID: {_bounded(context.splunk_sid, 1_024) or 'unknown'}",
             "",
             "Retrieve the event evidence from the SOC system using the event ID or Splunk SID.",
@@ -201,6 +213,30 @@ def render_alert_email(context: AlertEmailContext) -> tuple[str, str]:
     body += "\nDescription: " + _bounded(localized.get('description', context.metadata.get('description')), 1500)
     body += "\nRemediation: " + _bounded(localized.get('remediation'), 1500)
     body += "\nSource types: " + _bounded(', '.join(context.metadata.get('source_types') or []), 500)
+    if context.detail_rows or any(
+        key in context.metadata for key in ("detail_total", "detail_stored", "detail_displayed")
+    ):
+        policy = context.metadata.get("email_policy")
+        display_limit = DEFAULT_DISPLAY_ROWS
+        if isinstance(policy, Mapping):
+            try:
+                display_limit = max(1, min(int(policy.get("max_display_rows", DEFAULT_DISPLAY_ROWS)), 1_000))
+            except (TypeError, ValueError):
+                display_limit = DEFAULT_DISPLAY_ROWS
+        detail_total = context.metadata.get("detail_total", context.result_count)
+        detail_stored = context.metadata.get("detail_stored", len(context.detail_rows))
+        detail_displayed = context.metadata.get("detail_displayed", min(len(context.detail_rows), display_limit))
+        body += f"\nDetail rows: total={detail_total}; retained={detail_stored}; displayed={detail_displayed}"
+        if context.detail_rows:
+            body += "\n\nSelected result rows:"
+            positions = context.detail_positions or list(range(len(context.detail_rows)))
+            for position, row in zip(positions[:display_limit], context.detail_rows[:display_limit], strict=False):
+                body += f"\nRow {position + 1}: " + "; ".join(
+                    f"{_bounded(context.detail_labels.get(column, column), 128)}={_bounded(row.get(column), 1_000)}"
+                    for column in context.detail_columns
+                )
+    if context.metadata.get("detail_truncated"):
+        body += "\n[Additional result rows were retained outside this email.]"
     translations = {
         'CN': ['已收到安全告警。','客户','客户 GID','告警','严重程度','事件时间','规则编号','结果数量','事件编号','描述','修复建议','日志源类型','请使用事件编号或 Splunk SID 在 SOC 系统中检索证据。'],
         'ZH': ['已收到安全告警。','客戶','客戶 GID','告警','嚴重程度','事件時間','規則編號','結果數量','事件編號','描述','修復建議','日誌來源類型','請使用事件編號或 Splunk SID 在 SOC 系統中檢索證據。'],
@@ -299,15 +335,97 @@ class AlertEmailStore:
 
     def claim(self, limit: int, worker_id: str) -> list[AlertEmailContext]:
         with self._connect() as connection:
+            # A valid outbox row can become unsafe after it was queued (for
+            # example, an administrator can suspend a customer or move an
+            # index).  Re-check the complete registered-alert eligibility in
+            # the same transaction immediately before claiming it.
+            connection.execute(
+                """
+                UPDATE sec_event_email_outbox AS outbox
+                SET status = 'held', next_attempt_at = NULL,
+                    last_error = CASE
+                        WHEN COALESCE((event.event_data ->> 'email_held')::boolean, FALSE)
+                            THEN COALESCE(event.event_data ->> 'email_hold_reason', 'alert is held for review')
+                        ELSE 'customer, registration, recipient, or source ownership is no longer eligible'
+                    END,
+                    claimed_at = NULL, claimed_by = NULL
+                FROM sec_events AS event
+                LEFT JOIN customers AS customer ON customer.id = event.customer_id
+                LEFT JOIN sec_alert_registrations AS registration
+                    ON registration.id = event.alert_registration_id
+                WHERE outbox.event_id = event.id
+                      AND outbox.status IN ('pending', 'failed')
+                      AND COALESCE(event.eid, '') <> ''
+                      AND NOT COALESCE(event.historical_email_suppressed, FALSE)
+                      AND NOT (
+                      customer.id IS NOT NULL
+                      AND customer.status = 'active'
+                      AND customer.alert_delivery_enabled
+                      AND registration.id IS NOT NULL
+                      AND registration.registration_state = 'active'
+                      AND registration.delivery_state = 'ready'
+                      AND registration.delivery_enabled
+                      AND registration.presence_state IN ('unknown', 'present')
+                      AND cardinality(registration.source_indexes) > 0
+                      AND jsonb_typeof(customer.email_config -> 'recipients') = 'array'
+                      AND jsonb_array_length(customer.email_config -> 'recipients') > 0
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM unnest(registration.source_indexes) AS source(index_name)
+                          WHERE NOT EXISTS (
+                              SELECT 1
+                              FROM sec_alert_index_ownership AS ownership
+                              WHERE ownership.splunk_deployment = registration.splunk_deployment
+                                AND ownership.index_name = source.index_name
+                                AND ownership.customer_id = registration.customer_id
+                                AND ownership.status = 'active'
+                          )
+                      )
+                      AND NOT COALESCE((event.event_data ->> 'email_held')::boolean, FALSE)
+                  )
+                """
+            )
             rows = connection.execute(
                 """
                 WITH candidates AS (
-                    SELECT id
-                    FROM sec_event_email_outbox
-                    WHERE status IN ('pending', 'failed')
-                      AND next_attempt_at IS NOT NULL
-                      AND next_attempt_at <= NOW()
-                    ORDER BY created_at, id
+                    SELECT outbox.id
+                    FROM sec_event_email_outbox AS outbox
+                    JOIN sec_events AS event ON event.id = outbox.event_id
+                    JOIN customers AS customer ON customer.id = event.customer_id
+                    LEFT JOIN sec_alert_registrations AS registration
+                        ON registration.id = event.alert_registration_id
+                    WHERE outbox.status IN ('pending', 'failed')
+                      AND outbox.next_attempt_at IS NOT NULL
+                      AND outbox.next_attempt_at <= NOW()
+                      AND NOT COALESCE(event.historical_email_suppressed, FALSE)
+                      AND (
+                          COALESCE(event.eid, '') = ''
+                          OR (
+                              customer.status = 'active'
+                              AND customer.alert_delivery_enabled
+                              AND registration.registration_state = 'active'
+                              AND registration.delivery_state = 'ready'
+                              AND registration.delivery_enabled
+                              AND registration.presence_state IN ('unknown', 'present')
+                              AND cardinality(registration.source_indexes) > 0
+                              AND jsonb_typeof(customer.email_config -> 'recipients') = 'array'
+                              AND jsonb_array_length(customer.email_config -> 'recipients') > 0
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM unnest(registration.source_indexes) AS source(index_name)
+                                  WHERE NOT EXISTS (
+                                      SELECT 1
+                                      FROM sec_alert_index_ownership AS ownership
+                                      WHERE ownership.splunk_deployment = registration.splunk_deployment
+                                        AND ownership.index_name = source.index_name
+                                        AND ownership.customer_id = registration.customer_id
+                                        AND ownership.status = 'active'
+                                  )
+                              )
+                              AND NOT COALESCE((event.event_data ->> 'email_held')::boolean, FALSE)
+                          )
+                      )
+                    ORDER BY outbox.created_at, outbox.id
                     FOR UPDATE SKIP LOCKED
                     LIMIT %s
                 ), claimed AS (
@@ -316,7 +434,9 @@ class AlertEmailStore:
                         last_attempt_at = NOW(), attempt_count = outbox.attempt_count + 1
                     FROM candidates
                     WHERE outbox.id = candidates.id
-                    RETURNING outbox.id, outbox.event_id, outbox.customer_id, outbox.attempt_count, outbox.accepted_recipients, outbox.delivery_snapshot
+                    RETURNING outbox.id, outbox.event_id, outbox.customer_id, outbox.attempt_count,
+                              outbox.accepted_recipients, outbox.delivery_snapshot,
+                              outbox.recipient_snapshot, outbox.rendering_policy_snapshot
                 )
                 SELECT claimed.id::text, claimed.event_id::text, claimed.customer_id::text,
                        claimed.attempt_count, event.severity, event.alert_name,
@@ -333,11 +453,30 @@ class AlertEmailStore:
                            ),
                            'content', ruleset.email_content,
                            'description', template.common_logic_summary,
-                           'source_types', (SELECT jsonb_agg(st.name) FROM source_types st WHERE st.id = ANY(event.source_type_ids))),
-                       claimed.accepted_recipients, claimed.delivery_snapshot
+                           'source_types', (SELECT jsonb_agg(st.name) FROM source_types st WHERE st.id = ANY(event.source_type_ids)),
+                           'detail_total', event.detail_total,
+                           'detail_stored', event.detail_stored,
+                           'detail_displayed', event.detail_displayed,
+                           'detail_truncated', event.detail_truncated,
+                           'email_held', COALESCE((event.event_data ->> 'email_held')::boolean, FALSE),
+                           'registration_active', COALESCE(
+                               registration.registration_state = 'active'
+                               AND registration.delivery_state = 'ready',
+                               TRUE
+                           )),
+                       claimed.accepted_recipients, claimed.delivery_snapshot,
+                       event.cid, event.aid, event.eid,
+                       COALESCE(event.event_data -> 'detail_columns', '[]'::jsonb),
+                       COALESCE((SELECT jsonb_agg(details.row_position ORDER BY details.row_position)
+                                 FROM sec_event_details AS details WHERE details.event_id = event.id), '[]'::jsonb),
+                       COALESCE((SELECT jsonb_agg(details.details ORDER BY details.row_position)
+                                 FROM sec_event_details AS details WHERE details.event_id = event.id), '[]'::jsonb),
+                       COALESCE((event.event_data ->> 'email_held')::boolean, FALSE),
+                       claimed.recipient_snapshot, claimed.rendering_policy_snapshot
                 FROM claimed
                 JOIN sec_events AS event ON event.id = claimed.event_id
                 JOIN customers AS customer ON customer.id = claimed.customer_id AND customer.id = event.customer_id
+                LEFT JOIN sec_alert_registrations AS registration ON registration.id = event.alert_registration_id
                 LEFT JOIN soc_customer AS catalog ON catalog.legacy_customer_id = customer.id
                 LEFT JOIN rulesets AS ruleset ON ruleset.id = event.ruleset_id AND ruleset.customer_id = customer.id
                 LEFT JOIN rule_templates AS template ON template.id = ruleset.rule_template_id
@@ -349,6 +488,26 @@ class AlertEmailStore:
 
     @staticmethod
     def _context(row: Sequence[Any]) -> AlertEmailContext:
+        metadata = row[14] or {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+        position_values = row[21] if len(row) > 21 else []
+        if len(row) > 23 and row[23]:
+            metadata = {**metadata, "email_held": True}
+        registered_run = bool(len(row) > 19 and row[19])
+        recipient_snapshot = row[24] if len(row) > 24 and row[24] is not None and registered_run else row[11]
+        policy_snapshot = row[25] if len(row) > 25 and row[25] is not None and registered_run else None
+        if isinstance(policy_snapshot, dict):
+            metadata = {**metadata, "email_policy": policy_snapshot}
+        policy = metadata.get("email_policy")
+        detail_labels = {}
+        if isinstance(policy, Mapping) and isinstance(policy.get("field_mappings"), list):
+            for mapping in policy["field_mappings"]:
+                if isinstance(mapping, Mapping):
+                    source = str(mapping.get("source") or mapping.get("field") or mapping.get("name") or "").strip()
+                    label = str(mapping.get("label") or source).strip()
+                    if source and label:
+                        detail_labels[source] = label
         return AlertEmailContext(
             outbox_id=str(row[0]),
             event_id=str(row[1]),
@@ -361,31 +520,90 @@ class AlertEmailStore:
             splunk_sid=_bounded(row[8], 1_024) or None,
             customer_gid=_bounded(row[9], 128) or None,
             customer_name=_bounded(row[10], 2_000) or None,
-            email_config=row[11],
+            email_config=recipient_snapshot,
             ruleset_id=str(row[12]) if row[12] else None,
             rule_number=_bounded(row[13], 32) or None,
-            metadata=row[14] or {}, accepted_recipients=row[15] or [], delivery_snapshot=row[16],
+            metadata=metadata, accepted_recipients=row[15] or [], delivery_snapshot=row[16],
+            cid=_bounded(row[17], 128) or None if len(row) > 17 else None,
+            aid=_bounded(row[18], 128) or None if len(row) > 18 else None,
+            eid=_bounded(row[19], 256) or None if len(row) > 19 else None,
+            detail_columns=list(row[20] or []) if len(row) > 20 and isinstance(row[20], (list, tuple)) else [],
+            detail_labels=detail_labels,
+            detail_rows=list(row[22] or []) if len(row) > 22 and isinstance(row[22], list) else [],
+            detail_positions=[int(position) for position in position_values or [] if not isinstance(position, bool)]
+                if isinstance(position_values, (list, tuple)) else [],
         )
 
     def admin_details(self):
         with self._connect() as connection:
             sources = connection.execute("SELECT id::text,name FROM source_types ORDER BY name").fetchall()
-            history = connection.execute("""SELECT o.event_id::text,COALESCE(sc.gid,c.gid),o.status,o.created_at::text,
-                o.smtp_accepted_at::text,o.accepted_recipients,o.rejected_recipients,o.last_error
+            history = connection.execute("""SELECT o.event_id::text,COALESCE(o.eid,e.eid),o.customer_id::text,
+                COALESCE(e.cid,c.cid),COALESCE(e.aid,''),COALESCE(e.eid,''),COALESCE(sc.gid,c.gid),
+                o.status,o.created_at::text,o.smtp_accepted_at::text,o.accepted_recipients,
+                o.rejected_recipients,o.last_error
                 FROM sec_event_email_outbox o JOIN customers c ON c.id=o.customer_id
+                JOIN sec_events e ON e.id=o.event_id
                 LEFT JOIN soc_customer sc ON sc.legacy_customer_id = c.id
                 ORDER BY o.created_at DESC LIMIT 100""").fetchall()
+            queue_age = connection.execute(
+                """
+                SELECT COALESCE(EXTRACT(EPOCH FROM (NOW() - MIN(created_at))), 0)
+                FROM sec_event_email_outbox
+                WHERE status IN ('pending', 'failed', 'processing', 'held')
+                """
+            ).fetchone()
+            missing_deliveries = connection.execute(
+                "SELECT COUNT(*) FROM sec_alert_delivery_reconciliation WHERE status = 'missing'"
+            ).fetchone()
+            review_count = connection.execute(
+                "SELECT COUNT(*) FROM sec_alert_registration_review WHERE resolved_at IS NULL"
+            ).fetchone()
+            held_count = connection.execute(
+                "SELECT COUNT(*) FROM sec_event_email_outbox WHERE status = 'held'"
+            ).fetchone()
+            discovery_incomplete = connection.execute(
+                """
+                SELECT COUNT(*) FROM sec_alert_discovery_runs
+                WHERE status IN ('incomplete', 'failed')
+                  AND started_at >= NOW() - INTERVAL '24 hours'
+                """
+            ).fetchone()
+            publication_failures = connection.execute(
+                "SELECT COUNT(*) FROM sec_alert_registrations WHERE publication_state = 'failed'"
+            ).fetchone()
         return dict(source_types=[dict(id=r[0], name=r[1]) for r in sources],
-                    history=[dict(zip(('event_id','customer','status','created','smtp_accepted','accepted','rejected','error'), r)) for r in history])
+                    history=[dict(zip(('event_id','eid','customer_id','cid','aid','event_eid','customer','status','created','smtp_accepted','accepted','rejected','error'), r)) for r in history],
+                    metrics={
+                        "queue_age_seconds": int(float(queue_age[0] or 0)) if queue_age else 0,
+                        "missing_deliveries": int(missing_deliveries[0] or 0) if missing_deliveries else 0,
+                        "registration_reviews": int(review_count[0] or 0) if review_count else 0,
+                        "held_events": int(held_count[0] or 0) if held_count else 0,
+                        "discovery_incomplete_24h": int(discovery_incomplete[0] or 0) if discovery_incomplete else 0,
+                        "publication_failures": int(publication_failures[0] or 0) if publication_failures else 0,
+                    })
 
     def preview(self, customer_id, event_id):
         with self._connect() as connection:
             row = connection.execute("""SELECT '',e.id::text,c.id::text,0,e.severity,e.alert_name,
-                e.trigger_time,e.result_count,e.splunk_sid,COALESCE(sc.gid,c.gid),COALESCE(sc.display_name,c.name),COALESCE(sc.email_config,c.email_config),r.id::text,r.rule_number,
+                e.trigger_time,e.result_count,e.splunk_sid,COALESCE(sc.gid,c.gid),COALESCE(sc.display_name,c.name),
+                CASE WHEN COALESCE(e.eid, '') <> '' THEN COALESCE(e.event_data -> 'recipient_snapshot','{}'::jsonb)
+                     ELSE COALESCE(sc.email_config,c.email_config) END,
+                r.id::text,r.rule_number,
                 jsonb_build_object('src_ip',e.src_ip,'dest_ip',e.dest_ip,'hostname',e.hostname,
                 'source_type_ids',e.source_type_ids,'customer_active',COALESCE(sc.archived_at IS NULL AND sc.lifecycle_status IN ('active','provisioning'),c.status='active'),'content',r.email_content,
-                'description',t.common_logic_summary,'source_types',(SELECT jsonb_agg(s.name) FROM source_types s WHERE s.id=ANY(e.source_type_ids))),
-                '[]'::jsonb,NULL
+                'description',t.common_logic_summary,'source_types',(SELECT jsonb_agg(s.name) FROM source_types s WHERE s.id=ANY(e.source_type_ids)),
+                'email_policy',e.event_data -> 'email_policy','detail_total',e.detail_total,'detail_stored',e.detail_stored,
+                'detail_displayed',e.detail_displayed,'detail_truncated',e.detail_truncated,
+                'email_held',COALESCE((e.event_data ->> 'email_held')::boolean,FALSE)),
+                '[]'::jsonb,NULL,e.cid,e.aid,e.eid,
+                COALESCE(e.event_data -> 'detail_columns','[]'::jsonb),
+                COALESCE((SELECT jsonb_agg(d.row_position ORDER BY d.row_position)
+                          FROM sec_event_details d WHERE d.event_id=e.id),'[]'::jsonb),
+                COALESCE((SELECT jsonb_agg(d.details ORDER BY d.row_position)
+                          FROM sec_event_details d WHERE d.event_id=e.id),'[]'::jsonb),
+                COALESCE((e.event_data ->> 'email_held')::boolean,FALSE),
+                COALESCE(e.event_data -> 'recipient_snapshot','{}'::jsonb),
+                COALESCE(e.event_data -> 'email_policy','{}'::jsonb)
                 FROM sec_events e JOIN customers c ON c.id=e.customer_id
                 LEFT JOIN soc_customer sc ON sc.legacy_customer_id = c.id
                 LEFT JOIN rulesets r ON r.id=e.ruleset_id AND r.customer_id=c.id
@@ -394,7 +612,14 @@ class AlertEmailStore:
         if not row:
             raise ValueError('event not found for this customer')
         context = self._context(row)
-        rules = [r for r in self.active_rules() if r.matches(context)]
+        eligible = True
+        eligibility_reason = ""
+        if context.eid:
+            eligible, eligibility_reason = self.registered_delivery_eligibility(
+                event_id,
+                customer_id,
+            )
+        rules = [] if context.eid else [r for r in self.active_rules() if r.matches(context)]
         subject, text = render_alert_email(context)
         import base64
         from pathlib import Path
@@ -403,8 +628,22 @@ class AlertEmailStore:
             path = Path(__file__).with_name('email_templates') / 'img' / Path(cid).name
             if path.is_file():
                 html = html.replace('cid:' + cid, 'data:image/jpeg;base64,' + base64.b64encode(path.read_bytes()).decode())
-        return dict(subject=subject, text=text, html=html,
-                    recipients=merge_recipients(rules, context) if rules else {}, matched_rules=[r.name for r in rules])
+        recipients = (
+            normalize_email_config(context.email_config, require_recipient=False)
+            if context.eid
+            else merge_recipients(rules, context) if rules else {}
+        )
+        return dict(
+            subject=subject,
+            text=text,
+            html=html,
+            recipients=recipients,
+            matched_rules=[r.name for r in rules],
+            delivery_mode="registered_snapshot" if context.eid else "legacy_rules",
+            held=bool(context.metadata.get("email_held")),
+            eligible=eligible,
+            eligibility_reason=eligibility_reason,
+        )
 
     def preview_csv(self, customer_id, csv_text):
         import csv
@@ -542,28 +781,39 @@ class AlertEmailStore:
             rows = connection.execute(
                 """
                 SELECT c.id::text, COALESCE(sc.customer_id, ''), COALESCE(sc.revision, 0),
-                       COALESCE(sc.gid, c.gid), COALESCE(sc.display_name, c.name),
+                       COALESCE(sc.customer_code, c.cid, ''), COALESCE(sc.gid, c.gid),
+                       COALESCE(sc.display_name, c.name),
                        COALESCE(sc.lifecycle_status, CASE WHEN c.status = 'active' THEN 'active' ELSE 'retired' END),
-                       COALESCE(sc.email_config, c.email_config)
+                       COALESCE(sc.email_config, c.email_config),
+                       COALESCE(sc.alert_delivery_enabled, c.alert_delivery_enabled, FALSE)
                 FROM customers c
                 LEFT JOIN soc_customer sc ON sc.legacy_customer_id = c.id
-                ORDER BY COALESCE(sc.gid, c.gid), c.id
+                ORDER BY COALESCE(sc.customer_code, c.cid, sc.gid, c.gid), c.id
                 """
             ).fetchall()
         return [
             {
                 "id": str(row[0]), "record_id": str(row[1]) if row[1] else "",
-                "revision": int(row[2] or 0), "gid": row[3], "name": row[4],
-                "display_name": row[4], "lifecycle_status": row[5], "email_config": row[6] or {},
+                "revision": int(row[2] or 0), "cid": row[3], "gid": row[4], "name": row[5],
+                "display_name": row[5], "lifecycle_status": row[6], "email_config": row[7] or {},
+                "alert_delivery_enabled": bool(row[8]),
             }
             for row in rows
         ]
 
-    def save_customer_email_config(self, customer_id: str, value: Any, *, actor: str = "admin") -> dict[str, Any]:
+    def save_customer_email_config(
+        self,
+        customer_id: str,
+        value: Any,
+        *,
+        alert_delivery_enabled: bool | None = None,
+        actor: str = "admin",
+    ) -> dict[str, Any]:
         """Compatibility wrapper; the catalog update owns the transaction."""
         normalized = normalize_email_config(value, require_recipient=False)
         normalized.setdefault("language", "EN")
         normalized.setdefault("brand", "CPC")
+        enabled = bool(alert_delivery_enabled) if alert_delivery_enabled is not None else None
         # A few isolated PostgreSQL fixtures install only the legacy
         # migrations. Bootstrap the compatibility table in that same schema
         # so the wrapper remains usable while the normal server path uses the
@@ -579,6 +829,7 @@ class AlertEmailStore:
                         notes TEXT NOT NULL DEFAULT '', source_type_id TEXT NOT NULL DEFAULT '',
                         related_staff_id TEXT NOT NULL DEFAULT '', splunk_indexes TEXT[] NOT NULL DEFAULT '{}',
                         field_mapping JSONB NOT NULL DEFAULT '{}', email_config JSONB NOT NULL DEFAULT '{}',
+                        alert_delivery_enabled BOOLEAN NOT NULL DEFAULT FALSE,
                         legacy_customer_id UUID UNIQUE, revision INTEGER NOT NULL DEFAULT 1,
                         archived_at TIMESTAMPTZ, created_by TEXT NOT NULL DEFAULT '', updated_by TEXT NOT NULL DEFAULT '',
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -593,7 +844,9 @@ class AlertEmailStore:
                     )"""
                 )
                 if not hasattr(self, "uri"):
-                    return self._save_customer_email_config_local(connection, customer_id, normalized, actor)
+                    return self._save_customer_email_config_local(
+                        connection, customer_id, normalized, actor, enabled
+                    )
         from .catalog.store import CatalogStore
 
         with self._connect() as connection:
@@ -612,8 +865,11 @@ class AlertEmailStore:
             values = {key: current.get(key) for key in (
                 "customer_code", "display_name", "short_name", "gid", "lifecycle_status", "notes",
                 "source_type_id", "related_staff_id", "splunk_indexes", "field_mapping", "email_config",
+                "alert_delivery_enabled",
             )}
             values["email_config"] = normalized
+            if enabled is not None:
+                values["alert_delivery_enabled"] = enabled
             saved = catalog.update_record(
                 "customer", str(row[0]), values, expected_revision=int(current["revision"]), actor=actor,
                 reason="alert email compatibility update",
@@ -627,30 +883,39 @@ class AlertEmailStore:
             "display_name": saved.get("display_name", ""),
             "lifecycle_status": saved.get("lifecycle_status", ""),
             "email_config": saved.get("email_config", normalized),
+            "alert_delivery_enabled": bool(saved.get("alert_delivery_enabled", False)),
         }
 
     @staticmethod
-    def _save_customer_email_config_local(connection: Any, customer_id: str, normalized: dict[str, Any], actor: str) -> dict[str, Any]:
+    def _save_customer_email_config_local(
+        connection: Any,
+        customer_id: str,
+        normalized: dict[str, Any],
+        actor: str,
+        enabled: bool | None = None,
+    ) -> dict[str, Any]:
+        connection.execute("ALTER TABLE soc_customer ADD COLUMN IF NOT EXISTS alert_delivery_enabled BOOLEAN NOT NULL DEFAULT FALSE")
         row = connection.execute(
-            "SELECT id::text, gid, name, short_name, status, source_type::text, related_staff::text, field_mapping, splunk_indexes FROM customers WHERE id = %s::uuid",
+            "SELECT id::text, gid, name, short_name, status, source_type::text, related_staff::text, field_mapping, splunk_indexes, alert_delivery_enabled FROM customers WHERE id = %s::uuid",
             (customer_id,),
         ).fetchone()
         if row is None:
             raise ValueError("customer was not found")
-        legacy_id, gid, name, short_name, status, source_type, related_staff, mapping, indexes = row
+        legacy_id, gid, name, short_name, status, source_type, related_staff, mapping, indexes, customer_enabled = row
+        enabled = bool(customer_enabled) if enabled is None else bool(enabled)
         customer_id_text = str(legacy_id).replace("-", "")
         code = re.sub(r"[^a-z0-9_-]+", "-", str(short_name or gid or name or "customer").lower()).strip("-")[:64] or "customer"
         current = connection.execute(
-            "SELECT customer_id, revision, email_config, display_name, lifecycle_status FROM soc_customer WHERE legacy_customer_id = %s::uuid FOR UPDATE",
+            "SELECT customer_id, revision, email_config, display_name, lifecycle_status, alert_delivery_enabled FROM soc_customer WHERE legacy_customer_id = %s::uuid FOR UPDATE",
             (customer_id,),
         ).fetchone()
         before_json = None
         if current:
             revision = int(current[1]) + 1
-            before_json = {"email_config": current[2] or {}}
+            before_json = {"email_config": current[2] or {}, "alert_delivery_enabled": bool(current[5])}
             connection.execute(
-                "UPDATE soc_customer SET email_config=%s::jsonb, revision=%s, updated_by=%s, updated_at=NOW() WHERE customer_id=%s",
-                (json.dumps(normalized), revision, actor, current[0]),
+                "UPDATE soc_customer SET email_config=%s::jsonb, alert_delivery_enabled=%s, revision=%s, updated_by=%s, updated_at=NOW() WHERE customer_id=%s",
+                (json.dumps(normalized), enabled, revision, actor, current[0]),
             )
             record_id = str(current[0])
             display_name = current[3]
@@ -664,12 +929,24 @@ class AlertEmailStore:
                 """INSERT INTO soc_customer (
                     customer_id, customer_code, display_name, short_name, gid, lifecycle_status,
                     source_type_id, related_staff_id, splunk_indexes, field_mapping, email_config,
-                    legacy_customer_id, created_by, updated_by
-                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::uuid,%s,%s)""",
+                    alert_delivery_enabled, legacy_customer_id, created_by, updated_by
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s,%s::uuid,%s,%s)""",
                 (record_id, code, display_name, short_name or "", gid or "", lifecycle,
                  source_type or "", related_staff or "", indexes or [], json.dumps(mapping or {}),
-                 json.dumps(normalized), customer_id, actor, actor),
+                 json.dumps(normalized), enabled, customer_id, actor, actor),
             )
+        # Keep the legacy compatibility projection in the same transaction as
+        # the local catalog fallback.  The normal CatalogStore path performs
+        # this synchronization itself; isolated fixtures must not leave the
+        # event-ingestion tables with stale recipients or authorization.
+        connection.execute(
+            """UPDATE customers
+               SET email_config = %s::jsonb,
+                   alert_delivery_enabled = %s,
+                   updated_at = NOW()
+             WHERE id = %s::uuid""",
+            (json.dumps(normalized), enabled, customer_id),
+        )
         after = {"email_config": normalized, "record_id": record_id, "revision": revision}
         connection.execute(
             """INSERT INTO soc_catalog_history (catalog,record_id,revision,action,actor,before_json,after_json)
@@ -677,7 +954,135 @@ class AlertEmailStore:
             (record_id, revision, "create" if before_json is None else "update", actor,
              json.dumps(before_json) if before_json is not None else None, json.dumps(after)),
         )
-        return {"id": str(legacy_id), "record_id": record_id, "revision": revision, "gid": gid or "", "name": display_name, "display_name": display_name, "lifecycle_status": lifecycle, "email_config": normalized}
+        return {"id": str(legacy_id), "record_id": record_id, "revision": revision, "gid": gid or "", "name": display_name, "display_name": display_name, "lifecycle_status": lifecycle, "email_config": normalized, "alert_delivery_enabled": enabled}
+
+    def _registered_delivery_eligibility(
+        self,
+        connection: Any,
+        row: Sequence[Any],
+        *,
+        require_processing: bool = False,
+    ) -> tuple[bool, str]:
+        """Apply the same live authorization checks to preview and sending."""
+
+        if require_processing and row[14] != "processing":
+            return False, "outbox claim is no longer processing"
+        if not row[0] or row[1]:
+            return False, "event is not eligible for registered delivery"
+        if str(row[2]).casefold() != "active" or not bool(row[3]):
+            return False, "customer authorization or delivery is disabled"
+        if row[4] is None:
+            return False, "registered alert is missing"
+        if str(row[6]).casefold() != "active" or str(row[7]).casefold() != "ready":
+            return False, "registered alert is not ready for delivery"
+        if not bool(row[8]) or str(row[9]).casefold() not in {"unknown", "present"}:
+            return False, "registered alert delivery or presence is invalid"
+        source_indexes = list(row[10] or [])
+        ownership_ok = bool(
+            connection.execute(
+                """
+                SELECT cardinality(%s::text[]) > 0
+                   AND NOT EXISTS (
+                       SELECT 1
+                       FROM unnest(%s::text[]) AS source(index_name)
+                       WHERE NOT EXISTS (
+                           SELECT 1
+                           FROM sec_alert_index_ownership AS ownership
+                           WHERE ownership.splunk_deployment = %s
+                             AND ownership.index_name = source.index_name
+                             AND ownership.customer_id = %s
+                             AND ownership.status = 'active'
+                       )
+                   )
+                """,
+                (source_indexes, source_indexes, row[11], str(row[5]) if row[5] else ""),
+            ).fetchone()[0]
+        )
+        if not ownership_ok:
+            return False, "source index ownership is no longer active and complete"
+        try:
+            normalize_email_config(row[12], require_recipient=True)
+            normalize_email_config(row[13], require_recipient=True)
+        except (TypeError, ValueError):
+            return False, "recipient configuration is invalid or empty"
+        return True, ""
+
+    def registered_delivery_eligibility(self, event_id: str, customer_id: str) -> tuple[bool, str]:
+        """Check current eligibility without claiming or mutating an outbox row."""
+
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT e.eid, COALESCE(e.historical_email_suppressed, FALSE),
+                       c.status, c.alert_delivery_enabled,
+                       r.id::text, e.customer_id::text, r.registration_state,
+                       r.delivery_state, r.delivery_enabled, r.presence_state,
+                       r.source_indexes, r.splunk_deployment,
+                       COALESCE(outbox.recipient_snapshot,
+                                e.event_data -> 'recipient_snapshot', '{}'::jsonb),
+                       c.email_config, outbox.status
+                FROM sec_events AS e
+                JOIN customers AS c ON c.id = e.customer_id
+                LEFT JOIN sec_alert_registrations AS r ON r.id = e.alert_registration_id
+                LEFT JOIN sec_event_email_outbox AS outbox ON outbox.event_id = e.id
+                WHERE e.id = %s::uuid AND e.customer_id = %s::uuid
+                """,
+                (event_id, customer_id),
+            ).fetchone()
+            if row is None:
+                return False, "event not found for this customer"
+            return self._registered_delivery_eligibility(connection, row)
+
+    def confirm_registered_delivery(self, outbox_id: str) -> tuple[bool, str]:
+        """Revalidate a claimed registered run immediately before SMTP.
+
+        Claim-time checks prevent normal queue races.  This second check closes
+        the remaining window in which an administrator can deactivate a
+        customer, registration, or source index after the claim but before a
+        message is sent.  The outbox snapshot remains the content/destination
+        authority for this run; current configuration is used only for
+        authorization and scope validity.
+        """
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT e.eid, COALESCE(e.historical_email_suppressed, FALSE),
+                       c.status, c.alert_delivery_enabled,
+                       r.id::text, e.customer_id::text, r.registration_state,
+                       r.delivery_state, r.delivery_enabled, r.presence_state,
+                       r.source_indexes, r.splunk_deployment,
+                       COALESCE(outbox.recipient_snapshot,
+                                e.event_data -> 'recipient_snapshot', '{}'::jsonb),
+                       c.email_config,
+                       outbox.status
+                FROM sec_event_email_outbox AS outbox
+                JOIN sec_events AS e ON e.id = outbox.event_id
+                JOIN customers AS c ON c.id = outbox.customer_id
+                LEFT JOIN sec_alert_registrations AS r ON r.id = e.alert_registration_id
+                WHERE outbox.id = %s::uuid
+                FOR UPDATE OF outbox
+                """,
+                (outbox_id,),
+            ).fetchone()
+            if row is None:
+                return False, "outbox row was not found"
+            return self._registered_delivery_eligibility(
+                connection,
+                row,
+                require_processing=True,
+            )
+
+    def mark_held(self, outbox_id: str, reason: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE sec_event_email_outbox
+                SET status = 'held', next_attempt_at = NULL, last_error = %s,
+                    claimed_at = NULL, claimed_by = NULL
+                WHERE id = %s::uuid AND status = 'processing'
+                """,
+                (_bounded(reason), outbox_id),
+            )
 
     def save_snapshot(self, outbox_id, snapshot):
         with self._connect() as connection:
@@ -927,17 +1332,63 @@ class AlertEmailWorker:
         rows = await asyncio.to_thread(self.store.claim, self.batch_size, self.worker_id)
         report.claimed = len(rows)
         for context in rows:
-            matching = [rule for rule in rules if rule.matches(context)]
-            if not matching:
-                await asyncio.to_thread(
-                    self.store.mark_disabled,
-                    context.outbox_id,
-                    "no enabled alert email rule matched this event",
+            is_registered_run = bool(context.eid)
+            if is_registered_run:
+                if context.metadata.get("email_held") is True:
+                    await asyncio.to_thread(
+                        self.store.mark_disabled,
+                        context.outbox_id,
+                        "alert email is held for operator review",
+                    )
+                    report.skipped += 1
+                    continue
+                if context.metadata.get("registration_active") is False:
+                    await asyncio.to_thread(
+                        self.store.mark_disabled,
+                        context.outbox_id,
+                        "customer authorization or alert scope is invalid; operator review is required",
+                    )
+                    report.skipped += 1
+                    continue
+                if context.metadata.get("customer_active") is False:
+                    await asyncio.to_thread(
+                        self.store.mark_disabled,
+                        context.outbox_id,
+                        "customer is not active; operator review is required",
+                    )
+                    report.skipped += 1
+                    continue
+                confirm_delivery = getattr(self.store, "confirm_registered_delivery", None)
+                if callable(confirm_delivery):
+                    eligible, reason = await asyncio.to_thread(
+                        confirm_delivery,
+                        context.outbox_id,
+                    )
+                    if not eligible:
+                        await asyncio.to_thread(
+                            self.store.mark_held,
+                            context.outbox_id,
+                            reason or "registered delivery became ineligible before sending",
+                        )
+                        report.skipped += 1
+                        continue
+                matching = []
+                configured_recipients = normalize_email_config(
+                    context.email_config,
+                    require_recipient=False,
                 )
-                report.skipped += 1
-                continue
-            try:
+            else:
+                matching = [rule for rule in rules if rule.matches(context)]
+                if not matching:
+                    await asyncio.to_thread(
+                        self.store.mark_disabled,
+                        context.outbox_id,
+                        "no enabled alert email rule matched this event",
+                    )
+                    report.skipped += 1
+                    continue
                 configured_recipients = merge_recipients(matching, context)
+            try:
                 if not any(configured_recipients.get(key) for key in ("recipients", "cc", "bcc")):
                     await asyncio.to_thread(
                         self.store.mark_disabled,

@@ -24,10 +24,10 @@ test('normalizes a complete alert draft for the editor', () => {
     'dispatch.latest_time': 'now',
     'alert.digest_mode': false,
     'alert.track': '1',
-    actions: 'email,logevent',
+    actions: 'email,citic_alert_delivery',
     'action.email': '1',
     'action.email.to': 'soc@example.invalid',
-    'action.logevent': '1',
+    'action.citic_alert_delivery': '1',
   })
   assert.equal(form.name, 'Rule')
   assert.equal(form.is_scheduled, '1')
@@ -36,8 +36,8 @@ test('normalizes a complete alert draft for the editor', () => {
   assert.deepEqual(actionFieldsFromDraft({
     'action.email': '1',
     'action.email.to': 'soc@example.invalid',
-    'action.logevent': '1',
-    'action.logevent.param.index': 'ticket_summary',
+    'action.citic_alert_delivery': '1',
+    'action.citic_alert_delivery.param.registration_id': 'registration-1',
   }), [
     { key: 'action.email', value: '1' },
     { key: 'action.email.to', value: 'soc@example.invalid' },

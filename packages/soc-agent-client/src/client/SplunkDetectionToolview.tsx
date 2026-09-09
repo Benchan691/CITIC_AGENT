@@ -329,7 +329,7 @@ export function SplunkDetectionToolview({ block, connection, toolName }: Detecti
               <button className={css.button} type="button" onClick={() => setActionFields(current => [...current, { key: '', value: '' }])}>Add action field</button>
             </div>
             <div className={css.hint}>Use non-secret action.* fields only. Secret-like fields are rejected by the server.</div>
-            <div className={css.managed}>The required company logevent action is managed automatically and is not editable here.</div>
+            <div className={css.managed}>The CITIC Alert Delivery action is managed by the approved publication flow and is not editable here.</div>
           </div>
         </details>
 

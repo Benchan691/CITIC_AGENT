@@ -157,6 +157,20 @@
   min-width: 0;
 }
 
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-text-primary, #1c2024);
+  font-size: 12px;
+}
+
+.checkLabel input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--dsw-alias-primary, #2563eb);
+}
+
 .fieldInvalid .control {
   border-color: var(--dsw-alias-danger, #d33);
 }

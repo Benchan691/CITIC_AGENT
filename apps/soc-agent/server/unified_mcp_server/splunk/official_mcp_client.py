@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 from contextlib import AsyncExitStack
@@ -34,8 +35,26 @@ class OfficialSplunkMCPClient:
         self._stack: AsyncExitStack | None = None
         self._session: ClientSession | None = None
         self._call_lock = asyncio.Lock()
+        self.write_endpoint = str(config.get("splunk_write_mcp_endpoint", "") or "").strip()
+        self.write_token = str(config.get("splunk_write_mcp_token", "") or "").strip()
+        self.write_tool = str(config.get("splunk_write_mcp_tool", "citic_write_saved_search") or "citic_write_saved_search").strip()
+        self._write_stack: AsyncExitStack | None = None
+        self._write_session: ClientSession | None = None
+        self._write_call_lock = asyncio.Lock()
         self._connected = False
         self.server_version = ""
+        self.last_saved_search_catalog_complete = False
+        self.last_saved_search_catalog_error = ""
+        self.last_saved_search_catalog_page_count = 0
+
+    @property
+    def deployment_identity(self) -> str:
+        """Return the configured, non-secret identity used for index ownership."""
+        configured = str(self.config.get("splunk_deployment_id", "") or "").strip()
+        if configured:
+            return configured[:512]
+        parsed = urlsplit(self.endpoint)
+        return f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")[:512]
 
     async def connect(self) -> None:
         if not self.endpoint:
@@ -101,6 +120,82 @@ class OfficialSplunkMCPClient:
         if self._stack is not None:
             await self._stack.aclose()
             self._stack = None
+        self._write_session = None
+        if self._write_stack is not None:
+            await self._write_stack.aclose()
+            self._write_stack = None
+
+    async def _connect_write_extension(self) -> None:
+        if self._write_session is not None:
+            return
+        if not self.write_endpoint or not self.write_token:
+            raise SplunkAPIError(
+                "The approved Splunk write MCP extension is not configured."
+            )
+        try:
+            parsed = urlsplit(self.write_endpoint)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.query or parsed.fragment:
+                raise ValueError
+            if parsed.scheme == "http" and not _flag(self.config.get("allow_insecure_http")):
+                raise ValueError("insecure HTTP is disabled")
+        except ValueError as exc:
+            raise SplunkAPIError("The approved Splunk write MCP endpoint is invalid.") from exc
+        stack = AsyncExitStack()
+        try:
+            receive, send, _ = await stack.enter_async_context(
+                streamablehttp_client(
+                    self.write_endpoint,
+                    headers={"Authorization": f"Bearer {self.write_token}"},
+                    timeout=self.request_timeout,
+                    sse_read_timeout=max(self.request_timeout, self.job_timeout + 5),
+                    httpx_client_factory=self._httpx_client_factory,
+                )
+            )
+            session = await stack.enter_async_context(ClientSession(receive, send))
+            await session.initialize()
+        except Exception as exc:
+            await stack.aclose()
+            if isinstance(exc, SplunkAPIError):
+                raise
+            raise self._transport_error(exc, "initialize the approved Splunk write extension") from exc
+        self._write_stack = stack
+        self._write_session = session
+
+    async def _call_write_extension(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        await self._connect_write_extension()
+        session = self._write_session
+        if session is None:
+            raise SplunkAPIError("The approved Splunk write extension is not ready.")
+        try:
+            async with self._write_call_lock:
+                result = await session.call_tool(
+                    self.write_tool,
+                    {"operation": operation, **arguments},
+                    read_timeout_seconds=timedelta(
+                        seconds=max(self.request_timeout, self.job_timeout + 5)
+                    ),
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            raise self._transport_error(exc, f"call the approved Splunk write extension for {operation}") from exc
+        if getattr(result, "isError", False):
+            raise SplunkAPIError(
+                f"The approved Splunk write extension rejected {operation}."
+            )
+        structured = getattr(result, "structuredContent", None)
+        if isinstance(structured, dict):
+            return structured
+        for content in getattr(result, "content", []) or []:
+            text = getattr(content, "text", None)
+            if isinstance(text, str) and text.strip():
+                try:
+                    value = json.loads(text)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(value, dict):
+                    return value
+        raise SplunkAPIError("The approved Splunk write extension returned malformed results.")
 
     @staticmethod
     def _transport_error(exc: BaseException, operation: str) -> SplunkAPIError:
@@ -468,11 +563,49 @@ class OfficialSplunkMCPClient:
         app: str = "",
         count: int = 50,
     ) -> list[dict[str, Any]]:
-        payload = await self._call(
-            "splunk_get_knowledge_objects",
-            {"type": "saved_searches", "row_limit": max(1, min(int(count), 1000))},
-        )
-        rows, _truncated, _total, _page_info = self._rows(payload, "saved search metadata")
+        requested_count = max(1, min(int(count), 100_000))
+        self.last_saved_search_catalog_complete = False
+        self.last_saved_search_catalog_error = ""
+        self.last_saved_search_catalog_page_count = 0
+        page_size = min(requested_count, 1_000)
+        offset = 0
+        rows: list[dict[str, Any]] = []
+        try:
+            while True:
+                arguments: dict[str, Any] = {
+                    "type": "saved_searches",
+                    "row_limit": page_size,
+                }
+                if offset:
+                    arguments["offset"] = offset
+                payload = await self._call("splunk_get_knowledge_objects", arguments)
+                page, truncated, total, page_info = self._rows(payload, "saved search metadata")
+                self.last_saved_search_catalog_page_count += 1
+                rows.extend(page)
+                if not page:
+                    self.last_saved_search_catalog_complete = True
+                    break
+                if total is not None and len(rows) >= total:
+                    self.last_saved_search_catalog_complete = True
+                    break
+                if truncated is False:
+                    self.last_saved_search_catalog_complete = True
+                    break
+                if truncated is not True and total is None and len(page) < page_size:
+                    self.last_saved_search_catalog_complete = True
+                    break
+                if len(rows) >= requested_count or len(rows) >= 100_000:
+                    self.last_saved_search_catalog_error = "saved-search catalog reached the configured discovery cap"
+                    break
+                page_offset = _nonnegative_int(page_info.get("offset"))
+                next_offset = page_offset + len(page) if page_offset is not None else offset + len(page)
+                if next_offset <= offset:
+                    raise SplunkAPIError("Official Splunk MCP returned a non-advancing saved-search page.")
+                offset = next_offset
+        except Exception as exc:
+            self.last_saved_search_catalog_complete = False
+            self.last_saved_search_catalog_error = str(exc)[:500]
+            raise
         needle = name.strip().casefold()
         selected: list[dict[str, Any]] = []
         for row in rows:
@@ -491,12 +624,22 @@ class OfficialSplunkMCPClient:
                     "cron_schedule": row.get("cron_schedule", ""),
                     "next_scheduled_time": row.get("next_scheduled_time", ""),
                     "actions": row.get("actions", ""),
+                    "alert_type": row.get("alert_type", ""),
+                    "alert_comparator": row.get("alert_comparator", ""),
+                    "alert_threshold": row.get("alert_threshold", ""),
+                    "alert_condition": row.get("alert_condition", ""),
+                    "alert.track": row.get("alert.track", ""),
                     "disabled": _bool_value(row.get("disabled", False)),
                     "app": row_app,
                     "owner": str(row.get("owner", "")),
+                    "stable_id": str(
+                        row.get("stable_id") or row.get("guid") or row.get("uid") or ""
+                    ).strip()[:512],
+                    "definition_revision": row.get("definition_revision") or row.get("revision"),
+                    "source_indexes": row.get("source_indexes") or row.get("indexes") or [],
                 }
             )
-        return selected[: max(1, int(count))]
+        return selected[:requested_count]
 
     async def get_saved_search(self, search_name: str, app: str = "", owner: str = "") -> dict[str, Any]:
         # Detection editor reads need alert trigger/throttle fields that are
@@ -578,7 +721,7 @@ class OfficialSplunkMCPClient:
     async def get_job_result_fields(
         self,
         sid: str,
-        fields: tuple[str, ...] = ("Event_GID", "Event_Rulenum"),
+        fields: tuple[str, ...] = (),
         *,
         max_count: int = 10,
     ) -> list[dict[str, Any]]:
@@ -617,16 +760,57 @@ class OfficialSplunkMCPClient:
             "The official Splunk MCP server does not expose lookup writes."
         )
 
-    async def create_saved_search(self, fields: dict[str, Any]) -> dict[str, Any]:
-        del fields
-        raise SplunkAPIError(
-            "The official Splunk MCP server does not expose saved-search writes."
+    async def get_write_capabilities(self) -> dict[str, Any]:
+        """Verify the separately deployed extension before a write."""
+        return await self._call_write_extension("capabilities", {})
+
+    async def get_write_operation_status(self, operation_id: str) -> dict[str, Any]:
+        if not isinstance(operation_id, str) or not operation_id.strip():
+            raise SplunkAPIError("A write operation ID is required for reconciliation.")
+        return await self._call_write_extension("operation_status", {"operation_id": operation_id.strip()})
+
+    async def create_saved_search(
+        self,
+        fields: dict[str, Any],
+        *,
+        idempotency_key: str | None = None,
+        expected_revision: str | int | None = None,
+    ) -> dict[str, Any]:
+        if not isinstance(fields, dict):
+            raise SplunkAPIError("Saved-search write fields are invalid.")
+        encoded = json.dumps({"operation": "create_saved_search", "fields": fields}, sort_keys=True, default=str, separators=(",", ":"))
+        idempotency_key = str(idempotency_key or hashlib.sha256(encoded.encode("utf-8")).hexdigest()).strip()
+        arguments: dict[str, Any] = {"fields": fields, "idempotency_key": idempotency_key}
+        if expected_revision is not None:
+            arguments["expected_revision"] = str(expected_revision)
+        return await self._call_write_extension(
+            "create_saved_search",
+            arguments,
         )
 
-    async def update_saved_search(self, search_name: str, fields: dict[str, Any]) -> dict[str, Any]:
-        del search_name, fields
-        raise SplunkAPIError(
-            "The official Splunk MCP server does not expose saved-search writes."
+    async def update_saved_search(
+        self,
+        search_name: str,
+        fields: dict[str, Any],
+        *,
+        idempotency_key: str | None = None,
+        expected_revision: str | int | None = None,
+    ) -> dict[str, Any]:
+        if not isinstance(search_name, str) or not search_name.strip() or not isinstance(fields, dict):
+            raise SplunkAPIError("Saved-search update fields are invalid.")
+        encoded = json.dumps(
+            {"operation": "update_saved_search", "search_name": search_name, "fields": fields},
+            sort_keys=True,
+            default=str,
+            separators=(",", ":"),
+        )
+        idempotency_key = str(idempotency_key or hashlib.sha256(encoded.encode("utf-8")).hexdigest()).strip()
+        arguments: dict[str, Any] = {"search_name": search_name, "fields": fields, "idempotency_key": idempotency_key}
+        if expected_revision is not None:
+            arguments["expected_revision"] = str(expected_revision)
+        return await self._call_write_extension(
+            "update_saved_search",
+            arguments,
         )
 
 

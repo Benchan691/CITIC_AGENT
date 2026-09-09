@@ -70,6 +70,31 @@ def test_rendered_email_contains_bounded_identifiers_and_no_raw_event():
     assert "raw_event" not in body
 
 
+def test_registered_email_uses_eid_and_policy_display_limit():
+    subject, body = render_alert_email(
+        context(
+            cid="CPC001",
+            aid="CPC001-0000",
+            eid="CPC001-0000-20260909T081530123456Z-000001",
+            detail_columns=["device"],
+            detail_labels={"device": "Device name"},
+            detail_rows=[{"device": "host-1"}, {"device": "host-2"}],
+            metadata={
+                "email_policy": {"max_display_rows": 1},
+                "detail_total": 2,
+                "detail_stored": 2,
+                "detail_displayed": 1,
+                "detail_truncated": False,
+            },
+        )
+    )
+    assert subject == "[SOC][HIGH] Example customer Suspicious login"
+    assert "CPC001-0000-20260909T081530123456Z-000001" in body
+    assert "Detail rows: total=2; retained=2; displayed=1" in body
+    assert "Device name=host-1" in body
+    assert "host-2" not in body
+
+
 class FakeStore:
     def __init__(self, rows, rules):
         self.rows = rows
@@ -126,6 +151,20 @@ async def test_worker_sends_one_matching_event_and_records_provider_id():
     assert report == EmailCycleReport(claimed=1, sent=1)
     assert store.actions == [("sent", "outbox-1", "provider-1")]
     assert len(sender.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_worker_sends_registered_run_without_legacy_email_rule():
+    settings = ServerSettings.from_env({})
+    store = FakeStore(
+        [context(eid="CPC001-0000-20260909T081530123456Z-000001", metadata={"customer_active": True})],
+        [],
+    )
+    sender = FakeSender()
+    report = await AlertEmailWorker(settings, store, sender)._cycle()
+    assert report == EmailCycleReport(claimed=1, sent=1)
+    assert len(sender.calls) == 1
+    assert sender.calls[0][0] == {"recipients": ["soc@example.test"], "cc": [], "bcc": []}
 
 
 @pytest.mark.asyncio

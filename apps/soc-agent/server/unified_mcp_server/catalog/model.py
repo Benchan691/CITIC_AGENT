@@ -42,6 +42,7 @@ CUSTOMER_EDITABLE_COLUMNS = (
     "splunk_indexes",
     "field_mapping",
     "email_config",
+    "alert_delivery_enabled",
 )
 # ``legacy_customer_id`` is deliberately read-only.  It is the UUID used by
 # existing events, rules, staff links, and the alert outbox.
@@ -120,6 +121,12 @@ def _json_object(value: Any) -> dict[str, Any]:
 
 
 def customer_from_row(row: Any) -> dict[str, Any]:
+    # A few long-lived test/upgrade connections can return the pre-015 row
+    # shape while the compatibility migration is being applied.  Treat the
+    # new delivery switch as disabled for that legacy shape; canonical
+    # queries return the 20-column shape below.
+    if len(row) == 19:
+        row = (*row[:12], False, *row[12:])
     (
         customer_id,
         customer_code,
@@ -133,6 +140,7 @@ def customer_from_row(row: Any) -> dict[str, Any]:
         splunk_indexes,
         field_mapping,
         email_config,
+        alert_delivery_enabled,
         legacy_customer_id,
         revision,
         archived_at,
@@ -155,6 +163,7 @@ def customer_from_row(row: Any) -> dict[str, Any]:
         "splunk_indexes": list(splunk_indexes or []),
         "field_mapping": _json_object(field_mapping),
         "email_config": _json_object(email_config),
+        "alert_delivery_enabled": bool(alert_delivery_enabled),
         "legacy_customer_id": _text(legacy_customer_id),
         "revision": int(revision),
         "archived": archived_at is not None,
@@ -278,6 +287,7 @@ def empty_record(catalog: str) -> dict[str, Any]:
         base[column] = ""
     if catalog == "customer":
         base["lifecycle_status"] = "active"
+        base["alert_delivery_enabled"] = False
         base["customer_code"] = ""
         base["splunk_indexes"] = []
         base["field_mapping"] = {

@@ -58,7 +58,7 @@ class FakeStore:
 @pytest.mark.asyncio
 async def test_valid_alert_is_inserted_with_selected_metadata_only():
     store = FakeStore()
-    report = await AlertIngestionService(FakeSplunk(), store).ingest(limit=10)
+    report = await AlertIngestionService(FakeSplunk(), store, legacy_mode=True).ingest(limit=10)
 
     assert report.to_dict() == {
         "found": 1,
@@ -80,7 +80,7 @@ async def test_valid_alert_is_inserted_with_selected_metadata_only():
 @pytest.mark.asyncio
 async def test_duplicate_alert_is_skipped_in_dry_run():
     store = FakeStore(event_exists=True)
-    report = await AlertIngestionService(FakeSplunk(), store).ingest(limit=10, dry_run=True)
+    report = await AlertIngestionService(FakeSplunk(), store, legacy_mode=True).ingest(limit=10, dry_run=True)
 
     assert report.inserted == 0
     assert report.skipped == 1
@@ -91,7 +91,7 @@ async def test_duplicate_alert_is_skipped_in_dry_run():
 @pytest.mark.asyncio
 async def test_unresolved_alert_is_quarantined():
     store = FakeStore(mapping=None)
-    report = await AlertIngestionService(FakeSplunk(), store).ingest(limit=10)
+    report = await AlertIngestionService(FakeSplunk(), store, legacy_mode=True).ingest(limit=10)
 
     assert report.quarantined == 1
     assert report.inserted == 0
@@ -134,7 +134,7 @@ class PagedSplunk:
 async def test_catalog_and_instances_are_paginated():
     store = FakeStore()
     client = PagedSplunk()
-    report = await AlertIngestionService(client, store).ingest(limit=1)
+    report = await AlertIngestionService(client, store, legacy_mode=True).ingest(limit=1)
 
     assert report.found == 2
     assert report.inserted == 2

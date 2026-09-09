@@ -22,6 +22,7 @@ import threading
 from typing import Any
 
 from .auth_cli import _expire_session_on_auth_error, command_failure, dispatch_command, command_runtime
+from .bridge_auth import require_host_capability
 from .env_loader import load_server_env
 from .request_context import operation_budget
 from .blocking_io import run_blocking
@@ -30,6 +31,27 @@ from .blocking_io import run_blocking
 # this bound keeps one malformed or oversized line from consuming memory.
 MAX_LINE_BYTES = 8_000_000
 MAX_CONCURRENT_REQUESTS = 8
+
+
+def _admin_bridge_required(command: str, payload: dict[str, Any]) -> bool:
+    if command in {"publish-catalog", "rollback-publication"}:
+        return True
+    if command in {"save-catalog-record", "archive-catalog-record"} and str(payload.get("catalog", "")) == "customer":
+        return True
+    # An actor without a session is the host's server-resolved administrator
+    # identity. It must never be accepted from an untrusted control client.
+    return bool(payload.get("actor_id")) and not payload.get("session_id")
+
+
+def _authorize_host_request(command: str, payload: dict[str, Any]) -> dict[str, Any]:
+    if not _admin_bridge_required(command, payload):
+        return payload
+    claims = require_host_capability(payload, command=command, kind="admin")
+    authorized = dict(payload)
+    authorized["_host_admin_verified"] = True
+    authorized["actor_id"] = claims["actor_id"]
+    authorized["admin"] = True
+    return authorized
 
 
 async def handle_request(request: Any) -> dict[str, Any]:
@@ -42,6 +64,7 @@ async def handle_request(request: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         payload = {}
     try:
+        payload = _authorize_host_request(command, payload)
         async with operation_budget():
             result = await dispatch_command(command, payload)
     except Exception as exc:

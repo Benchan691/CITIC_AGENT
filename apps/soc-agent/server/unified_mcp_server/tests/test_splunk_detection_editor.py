@@ -98,7 +98,7 @@ async def test_write_and_update_return_editable_drafts_without_writing():
     assert updated["operation"] == "update"
     assert updated["expected_fingerprint"] == current["fingerprint"]
     assert updated["draft"]["spl"] == UPDATED_SPL
-    assert updated["draft"]["actions"] == "notable,logevent"
+    assert updated["draft"]["actions"] == "notable"
     assert service.core._client.writes == []
 
 
@@ -129,7 +129,7 @@ async def test_save_create_is_explicit_scoped_and_disabled():
     assert written["disabled"] == "1"
     assert written["app"] == "search"
     assert written["owner"] == "nobody"
-    assert written["actions"] == "notable,logevent"
+    assert written["actions"] == "notable,citic_alert_delivery"
     assert written["action.notable"] == "1"
 
 
@@ -178,7 +178,7 @@ async def test_save_update_persists_complete_alert_settings_and_stays_disabled()
     assert written["alert.track"] == "1"
     assert written["action.email"] == "1"
     assert written["action.email.to"] == "soc@example.invalid"
-    assert written["action.logevent"] == "1"
+    assert written["action.citic_alert_delivery"] == "1"
     assert written["disabled"] == "1"
     assert result["enabled"] is False
 
@@ -289,8 +289,8 @@ async def test_outputcsv_draft_is_saveable_without_execution():
         "spl": CURRENT_SPL,
         "is_scheduled": True,
         "cron_schedule": "*/15 * * * *",
-        "actions": "logevent",
-        "action.logevent": True,
+        "actions": "citic_alert_delivery",
+        "action.citic_alert_delivery": True,
     })
     assert any("outputcsv" in warning for warning in draft["validation_warnings"])
     assert service.core._client is None

@@ -39,11 +39,11 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
     async def splunk_compile_citic_detection(
         ctx: Context,
         detection_logic: str,
-        rulename: str,
-        threat_name: str,
-        threat_type: str,
-        case_prefix: str,
-        event_field_mappings: dict[str, str],
+        rulename: str = "",
+        threat_name: str = "",
+        threat_type: str = "",
+        case_prefix: str = "",
+        event_field_mappings: dict[str, str] | None = None,
         extra_table_fields: list[str] | None = None,
     ) -> dict[str, Any]:
         """Compile base detection SPL into one CITIC production SPL and one safe backtest SPL without writing or executing either."""

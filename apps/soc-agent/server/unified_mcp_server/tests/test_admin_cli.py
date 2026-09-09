@@ -140,3 +140,35 @@ def test_service_errors_are_emitted_as_safe_structured_diagnostics(capsys):
             "missing_environment_variables": ["SPLUNK_MCP_ENDPOINT"],
         },
     }
+
+
+def test_receive_alert_run_forwards_verified_webhook_context(monkeypatch):
+    captured = {}
+
+    class FakeStore:
+        def receive_alert_run(self, payload, *, authenticated_deployment=None, replay_id=None):
+            captured.update(
+                payload=payload,
+                authenticated_deployment=authenticated_deployment,
+                replay_id=replay_id,
+            )
+            return {"status": "accepted"}
+
+        def close(self):
+            captured["closed"] = True
+
+    fake = FakeStore()
+    monkeypatch.setattr(module.AlertIngestionStore, "from_env", staticmethod(lambda: fake))
+
+    payload = {
+        "deployment": "splunk-prod",
+        "_authenticated_deployment": "splunk-prod",
+        "_authenticated_replay_id": "replay-1",
+    }
+    assert module.receive_alert_run("store", payload) == {"status": "accepted"}
+    assert captured == {
+        "payload": payload,
+        "authenticated_deployment": "splunk-prod",
+        "replay_id": "replay-1",
+        "closed": True,
+    }

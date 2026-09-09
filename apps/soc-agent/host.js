@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -28,6 +29,19 @@ const CATALOG_ENDPOINTS = new Set([
 const HARD_ATTACHMENT_BYTES = 100_000_000
 const HARD_MARKDOWN_CHARS = 2_000_000
 const HARD_LOOKUP_BYTES = 50_000_000
+const ADMIN_BRIDGE_SECRET = randomBytes(32).toString('hex')
+
+function adminBridgeToken(command, actorId = '', kind = 'admin') {
+  const claims = Buffer.from(JSON.stringify({
+    version: 1,
+    kind,
+    command,
+    actor_id: String(actorId || '').trim(),
+    issued_at: Math.floor(Date.now() / 1000),
+  })).toString('base64url')
+  const signature = createHmac('sha256', ADMIN_BRIDGE_SECRET).update(claims).digest('base64url')
+  return `${claims}.${signature}`
+}
 
 export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS, SPLUNK_LOOKUP_ACTION_TOOLS }
 
@@ -49,15 +63,21 @@ function requireUser(ctx) {
 // Catalog editors normally run under the authenticated workspace session. The
 // admin console has its own cookie, so allow that principal only for the
 // customer catalog and pass its server-resolved email to the audit writer.
-function requireCatalogPrincipal(ctx, catalog) {
+function requireCatalogPrincipal(ctx, catalog, { write = false } = {}) {
   const auth = ctx.get?.('socAuth')
   if (!auth) throw new Error('authentication required')
+  if (write && catalog === 'customer') {
+    const admin = auth.requireAdmin()
+    const actor = String(admin?.email ?? '').trim()
+    if (!actor) throw new Error('admin authentication required')
+    return { actor_id: actor, admin: true }
+  }
   let sessionError
   try {
     if (typeof auth.requireSession !== 'function') throw new Error('authentication required')
     const session = auth.requireSession()
     if (session?.id === undefined || session?.id === null) throw new Error('authentication required')
-    return { session_id: String(session.id) }
+    return { session_id: String(session.id), admin: false }
   } catch (error) {
     sessionError = error
   }
@@ -68,7 +88,7 @@ function requireCatalogPrincipal(ctx, catalog) {
     }
     const actor = String(admin?.email ?? '').trim()
     if (!actor) throw new Error('admin authentication required')
-    return { actor_id: actor }
+    return { actor_id: actor, admin: true }
   } catch (error) {
     if (error instanceof Error && error.message === 'administrator customer catalog access is limited to customer records') throw error
     throw sessionError ?? error
@@ -128,7 +148,7 @@ function sendJson(response, status, value) {
   response.end(data)
 }
 
-async function readJsonRequest(request, limit = 64 * 1024) {
+async function readRawRequest(request, limit = 64 * 1024) {
   const chunks = []
   let size = 0
   for await (const chunk of request) {
@@ -136,9 +156,128 @@ async function readJsonRequest(request, limit = 64 * 1024) {
     if (size > limit) throw new Error('request too large')
     chunks.push(chunk)
   }
-  const value = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')
+  return Buffer.concat(chunks)
+}
+
+async function readJsonRequest(request, limit = 64 * 1024) {
+  const value = JSON.parse((await readRawRequest(request, limit)).toString('utf8') || '{}')
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('request must be an object')
   return value
+}
+
+function requestHeader(request, name) {
+  const headers = request?.headers ?? {}
+  return String(headers[name.toLowerCase()] ?? headers[name] ?? '').trim()
+}
+
+function alertWebhookSecrets() {
+  const configured = new Map()
+  const encoded = String(process.env.ALERT_INGEST_WEBHOOK_SECRETS_JSON ?? '').trim()
+  if (encoded) {
+    try {
+      const parsed = JSON.parse(encoded)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        for (const [deployment, secret] of Object.entries(parsed)) {
+          if (typeof secret === 'string' && secret.trim() && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,511}$/u.test(deployment)) {
+            configured.set(deployment, secret.trim())
+          }
+        }
+      }
+    } catch {
+      return configured
+    }
+  }
+  // A single deployment may use the old variable during migration, but it
+  // must be explicitly bound to a deployment instead of becoming global.
+  const legacyDeployment = String(process.env.ALERT_INGEST_WEBHOOK_DEPLOYMENT ?? '').trim()
+  const legacySecret = String(process.env.ALERT_INGEST_WEBHOOK_SECRET ?? '').trim()
+  if (legacyDeployment && legacySecret && !configured.has(legacyDeployment)) configured.set(legacyDeployment, legacySecret)
+  return configured
+}
+
+function verifyAlertWebhook(request, body, deployment) {
+  const secret = alertWebhookSecrets().get(String(deployment ?? '').trim())
+  if (!secret) return false
+  const timestamp = requestHeader(request, 'x-citic-alert-timestamp')
+  const signature = requestHeader(request, 'x-citic-alert-signature').replace(/^sha256=/iu, '')
+  const replay = requestHeader(request, 'x-citic-alert-replay')
+  if (!/^\d{1,12}$/u.test(timestamp) || !/^[a-f0-9]{64}$/iu.test(signature) || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$/u.test(replay)) return false
+  const seconds = Number(timestamp)
+  if (!Number.isSafeInteger(seconds) || Math.abs(Math.floor(Date.now() / 1000) - seconds) > 300) return false
+  const expected = createHmac('sha256', secret).update(`${timestamp}.`).update(body).digest('hex')
+  const actual = Buffer.from(signature, 'hex')
+  const expectedBytes = Buffer.from(expected, 'hex')
+  return actual.length === expectedBytes.length && timingSafeEqual(actual, expectedBytes)
+}
+
+async function serveAlertIngestWebhook(request, response) {
+  if (request.method !== 'POST') {
+    response.writeHead(405, { allow: 'POST', 'cache-control': 'no-store' })
+    response.end()
+    return
+  }
+  if (alertWebhookSecrets().size === 0) {
+    sendJson(response, 503, { error: 'alert ingestion webhook is not configured' })
+    return
+  }
+  try {
+    const body = await readRawRequest(request, 5 * 1024 * 1024 + 16 * 1024)
+    const payload = JSON.parse(body.toString('utf8') || '{}')
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('alert payload must be an object')
+    const deployment = typeof payload.deployment === 'string' ? payload.deployment.trim() : ''
+    if (!deployment || !alertWebhookSecrets().has(deployment) || !verifyAlertWebhook(request, body, deployment)) {
+      response.writeHead(401, { 'cache-control': 'no-store' })
+      response.end('invalid alert signature')
+      return
+    }
+    const replay = requestHeader(request, 'x-citic-alert-replay')
+    const trustedPayload = {
+      ...payload,
+      _authenticated_deployment: deployment,
+      _authenticated_replay_id: replay,
+    }
+    sendJson(response, 200, await runAdmin('receive-alert-run', undefined, trustedPayload, request.signal))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'alert ingestion failed'
+    const status = message === 'request too large' || message.includes('payload must be an object') ? 400 : 500
+    sendJson(response, status, { error: message.slice(0, 300) })
+  }
+}
+
+async function serveAlertActionContextWebhook(request, response) {
+  if (request.method !== 'POST') {
+    response.writeHead(405, { allow: 'POST', 'cache-control': 'no-store' })
+    response.end()
+    return
+  }
+  if (alertWebhookSecrets().size === 0) {
+    sendJson(response, 503, { error: 'alert action context endpoint is not configured' })
+    return
+  }
+  try {
+    // Context resolution carries identity/configuration only, never result
+    // rows.  Keep a separate bounded request size for this lookup endpoint.
+    const body = await readRawRequest(request, 512 * 1024)
+    const payload = JSON.parse(body.toString('utf8') || '{}')
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('alert context must be an object')
+    const deployment = typeof payload.deployment === 'string' ? payload.deployment.trim() : ''
+    if (!deployment || !alertWebhookSecrets().has(deployment) || !verifyAlertWebhook(request, body, deployment)) {
+      response.writeHead(401, { 'cache-control': 'no-store' })
+      response.end('invalid alert signature')
+      return
+    }
+    const replay = requestHeader(request, 'x-citic-alert-replay')
+    const trustedPayload = {
+      ...payload,
+      _authenticated_deployment: deployment,
+      _authenticated_replay_id: replay,
+    }
+    sendJson(response, 200, await runAdmin('resolve-alert-action-context', undefined, trustedPayload, request.signal))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'alert action context resolution failed'
+    const status = message === 'request too large' || message.includes('context must be an object') ? 400 : 500
+    sendJson(response, status, { error: message.slice(0, 300) })
+  }
 }
 
 async function requireHttpAdmin(ctx, request, response) {
@@ -153,7 +292,18 @@ async function requireHttpAdmin(ctx, request, response) {
 async function serveAlertEmailSettings(request, response, ctx) {
   if (!(await requireHttpAdmin(ctx, request, response))) return
   if (request.method !== 'GET') { response.writeHead(405, { allow: 'GET' }); response.end(); return }
-  try { sendJson(response, 200, await runAdmin('get-alert-email-settings')) }
+  try {
+    const url = new URL(request.url || '/admin/alert-email/settings', 'http://localhost')
+    const payload = {}
+    for (const key of [
+      'limit', 'registration_offset', 'review_offset', 'ownership_offset',
+      'quarantine_offset', 'policy_offset',
+    ]) {
+      const value = url.searchParams.get(key)
+      if (value !== null) payload[key] = value
+    }
+    sendJson(response, 200, await runAdmin('get-alert-email-settings', undefined, payload, request.signal))
+  }
   catch { sendJson(response, 500, { error: 'alert email settings unavailable' }) }
 }
 
@@ -376,12 +526,17 @@ function runAdmin(command, arg, payload, signal) {
   return new Promise((resolvePromise, rejectPromise) => {
     const args = ['run', 'python', '-m', 'unified_mcp_server.admin_cli', command]
     if (arg !== undefined && arg !== '') args.push(arg)
+    const bridgeKind = command === 'receive-alert-run' || command === 'resolve-alert-action-context' ? 'webhook' : 'admin'
+    const bridgePayload = payload && typeof payload === 'object' ? { ...payload } : {}
+    const actorId = typeof bridgePayload.actor_id === 'string' ? bridgePayload.actor_id : ''
+    bridgePayload._host_capability = adminBridgeToken(command, actorId, bridgeKind)
     const child = spawn('uv', args, {
       cwd: serverRoot(),
       env: (() => {
         const environment = { ...process.env, MCP_SERVER_ROOT: workspaceRoot() }
         delete environment.SOC_ADMIN_EMAIL
         delete environment.SOC_ADMIN_PASSWORD
+        environment.SOC_AGENT_BRIDGE_SECRET = ADMIN_BRIDGE_SECRET
         return environment
       })(),
     })
@@ -441,8 +596,7 @@ function runAdmin(command, arg, payload, signal) {
         rejectPromise(error)
       }
     })
-    if (payload !== undefined) child.stdin.end(JSON.stringify(payload))
-    else child.stdin.end()
+    child.stdin.end(JSON.stringify(bridgePayload))
   })
 }
 
@@ -483,11 +637,15 @@ function validateDetectionSavePayload(payload) {
   if (payload.expected_fingerprint !== undefined && payload.expected_fingerprint !== null && typeof payload.expected_fingerprint !== 'string') {
     throw new Error('The detection fingerprint is invalid.')
   }
+  if (payload.origin !== undefined && payload.origin !== 'human' && payload.origin !== 'agent') {
+    throw new Error('The detection origin is invalid.')
+  }
   return {
     operation,
     detection: payload.detection,
     ...(payload.name === undefined ? {} : { name: payload.name }),
     ...(payload.expected_fingerprint === undefined ? {} : { expected_fingerprint: payload.expected_fingerprint }),
+    ...(payload.origin === undefined ? {} : { origin: payload.origin }),
   }
 }
 
@@ -656,7 +814,176 @@ function validateCustomerEmailConfigPayload(payload) {
   const brand = String(config.brand || 'CPC').toUpperCase()
   if (!['EN', 'CN', 'ZH'].includes(language)) throw new Error('The customer language is invalid.')
   if (!['CPC', 'CEC'].includes(brand)) throw new Error('The customer brand is invalid.')
-  return { customer_id: payload.customer_id.trim(), email_config: { ...lists, language, brand } }
+  if (payload.alert_delivery_enabled !== undefined && typeof payload.alert_delivery_enabled !== 'boolean') {
+    throw new Error('The customer alert delivery flag is invalid.')
+  }
+  return {
+    customer_id: payload.customer_id.trim(),
+    email_config: { ...lists, language, brand },
+    ...(payload.alert_delivery_enabled === undefined ? {} : { alert_delivery_enabled: payload.alert_delivery_enabled }),
+  }
+}
+
+function validateAlertEmailPolicyPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('The alert email policy is invalid.')
+  }
+  if (typeof payload.customer_id !== 'string' || payload.customer_id.trim() === '') {
+    throw new Error('The customer ID is invalid.')
+  }
+  if (payload.registration_id !== undefined && payload.registration_id !== null && (typeof payload.registration_id !== 'string' || payload.registration_id.trim() === '')) {
+    throw new Error('The alert registration ID is invalid.')
+  }
+  const policy = payload.policy
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) throw new Error('The alert email policy is invalid.')
+  const normalized = {}
+  for (const key of ['detail_columns', 'required_columns', 'optional_columns']) {
+    const values = policy[key] ?? []
+    if (!Array.isArray(values) || values.length > 100 || values.some(item => typeof item !== 'string' || item.trim() === '' || item.length > 255)) {
+      throw new Error(`The alert email ${key} list is invalid.`)
+    }
+    normalized[key] = [...new Set(values.map(item => item.trim()))]
+  }
+  if (policy.field_mappings !== undefined) {
+    if (!Array.isArray(policy.field_mappings) || policy.field_mappings.length > 100) {
+      throw new Error('The alert email field mappings are invalid.')
+    }
+    normalized.field_mappings = policy.field_mappings.map(mapping => {
+      if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) {
+        throw new Error('The alert email field mappings are invalid.')
+      }
+      const source = mapping.source ?? mapping.field ?? mapping.name
+      const label = mapping.label ?? source
+      if (typeof source !== 'string' || source.trim() === '' || source.length > 255 || source === '_raw' ||
+          typeof label !== 'string' || label.trim() === '' || label.length > 255 ||
+          (mapping.required !== undefined && typeof mapping.required !== 'boolean')) {
+        throw new Error('The alert email field mappings are invalid.')
+      }
+      return { source: source.trim(), label: label.trim(), required: mapping.required === true }
+    })
+  }
+  for (const key of ['max_display_rows', 'max_stored_rows']) {
+    if (policy[key] !== undefined && (!Number.isInteger(policy[key]) || policy[key] < 1 || policy[key] > 1000)) {
+      throw new Error(`The alert email ${key} value is invalid.`)
+    }
+    if (policy[key] !== undefined) normalized[key] = policy[key]
+  }
+  if (policy.row_filters !== undefined) {
+    if (!Array.isArray(policy.row_filters) || policy.row_filters.length > 100) {
+      throw new Error('The alert email row filters are invalid.')
+    }
+    normalized.row_filters = policy.row_filters.map(filter => {
+      if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
+        throw new Error('The alert email row filters are invalid.')
+      }
+      const source = filter.source ?? filter.field ?? filter.name
+      const aliases = { eq: 'equals', '==': 'equals', equals: 'equals', ne: 'not_equals', '!=': 'not_equals', not_equals: 'not_equals', contains: 'contains', not_contains: 'not_contains', exists: 'exists', not_exists: 'not_exists' }
+      const operator = aliases[String(filter.operator ?? filter.op ?? 'equals').trim().toLowerCase()]
+      const value = filter.value
+      if (typeof source !== 'string' || source.trim() === '' || source.length > 255 || source.trim() === '_raw' ||
+          !operator || (value !== undefined && value !== null && !['string', 'number', 'boolean'].includes(typeof value)) ||
+          (typeof value === 'number' && !Number.isFinite(value)) ||
+          (typeof value === 'string' && value.length > 1000)) {
+        throw new Error('The alert email row filters are invalid.')
+      }
+      const result = { source: source.trim(), operator }
+      if ((operator !== 'exists' && operator !== 'not_exists') || value !== undefined) result.value = value ?? null
+      return result
+    })
+  }
+  if (policy.severity_source !== undefined &&
+      (typeof policy.severity_source !== 'string' || policy.severity_source.length > 255 || policy.severity_source.trim() === '_raw')) {
+    throw new Error('The alert email severity source is invalid.')
+  }
+  if (policy.severity_source !== undefined) normalized.severity_source = policy.severity_source.trim()
+  if (policy.severity_mapping !== undefined) {
+    if (!policy.severity_mapping || typeof policy.severity_mapping !== 'object' || Array.isArray(policy.severity_mapping) || Object.keys(policy.severity_mapping).length > 100) {
+      throw new Error('The alert email severity mapping is invalid.')
+    }
+    const allowed = new Set(['info', 'low', 'medium', 'high', 'critical', 'unknown'])
+    normalized.severity_mapping = {}
+    for (const [source, target] of Object.entries(policy.severity_mapping)) {
+      const value = String(target).toLowerCase()
+      if (!source.trim() || source.length > 255 || !allowed.has(value)) throw new Error('The alert email severity mapping is invalid.')
+      normalized.severity_mapping[source.trim().toLowerCase()] = value
+    }
+  }
+  const fallback = String(policy.severity_fallback || 'unknown').toLowerCase()
+  if (!['info', 'low', 'medium', 'high', 'critical', 'unknown'].includes(fallback)) throw new Error('The alert email severity fallback is invalid.')
+  normalized.severity_fallback = fallback
+  return {
+    customer_id: payload.customer_id.trim(),
+    ...(payload.registration_id ? { registration_id: payload.registration_id.trim() } : {}),
+    policy: normalized,
+  }
+}
+
+function validateAlertIndexOwnershipPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('The alert index ownership request is invalid.')
+  }
+  for (const key of ['deployment', 'index_name', 'customer_id']) {
+    if (typeof payload[key] !== 'string' || payload[key].trim() === '') {
+      throw new Error(`The alert ownership ${key} is invalid.`)
+    }
+  }
+  if (payload.index_name.length > 255 || /[*?$`]/u.test(payload.index_name)) {
+    throw new Error('The alert ownership index must be an exact index name.')
+  }
+  const status = String(payload.status ?? 'active').toLowerCase()
+  if (!['active', 'review', 'retired'].includes(status)) throw new Error('The alert ownership status is invalid.')
+  return {
+    deployment: payload.deployment.trim(), index_name: payload.index_name.trim(),
+    customer_id: payload.customer_id.trim(), status,
+  }
+}
+
+function validateAlertRegistrationPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      typeof payload.registration_id !== 'string' || payload.registration_id.trim() === '' ||
+      typeof payload.enabled !== 'boolean') {
+    throw new Error('The alert registration request is invalid.')
+  }
+  return { registration_id: payload.registration_id.trim(), enabled: payload.enabled }
+}
+
+function validateAlertRelinkPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      typeof payload.registration_id !== 'string' || payload.registration_id.trim() === '' ||
+      typeof payload.customer_id !== 'string' || payload.customer_id.trim() === '' ||
+      !Array.isArray(payload.source_indexes) || payload.source_indexes.length === 0 || payload.source_indexes.length > 100) {
+    throw new Error('The alert relink request is invalid.')
+  }
+  const source_indexes = payload.source_indexes.map(value => {
+    if (typeof value !== 'string' || value.trim() === '' || value.length > 255 || /[*?$`]/u.test(value)) {
+      throw new Error('The alert relink source index is invalid.')
+    }
+    return value.trim()
+  })
+  if (new Set(source_indexes).size !== source_indexes.length) throw new Error('The alert relink source indexes must be unique.')
+  if (payload.review_id !== undefined && payload.review_id !== null && (typeof payload.review_id !== 'string' || payload.review_id.trim() === '')) {
+    throw new Error('The alert review ID is invalid.')
+  }
+  return {
+    registration_id: payload.registration_id.trim(), customer_id: payload.customer_id.trim(), source_indexes,
+    ...(payload.review_id ? { review_id: payload.review_id.trim() } : {}),
+  }
+}
+
+function validateHeldAlertReleasePayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      typeof payload.event_id !== 'string' || payload.event_id.trim() === '' ||
+      typeof payload.customer_id !== 'string' || payload.customer_id.trim() === '') {
+    throw new Error('The held alert release request is invalid.')
+  }
+  return { event_id: payload.event_id.trim(), customer_id: payload.customer_id.trim() }
+}
+
+function validateAlertMigrationPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('The alert migration request is invalid.')
+  const limit = payload.limit ?? 1000
+  if (!Number.isInteger(limit) || limit < 1 || limit > 5000) throw new Error('The alert migration limit is invalid.')
+  return { limit }
 }
 
 async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
@@ -684,18 +1011,19 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
     }
     case 'get-settings': requireAdmin(ctx); return ok(await runAdmin('get-settings'))
-    case 'get-alert-email-settings': requireAdmin(ctx); return ok(await runAdmin('get-alert-email-settings'))
+    case 'get-alert-email-settings': requireAdmin(ctx); return ok(await runAdmin('get-alert-email-settings', undefined, payload))
+    case 'get-alert-migration-report': requireAdmin(ctx); return ok(await runAdmin('get-alert-migration-report'))
     case 'update-settings': requireAdmin(ctx); return badRequest('Service configuration is managed by the server environment.')
     case 'delete-setting': requireAdmin(ctx); return badRequest('Service configuration is managed by the server environment.')
     case 'save-alert-email-rule': {
-      requireAdmin(ctx)
+      const admin = requireAdmin(ctx)
       let request
       try {
         request = validateAlertEmailRulePayload(payload)
       } catch (error) {
         return badRequest(error instanceof Error ? error.message : 'The alert email rule is invalid.')
       }
-      return ok(await runAdmin('save-alert-email-rule', undefined, request, signal))
+      return ok(await runAdmin('save-alert-email-rule', undefined, { ...request, actor_id: admin.email }, signal))
     }
     case 'save-customer-email-config': {
       const admin = requireAdmin(ctx)
@@ -706,6 +1034,55 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
         return badRequest(error instanceof Error ? error.message : 'The customer email configuration is invalid.')
       }
       return ok(await runAdmin('save-customer-email-config', undefined, { ...request, actor_id: admin.email }, signal))
+    }
+    case 'save-alert-email-policy': {
+      const admin = requireAdmin(ctx)
+      let request
+      try {
+        request = validateAlertEmailPolicyPayload(payload)
+      } catch (error) {
+        return badRequest(error instanceof Error ? error.message : 'The alert email policy is invalid.')
+      }
+      return ok(await runAdmin('save-alert-email-policy', undefined, { ...request, actor_id: admin.email }, signal))
+    }
+    case 'set-alert-index-ownership': {
+      const admin = requireAdmin(ctx)
+      let request
+      try { request = validateAlertIndexOwnershipPayload(payload) }
+      catch (error) { return badRequest(error instanceof Error ? error.message : 'The alert index ownership request is invalid.') }
+      return ok(await runAdmin('set-alert-index-ownership', undefined, { ...request, actor_id: admin.email }, signal))
+    }
+    case 'set-alert-registration': {
+      const admin = requireAdmin(ctx)
+      let request
+      try { request = validateAlertRegistrationPayload(payload) }
+      catch (error) { return badRequest(error instanceof Error ? error.message : 'The alert registration request is invalid.') }
+      return ok(await runAdmin('set-alert-registration', undefined, { ...request, actor_id: admin.email }, signal))
+    }
+    case 'relink-alert-registration': {
+      const admin = requireAdmin(ctx)
+      let request
+      try { request = validateAlertRelinkPayload(payload) }
+      catch (error) { return badRequest(error instanceof Error ? error.message : 'The alert relink request is invalid.') }
+      return ok(await runAdmin('relink-alert-registration', undefined, { ...request, actor_id: admin.email }, signal))
+    }
+    case 'release-held-alert': {
+      const admin = requireAdmin(ctx)
+      let request
+      try { request = validateHeldAlertReleasePayload(payload) }
+      catch (error) { return badRequest(error instanceof Error ? error.message : 'The held alert release request is invalid.') }
+      return ok(await runAdmin('release-held-alert', undefined, { ...request, actor_id: admin.email }, signal))
+    }
+    case 'preview-alert-migration': {
+      const admin = requireAdmin(ctx)
+      let request
+      try { request = validateAlertMigrationPayload(payload) }
+      catch (error) { return badRequest(error instanceof Error ? error.message : 'The alert migration request is invalid.') }
+      return ok(await runAdmin('preview-alert-migration', undefined, { ...request, actor_id: admin.email }, signal))
+    }
+    case 'backfill-alert-migration': {
+      const admin = requireAdmin(ctx)
+      return ok(await runAdmin('backfill-alert-migration', undefined, { actor_id: admin.email }, signal))
     }
     case 'list-accounts': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'add-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
@@ -764,7 +1141,7 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       } catch (error) {
         return badRequest(error instanceof Error ? error.message : 'The catalog save request is invalid.')
       }
-      return ok(await runAuthCommand('save-catalog-record', { ...request, ...requireCatalogPrincipal(ctx, request.catalog) }))
+      return ok(await runAuthCommand('save-catalog-record', { ...request, ...requireCatalogPrincipal(ctx, request.catalog, { write: true }) }))
     }
     case 'archive-catalog-record': {
       let request
@@ -773,7 +1150,7 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       } catch (error) {
         return badRequest(error instanceof Error ? error.message : 'The catalog archive request is invalid.')
       }
-      return ok(await runAuthCommand('archive-catalog-record', { ...request, ...requireCatalogPrincipal(ctx, request.catalog) }))
+      return ok(await runAuthCommand('archive-catalog-record', { ...request, ...requireCatalogPrincipal(ctx, request.catalog, { write: true }) }))
     }
     case 'publish-catalog': {
       const session = requireAdmin(ctx)
@@ -885,6 +1262,68 @@ export function apply(ctx) {
           validateCustomerEmailConfigPayload,
         ),
       })
+      const alertEmailPolicy = ctx.webServer.register({
+        kind: 'exact',
+        path: '/admin/alert-email/policy',
+        handler: (request, response) => saveAlertEmailAdminResource(
+          request,
+          response,
+          ctx,
+          'save-alert-email-policy',
+          validateAlertEmailPolicyPayload,
+        ),
+      })
+      const alertEmailOwnership = ctx.webServer.register({
+        kind: 'exact', path: '/admin/alert-email/ownership',
+        handler: (request, response) => saveAlertEmailAdminResource(
+          request, response, ctx, 'set-alert-index-ownership', validateAlertIndexOwnershipPayload,
+        ),
+      })
+      const alertEmailRegistration = ctx.webServer.register({
+        kind: 'exact', path: '/admin/alert-email/registration',
+        handler: (request, response) => saveAlertEmailAdminResource(
+          request, response, ctx, 'set-alert-registration', validateAlertRegistrationPayload,
+        ),
+      })
+      const alertEmailRelink = ctx.webServer.register({
+        kind: 'exact', path: '/admin/alert-email/relink',
+        handler: (request, response) => saveAlertEmailAdminResource(
+          request, response, ctx, 'relink-alert-registration', validateAlertRelinkPayload,
+        ),
+      })
+      const alertEmailRelease = ctx.webServer.register({
+        kind: 'exact', path: '/admin/alert-email/release',
+        handler: (request, response) => saveAlertEmailAdminResource(
+          request, response, ctx, 'release-held-alert', validateHeldAlertReleasePayload,
+        ),
+      })
+      const alertMigrationPreview = ctx.webServer.register({
+        kind: 'exact', path: '/admin/alert-email/migration/preview',
+        handler: (request, response) => saveAlertEmailAdminResource(
+          request, response, ctx, 'preview-alert-migration', validateAlertMigrationPayload,
+        ),
+      })
+      const alertMigrationBackfill = ctx.webServer.register({
+        kind: 'exact', path: '/admin/alert-email/migration/backfill',
+        handler: (request, response) => saveAlertEmailAdminResource(
+          request, response, ctx, 'backfill-alert-migration', value => {
+            if (value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length) {
+              throw new Error('The alert migration backfill request must be empty.')
+            }
+            return {}
+          },
+        ),
+      })
+      const alertIngestWebhook = ctx.webServer.register({
+        kind: 'exact',
+        path: '/api/soc-alerts/v1/runs',
+        handler: (request, response) => serveAlertIngestWebhook(request, response),
+      })
+      const alertActionContextWebhook = ctx.webServer.register({
+        kind: 'exact',
+        path: '/api/soc-alerts/v1/action-context',
+        handler: (request, response) => serveAlertActionContextWebhook(request, response),
+      })
       return () => {
         admin?.()
         adminTrailing?.()
@@ -896,6 +1335,15 @@ export function apply(ctx) {
         alertEmailPreview?.()
         alertEmailRule?.()
         alertEmailCustomer?.()
+        alertEmailPolicy?.()
+        alertEmailOwnership?.()
+        alertEmailRegistration?.()
+        alertEmailRelink?.()
+        alertEmailRelease?.()
+        alertMigrationPreview?.()
+        alertMigrationBackfill?.()
+        alertIngestWebhook?.()
+        alertActionContextWebhook?.()
       }
     }, 'soc-agent-host: admin web surface')
   }

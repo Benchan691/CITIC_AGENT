@@ -5,15 +5,18 @@ from __future__ import annotations
 import json
 import sys
 import asyncio
+import uuid
 from contextvars import ContextVar
 from contextlib import asynccontextmanager
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from threading import Lock
 from typing import Any
 
 from .config import ServerSettings
-from .alert_ingest import AlertIngestionWorker
+from .alert_ingest import AlertIngestionStore, AlertIngestionWorker, _has_delivery_action
 from .alert_email import AlertEmailWorker
+from .bridge_auth import require_host_capability
 from .env_loader import load_server_env
 from .auth import ZimbraIdentity, public_session
 from .catalog.service import CatalogService
@@ -188,18 +191,246 @@ async def save_detection(payload: dict[str, Any]) -> dict[str, Any]:
     expected_fingerprint = payload.get("expected_fingerprint")
     if expected_fingerprint is not None and not isinstance(expected_fingerprint, str):
         raise ValueError("invalid detection save request")
+    origin = payload.get("origin", "human")
+    if origin not in {"human", "agent"}:
+        raise ValueError("invalid detection save request")
     service, actor_id = await run_blocking(_splunk_service, payload, principal=str(payload.get("session_id", "")))
+    publication_operation_id = str(uuid.uuid4())
+    registration_store = None
+    registration = None
+    definition = None
     try:
-        return await service.detection_service.save_detection(
-            operation,
-            detection,
+        registration_store, registration, definition = await _begin_detection_registration(
+            service,
+            operation=operation,
+            detection=detection,
             name=name,
             expected_fingerprint=expected_fingerprint,
             actor_id=actor_id,
+            origin=origin,
         )
+        if registration_store is None:
+            raise ServiceError(
+                "alert_registration_required",
+                "PostgreSQL alert registration is required before a detection can be saved.",
+            )
+        if (
+            not registration
+            or not registration.get("id")
+            or registration.get("status") == "needs_review"
+            or registration.get("registration_state") in {"needs_review", "inactive", "retired"}
+        ):
+            raise ServiceError(
+                "alert_registration_review",
+                "The detection was not saved because its customer scope requires administrator review.",
+                details={
+                    "reason": (registration or {}).get("reason", "source indexes could not be mapped to one customer"),
+                    "review_key": (registration or {}).get("review_key"),
+                },
+            )
+        publication_detection = dict(detection)
+        # The publisher writes the backend registration identity into the
+        # selected custom action's parameters.  The action can then carry a
+        # stable lookup hint without ever constructing CID/AID/EID values.
+        publication_detection.update(
+            {
+                "action.citic_alert_delivery.param.registration_id": registration["id"],
+                # An empty stable_id is meaningful: when Splunk has not
+                # supplied a native stable identity, the registration UUID is
+                # not a safe substitute because copied saved searches inherit
+                # action parameters.  registration_id remains the scoped hint
+                # for this exact published definition.
+                "action.citic_alert_delivery.param.stable_id": registration.get("stable_id") or "",
+                # Carry the source definition in backend-owned action
+                # parameters so a trigger that arrives before the discovery
+                # worker can still perform the same conservative registration
+                # checks.  The receiver treats these values as assertions and
+                # re-parses the SPL; they are never routing authority.
+                "action.citic_alert_delivery.param.spl": str(
+                    (definition or detection).get("spl") or (definition or detection).get("search") or ""
+                ),
+                "action.citic_alert_delivery.param.source_indexes": json.dumps(
+                    list(registration.get("source_indexes") or []),
+                    separators=(",", ":"),
+                ),
+                "action.citic_alert_delivery.param.app": str((definition or detection).get("app") or registration.get("app") or ""),
+                "action.citic_alert_delivery.param.owner": str((definition or detection).get("owner") or registration.get("owner") or ""),
+                "action.citic_alert_delivery.param.policy_id": registration["email_policy_id"],
+                "action.citic_alert_delivery.param.policy_revision": str(registration["email_policy_revision"]),
+                "action.citic_alert_delivery.param.definition_revision": str(registration.get("definition_revision") or 1),
+                "action.citic_alert_delivery.param.selected_columns": json.dumps(
+                    [
+                        *list((registration.get("email_policy") or {}).get("detail_columns", [])),
+                        *list((registration.get("email_policy") or {}).get("required_columns", [])),
+                        *list((registration.get("email_policy") or {}).get("optional_columns", [])),
+                        *[
+                            str(item.get("source") or "").strip()
+                            for item in (registration.get("email_policy") or {}).get("field_mappings", [])
+                            if isinstance(item, Mapping) and str(item.get("source") or "").strip()
+                        ],
+                        *[
+                            str(item.get("source") or "").strip()
+                            for item in (registration.get("email_policy") or {}).get("row_filters", [])
+                            if isinstance(item, Mapping) and str(item.get("source") or "").strip()
+                        ],
+                        str((registration.get("email_policy") or {}).get("severity_source") or "").strip(),
+                    ],
+                    separators=(",", ":"),
+                ),
+                "action.citic_alert_delivery.param.row_filters": json.dumps(
+                    list((registration.get("email_policy") or {}).get("row_filters", [])),
+                    separators=(",", ":"),
+                ),
+                "action.citic_alert_delivery.param.max_stored_rows": str(
+                    int((registration.get("email_policy") or {}).get("max_stored_rows", 1_000) or 1_000)
+                ),
+            }
+        )
+        try:
+            result = await service.detection_service.save_detection(
+                operation,
+                publication_detection,
+                name=name,
+                expected_fingerprint=expected_fingerprint,
+                actor_id=actor_id,
+                idempotency_key=publication_operation_id,
+            )
+        except Exception as exc:
+            # A transport timeout does not prove that Splunk did not commit
+            # the write. Reconcile the original idempotent operation once; a
+            # second write would risk creating a copied definition.
+            reconciled = None
+            if isinstance(exc, ServiceError) and (
+                exc.code == "runtime_limit_exceeded" or "timeout" in str(exc).casefold()
+            ):
+                async def operation_status(client: Any) -> Any:
+                    method = getattr(client, "get_write_operation_status", None)
+                    return await method(publication_operation_id) if callable(method) else None
+
+                try:
+                    status = await service.core.request(operation_status)
+                    state = str(status.get("status") or status.get("state") or "").casefold() if isinstance(status, Mapping) else ""
+                    if state in {"succeeded", "success", "completed", "committed"}:
+                        target = name or str(detection.get("name") or "")
+                        persisted = await service.detection_service.get_detection(target)
+                        if service.detection_service._has_delivery_action(persisted):
+                            registration = await run_blocking(
+                                registration_store.mark_registration_publication,
+                                registration["id"],
+                                success=True,
+                                principal=actor_id,
+                            ) or registration
+                            reconciled = {
+                                "status": "saved",
+                                "saved": True,
+                                "reconciled": True,
+                                "created": operation == "write",
+                                "updated": operation == "update",
+                                "enabled": False,
+                                "detection": persisted,
+                                "alert_registration": registration,
+                            }
+                except Exception:
+                    reconciled = None
+            if reconciled is not None:
+                return reconciled
+            if registration_store is not None and registration and registration.get("id"):
+                try:
+                    await run_blocking(
+                        registration_store.mark_registration_publication,
+                        registration["id"],
+                        success=False,
+                        error=str(exc),
+                        principal=actor_id,
+                    )
+                except Exception:
+                    pass
+            raise
+        persisted = result.get("detection") if isinstance(result, dict) else None
+        if result.get("saved") and isinstance(persisted, dict) and registration_store is not None and registration:
+            if registration.get("id"):
+                registration = await run_blocking(
+                    registration_store.mark_registration_publication,
+                    registration["id"],
+                    success=True,
+                    principal=actor_id,
+                ) or registration
+            result["alert_registration"] = registration
+        return result
     finally:
+        if registration_store is not None:
+            await run_blocking(registration_store.close)
         await _close_service(service)
 
+
+async def _begin_detection_registration(
+    service: SplunkService,
+    *,
+    operation: str,
+    detection: dict[str, Any],
+    name: str | None,
+    expected_fingerprint: str | None,
+    actor_id: str,
+    origin: str,
+) -> tuple[AlertIngestionStore | None, dict[str, Any] | None, dict[str, Any] | None]:
+    store = await run_blocking(AlertIngestionStore.from_env)
+    if store is None:
+        return None, None, None
+    try:
+        if operation == "write":
+            draft_response = await service.detection_service.write_detection(
+                detection,
+                actor_id=actor_id,
+            )
+        else:
+            draft_response = await service.detection_service.update_detection(
+                name or "",
+                detection,
+                expected_fingerprint or "",
+                actor_id=actor_id,
+            )
+        definition = draft_response.get("draft") if isinstance(draft_response, dict) else None
+        if not isinstance(definition, dict):
+            raise ServiceError("alert_registration_failed", "The detection draft could not be registered.")
+        settings = _settings()
+        deployment = str(
+            settings.splunk.deployment_id or settings.splunk.mcp_endpoint or "splunk-default"
+        ).strip()
+        await run_blocking(store.sync_catalog_indexes, deployment)
+        actions = str(definition.get("actions") or "")
+        registration = await run_blocking(
+            store.register_definition,
+            definition,
+            deployment=deployment,
+            origin=origin,
+            actor=actor_id,
+            action_configured=_has_delivery_action(actions),
+            publication_pending=True,
+        )
+        if registration.get("id") and registration.get("customer_id"):
+            # Splunk must receive an administrator-owned policy identity even
+            # when the policy intentionally selects no detail columns.  The
+            # empty default is safe: it prevents sender-selected projection
+            # and still requires the separate customer delivery toggle.
+            policy = await run_blocking(
+                store.ensure_alert_policy,
+                registration["customer_id"],
+                registration["id"],
+                actor=actor_id,
+            )
+            registration["email_policy_id"] = policy["id"]
+            registration["email_policy_revision"] = policy["revision"]
+            registration["email_policy"] = policy["policy"]
+        return store, registration, definition
+    except Exception as exc:
+        await run_blocking(store.close)
+        if isinstance(exc, ServiceError):
+            raise
+        raise ServiceError(
+            "alert_registration_failed",
+            "The alert was not published because identity registration failed.",
+            details={"reason": str(exc)[:300]},
+        ) from exc
 
 async def save_lookup(payload: dict[str, Any]) -> dict[str, Any]:
     operation = payload.get("operation")
@@ -317,6 +548,8 @@ async def save_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
     catalog = str(payload.get("catalog", ""))
     if operation not in {"write", "update"} or not isinstance(record, dict):
         raise ValueError("invalid catalog save request")
+    if catalog == "customer" and payload.get("_host_admin_verified") is not True:
+        raise ValueError("administrator authentication is required for customer changes")
     expected_revision = payload.get("expected_revision")
     if expected_revision is not None and not isinstance(expected_revision, int):
         raise ValueError("invalid catalog save request")
@@ -336,6 +569,8 @@ async def save_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 async def archive_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
+    if str(payload.get("catalog", "")) == "customer" and payload.get("_host_admin_verified") is not True:
+        raise ValueError("administrator authentication is required for customer changes")
     expected_revision = payload.get("expected_revision")
     if not isinstance(expected_revision, int):
         raise ValueError("invalid catalog archive request")
@@ -354,6 +589,8 @@ async def archive_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 async def publish_catalog(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("_host_admin_verified") is not True:
+        raise ValueError("administrator authentication is required for catalog publication")
     service, actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
         return await service.publish_catalog(str(payload.get("catalog", "")), actor_id=actor_id)
@@ -362,6 +599,8 @@ async def publish_catalog(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 async def rollback_publication(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("_host_admin_verified") is not True:
+        raise ValueError("administrator authentication is required for publication rollback")
     service, actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
     try:
         return await service.rollback_publication(
@@ -394,6 +633,28 @@ _ASYNC_COMMANDS = {
 }
 
 KNOWN_COMMANDS = frozenset({*_SYNC_COMMANDS, *_ASYNC_COMMANDS})
+
+_HOST_ADMIN_COMMANDS = frozenset({"publish-catalog", "rollback-publication"})
+
+
+def _requires_host_admin_capability(command: str, payload: Mapping[str, Any]) -> bool:
+    """Return whether a direct helper invocation needs a host capability.
+
+    The Node host is the authority for browser/session role checks.  Keep this
+    guard in the Python entry point as well so invoking the module directly
+    cannot turn a caller-supplied ``actor_id`` or ``_host_admin_verified``
+    marker into administrator authority.
+    """
+
+    if command in _HOST_ADMIN_COMMANDS:
+        return True
+    if command in {"save-catalog-record", "archive-catalog-record"}:
+        return str(payload.get("catalog", "")) == "customer"
+    return bool(
+        isinstance(payload.get("actor_id"), str)
+        and str(payload.get("actor_id", "")).strip()
+        and not str(payload.get("session_id", "")).strip()
+    )
 
 
 async def dispatch_command(command: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -430,6 +691,13 @@ def main() -> None:
     payload: dict[str, Any] = {}
     try:
         payload = _payload()
+        if _requires_host_admin_capability(command, payload):
+            claims = require_host_capability(payload, command=command, kind="admin")
+            payload = dict(payload)
+            payload["_host_admin_verified"] = True
+            # The actor is signed by the Node host.  Never use a caller-
+            # supplied actor for an audit record.
+            payload["actor_id"] = claims["actor_id"]
         async def run():
             async with command_runtime(), operation_budget():
                 return await dispatch_command(command, payload)

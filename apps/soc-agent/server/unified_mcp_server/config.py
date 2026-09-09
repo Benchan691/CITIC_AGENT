@@ -147,6 +147,10 @@ class SplunkSettings:
     risk_tolerance: int
     safe_timerange: str
     sanitize_output: bool
+    deployment_id: str = ""
+    write_mcp_endpoint: str = ""
+    write_mcp_token: str = ""
+    write_mcp_tool: str = "citic_write_saved_search"
     detection_write_enabled: bool = False
     detection_app: str = "search"
     detection_owner: str = "nobody"
@@ -173,6 +177,12 @@ class SplunkSettings:
             "SPLUNK_MCP_ENDPOINT",
             allow_insecure_http=self.allow_insecure_http,
         )
+        if self.write_mcp_endpoint:
+            _validate_http_endpoint(
+                self.write_mcp_endpoint,
+                "SPLUNK_WRITE_MCP_ENDPOINT",
+                allow_insecure_http=self.allow_insecure_http,
+            )
 
     @property
     def configured(self) -> bool:
@@ -189,6 +199,10 @@ class SplunkSettings:
         return {
             "splunk_mcp_endpoint": self.mcp_endpoint,
             "splunk_token": self.token,
+            "splunk_deployment_id": self.deployment_id,
+            "splunk_write_mcp_endpoint": self.write_mcp_endpoint,
+            "splunk_write_mcp_token": self.write_mcp_token,
+            "splunk_write_mcp_tool": self.write_mcp_tool,
             "verify_ssl": self.verify_ssl,
             "allow_insecure_http": self.allow_insecure_http,
             "request_timeout": self.request_timeout,
@@ -423,6 +437,10 @@ class ServerSettings:
         splunk = SplunkSettings(
             mcp_endpoint=splunk_mcp_endpoint,
             token=_value(env, "SPLUNK_TOKEN"),
+            deployment_id=_value(env, "SPLUNK_DEPLOYMENT_ID"),
+            write_mcp_endpoint=_value(env, "SPLUNK_WRITE_MCP_ENDPOINT"),
+            write_mcp_token=_value(env, "SPLUNK_WRITE_MCP_TOKEN"),
+            write_mcp_tool=_value(env, "SPLUNK_WRITE_MCP_TOOL", "citic_write_saved_search"),
             verify_ssl=_boolean(env, splunk_verify_name, True),
             allow_insecure_http=splunk_allow_insecure_http,
             request_timeout=_integer(env, "SPLUNK_REQUEST_TIMEOUT", 30, 1, 600),
@@ -565,6 +583,10 @@ class ServerSettings:
                 "sanitize_output": self.splunk.sanitize_output,
                 "detection_write_enabled": self.splunk.detection_write_enabled,
                 "detection_app": self.splunk.detection_app,
+                "deployment_id": self.splunk.deployment_id,
+                "detection_write_extension_configured": bool(
+                    self.splunk.write_mcp_endpoint and self.splunk.write_mcp_token
+                ),
                 "lookup_write_enabled": self.splunk.lookup_write_enabled,
                 "lookup_app": self.splunk.lookup_app,
                 "lookup_owner": self.splunk.lookup_owner,

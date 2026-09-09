@@ -168,7 +168,11 @@ def _field_mapping(value: Any, fields: dict[str, str]) -> dict[str, str]:
         if not isinstance(item, str):
             fields[f"field_mapping.{key}"] = "must be text."
             item = ""
-        result[key] = item.strip()[:255]
+        item = item.strip()
+        if len(item) > 255:
+            fields[f"field_mapping.{key}"] = "must be at most 255 characters."
+            item = item[:255]
+        result[key] = item
     for key, item in value.items():
         if key in FIELD_MAPPING_KEYS:
             continue
@@ -178,7 +182,11 @@ def _field_mapping(value: Any, fields: dict[str, str]) -> dict[str, str]:
         if not isinstance(item, str):
             fields[f"field_mapping.{key}"] = "must be text."
             continue
-        result[key] = item.strip()[:255]
+        item = item.strip()
+        if len(item) > 255:
+            fields[f"field_mapping.{key}"] = "must be at most 255 characters."
+            item = item[:255]
+        result[key] = item
     return result
 
 
@@ -215,6 +223,11 @@ def validate_customer(payload: dict[str, Any], *, partial: bool) -> dict[str, An
     values["splunk_indexes"] = _splunk_indexes(payload.get("splunk_indexes", []), fields)
     values["field_mapping"] = _field_mapping(payload.get("field_mapping", {}), fields)
     values["email_config"] = _email_config(payload.get("email_config", {}), fields)
+    delivery_enabled = payload.get("alert_delivery_enabled", False)
+    if not isinstance(delivery_enabled, bool):
+        fields["alert_delivery_enabled"] = "must be a boolean."
+        delivery_enabled = False
+    values["alert_delivery_enabled"] = delivery_enabled
 
     if not partial or "customer_code" in payload:
         if not values["customer_code"]:

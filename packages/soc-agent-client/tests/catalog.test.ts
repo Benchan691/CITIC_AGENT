@@ -56,7 +56,7 @@ test('catalog draft tool names follow the MCP wire convention', () => {
 test('catalog field sets cover the editable columns per catalog', () => {
   assert.deepEqual([...CATALOG_FIELDS.customer], [
     'customer_code', 'display_name', 'short_name', 'gid', 'lifecycle_status', 'notes',
-    'source_type_id', 'related_staff_id', 'splunk_indexes', 'field_mapping', 'email_config',
+    'source_type_id', 'related_staff_id', 'splunk_indexes', 'field_mapping', 'email_config', 'alert_delivery_enabled',
   ])
   assert.ok(CATALOG_FIELDS.rule.includes('rule_number'))
   assert.ok(CATALOG_FIELDS.rule.includes('rule_name_cn'))
@@ -96,6 +96,7 @@ test('new customer forms start with the server default lifecycle', () => {
     source_type_id: '', related_staff_id: '', splunk_indexes: [],
     field_mapping: { username: '', hostname: '', src_ip: '', dest_ip: '', event_id: '', title: '', description: '', severity: '', status: '' },
     email_config: { recipients: [], cc: [], bcc: [], language: 'EN', brand: 'CPC' },
+    alert_delivery_enabled: false,
   })
 })
 
@@ -106,6 +107,7 @@ test('customer configuration round-trips guided nested fields without JSON text'
     splunk_indexes: ['security', 'audit'],
     field_mapping: { username: 'user', custom_field: 'value' },
     email_config: { recipients: [], cc: ['cc@example.test'], bcc: [], language: 'CN', brand: 'CPC' },
+    alert_delivery_enabled: false,
   }
   const fields = formFromRecord(record)
   assert.deepEqual(recordFromForm('customer', fields), {
@@ -113,6 +115,7 @@ test('customer configuration round-trips guided nested fields without JSON text'
     source_type_id: '11111111-1111-1111-1111-111111111111', related_staff_id: '', splunk_indexes: ['security', 'audit'],
     field_mapping: { username: 'user', custom_field: 'value' },
     email_config: { recipients: [], cc: ['cc@example.test'], bcc: [], language: 'CN', brand: 'CPC' },
+    alert_delivery_enabled: false,
   })
 })
 

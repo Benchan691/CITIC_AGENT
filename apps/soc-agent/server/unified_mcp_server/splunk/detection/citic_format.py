@@ -6,8 +6,8 @@ import re
 from collections.abc import Iterable
 
 
-# This is the team's mandatory table contract. Other Event_* fields are
-# optional and may follow these fields in caller-supplied order.
+# This is the legacy ticket-summary contract. New registrations use the
+# alert-delivery contract below and do not need these generated identifiers.
 REQUIRED_CITIC_FIELDS = (
     "Fix_Ticketnumber",
     "Fix_TriggerTime",
@@ -204,8 +204,8 @@ def _empty_spl_value(value: str | None) -> bool:
     return value.strip() in {'""', "''"}
 
 
-def validate_citic_detection_spl(spl: str) -> dict[str, object]:
-    """Validate one complete production detection SPL definition."""
+def _validate_legacy_citic_detection_spl(spl: str) -> dict[str, object]:
+    """Validate one legacy production detection SPL definition."""
     errors: list[str] = []
     warnings: list[str] = []
     if not isinstance(spl, str) or not spl.strip():
@@ -280,9 +280,51 @@ def validate_citic_detection_spl(spl: str) -> dict[str, object]:
     }
 
 
+def validate_alert_delivery_spl(spl: str) -> dict[str, object]:
+    """Validate SPL used by the CID/AID/EID custom alert action.
+
+    Splunk supplies the saved-search identity and original result rows to the
+    action. Identity fields are therefore backend data, not SPL assignments.
+    """
+
+    errors: list[str] = []
+    warnings: list[str] = []
+    if not isinstance(spl, str) or not spl.strip():
+        return {"valid": False, "errors": ["spl is required"], "warnings": []}
+    stages = _split_top_level_pipeline(spl)
+    if not stages:
+        return {"valid": False, "errors": ["spl is required"], "warnings": []}
+    if any(_command(stage) == "outputcsv" for stage in stages):
+        errors.append("new alert-delivery SPL must not use outputcsv")
+    table_fields = _parse_table_fields(stages[-1]) if _command(stages[-1]) == "table" else []
+    if len(table_fields) != len(set(table_fields)):
+        errors.append("final table must not contain duplicate fields")
+    if table_fields and "_raw" in table_fields:
+        warnings.append("_raw is excluded from customer detail delivery by default")
+    return {
+        "valid": not errors,
+        "errors": errors,
+        "warnings": warnings,
+        "table_fields": table_fields,
+        "rulename": None,
+    }
+
+
+def validate_citic_detection_spl(spl: str) -> dict[str, object]:
+    """Validate new alert-delivery SPL while retaining legacy read support."""
+
+    if isinstance(spl, str) and re.search(
+        r"(?i)\boutputcsv\b|\beval\s+(?:\"?Event_GID\"?|\"?Event_Rulenum\"?|\"?GID\"?)\s*=",
+        spl,
+    ):
+        return _validate_legacy_citic_detection_spl(spl)
+    return validate_alert_delivery_spl(spl)
+
+
 __all__ = [
     "REQUIRED_CITIC_FIELDS",
     "build_log_event_template",
     "extract_final_table_fields",
+    "validate_alert_delivery_spl",
     "validate_citic_detection_spl",
 ]

@@ -214,10 +214,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "detection_logic", "rulename", "threat_name", "threat_type",
         "case_prefix", "event_field_mappings", "extra_table_fields",
     }
-    assert set(compiler_tool.parameters["required"]) == {
-        "detection_logic", "rulename", "threat_name", "threat_type",
-        "case_prefix", "event_field_mappings",
-    }
+    assert set(compiler_tool.parameters["required"]) == {"detection_logic"}
     assert "splunk_approve_detection_change" not in {tool.name for tool in tools}
     assert "splunk_apply_approved_detection_change" not in {tool.name for tool in tools}
     backtest_tool = next(tool for tool in tools if tool.name == "splunk_backtest_detection")

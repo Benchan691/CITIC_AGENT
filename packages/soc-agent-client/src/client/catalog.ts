@@ -63,6 +63,7 @@ export const CUSTOMER_FIELDS = [
   'splunk_indexes',
   'field_mapping',
   'email_config',
+  'alert_delivery_enabled',
 ] as const
 
 export const CUSTOMER_FIELD_MAPPING_KEYS = [
@@ -153,6 +154,8 @@ export function formFromRecord(record: Record<string, unknown>): CatalogFormFiel
   for (const key of CATALOG_FIELDS[catalog] ?? RULE_FIELDS) {
     if (catalog === 'customer' && (key === 'splunk_indexes' || key === 'field_mapping' || key === 'email_config')) {
       fields[key] = record[key]
+    } else if (key === 'alert_delivery_enabled') {
+      fields[key] = record[key] === true
     } else {
       fields[key] = text(record[key])
     }
@@ -178,6 +181,7 @@ export function emptyCatalogForm(catalog: CatalogName): CatalogFormFields {
     fields.splunk_indexes = []
     fields.field_mapping = Object.fromEntries(CUSTOMER_FIELD_MAPPING_KEYS.map(key => [key, '']))
     fields.email_config = { recipients: [], cc: [], bcc: [], language: 'EN', brand: 'CPC' }
+    fields.alert_delivery_enabled = false
   }
   if (catalog === 'rule') {
     fields.severity = 'info'

@@ -31,6 +31,16 @@ def _catalog_service(get_runtime, ctx: Context):
     return service
 
 
+def _customer_admin_only() -> None:
+    # Customer administration is intentionally exposed through the authenticated
+    # admin console.  The ordinary MCP identity has no customer-admin role and
+    # must never be able to turn a draft into an ownership/email-policy change.
+    raise ServiceError(
+        "admin_required",
+        "Only an administrator can create or edit customers.",
+    )
+
+
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success, failure, service_error) -> None:
     @server.tool(annotations={"readOnlyHint": True})
     async def catalog_list_rules(
@@ -179,6 +189,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
     @server.tool()
     async def catalog_write_customer(ctx: Context, customer: dict[str, Any]) -> dict[str, Any]:
         """Prepare an editable new Customer Information draft without writing; the editor Save persists it."""
+        _customer_admin_only()
         return await execute(
             ctx,
             "catalog",
@@ -194,6 +205,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
         expected_revision: int,
     ) -> dict[str, Any]:
         """Prepare a revision-bound Customer Information edit draft without writing."""
+        _customer_admin_only()
         return await execute(
             ctx,
             "catalog",
@@ -240,6 +252,8 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
         reason: str = "",
     ) -> dict[str, Any]:
         """Archive (or restore) one catalog record under the authenticated identity; referenced customers are refused."""
+        if catalog == "customer":
+            _customer_admin_only()
         return await execute(
             ctx,
             "catalog",

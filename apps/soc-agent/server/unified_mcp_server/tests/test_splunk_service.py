@@ -702,7 +702,7 @@ async def test_backtest_and_writes_are_guarded_and_structured():
     assert draft["status"] == "draft"
     assert draft["enabled"] is False
     assert "splunk" not in draft
-    assert draft["requires_action_configuration"] is False
+    assert draft["requires_action_configuration"] is True
     assert draft["review_only_metadata"]["persisted"] is False
     backtest = await writable.detection_service.backtest_detection(
         {**payload, "spl": "index=main error"}, max_count=10, fields=["card"]
@@ -733,7 +733,7 @@ async def test_backtest_and_writes_are_guarded_and_structured():
 
 
 @pytest.mark.asyncio
-async def test_detection_update_adds_company_log_event_and_forces_disabled_state():
+async def test_detection_update_adds_citic_delivery_action_and_forces_disabled_state():
     service = SplunkService(
         settings(detection_write_enabled=True), FakeClient
     )
@@ -753,10 +753,10 @@ async def test_detection_update_adds_company_log_event_and_forces_disabled_state
         expected_fingerprint=update_draft["expected_fingerprint"],
         actor_id="test-analyst",
     )
-    assert updated["actions_preserved"] is False
-    assert updated["actions_updated"] is True
-    assert updated["detection"]["actions"] == "email,logevent"
-    assert service.core._client.updated_fields[1]["actions"] == "email,logevent"
+    assert updated["actions_preserved"] is True
+    assert updated["actions_updated"] is False
+    assert updated["detection"]["actions"] == "email,citic_alert_delivery"
+    assert service.core._client.updated_fields[1]["actions"] == "email,citic_alert_delivery"
 
 
 @pytest.mark.asyncio

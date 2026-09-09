@@ -1,184 +1,122 @@
-# Create a Splunk alert and send email through the panels
+# Create a Splunk alert and deliver it through CITIC_AGENT
 
-For Splunk Enterprise 10.x. Panel labels can vary by release, app, and permissions. These instructions describe standard Search & Reporting alerts, not Enterprise Security correlation-search panels. Reviewed against official documentation on 8 September 2026; this guide was not tested by sending live email.
+This is the current CID → AID → EID workflow for Splunk Enterprise 10.x.
+Panel labels vary by release, app, and permissions. Customer delivery uses the
+**CITIC Alert Delivery** custom action and the SOC backend's administrator
+policy; the standard Splunk **Send email** action is not the customer-delivery
+route.
 
-The flow is: **scheduled search → matching results → trigger condition → email action → company SMTP server → mailbox**. Splunk's outgoing-mail settings and the individual alert must both be configured. CITIC_AGENT's MCP token does not configure SMTP.
+## Before creating an alert
 
-## 1. Configure outgoing email once
+An administrator must:
 
-Ask your mail administrator for the SMTP host, port, encryption mode, authentication details, permitted sender, and recipient domains. All `example.invalid` values below are placeholders; replace them before testing.
+1. Create or verify the active customer. The unique `customer_code` is the
+   public CID; customer creation and ownership changes are administrator-only.
+2. Register each exact source index in the deployment/index ownership registry.
+   Every index used by the search must belong to the same customer. Shared,
+   wildcard, dynamic, unresolved-macro, and cross-customer sources require
+   review and cannot deliver customer email automatically.
+3. Configure customer recipients, delivery enablement, severity fallback,
+   selected detail columns, filters, required/optional mappings, row limits,
+   language, and branding in `/admin/alert-email`.
+4. Install the `integrations/splunk_citic_alert_action` app on every search head
+   that owns these alerts. Configure the HTTPS ingest URL, the deployment's
+   dedicated webhook secret, and the matching deployment ID. Do not put
+   secrets, recipients, CID, AID, or EID values in SPL.
 
-1. Sign in to Splunk Web with an account allowed to manage server settings.
-2. Open **Settings → Server settings → Email settings**.
-3. Under **Mail Server Settings**, use the administrator's values:
+Apply migrations 014–021 with email sending stopped, review the migration
+preview, and enable production delivery only after the test workflow succeeds.
+The backend allocates AIDs; neither a person, SPL, nor an agent constructs
+them.
 
-| Setting | What to enter |
-| --- | --- |
-| Mail host | Host and port, for example `smtp.example.invalid:587`; do not enter the Splunk MCP URL. |
-| Email security / encryption, if shown | Select TLS/STARTTLS or SSL to match the relay. STARTTLS and implicit SSL are different connection modes. If the control is unavailable, have the Splunk administrator configure it. |
-| Authentication | Use the approved Simple or OAuth 2.0 option. |
-| Username / Password | For Simple authentication, use the approved SMTP account. Leave credentials empty only for an explicitly configured unauthenticated relay. |
-| OAuth fields | Obtain Client ID, Shared secret, Scope, and Tenant URL from the administrator. |
+## Create a safe test alert in Splunk Web
 
-The port is part of the mail-host value when no separate port box appears. Do not choose encryption by guessing from a port number. See Splunk's [SMTP configuration reference](https://splunk.portal.heretto.com/en/data-management/splunk-enterprise-admin-manual/10.4/configuration-file-reference/10.4.0-configuration-file-reference/alert_actions.conf).
-
-4. Set **Email Domains** to the approved custom domain list.
-5. Under **Email Format**, set **Send emails as** to the authorized sender and **Link hostname** to the reader-accessible Splunk hostname.
-6. Click **Save**. If this setup already works, retain it. These are shared settings. See [email setup and panel options](https://help.splunk.com/en/splunk-enterprise/alert-and-respond/alerting-manual/10.2/configure-alert-actions/email-notification-action).
-
-## 2. Build a temporary learning alert
-
-Start with synthetic data so no customer events enter the test email.
-
-1. Open **Apps → Search & Reporting → Search**.
-2. Paste this search and click the search button:
+Use synthetic data first:
 
 ```spl
 | makeresults
-| eval test_marker="SPLUNK_EMAIL_PANEL_TEST", message="Synthetic notification test; no customer data"
-| table _time test_marker message
+| eval test_marker="SPLUNK_CITIC_ALERT_TEST", device="synthetic-host", severity="low"
+| table _time test_marker device severity
 ```
 
-3. Confirm the **Statistics** tab contains one row with the marker. Running this search alone does not send email.
-4. Select **Save As → Alert**.
-5. Complete the panel:
+1. Run the search and confirm its single synthetic result.
+2. Select **Save As → Alert**.
+3. Use a unique title, for example `TEST - CITIC Alert Delivery - <initials>`.
+4. Set the intended schedule, time window, trigger condition, expiry, and
+   throttle. For a five-minute test, `*/5 * * * *` with `-6m@m` through
+   `-1m@m` is a reasonable bounded example.
+5. Keep the saved search disabled until registration and review are complete.
+6. Under **Trigger Actions**, select **CITIC Alert Delivery**. Do not add
+   `outputcsv`, `logevent`, or standard **Send email** for this route.
+7. Save the alert. The discovery worker registers it, or the first custom
+   action invocation performs the same conservative registration checks when
+   discovery has not completed.
 
-| Field | Learning-example value |
-| --- | --- |
-| Title | `TEST - Email panel - <your initials>` |
-| Description | `Temporary synthetic email test; disable after verification.` |
-| Permissions | Private. Use app sharing only when team access is intended. |
-| Alert type | Scheduled |
-| Schedule selection | Run on Cron Schedule |
-| Earliest | `-6m@m` |
-| Latest | `-1m@m` |
-| Cron expression | `*/5 * * * *` |
-| Expires, if shown | 24 hours; this controls triggered-record retention, not when the alert stops running. |
-| Trigger alert when | Number of Results, greater than `0` |
-| Trigger | Once |
-| Throttle | Off for this temporary test |
+The definition receives one AID such as `CPC001-0000`. A triggered run carries
+the original Splunk SID and trigger time; the backend creates one EID such as
+`CPC001-0000-20260909T081530123456Z-000001`. A run with many rows still creates
+one EID and one outbox record.
 
-Continue to the actions below before saving. See [scheduled-alert creation](https://help.splunk.com/en/splunk-cloud-platform/alert-and-respond/alerting-manual/10.3.2512/create-alerts/create-scheduled-alerts).
+## Configure result details
 
-### Understand the five-minute schedule
-
-The cron expression schedules a run at minutes 00, 05, 10, and so on. The time range covers five minutes with a one-minute ingestion delay. For example, a run at 10:10 examines 10:04–10:09. `@m` rounds to a minute boundary.
-
-For a real detection, confirm the scheduling timezone and ingestion delay with the Splunk administrator. A longer search window can repeat events across runs; a shorter one can leave gaps. The synthetic search creates a row each run, so it demonstrates delivery rather than ingestion coverage. See [alert scheduling guidance](https://help.splunk.com/en/splunk-cloud-platform/alert-and-respond/alerting-manual/10.2.2510/create-alerts/alert-scheduling-tips).
-
-### Avoid the zero-count trap
-
-An ungrouped `stats count` can return **one row whose count is zero**. A trigger checking the number of result rows can therefore fire even when there were no matching events.
-
-For an approved production search, filter the aggregate before using **Number of Results > 0**:
+The search should return detection fields only. Do not add identity fields:
 
 ```spl
-<your approved, customer-scoped search>
-| stats count AS matching_events
-| where matching_events > 0
+<approved customer-scoped detection logic>
+| table _time device severity source
 ```
 
-The first line is a placeholder, not executable SPL. With no matches, the final filter removes the zero-count row. For a threshold of ten events, use `where matching_events >= 10`. Alternatively, retain the aggregate and configure a **Custom** trigger condition such as `search matching_events >= 10`. See [trigger conditions](https://help.splunk.com/en/splunk-cloud-platform/alert-and-respond/alerting-manual/10.2.2510/manage-alert-trigger-conditions-and-throttling/configure-alert-trigger-conditions).
+The administrator policy determines what is retained and displayed. An empty
+detail policy intentionally transmits and stores no detail fields. `_raw` is
+excluded by default. Filters are applied before retention limits; the first 50
+matching rows are displayed by default, with at most 1,000 selected rows and
+5 MiB stored per run. Original row positions, total rows, matching rows,
+retained rows, displayed rows, and truncation are reported separately.
 
-## 3. Add the email action
+Missing required fields hold delivery for review. Missing optional fields are
+blank. Severity comes from the configured source/mapping, then the configured
+fallback, otherwise `unknown`; it never silently becomes `high`.
 
-1. Under **Trigger Actions**, select **Add Actions → Send email**.
-2. Configure:
+## Verify the test
 
-| Field | Test value |
+1. Have an authorized operator activate the disabled test alert through the
+   controlled Splunk process.
+2. Wait for a qualifying run and open the SOC administrator dashboard.
+3. Confirm the same CID, AID, EID, alert name, trigger time, severity, total
+   count, retained/displayed counts, and one delivery-history record.
+4. Check the SMTP outbox and relay acceptance. Relay acceptance is not proof
+   of mailbox delivery; check the test mailbox and spam/quarantine folders.
+5. Send the same run again or allow polling to observe it. Confirm the
+   existing EID and outbox record are reused, with no duplicate email.
+6. Disable and remove the synthetic test after verification.
+
+Direct Splunk Web definitions show **Action missing** until the action is
+selected and verified. Discovery does not silently enable an action. Renames
+preserve identity only when a native stable identity proves continuity;
+ambiguous copies or recreations require administrator relinking. A copied
+saved search must receive a new AID.
+
+## Agent/editor workflow
+
+The agent/compiler accepts result-producing SPL and does not require
+`GID`, `Event_GID`, or `Event_Rulenum`. The authenticated Save flow stages a
+disabled draft, registers the alert, installs backend-owned action parameters,
+and requires harness approval plus the explicit editor Save. Activation and
+catalog publication remain separate operator actions. A failed publication
+retains its allocated AID for reconciliation.
+
+## Troubleshooting
+
+| Symptom | Check |
 | --- | --- |
-| To | Your own actual mailbox; separate multiple addresses with commas. |
-| CC / BCC | Empty |
-| Priority | Normal |
-| Subject / Message | Templates below |
-| Link to Alert / Link to Results | Selected |
-| Inline results | Table |
-| Attach CSV | Selected to test the attachment |
-| Attach PDF / Allow Empty Attachment | Unselected |
-| Type | HTML & Plain Text |
+| Alert is in **Needs customer review** | Inspect exact indexes, macros, subsearch branches, shared ownership, and deployment mapping. Resolve in the administrator dashboard. |
+| **Action missing** | Select **CITIC Alert Delivery** in the saved-search actions and verify the app is installed; discovery never enables it automatically. |
+| No EID or email | Check customer and per-alert delivery enablement, active ownership, recipients, policy revision, required columns, and quarantine/held-event review. |
+| Duplicate alert or email | Check the registered AID and Splunk SID. Retries and polling should reconcile to the same receipt, EID, and outbox row. |
+| Detail fields are blank | Confirm the administrator policy selected those source fields and that the search returns them. Sender-selected fields are ignored when no policy is configured. |
+| Payload rejected | Check HTTPS, deployment-specific signature, replay/timestamp headers, supported payload version, original trigger time, policy revision, definition revision, and bounded result size. |
+| SMTP accepted but mailbox is empty | Ask the relay administrator to inspect recipient acceptance, quarantine, and relay logs. Do not manually replay an uncertain outbox row without checking delivery records. |
 
-3. Also add **Add to Triggered Alerts** for verification.
-4. Review the recipient, then click **Save**. Saving a new scheduled alert can start scheduled execution; this test can email every five minutes until disabled. See [email action options](https://help.splunk.com/en/splunk-enterprise/alert-and-respond/alerting-manual/10.2/configure-alert-actions/email-notification-action).
-
-### Copyable email text
-
-**Subject:**
-
-```text
-[TEST] $name$ — $job.resultCount$ result(s)
-```
-
-**Message:**
-
-```text
-This is a synthetic Splunk email-delivery test.
-
-Alert: $name$
-Application: $app$
-Result rows: $job.resultCount$
-Test marker: $result.test_marker$
-Search job: $job.sid$
-Review results: $results_link$
-
-Disable the temporary test alert after checking delivery.
-```
-
-For a production alert, remove the test wording and marker. `$job.resultCount$` counts output rows, not necessarily underlying events. Result tokens require the named field in the output; in a digest they refer to the first result row and do not summarize all rows. Use the table/attachment for multiple results. See [documented email tokens](https://help.splunk.com/en/splunk-cloud-platform/alert-and-respond/alerting-manual/10.3.2512/configure-alert-actions/use-tokens-in-email-notifications).
-
-### Once, per-result, and throttle
-
-**Once** means one action execution per qualifying run, not one email for the alert's lifetime. **For each result** can generate an email for each matching row: fifty rows can produce fifty emails. Use Once for this tutorial. For production, select behavior based on whether the recipient needs a digest or individual findings.
-
-Throttling suppresses repeated triggering for a period. For example, a 15-minute throttle may suppress subsequent qualifying five-minute runs. Per-result suppression requires appropriate result fields identifying the entity; use fields actually returned by the detection. Preserve existing production choices. See [triggering and throttling](https://help.splunk.com/en/splunk-cloud-platform/alert-and-respond/alerting-manual/10.2.2510/manage-alert-trigger-conditions-and-throttling/configure-alert-trigger-conditions).
-
-## 4. Verify, then disable the test
-
-1. Wait for the next five-minute boundary and allow time for the search and SMTP delivery.
-2. Open **Activity → Triggered Alerts**, filter by the test title, and open its results. Confirm the synthetic marker and execution time. Listing requires the tracking action and an unexpired record. See [viewing triggered alerts](https://help.splunk.com/splunk-cloud-platform/alert-and-respond/alerting-manual/9.3.2411/view-and-update-alerts/triggered-alerts).
-3. Check your inbox and junk/quarantine folders. Verify the subject tokens, inline row, CSV, and result link. A result link still requires Splunk access and available search artifacts.
-4. Open **Settings → Searches, reports, and alerts**. Find the exact test by title, app, and owner. Use its **Disable** action (in the row or Edit menu, depending on the panel). Confirm its status is disabled.
-5. Check after another scheduled boundary that no new test run triggered. An email already queued can still arrive. Deleting a triggered-history entry does not disable the saved alert.
-
-**Success means:** a scheduled job returned the marker, the alert triggered, and the expected message reached the mailbox. A triggered record alone does not prove email delivery.
-
-### Troubleshooting checklist
-
-| Symptom | What to check next |
-| --- | --- |
-| Email settings or Save As Alert is missing | Ask the administrator to check your role, scheduling capability, and app permissions. |
-| Alert cannot be found | Check app/owner filters and sharing; a private alert may belong to another account. |
-| No scheduled execution | Confirm enabled state, cron, timezone, owner access, and whether the scheduler skipped the job. Ask an administrator to inspect scheduler history. |
-| Job ran but no triggered record | Check results, threshold, throttle, tracking action, and record expiry. |
-| Triggered but no email | Check Send email is present, recipient spelling, allowed domains, spam/quarantine, and relay acceptance. |
-| SMTP error | Have administrators check connectivity, port/encryption agreement, authentication, authorized sender, and email-action logs. |
-| Empty or unexpected results | Compare the scheduled window and owner/app context with the successful manual search. Check aggregate filters. |
-| Too many emails | Check per-result mode, repeated qualifying runs, overlapping windows, duplicate alerts, and throttle settings. |
-| Missing token or incorrect count | Check field names in Statistics and whether the value describes rows or aggregated events. |
-| Link fails or attachment is incomplete | Check link hostname, permissions, artifact expiry, and configured result/attachment limits. Do not assume email contains every event. |
-
-Record the alert name, app, run time, job ID, and error text when asking for help. Keep SMTP secrets out of screenshots and tickets.
-
-## 5. Add email to an existing CITIC detection
-
-Use the existing approved detection rather than replacing its SPL with the learning example.
-
-1. In **Settings → Searches, reports, and alerts**, filter to the detection's app and find its exact title and owner. Confirm customer scope and disabled state.
-2. Record the existing schedule, trigger, throttle, and actions before editing.
-3. Use **Edit → Edit alert** to review scheduling and triggering. Some panels separate **Edit schedule** and **Edit actions**; in Search & Reporting's **Alerts** page, **Edit → Edit actions** opens action configuration.
-4. Add **Send email** and enter the approved customer-specific recipients and message. Preserve the existing trigger behavior and required actions. Do not automatically apply the tutorial's five-minute interval.
-5. Retain **Add to Triggered Alerts** and **Log Event**, including the existing generated event text:
-
-| CITIC Log Event field | Required existing value |
-| --- | --- |
-| Source | `$name$` |
-| Sourcetype | `ticket_details` |
-| Host | Empty |
-| Index | `ticket_summary` |
-| Event text | Preserve the compiler-generated text from the detection's final table. |
-
-6. Save configuration, reopen it, and verify that the detection remains disabled and the required actions remain present.
-7. Activation is a separate authorized operational step. Follow the organization's controlled Splunk activation process, then verify an expected scheduled run and delivery.
-
-CITIC_AGENT draft tools require harness approval and an explicit authenticated editor **Save**; they persist detections disabled. Splunk Web has its own controls, so do not assume every Web save forces disabled status. The [repository detection workflow](../README.md#configure-splunk-alerts) defines the existing CITIC requirements.
-
-**Attach CSV** sends a result attachment through the email action. It does not require adding `outputcsv` or `sendemail` to investigation SPL. Preserve existing compiled production logic and do not execute production write clauses merely to test email.
+Record the alert name, app, owner, Splunk SID, AID, EID, trigger time, and
+backend review/error code when requesting help. Keep credentials and customer
+data out of screenshots and tickets.

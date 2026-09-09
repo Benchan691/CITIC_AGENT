@@ -72,6 +72,27 @@ async def test_dispatch_rejects_unknown_command():
         await dispatch_command("definitely-not-a-command", {})
 
 
+@pytest.mark.asyncio
+async def test_customer_catalog_changes_require_admin_before_database_access():
+    from unified_mcp_server import auth_cli
+
+    with pytest.raises(ValueError, match="administrator authentication"):
+        await auth_cli.save_catalog_record({
+            "catalog": "customer",
+            "operation": "write",
+            "record": {"customer_code": "CPC001", "display_name": "Example"},
+            "session_id": "analyst-session",
+        })
+
+    with pytest.raises(ValueError, match="administrator authentication"):
+        await auth_cli.archive_catalog_record({
+            "catalog": "customer",
+            "record_id": "customer-1",
+            "expected_revision": 1,
+            "session_id": "analyst-session",
+        })
+
+
 def test_catalog_context_accepts_server_resolved_admin_actor(monkeypatch):
     from types import SimpleNamespace
     from unified_mcp_server import auth_cli

@@ -81,22 +81,45 @@ def merge_recipients(rules, context):
 
 def render_html(context):
     from .alert_email import normalize_email_config
+    from .alert_identity import DEFAULT_DISPLAY_ROWS
     config = normalize_email_config(context.email_config, require_recipient=False)
     language, brand = config.get('language', 'EN'), config.get('brand', 'CPC')
     path = Path(__file__).with_name('email_templates') / f'{brand}_{language}.html'
     content = context.metadata.get('content') or {}
     localized = content.get(language, {}) if isinstance(content, dict) else {}
-    values = dict(ticketnumber=context.event_id, rulename=context.alert_name or '', casetime=context.trigger_time or '',
+    event_identifier = getattr(context, 'eid', None) or context.event_id
+    values = dict(ticketnumber=event_identifier, rulename=context.alert_name or '', casetime=context.trigger_time or '',
                   severity=context.severity or '', srcip_port=context.metadata.get('src_ip') or '',
                   destip_port=context.metadata.get('dest_ip') or '',
                   ruledescrption=localized.get('description', context.metadata.get('description') or ''),
                   ruleremediation=localized.get('remediation', ''))
     values = {k: escape(str(v)[:2000]) for k, v in values.items()}
-    metadata = {'Customer': context.customer_name, 'Customer GID': context.customer_gid,
-                'Rule number': context.rule_number, 'Event ID': context.event_id,
+    metadata = {'Customer': context.customer_name, 'Customer CID': getattr(context, 'cid', None),
+                'Customer GID': context.customer_gid, 'Alert AID': getattr(context, 'aid', None),
+                'Alert EID': event_identifier, 'Rule number': context.rule_number, 'Event ID': event_identifier,
                 'Splunk SID': context.splunk_sid, 'Result count': context.result_count,
+                'Detail rows total': context.metadata.get('detail_total'),
+                'Detail rows retained': context.metadata.get('detail_stored'),
+                'Detail rows displayed': context.metadata.get('detail_displayed'),
                 'Source types': ', '.join(context.metadata.get('source_types') or [])}
     values['event_data'] = ''.join('<p>' + escape(key) + ': ' + escape(str(value if value is not None else '')[:2000]) + '</p>' for key,value in metadata.items())
+    if getattr(context, 'detail_rows', None):
+        columns = getattr(context, 'detail_columns', [])
+        labels = getattr(context, 'detail_labels', {})
+        policy = context.metadata.get('email_policy')
+        try:
+            display_limit = max(1, min(int(policy.get('max_display_rows', DEFAULT_DISPLAY_ROWS)), 1_000)) if isinstance(policy, dict) else DEFAULT_DISPLAY_ROWS
+        except (TypeError, ValueError):
+            display_limit = DEFAULT_DISPLAY_ROWS
+        positions = getattr(context, 'detail_positions', None) or list(range(len(context.detail_rows)))
+        values['event_data'] += ''.join(
+            '<p>Row ' + str(position + 1) + ': ' + escape('; '.join(
+                f'{labels.get(column, column)}={row.get(column, "")}' for column in columns
+            )[:4000]) + '</p>'
+            for position, row in zip(positions[:display_limit], context.detail_rows[:display_limit], strict=False)
+        )
+    if context.metadata.get('detail_truncated'):
+        values['event_data'] += '<p>Additional result rows were retained outside this email.</p>'
     return Template(path.read_text()).safe_substitute(values)
 
 
