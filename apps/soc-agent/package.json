@@ -27,8 +27,11 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@deepseek-ai/dsh-agent-instructions": "workspace:*",
+    "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-mcp-client": "link:../../vendor/deepseek-harness/packages/mcp/mcp-client",
     "@deepseek-ai/dsh-soc-agent-scheduler": "workspace:*",
+    "@deepseek-ai/schemastery": "workspace:*",
     "dsh-soc-agent-client": "workspace:*",
     "pg": "^8.16.3"
   },

@@ -126,12 +126,21 @@ importers:
 
   ../../apps/soc-agent:
     dependencies:
+      '@deepseek-ai/dsh-agent-instructions':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/context/agent-instructions
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/llm/llm
       '@deepseek-ai/dsh-mcp-client':
         specifier: link:../../vendor/deepseek-harness/packages/mcp/mcp-client
         version: link:../../vendor/deepseek-harness/packages/mcp/mcp-client
       '@deepseek-ai/dsh-soc-agent-scheduler':
         specifier: workspace:*
         version: link:../../packages/soc-agent-scheduler
+      '@deepseek-ai/schemastery':
+        specifier: link:../../vendor/deepseek-harness/vendor/schemastery
+        version: link:../../vendor/deepseek-harness/vendor/schemastery
       dsh-soc-agent-client:
         specifier: workspace:*
         version: link:../../packages/soc-agent-client
@@ -3309,6 +3318,9 @@ importers:
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
+      '@deepseek-ai/dsh-settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
       '@deepseek-ai/dsh-system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt

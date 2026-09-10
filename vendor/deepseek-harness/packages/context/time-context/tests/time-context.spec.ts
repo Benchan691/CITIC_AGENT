@@ -8,12 +8,31 @@ import AgentRegistry, { agentEvents, Inbox, type Agent } from '@deepseek-ai/dsh-
 import { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { SettingsProvider } from '@deepseek-ai/dsh-settings'
+import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import * as timeContext from '@deepseek-ai/dsh-time-context'
 import type { Config } from '@deepseek-ai/dsh-time-context'
 
 const BASE = Date.parse('2026-07-14T00:00:00.000Z')
 const ORIGINAL_TIME_ZONE = process.env['TZ']
 const SIGNAL = new AbortController().signal
+
+class MemorySettings extends SettingsProvider {
+  doc: Record<string, unknown> = {}
+
+  get writable(): boolean {
+    return true
+  }
+
+  protected load(): Promise<Record<string, unknown>> {
+    return Promise.resolve(structuredClone(this.doc))
+  }
+
+  protected persist(ns: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
+    this.doc = { ...this.doc, [ns]: structuredClone(section) }
+    return Promise.resolve()
+  }
+}
 
 beforeEach(() => {
   process.env['TZ'] = 'UTC'
@@ -359,6 +378,37 @@ describe('durable step context', () => {
 })
 
 describe('configuration and lifecycle', () => {
+  it('registers live enable and elapsed-time settings', async () => {
+    const ctx = new Context()
+    await ctx.plugin(AgentRegistry)
+    await ctx.plugin(MemorySettings)
+    await ctx.plugin(timeContext, {})
+    const descriptor = ctx.settings.describe().find(row => String(row.ns) === 'time-context')
+    expect(descriptor?.value).toEqual({ enabled: true, refreshIntervalMs: 0 })
+
+    const session = Session.create(SessionId('live-settings'))
+    const agent = sessionAgent(session)
+    openMessageTurn(session, 1)
+    await fire(ctx, agent, 1, 1)
+    expect(contextTexts(session)).toHaveLength(1)
+
+    await ctx.settings.update(timeContext.TIME_CONTEXT_SETTINGS_NAMESPACE, { enabled: false })
+    vi.setSystemTime(BASE + 2_000)
+    await fire(ctx, agent, 1, 2)
+    expect(contextTexts(session)).toHaveLength(1)
+
+    await ctx.settings.update(timeContext.TIME_CONTEXT_SETTINGS_NAMESPACE, {
+      enabled: true,
+      refreshIntervalMs: 5_000,
+    })
+    await fire(ctx, agent, 1, 3)
+    expect(contextTexts(session)).toHaveLength(1)
+    vi.setSystemTime(BASE + 5_000)
+    await fire(ctx, agent, 1, 4)
+    expect(contextTexts(session)).toHaveLength(2)
+    await ctx.fiber.dispose()
+  })
+
   it('defaults to the process system zone and retains the zone resolved at plugin load', async () => {
     process.env['TZ'] = 'Asia/Shanghai'
     const { ctx } = await mount()

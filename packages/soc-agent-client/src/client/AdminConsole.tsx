@@ -45,12 +45,21 @@ type ProviderData = {
   writable: boolean
 }
 
+type AgentContextData = {
+  background: SettingsNamespaceView
+  time: SettingsNamespaceView
+  writable: boolean
+}
+
 type StatusMessage = {
   kind: 'success' | 'error' | 'info'
   text: string
 }
 
 const CUSTOM_PROVIDER = '__custom__'
+const BACKGROUND_SETTINGS_NAMESPACE = 'soc-background'
+const TIME_SETTINGS_NAMESPACE = 'time-context'
+const MAX_INTERVAL_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / 1000)
 const PROVIDER_ROUTE_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
 const SUPPORTED_PROTOCOLS = [
   { value: 'openai-completions', label: 'OpenAI Chat Completions' },
@@ -110,6 +119,15 @@ function apiValue<T>(response: { result: { ok: boolean; value?: T; error?: { mes
 
 function serviceReady(service: ServiceStatus | undefined): boolean {
   return service?.status === 'ready' || service?.configured === true || service?.available === true
+}
+
+function nonNegativeInteger(value: string, label: string, maximum = Number.MAX_SAFE_INTEGER): number {
+  const normalized = value.trim()
+  const parsed = Number(normalized)
+  if (!/^\d+$/u.test(normalized) || !Number.isSafeInteger(parsed) || parsed > maximum) {
+    throw new Error(`${label} must be a non-negative whole number.`)
+  }
+  return parsed
 }
 
 export function AdminConsole({ connection }: { connection: any }) {
@@ -234,6 +252,7 @@ function AdminWorkspace({ connection, email, onSignedOut }: { connection: any; e
         </header>
 
         <ServiceStatusPanel connection={connection} />
+        <AgentContextSettings connection={connection} />
         <ProviderSettings connection={connection} />
       </div>
     </main>
@@ -337,6 +356,151 @@ function ServiceStatusPanel({ connection }: { connection: any }) {
           )
         })}
       </div>
+    </section>
+  )
+}
+
+function AgentContextSettings({ connection }: { connection: any }) {
+  const [data, setData] = useState<AgentContextData | null>(null)
+  const [backgroundPrompts, setBackgroundPrompts] = useState('5')
+  const [timeEnabled, setTimeEnabled] = useState(true)
+  const [timeSeconds, setTimeSeconds] = useState('0')
+  const [message, setMessage] = useState<StatusMessage | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setMessage(null)
+    try {
+      const view = apiValue<{ namespaces: SettingsNamespaceView[]; writable: boolean }>(
+        await connection.api.settings.describe({}),
+      )
+      const namespaces = new Map(view.namespaces.map((namespace) => [namespace.ns, namespace]))
+      const background = namespaces.get(BACKGROUND_SETTINGS_NAMESPACE)
+      const time = namespaces.get(TIME_SETTINGS_NAMESPACE)
+      if (!background || !time) throw new Error('Agent context settings are unavailable.')
+      const backgroundValue = objectValue(background.value)
+      const timeValue = objectValue(time.value)
+      setData({ background, time, writable: view.writable })
+      setBackgroundPrompts(String(backgroundValue.repeatEveryUserPrompts ?? 5))
+      setTimeEnabled(timeValue.enabled !== false)
+      setTimeSeconds(String(Number(timeValue.refreshIntervalMs ?? 0) / 1000))
+    } catch (loadError) {
+      setMessage({ kind: 'error', text: errorText(loadError) })
+    } finally {
+      setLoading(false)
+    }
+  }, [connection])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!data?.writable) return
+    setBusy(true)
+    setMessage(null)
+    try {
+      const repeatEveryUserPrompts = nonNegativeInteger(backgroundPrompts, 'BACKGROUND prompt frequency')
+      const seconds = nonNegativeInteger(timeSeconds, 'Time interval', MAX_INTERVAL_SECONDS)
+      const [backgroundResponse, timeResponse] = await Promise.all([
+        connection.api.settings.mutate({
+          ns: data.background.ns,
+          ops: [{ op: 'set', path: ['repeatEveryUserPrompts'], value: repeatEveryUserPrompts }],
+          expectedRevision: data.background.revision,
+        }),
+        connection.api.settings.mutate({
+          ns: data.time.ns,
+          ops: [
+            { op: 'set', path: ['enabled'], value: timeEnabled },
+            { op: 'set', path: ['refreshIntervalMs'], value: seconds * 1000 },
+          ],
+          expectedRevision: data.time.revision,
+        }),
+      ])
+      const background = apiValue<SettingsNamespaceView>(backgroundResponse)
+      const time = apiValue<SettingsNamespaceView>(timeResponse)
+      setData({ ...data, background, time })
+      setMessage({ kind: 'success', text: 'Agent context settings saved.' })
+    } catch (saveError) {
+      setMessage({ kind: 'error', text: errorText(saveError) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className={styles.section} aria-labelledby="agent-context-title">
+      <div className={styles.sectionHeading}>
+        <div>
+          <p className={styles.sectionKicker}>Model context</p>
+          <h2 id="agent-context-title" className={styles.sectionTitle}>Agent context</h2>
+        </div>
+        <span className={styles.sectionHint}>Changes apply live to existing and new sessions.</span>
+      </div>
+      {loading && !data ? <p className={styles.loadingInline}>Loading agent context…</p> : null}
+      {data ? (
+        <form onSubmit={save}>
+          <div className={styles.contextGrid}>
+            <article className={styles.contextCard}>
+              <div>
+                <p className={styles.sectionKicker}>Workspace reference</p>
+                <h3>BACKGROUND.md</h3>
+                <p>The file is always loaded when a session starts.</p>
+              </div>
+              <label className={styles.field}>
+                <span>Repeat every user prompts</span>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputMode="numeric"
+                  value={backgroundPrompts}
+                  onChange={(event) => setBackgroundPrompts(event.target.value)}
+                  aria-describedby="background-frequency-help"
+                  disabled={!data.writable || busy}
+                />
+                <small id="background-frequency-help" className={styles.fieldHint}>Use 0 for startup only. The default is every 5 additional user prompts.</small>
+              </label>
+            </article>
+
+            <article className={styles.contextCard}>
+              <div>
+                <p className={styles.sectionKicker}>Current clock</p>
+                <h3>Time context</h3>
+                <p>Supply the model with the current time and elapsed time.</p>
+              </div>
+              <label className={styles.toggleField}>
+                <input type="checkbox" checked={timeEnabled} onChange={(event) => setTimeEnabled(event.target.checked)} disabled={!data.writable || busy} />
+                <span><strong>Inject current time</strong><small>Applies on the next eligible model step.</small></span>
+              </label>
+              <label className={styles.field}>
+                <span>Minimum interval in seconds</span>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min="0"
+                  max={MAX_INTERVAL_SECONDS}
+                  step="1"
+                  inputMode="numeric"
+                  value={timeSeconds}
+                  onChange={(event) => setTimeSeconds(event.target.value)}
+                  aria-describedby="time-frequency-help"
+                  disabled={!data.writable || busy || !timeEnabled}
+                />
+                <small id="time-frequency-help" className={styles.fieldHint}>Use 0 to inject on every eligible model step.</small>
+              </label>
+            </article>
+          </div>
+          {message ? <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p> : null}
+          <div className={styles.actions}>
+            <button className={`${styles.button} ${styles.primary}`} type="submit" disabled={!data.writable || busy}>{busy ? 'Saving…' : 'Save agent context'}</button>
+          </div>
+        </form>
+      ) : message ? <p className={`${styles.message} ${styles[message.kind]}`} role="alert">{message.text}</p> : null}
     </section>
   )
 }

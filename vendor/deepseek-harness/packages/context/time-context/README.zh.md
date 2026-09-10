@@ -10,13 +10,14 @@
 - id: time-context
   name: '@deepseek-ai/dsh-time-context'
   config:
+    enabled: true              # optional; false disables injection
     timeZone: Asia/Shanghai  # optional fallback when the request has no unique browser zone
     refreshIntervalMs: 60000 # optional; omit or set to 0 for every eligible attempt
 ```
 
 当当前开放轮次只包含一个经 Host 校验的浏览器时区时，使用该请求本地时区格式化时间戳。浏览器来源信息缺失或混杂时，`timeZone` 提供显示回退；省略它则会在插件加载时解析一次 Node 进程时区。Node 遵循 `TZ`，每个显式回退值都经 `Intl.DateTimeFormat` 校验。
 
-`refreshIntervalMs` 必须是非负安全整数。省略或设为 `0` 时，会为每个信号尚未中止且将进入步骤的合格 pre-step 添加上下文。正数值只会在会话没有更早的 time-context 注入、挂钟时间倒退，或自最新注入起已经过至少相应毫秒数时添加上下文。
+`enabled` 默认为 `true`；设为 `false` 会停止注入。`refreshIntervalMs` 必须是非负安全整数。省略或设为 `0` 时，会为每个信号尚未中止且将进入步骤的合格 pre-step 添加上下文。正数值只会在会话没有更早的 time-context 注入、挂钟时间倒退，或自最新注入起已经过至少相应毫秒数时添加上下文。挂载 settings provider 后，`time-context` 命名空间可实时修改 `enabled` 与 `refreshIntervalMs`；`timeZone` 仍由部署配置管理。
 
 ## 请求时区归属
 

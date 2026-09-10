@@ -66,15 +66,13 @@ publication path.
 
 ## Splunk background context
 
-The CITIC SOC agent loads the repository-root `BACKGROUND.md` just in time:
-once at `agent/pre-step`, immediately before the first model request that has
-a visible `mcp__soc_agent__splunk_` or `mcp__splunk_official__splunk_` tool. It is not loaded for non-Splunk
-requests, is not fetched through MCP, and is retained for later Splunk steps
-without being repeated. The file provides generic Splunk background and the
-confirmed customer-rule naming pattern; it is reference context only and does
-not grant access or override `AGENTS.md`, authentication, or approval controls.
-Start a new SOC session after editing the file so the updated context is
-available.
+The CITIC SOC agent loads the repository-root `BACKGROUND.md` with `AGENTS.md`
+when a session starts. It then reloads the file after the configured number of
+additional user prompts, so edits can reach long-running sessions. Administrators
+can change or disable that repeat cadence, and can enable or throttle current-time
+context, from the **Agent context** section of `/admin`. The file is reference
+context only and does not grant access or override `AGENTS.md`, authentication,
+or approval controls.
 
 To start the web app:
 

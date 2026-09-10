@@ -44,6 +44,20 @@ test('admin console uses provider selection and write-only credentials', () => {
   assert.doesNotMatch(source, /update-settings|delete-setting/)
 })
 
+test('admin console exposes revision-safe BACKGROUND and time context controls', () => {
+  const source = readFileSync(new URL('../src/client/AdminConsole.tsx', import.meta.url), 'utf8')
+  assert.match(source, /Agent context/)
+  assert.match(source, /soc-background/)
+  assert.match(source, /time-context/)
+  assert.match(source, /repeatEveryUserPrompts/)
+  assert.match(source, /refreshIntervalMs/)
+  assert.match(source, /seconds \* 1000/)
+  assert.match(source, /expectedRevision: data\.background\.revision/)
+  assert.match(source, /expectedRevision: data\.time\.revision/)
+  assert.match(source, /Use 0 for startup only/)
+  assert.match(source, /Use 0 to inject on every eligible model step/)
+})
+
 test('failed service checks replace configured status with an unavailable state', () => {
   const source = readFileSync(new URL('../src/client/AdminConsole.tsx', import.meta.url), 'utf8')
   assert.match(source, /state\?\.kind === 'error'/)

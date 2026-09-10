@@ -3,6 +3,9 @@ import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import z from '@deepseek-ai/schemastery'
+import { renderWorkspaceContext } from '@deepseek-ai/dsh-agent-instructions'
+import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, DOMAIN_TOOLS, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS } from './policy.js'
 import { runAuthCommand } from './ownership.js'
 import { installInvestigationProjection } from './investigation.js'
@@ -12,6 +15,14 @@ export const inject = ['agents', 'connection', 'tools', 'socAuth', 'sessions', '
 
 const CHANNEL = '/soc-agent-config'
 const ACTION_POLICY_NAMESPACE = 'soc-action-approval'
+const BACKGROUND_NAMESPACE = 'soc-background'
+const BACKGROUND_FILE = 'BACKGROUND.md'
+const BACKGROUND_MAX_BYTES = 65_536
+const BACKGROUND_MAX_SOURCE_BYTES = 1024 * 1024
+const DEFAULT_BACKGROUND_PROMPTS = 5
+const BackgroundSettings = z.object({
+  repeatEveryUserPrompts: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_BACKGROUND_PROMPTS),
+})
 const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
 const CATALOG_ENDPOINTS = new Set([
   'catalog-list',
@@ -120,6 +131,77 @@ function settingsOf(ctx) {
   } catch {
     return undefined
   }
+}
+
+function isBackgroundPath(path) {
+  return path === BACKGROUND_FILE || path?.endsWith(`/${BACKGROUND_FILE}`)
+}
+
+function isBackgroundMarker(message) {
+  const source = message?.source
+  if (source?.kind === 'plugin' && source.plugin === BACKGROUND_NAMESPACE) return true
+  return source?.kind === 'agent-instructions'
+    && Array.isArray(source.changes)
+    && source.changes.some(change => change?.action !== 'remove' && isBackgroundPath(change?.path))
+}
+
+function latestBackgroundMarker(events) {
+  return events.findLastIndex(event => event?.type === 'user/message' && isBackgroundMarker(event.data))
+}
+
+function userPromptCount(messages) {
+  return messages.reduce((count, message) => count + (message?.source?.kind === 'user' ? 1 : 0), 0)
+}
+
+function installBackgroundRefresh(ctx) {
+  let currentSettings = () => ({ repeatEveryUserPrompts: DEFAULT_BACKGROUND_PROMPTS })
+  const provider = settingsOf(ctx)
+  if (typeof provider?.register === 'function') {
+    const scope = provider.register(BACKGROUND_NAMESPACE, BackgroundSettings, { applies: 'live' })
+    currentSettings = () => scope.get()
+  }
+
+  ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
+    const decision = await next()
+    if (decision.kind === 'reject' || signal?.aborted) return decision
+    if (decision.messages.some(isBackgroundMarker)) return decision
+
+    const currentPrompts = userPromptCount(decision.messages)
+    const interval = currentSettings().repeatEveryUserPrompts
+    if (currentPrompts === 0 || interval === 0) return decision
+
+    const events = agent?.session?.events ?? []
+    const marker = latestBackgroundMarker(events)
+    if (marker < 0) return decision
+    const previousPrompts = userPromptCount(events.slice(marker + 1)
+      .flatMap(event => event?.type === 'user/message' ? [event.data] : []))
+    if (previousPrompts + currentPrompts < interval) return decision
+
+    try {
+      const absolutePath = join(workspaceRoot(), BACKGROUND_FILE)
+      const content = await readFile(absolutePath, { encoding: 'utf8', signal })
+      if (Buffer.byteLength(content, 'utf8') > BACKGROUND_MAX_SOURCE_BYTES) {
+        throw new Error(`${BACKGROUND_FILE} exceeds the ${String(BACKGROUND_MAX_SOURCE_BYTES)} byte source limit`)
+      }
+      const rendered = renderWorkspaceContext(
+        [{ absolutePath, displayPath: BACKGROUND_FILE, content }],
+        { maxBytes: BACKGROUND_MAX_BYTES },
+      )
+      if (!rendered.text) return decision
+      const message = createUserMessage({
+        content: [{ type: 'text', text: rendered.text }],
+        source: { kind: 'plugin', plugin: BACKGROUND_NAMESPACE, form: 'instructions' },
+      })
+      const promptIndex = decision.messages.findLastIndex(item => item?.source?.kind === 'user')
+      return {
+        kind: 'enter',
+        messages: decision.messages.toSpliced(promptIndex + 1, 0, message),
+      }
+    } catch (error) {
+      if (!signal?.aborted) ctx.logger?.warn?.('soc-background: refresh failed: %o', error)
+      return decision
+    }
+  }, { prepend: true })
 }
 
 function actionSet(value, { strict = false } = {}) {
@@ -555,6 +637,7 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
 
 export function apply(ctx) {
   const sessionPolicies = new Map()
+  installBackgroundRefresh(ctx)
   if (typeof ctx.effect === 'function' && typeof ctx.webServer?.register === 'function') {
     ctx.effect(() => {
       const admin = ctx.webServer.register({

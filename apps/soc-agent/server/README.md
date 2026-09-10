@@ -123,7 +123,9 @@ The web UI authenticates users directly against the configured Zimbra server.
 The PostgreSQL-backed application session stores the authenticated Zimbra token
 server-side for 24 hours; it never stores the submitted password. Workspaces
 and Harness sessions are owned by the authenticated local user, and the first
-successful login creates that user's `General` workspace.
+successful login creates that user's `General` workspace. New chats without an
+explicit folder are created in `General`; ownership is committed before Host
+publication so they never appear under `Ungrouped`.
 
 Attachment conversion is local by default. Set `MARKITDOWN_LLM_ENABLED=true`
 with the `MARKITDOWN_LLM_*` variables when OpenAI-compatible OCR or image

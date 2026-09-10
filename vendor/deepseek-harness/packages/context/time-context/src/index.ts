@@ -10,6 +10,7 @@ import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
+import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
 import {
   deriveBrowserTimeZoneContext,
   renderBrowserTimeZoneContext,
@@ -25,6 +26,8 @@ export const inject = ['agents']
 
 /** Request-preparation clock formatting and append scheduling. Invalid values fail plugin load. */
 export interface Config {
+  /** Whether this plugin injects time context. Defaults to true when the plugin is mounted. */
+  enabled?: boolean
   /** Fallback display zone when the open turn has no unique browser zone. Omit to use the process zone. */
   timeZone?: string
   /** Minimum milliseconds between durable injections in one session. Omit or set to 0 to inject at every eligible step. */
@@ -33,8 +36,24 @@ export interface Config {
 
 /** Schemastery validation for {@link Config}. */
 export const Config: z<Config> = z.object({
+  enabled: z.boolean().default(true),
   timeZone: z.string(),
-  refreshIntervalMs: z.number(),
+  refreshIntervalMs: z.number().default(0),
+})
+
+/** Live settings owned by the time-context plugin. The fallback time zone remains deployment-owned. */
+export interface TimeContextSettings {
+  enabled: boolean
+  refreshIntervalMs: number
+}
+
+/** Settings namespace exposed to configuration surfaces. */
+export const TIME_CONTEXT_SETTINGS_NAMESPACE = settingsNamespace('time-context')
+
+/** Browser-editable time-context settings. */
+export const TimeContextSettings: z<TimeContextSettings> = z.object({
+  enabled: z.boolean().default(true),
+  refreshIntervalMs: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(0),
 })
 
 /** Format a non-negative elapsed millisecond count as compact whole-second units. */
@@ -144,8 +163,17 @@ function validateRefreshInterval(refreshIntervalMs: number | undefined): void {
  */
 export function apply(ctx: Context, config: Config): void {
   const timeZone = config.timeZone
-  const refreshIntervalMs = config.refreshIntervalMs
-  validateRefreshInterval(refreshIntervalMs)
+  const entry: TimeContextSettings = {
+    enabled: config.enabled ?? true,
+    refreshIntervalMs: config.refreshIntervalMs ?? 0,
+  }
+  validateRefreshInterval(entry.refreshIntervalMs)
+  let currentSettings = () => entry
+  installSettingsSection(ctx, TIME_CONTEXT_SETTINGS_NAMESPACE, TimeContextSettings, entry, {
+    validate: (settings) => { validateRefreshInterval(settings.refreshIntervalMs) },
+    setSource: (source) => { currentSettings = source },
+    onChange: () => {},
+  })
   let fallbackFormatter: Intl.DateTimeFormat
   try {
     fallbackFormatter = createTimestampFormatter(timeZone)
@@ -173,8 +201,10 @@ export function apply(ctx: Context, config: Config): void {
   ): Promise<PreStepDecision> => {
     const decision = await next()
     if (decision.kind === 'reject' || signal.aborted) return decision
+    const { enabled, refreshIntervalMs } = currentSettings()
+    if (!enabled) return decision
     const now = Date.now()
-    if (refreshIntervalMs !== undefined && refreshIntervalMs > 0) {
+    if (refreshIntervalMs > 0) {
       const lastInjection = latestInjectionTime(agent)
       if (lastInjection !== undefined
         && now >= lastInjection

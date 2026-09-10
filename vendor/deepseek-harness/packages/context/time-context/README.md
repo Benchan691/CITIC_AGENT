@@ -10,13 +10,14 @@ Opt-in durable context with the current zoned time, the browser zone attached to
 - id: time-context
   name: '@deepseek-ai/dsh-time-context'
   config:
+    enabled: true              # optional; false disables injection
     timeZone: Asia/Shanghai  # optional fallback when the request has no unique browser zone
     refreshIntervalMs: 60000 # optional; omit or set to 0 for every eligible attempt
 ```
 
 When the open turn contains one Host-validated browser zone, that request-local zone formats the timestamp. With missing or mixed browser provenance, `timeZone` supplies the display fallback; omitting it resolves the Node process zone once at plugin load. Node honors `TZ`, and every explicit fallback is validated through `Intl.DateTimeFormat`.
 
-`refreshIntervalMs` must be a non-negative safe integer. Omission or `0` adds context to every eligible entering pre-step whose signal is not already aborted. A positive value adds it only when the Session has no earlier time-context injection, wall time moved backward, or at least that many milliseconds elapsed since the latest injection.
+`enabled` defaults to `true`; setting it to `false` skips injection. `refreshIntervalMs` must be a non-negative safe integer. Omission or `0` adds context to every eligible entering pre-step whose signal is not already aborted. A positive value adds it only when the Session has no earlier time-context injection, wall time moved backward, or at least that many milliseconds elapsed since the latest injection. When a settings provider is mounted, the `time-context` namespace can change `enabled` and `refreshIntervalMs` live; `timeZone` remains deployment-owned.
 
 ## Request-zone ownership
 

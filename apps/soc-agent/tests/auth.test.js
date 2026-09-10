@@ -43,8 +43,14 @@ function authFixture() {
     async deleteWorkspace() {},
     async sessionOwner(id) { const value = sessions.get(id); return value && { ...value } },
     async userSessionIds(userId) { return new Set([...sessions].filter(([, value]) => value.userId === userId).map(([id]) => id)) },
-    async claimSession() { return true },
-    async deleteSessionOwner() {},
+    async claimSession(id, userId, workspaceId) {
+      const existing = sessions.get(id)
+      if (existing) return existing.userId === userId && existing.workspaceId === workspaceId
+      if (workspaces.get(workspaceId)?.userId !== userId) return false
+      sessions.set(id, { userId, workspaceId })
+      return true
+    },
+    async deleteSessionOwner(id) { sessions.delete(id) },
     async folderOwner(id) { return folders.get(id) },
     async userFolderIds(userId) { return new Set([...folders].filter(([, owner]) => owner === userId).map(([id]) => id)) },
     async claimFolder() { return true },
@@ -422,6 +428,33 @@ test('scoped API prevents cross-user workspace/session IDOR and filters queries'
     assert.equal(denied.result.ok, false)
   }
   assert.deepEqual(calls, [])
+})
+
+test('unscoped chat creation defaults to General and is owned before Host publication', async () => {
+  const { auth, store } = authFixture()
+  auth.ensureGeneral = async userId => {
+    assert.equal(userId, 'user-a')
+    return { workspaceId: 'workspace-a', title: 'General' }
+  }
+  let created
+  const api = {
+    sessions: {
+      create: async request => {
+        created = request
+        assert.deepEqual(await store.sessionOwner(request.payload.sessionId), {
+          userId: 'user-a',
+          workspaceId: 'workspace-a',
+        })
+        return response(request, { sessionId: request.payload.sessionId })
+      },
+    },
+  }
+
+  const result = await createScopedApiProxy(api, auth).sessions.create({ rpcId: 'new-chat', payload: {} })
+  assert.equal(result.result.ok, true)
+  assert.equal(created.payload.workspaceId, 'workspace-a')
+  assert.match(created.payload.sessionId, /^session-[0-9a-f-]{36}$/u)
+  assert.equal(result.result.value.sessionId, created.payload.sessionId)
 })
 
 test('SOC relative workspace names create private directories and reject traversal', async () => {

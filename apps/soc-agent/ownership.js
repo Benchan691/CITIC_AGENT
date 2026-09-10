@@ -1,6 +1,6 @@
 import pg from 'pg'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { mkdir, realpath } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
@@ -938,6 +938,19 @@ export function createScopedApiProxy(api, auth) {
     }
   }
 
+  async function normalizeSessionCreateRequest(request, session) {
+    const payload = requestPayload(request)
+    let next = payload
+    if (payload.workspaceId === undefined && payload.folderId === undefined && payload.cwd === undefined) {
+      if (typeof auth.ensureGeneral !== 'function') return { response: deny(request, 'workspace') }
+      const general = await auth.ensureGeneral(session.userId)
+      next = { ...next, workspaceId: general.workspaceId }
+    }
+    if (next.sessionId !== undefined) return { request: next === payload ? request : { ...request, payload: next } }
+    next = { ...next, sessionId: `session-${randomUUID()}` }
+    return { request: { ...request, payload: next }, preclaim: true }
+  }
+
   async function authorize(domain, method, request) {
     const session = current()
     if (!session) return deny(request, domain === 'workspace' ? 'workspace' : 'session')
@@ -1160,9 +1173,19 @@ export function createScopedApiProxy(api, auth) {
         return async (...args) => {
           let scopedArgs = args
           let request = args[0]
+          let preclaim = false
           if (domain === 'workspace' && String(property) === 'create' && current()) {
             const normalized = await normalizeWorkspaceCreateRequest(request, current())
             if (normalized.response) return normalized.response
+            if (normalized.request !== request) {
+              scopedArgs = [normalized.request, ...args.slice(1)]
+              request = normalized.request
+            }
+          }
+          if (domain === 'sessions' && String(property) === 'create' && current()) {
+            const normalized = await normalizeSessionCreateRequest(request, current())
+            if (normalized.response) return normalized.response
+            preclaim = normalized.preclaim === true
             if (normalized.request !== request) {
               scopedArgs = [normalized.request, ...args.slice(1)]
               request = normalized.request
@@ -1172,6 +1195,13 @@ export function createScopedApiProxy(api, auth) {
           if (refused) {
             if (domain === 'downloads') return new Response('session not found', { status: 404 })
             return refused
+          }
+          const provisionalSessionId = preclaim ? String(request.payload.sessionId) : undefined
+          if (provisionalSessionId !== undefined) {
+            const session = current()
+            if (!session || !(await auth.store.claimSession(provisionalSessionId, session.userId, request.payload.workspaceId))) {
+              return deny(request, 'session')
+            }
           }
           const bindSession = (domain === 'sessions' && String(property) === 'prompt')
             || (domain === 'subagents' && String(property) === 'prompt')
@@ -1183,6 +1213,10 @@ export function createScopedApiProxy(api, auth) {
           } catch (error) {
             if (boundSessionId) auth.unbindAgentSession(boundSessionId)
             throw error
+          }
+          if (provisionalSessionId !== undefined && !okResult(response)
+            && response?.result?.error?.code !== 'workspace-attach-failed') {
+            await auth.store.deleteSessionOwner(provisionalSessionId)
           }
           if (boundSessionId && !okResult(response)) auth.unbindAgentSession(boundSessionId)
           return await postprocess(domain, String(property), request, response, object)

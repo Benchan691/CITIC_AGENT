@@ -21,14 +21,15 @@ test('Harness patch enables the filesystem skill and plan review layers', () => 
   assert.match(patch, /- id: session-folders\n  disabled: true/)
 })
 
-test('CITIC SOC defers generic Splunk background until a Splunk tool is visible', () => {
+test('CITIC SOC loads generic Splunk background with the startup instructions', () => {
   const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
   const presetRoot = join(repoRoot, 'vendor/deepseek-harness/apps/cli/config/agent-presets')
   const citicPreset = readFileSync(join(presetRoot, 'citic-soc/agent.cordis.yml'), 'utf8')
   const background = readFileSync(join(repoRoot, 'BACKGROUND.md'), 'utf8')
   const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')
 
-  assert.match(citicPreset, /instructionFileCandidates:\n\s+- AGENTS\.md\n\s+- CLAUDE\.md\n\s+deferredInstructionFileCandidates:\n\s+- BACKGROUND\.md\n\s+deferredToolNamePrefixes:\n\s+- mcp__soc_agent__splunk_\n\s+- mcp__splunk_official__splunk_/)
+  assert.match(citicPreset, /instructionFileCandidates:\n\s+- AGENTS\.md\n\s+- CLAUDE\.md\n\s+- BACKGROUND\.md/)
+  assert.doesNotMatch(citicPreset, /deferredInstructionFileCandidates|deferredToolNamePrefixes/)
   assert.equal((citicPreset.match(/BACKGROUND\.md/g) ?? []).length, 1)
   assert.match(background, /not\s+authorization/i)
   assert.match(background, /\[COMPANY_SHORT\] detection alert name/)

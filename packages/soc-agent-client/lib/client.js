@@ -94,7 +94,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AdminConsole.module.css.mjs
-		const css$9 = ".IhE_MG_page,.IhE_MG_loginPage{color:#edf3f7;background:#0b1014;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}.IhE_MG_page{background:radial-gradient(circle at 12% 0,#1e788a2b,#0000 34rem),radial-gradient(circle at 92% 8%,#ca8e3314,#0000 30rem),#0b1014}.IhE_MG_shell{width:min(1240px,100% - 48px);margin:0 auto;padding:42px 0 72px}.IhE_MG_header{border-bottom:1px solid #a4bec729;justify-content:space-between;align-items:flex-start;gap:32px;padding:0 0 34px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#80c8d0;letter-spacing:.15em;text-transform:uppercase;margin:0 0 9px;font-size:11px;font-weight:700;line-height:1.4}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:#f7fbfc;letter-spacing:-.035em;margin:0}.IhE_MG_title{font-size:clamp(30px,4vw,46px);line-height:1.05}.IhE_MG_subtitle{color:#9aadb5;max-width:600px;margin:13px 0 0;font-size:15px;line-height:1.6}.IhE_MG_headerActions{align-items:center;gap:14px;padding-top:4px;display:flex}.IhE_MG_account{color:#9aadb5;text-overflow:ellipsis;white-space:nowrap;max-width:240px;font-size:12px;overflow:hidden}.IhE_MG_section{margin-top:34px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:16px;display:flex}.IhE_MG_sectionKicker{color:#d3a968;margin-bottom:6px}.IhE_MG_sectionTitle{font-size:22px;line-height:1.2}.IhE_MG_sectionHint{color:#72838b;text-align:right;font-size:12px;line-height:1.5}.IhE_MG_statusGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;display:grid}.IhE_MG_statusCard{background:#141f25c7;border:1px solid #97b9c226;border-radius:15px;gap:13px;min-width:0;padding:17px;display:flex;box-shadow:0 14px 42px #0000001f}.IhE_MG_statusIcon{color:#9edbe0;background:#2b6c7740;border:1px solid #80c8d042;border-radius:10px;flex:0 0 34px;place-items:center;width:34px;height:34px;font-size:14px;font-weight:750;display:grid}.IhE_MG_statusBody{min-width:0}.IhE_MG_statusTopline{justify-content:space-between;align-items:flex-start;gap:8px;display:flex}.IhE_MG_statusTopline h3{color:#eff7f8;margin:1px 0 0;font-size:14px;line-height:1.35}.IhE_MG_statusBody p{color:#82969e;margin:7px 0 0;font-size:12px;line-height:1.45}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;align-items:center;display:inline-flex}.IhE_MG_statusPill{letter-spacing:.02em;border-radius:999px;flex:none;gap:6px;padding:4px 7px;font-size:10px;font-weight:700}.IhE_MG_statusReady{color:#9ce5be;background:#2c895733}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#a9dce0;background:#468d9733}.IhE_MG_statusError{color:#ffb1b1;background:#8932363d}.IhE_MG_statusMuted{color:#9baab0;background:#7e909724}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#778990;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#59d28c;box-shadow:0 0 0 3px #59d28c1f}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#73cbd3;box-shadow:0 0 0 3px #73cbd31f}.IhE_MG_statusError .IhE_MG_statusDot{background:#f77;box-shadow:0 0 0 3px #ff77771f}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success,.IhE_MG_message.IhE_MG_success{color:#91dfb3}.IhE_MG_checkMessage.IhE_MG_error,.IhE_MG_message.IhE_MG_error,.IhE_MG_error{color:#ff9d9d}.IhE_MG_checkMessage.IhE_MG_info,.IhE_MG_message.IhE_MG_info{color:#9bd6df}.IhE_MG_textButton{color:#a9e2e6;cursor:pointer;font:inherit;background:0 0;border:0;margin-top:12px;padding:0;font-size:12px;font-weight:700}.IhE_MG_textButton:hover,.IhE_MG_textButton:focus-visible{color:#e4ffff;text-decoration:underline}.IhE_MG_textButton:disabled{cursor:wait;opacity:.55}.IhE_MG_envManaged{color:#71858d;margin-top:12px;font-size:11px;display:inline-block}.IhE_MG_button,.IhE_MG_dangerButton{color:#d9e7ea;cursor:pointer;min-height:38px;font:inherit;background:#1c2a31bf;border:1px solid #9ab8c038;border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700;transition:border-color .14s,background .14s,transform .14s}.IhE_MG_button:hover:not(:disabled),.IhE_MG_button:focus-visible,.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#274149e6;border-color:#94dbe194}.IhE_MG_button:active:not(:disabled),.IhE_MG_dangerButton:active:not(:disabled){transform:translateY(1px)}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled{cursor:not-allowed;opacity:.48}.IhE_MG_primary{color:#071215;background:#9bdde0;border-color:#0000}.IhE_MG_primary:hover:not(:disabled),.IhE_MG_primary:focus-visible{color:#071215;background:#c0f0ef;border-color:#0000}.IhE_MG_dangerButton{color:#ffb4b4;background:#782d302e;border-color:#e774744d}.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#89323659;border-color:#ff9191a6}.IhE_MG_error{margin:12px 0;font-size:12px;line-height:1.5}.IhE_MG_loading,.IhE_MG_loadingInline{color:#a2b6bc;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_loadingInline{padding:24px 0}.IhE_MG_providerLayout{background:#0f181dd6;border:1px solid #97b9c229;border-radius:17px;grid-template-columns:minmax(230px,280px) minmax(0,1fr);min-height:480px;display:grid;overflow:hidden;box-shadow:0 18px 60px #00000029}.IhE_MG_providerPicker{background:#141f25b3;border-right:1px solid #97b9c221;flex-direction:column;min-width:0;padding:17px 11px 12px;display:flex}.IhE_MG_pickerHeader{color:#b8c8cd;justify-content:space-between;align-items:center;padding:0 8px 11px;font-size:12px;font-weight:700;display:flex}.IhE_MG_countBadge{color:#a9dce0;background:#468d9733;border-radius:999px;justify-content:center;min-width:22px;padding:3px 6px;font-size:10px}.IhE_MG_providerList{scrollbar-color:#82bac080 transparent;scrollbar-width:thin;flex-direction:column;flex:1;gap:3px;min-height:0;max-height:410px;padding-right:4px;display:flex;overflow-y:auto}.IhE_MG_providerOption,.IhE_MG_customOption{color:#bdcbd0;cursor:pointer;width:100%;min-width:0;font:inherit;text-align:left;background:0 0;border:1px solid #0000;border-radius:10px;align-items:center;gap:10px;padding:11px 9px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_providerOption:focus-visible,.IhE_MG_customOption:hover,.IhE_MG_customOption:focus-visible{background:#36545b38;border-color:#7fc2c933}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{color:#f2fbfc;background:#386f7842;border-color:#7ecdd354}.IhE_MG_providerDot{flex:0 0 7px;width:7px;height:7px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:3px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{color:inherit;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700;overflow:hidden}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:#7f949b;text-overflow:ellipsis;white-space:nowrap;font-size:10px;overflow:hidden}.IhE_MG_customTag,.IhE_MG_customBadge{color:#e1bd7f;text-transform:uppercase;background:#a46f281f;border:1px solid #d3a9684d;border-radius:999px;padding:3px 6px;font-size:9px;font-weight:700}.IhE_MG_customOption{border-top:1px solid #97b9c221;border-radius:0;flex:none;margin-top:12px;padding-top:17px}.IhE_MG_addIcon{color:#e1bd7f;border:1px solid #d3a96859;border-radius:7px;flex:0 0 24px;place-items:center;width:24px;height:24px;font-size:17px;font-weight:400;display:grid}.IhE_MG_providerEditor{background:#0b12166b;min-width:0;padding:31px clamp(22px,4vw,48px) 36px}.IhE_MG_editorHeading{border-bottom:1px solid #97b9c221;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:24px;display:flex}.IhE_MG_editorTitle{font-size:25px;line-height:1.15}.IhE_MG_editorCopy{color:#879aa1;max-width:600px;margin:9px 0 0;font-size:13px;line-height:1.55}.IhE_MG_editorForm{flex-direction:column;gap:20px;max-width:720px;padding-top:26px;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_field{color:#c9d7db;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:700;display:flex}.IhE_MG_field em{color:#71858c;margin-left:4px;font-size:10px;font-style:normal;font-weight:500}.IhE_MG_input{box-sizing:border-box;color:#ecf5f6;width:100%;min-width:0;font:inherit;background:#1a272dc7;border:1px solid #97b9c233;border-radius:9px;outline:0;padding:11px 12px;font-size:13px;font-weight:500;transition:border-color .14s,box-shadow .14s}.IhE_MG_input::placeholder{color:#65777e}.IhE_MG_input:focus{border-color:#89d8deb3;box-shadow:0 0 0 3px #5bb7c021}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.56}.IhE_MG_textarea{resize:vertical;min-height:98px;line-height:1.55}.IhE_MG_fieldHint{color:#71858d;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_advanced{background:#19262c5c;border:1px solid #97b9c226;border-radius:11px}.IhE_MG_advanced summary{color:#c4d5d9;cursor:pointer;padding:13px 15px;font-size:12px;font-weight:700;list-style-position:inside}.IhE_MG_advanced summary:hover{color:#e7f5f6}.IhE_MG_advancedBody{flex-direction:column;gap:18px;padding:0 15px 18px;display:flex}.IhE_MG_discoveryRow{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_discovered{flex-wrap:wrap;gap:7px;display:flex}.IhE_MG_modelChip{color:#b6e6e8;cursor:pointer;font:inherit;background:#386f782e;border:1px solid #7ecdd340;border-radius:999px;padding:6px 9px;font-size:11px}.IhE_MG_modelChip:hover,.IhE_MG_modelChip:focus-visible{background:#386f7852;border-color:#7ecdd3a6}.IhE_MG_message{margin:20px 0 0;font-size:12px;line-height:1.5}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:24px;display:flex}.IhE_MG_confirmGroup{color:#d5b0b0;flex-wrap:wrap;align-items:center;gap:8px;font-size:11px;display:inline-flex}.IhE_MG_confirmGroup .IhE_MG_error{flex-basis:100%;margin:0}.IhE_MG_loginPage{box-sizing:border-box;background:radial-gradient(circle at 50% 0,#25747f47,#0000 35rem),linear-gradient(145deg,#0b1115,#101b20 58%,#11181b);place-items:center;min-height:100vh;padding:24px;display:grid}.IhE_MG_loginPanel{box-sizing:border-box;background:#111c22e0;border:1px solid #a4cad033;border-radius:20px;width:min(100%,430px);padding:38px;box-shadow:0 25px 90px #00000059}.IhE_MG_loginMark{color:#071215;background:#9bdde0;border:1px solid #9bdde080;border-radius:13px;place-items:center;width:42px;height:42px;margin-bottom:25px;font-size:22px;font-weight:800;display:grid}.IhE_MG_loginTitle{font-size:32px;line-height:1.08}.IhE_MG_loginCopy{color:#8fa4aa;margin:13px 0 28px;font-size:13px;line-height:1.6}.IhE_MG_form{flex-direction:column;gap:17px;display:flex}.IhE_MG_fullButton{width:100%;margin-top:3px}.IhE_MG_loginFootnote{color:#6f838a;margin:25px 0 0;font-size:11px;line-height:1.5}@media (width<=1000px){.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (width<=760px){.IhE_MG_shell{width:min(100% - 28px,620px);padding-top:28px}.IhE_MG_header,.IhE_MG_sectionHeading{flex-direction:column;align-items:flex-start}.IhE_MG_headerActions{justify-content:space-between;width:100%}.IhE_MG_sectionHint{text-align:left}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-bottom:1px solid #97b9c221;border-right:0}.IhE_MG_providerList{max-height:230px}.IhE_MG_providerEditor{padding:25px 18px 30px}.IhE_MG_fieldGrid{grid-template-columns:1fr}}@media (width<=460px){.IhE_MG_loginPanel{padding:28px 22px}.IhE_MG_account{max-width:170px}.IhE_MG_editorHeading{flex-direction:column}}";
+		const css$9 = ".IhE_MG_page,.IhE_MG_loginPage{color:#edf3f7;background:#0b1014;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}.IhE_MG_page{background:radial-gradient(circle at 12% 0,#1e788a2b,#0000 34rem),radial-gradient(circle at 92% 8%,#ca8e3314,#0000 30rem),#0b1014}.IhE_MG_shell{width:min(1240px,100% - 48px);margin:0 auto;padding:42px 0 72px}.IhE_MG_header{border-bottom:1px solid #a4bec729;justify-content:space-between;align-items:flex-start;gap:32px;padding:0 0 34px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#80c8d0;letter-spacing:.15em;text-transform:uppercase;margin:0 0 9px;font-size:11px;font-weight:700;line-height:1.4}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:#f7fbfc;letter-spacing:-.035em;margin:0}.IhE_MG_title{font-size:clamp(30px,4vw,46px);line-height:1.05}.IhE_MG_subtitle{color:#9aadb5;max-width:600px;margin:13px 0 0;font-size:15px;line-height:1.6}.IhE_MG_headerActions{align-items:center;gap:14px;padding-top:4px;display:flex}.IhE_MG_account{color:#9aadb5;text-overflow:ellipsis;white-space:nowrap;max-width:240px;font-size:12px;overflow:hidden}.IhE_MG_section{margin-top:34px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:16px;display:flex}.IhE_MG_sectionKicker{color:#d3a968;margin-bottom:6px}.IhE_MG_sectionTitle{font-size:22px;line-height:1.2}.IhE_MG_sectionHint{color:#72838b;text-align:right;font-size:12px;line-height:1.5}.IhE_MG_statusGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;display:grid}.IhE_MG_contextGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_contextCard{background:#141f25c7;border:1px solid #97b9c226;border-radius:15px;flex-direction:column;gap:22px;min-width:0;padding:24px;display:flex;box-shadow:0 14px 42px #0000001f}.IhE_MG_contextCard h3{color:#eff7f8;margin:0;font-size:16px}.IhE_MG_contextCard p:not(.IhE_MG_sectionKicker){color:#82969e;margin:8px 0 0;font-size:12px;line-height:1.55}.IhE_MG_toggleField{color:#c9d7db;cursor:pointer;align-items:flex-start;gap:11px;display:flex}.IhE_MG_toggleField input{accent-color:#73cbd3;width:17px;height:17px;margin:1px 0 0}.IhE_MG_toggleField span{flex-direction:column;gap:4px;display:flex}.IhE_MG_toggleField strong{font-size:12px}.IhE_MG_toggleField small{color:#71858d;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_statusCard{background:#141f25c7;border:1px solid #97b9c226;border-radius:15px;gap:13px;min-width:0;padding:17px;display:flex;box-shadow:0 14px 42px #0000001f}.IhE_MG_statusIcon{color:#9edbe0;background:#2b6c7740;border:1px solid #80c8d042;border-radius:10px;flex:0 0 34px;place-items:center;width:34px;height:34px;font-size:14px;font-weight:750;display:grid}.IhE_MG_statusBody{min-width:0}.IhE_MG_statusTopline{justify-content:space-between;align-items:flex-start;gap:8px;display:flex}.IhE_MG_statusTopline h3{color:#eff7f8;margin:1px 0 0;font-size:14px;line-height:1.35}.IhE_MG_statusBody p{color:#82969e;margin:7px 0 0;font-size:12px;line-height:1.45}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;align-items:center;display:inline-flex}.IhE_MG_statusPill{letter-spacing:.02em;border-radius:999px;flex:none;gap:6px;padding:4px 7px;font-size:10px;font-weight:700}.IhE_MG_statusReady{color:#9ce5be;background:#2c895733}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#a9dce0;background:#468d9733}.IhE_MG_statusError{color:#ffb1b1;background:#8932363d}.IhE_MG_statusMuted{color:#9baab0;background:#7e909724}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#778990;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#59d28c;box-shadow:0 0 0 3px #59d28c1f}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#73cbd3;box-shadow:0 0 0 3px #73cbd31f}.IhE_MG_statusError .IhE_MG_statusDot{background:#f77;box-shadow:0 0 0 3px #ff77771f}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success,.IhE_MG_message.IhE_MG_success{color:#91dfb3}.IhE_MG_checkMessage.IhE_MG_error,.IhE_MG_message.IhE_MG_error,.IhE_MG_error{color:#ff9d9d}.IhE_MG_checkMessage.IhE_MG_info,.IhE_MG_message.IhE_MG_info{color:#9bd6df}.IhE_MG_textButton{color:#a9e2e6;cursor:pointer;font:inherit;background:0 0;border:0;margin-top:12px;padding:0;font-size:12px;font-weight:700}.IhE_MG_textButton:hover,.IhE_MG_textButton:focus-visible{color:#e4ffff;text-decoration:underline}.IhE_MG_textButton:disabled{cursor:wait;opacity:.55}.IhE_MG_envManaged{color:#71858d;margin-top:12px;font-size:11px;display:inline-block}.IhE_MG_button,.IhE_MG_dangerButton{color:#d9e7ea;cursor:pointer;min-height:38px;font:inherit;background:#1c2a31bf;border:1px solid #9ab8c038;border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700;transition:border-color .14s,background .14s,transform .14s}.IhE_MG_button:hover:not(:disabled),.IhE_MG_button:focus-visible,.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#274149e6;border-color:#94dbe194}.IhE_MG_button:active:not(:disabled),.IhE_MG_dangerButton:active:not(:disabled){transform:translateY(1px)}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled{cursor:not-allowed;opacity:.48}.IhE_MG_primary{color:#071215;background:#9bdde0;border-color:#0000}.IhE_MG_primary:hover:not(:disabled),.IhE_MG_primary:focus-visible{color:#071215;background:#c0f0ef;border-color:#0000}.IhE_MG_dangerButton{color:#ffb4b4;background:#782d302e;border-color:#e774744d}.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#89323659;border-color:#ff9191a6}.IhE_MG_error{margin:12px 0;font-size:12px;line-height:1.5}.IhE_MG_loading,.IhE_MG_loadingInline{color:#a2b6bc;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_loadingInline{padding:24px 0}.IhE_MG_providerLayout{background:#0f181dd6;border:1px solid #97b9c229;border-radius:17px;grid-template-columns:minmax(230px,280px) minmax(0,1fr);min-height:480px;display:grid;overflow:hidden;box-shadow:0 18px 60px #00000029}.IhE_MG_providerPicker{background:#141f25b3;border-right:1px solid #97b9c221;flex-direction:column;min-width:0;padding:17px 11px 12px;display:flex}.IhE_MG_pickerHeader{color:#b8c8cd;justify-content:space-between;align-items:center;padding:0 8px 11px;font-size:12px;font-weight:700;display:flex}.IhE_MG_countBadge{color:#a9dce0;background:#468d9733;border-radius:999px;justify-content:center;min-width:22px;padding:3px 6px;font-size:10px}.IhE_MG_providerList{scrollbar-color:#82bac080 transparent;scrollbar-width:thin;flex-direction:column;flex:1;gap:3px;min-height:0;max-height:410px;padding-right:4px;display:flex;overflow-y:auto}.IhE_MG_providerOption,.IhE_MG_customOption{color:#bdcbd0;cursor:pointer;width:100%;min-width:0;font:inherit;text-align:left;background:0 0;border:1px solid #0000;border-radius:10px;align-items:center;gap:10px;padding:11px 9px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_providerOption:focus-visible,.IhE_MG_customOption:hover,.IhE_MG_customOption:focus-visible{background:#36545b38;border-color:#7fc2c933}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{color:#f2fbfc;background:#386f7842;border-color:#7ecdd354}.IhE_MG_providerDot{flex:0 0 7px;width:7px;height:7px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:3px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{color:inherit;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700;overflow:hidden}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:#7f949b;text-overflow:ellipsis;white-space:nowrap;font-size:10px;overflow:hidden}.IhE_MG_customTag,.IhE_MG_customBadge{color:#e1bd7f;text-transform:uppercase;background:#a46f281f;border:1px solid #d3a9684d;border-radius:999px;padding:3px 6px;font-size:9px;font-weight:700}.IhE_MG_customOption{border-top:1px solid #97b9c221;border-radius:0;flex:none;margin-top:12px;padding-top:17px}.IhE_MG_addIcon{color:#e1bd7f;border:1px solid #d3a96859;border-radius:7px;flex:0 0 24px;place-items:center;width:24px;height:24px;font-size:17px;font-weight:400;display:grid}.IhE_MG_providerEditor{background:#0b12166b;min-width:0;padding:31px clamp(22px,4vw,48px) 36px}.IhE_MG_editorHeading{border-bottom:1px solid #97b9c221;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:24px;display:flex}.IhE_MG_editorTitle{font-size:25px;line-height:1.15}.IhE_MG_editorCopy{color:#879aa1;max-width:600px;margin:9px 0 0;font-size:13px;line-height:1.55}.IhE_MG_editorForm{flex-direction:column;gap:20px;max-width:720px;padding-top:26px;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_field{color:#c9d7db;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:700;display:flex}.IhE_MG_field em{color:#71858c;margin-left:4px;font-size:10px;font-style:normal;font-weight:500}.IhE_MG_input{box-sizing:border-box;color:#ecf5f6;width:100%;min-width:0;font:inherit;background:#1a272dc7;border:1px solid #97b9c233;border-radius:9px;outline:0;padding:11px 12px;font-size:13px;font-weight:500;transition:border-color .14s,box-shadow .14s}.IhE_MG_input::placeholder{color:#65777e}.IhE_MG_input:focus{border-color:#89d8deb3;box-shadow:0 0 0 3px #5bb7c021}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.56}.IhE_MG_textarea{resize:vertical;min-height:98px;line-height:1.55}.IhE_MG_fieldHint{color:#71858d;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_advanced{background:#19262c5c;border:1px solid #97b9c226;border-radius:11px}.IhE_MG_advanced summary{color:#c4d5d9;cursor:pointer;padding:13px 15px;font-size:12px;font-weight:700;list-style-position:inside}.IhE_MG_advanced summary:hover{color:#e7f5f6}.IhE_MG_advancedBody{flex-direction:column;gap:18px;padding:0 15px 18px;display:flex}.IhE_MG_discoveryRow{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_discovered{flex-wrap:wrap;gap:7px;display:flex}.IhE_MG_modelChip{color:#b6e6e8;cursor:pointer;font:inherit;background:#386f782e;border:1px solid #7ecdd340;border-radius:999px;padding:6px 9px;font-size:11px}.IhE_MG_modelChip:hover,.IhE_MG_modelChip:focus-visible{background:#386f7852;border-color:#7ecdd3a6}.IhE_MG_message{margin:20px 0 0;font-size:12px;line-height:1.5}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:24px;display:flex}.IhE_MG_confirmGroup{color:#d5b0b0;flex-wrap:wrap;align-items:center;gap:8px;font-size:11px;display:inline-flex}.IhE_MG_confirmGroup .IhE_MG_error{flex-basis:100%;margin:0}.IhE_MG_loginPage{box-sizing:border-box;background:radial-gradient(circle at 50% 0,#25747f47,#0000 35rem),linear-gradient(145deg,#0b1115,#101b20 58%,#11181b);place-items:center;min-height:100vh;padding:24px;display:grid}.IhE_MG_loginPanel{box-sizing:border-box;background:#111c22e0;border:1px solid #a4cad033;border-radius:20px;width:min(100%,430px);padding:38px;box-shadow:0 25px 90px #00000059}.IhE_MG_loginMark{color:#071215;background:#9bdde0;border:1px solid #9bdde080;border-radius:13px;place-items:center;width:42px;height:42px;margin-bottom:25px;font-size:22px;font-weight:800;display:grid}.IhE_MG_loginTitle{font-size:32px;line-height:1.08}.IhE_MG_loginCopy{color:#8fa4aa;margin:13px 0 28px;font-size:13px;line-height:1.6}.IhE_MG_form{flex-direction:column;gap:17px;display:flex}.IhE_MG_fullButton{width:100%;margin-top:3px}.IhE_MG_loginFootnote{color:#6f838a;margin:25px 0 0;font-size:11px;line-height:1.5}@media (width<=1000px){.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (width<=760px){.IhE_MG_shell{width:min(100% - 28px,620px);padding-top:28px}.IhE_MG_header,.IhE_MG_sectionHeading{flex-direction:column;align-items:flex-start}.IhE_MG_headerActions{justify-content:space-between;width:100%}.IhE_MG_sectionHint{text-align:left}.IhE_MG_statusGrid,.IhE_MG_contextGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-bottom:1px solid #97b9c221;border-right:0}.IhE_MG_providerList{max-height:230px}.IhE_MG_providerEditor{padding:25px 18px 30px}.IhE_MG_fieldGrid{grid-template-columns:1fr}}@media (width<=460px){.IhE_MG_loginPanel{padding:28px 22px}.IhE_MG_account{max-width:170px}.IhE_MG_editorHeading{flex-direction:column}}";
 		const tagId$9 = "dsh-soc-agent-client/AdminConsole.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$9) + "]") === null) {
 			const tag = document.createElement("style");
@@ -112,6 +112,8 @@ window.__ModuleLoader__.load({
 			"button": "IhE_MG_button",
 			"checkMessage": "IhE_MG_checkMessage",
 			"confirmGroup": "IhE_MG_confirmGroup",
+			"contextCard": "IhE_MG_contextCard",
+			"contextGrid": "IhE_MG_contextGrid",
 			"countBadge": "IhE_MG_countBadge",
 			"customBadge": "IhE_MG_customBadge",
 			"customOption": "IhE_MG_customOption",
@@ -180,7 +182,8 @@ window.__ModuleLoader__.load({
 			"success": "IhE_MG_success",
 			"textButton": "IhE_MG_textButton",
 			"textarea": "IhE_MG_textarea",
-			"title": "IhE_MG_title"
+			"title": "IhE_MG_title",
+			"toggleField": "IhE_MG_toggleField"
 		};
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
@@ -237,6 +240,9 @@ window.__ModuleLoader__.load({
 		//#endregion
 		//#region src/client/AdminConsole.tsx
 		const CUSTOM_PROVIDER = "__custom__";
+		const BACKGROUND_SETTINGS_NAMESPACE = "soc-background";
+		const TIME_SETTINGS_NAMESPACE = "time-context";
+		const MAX_INTERVAL_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / 1e3);
 		const PROVIDER_ROUTE_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 		const SUPPORTED_PROTOCOLS = [
 			{
@@ -290,6 +296,12 @@ window.__ModuleLoader__.load({
 		}
 		function serviceReady(service) {
 			return service?.status === "ready" || service?.configured === true || service?.available === true;
+		}
+		function nonNegativeInteger(value, label, maximum = Number.MAX_SAFE_INTEGER) {
+			const normalized = value.trim();
+			const parsed = Number(normalized);
+			if (!/^\d+$/u.test(normalized) || !Number.isSafeInteger(parsed) || parsed > maximum) throw new Error(`${label} must be a non-negative whole number.`);
+			return parsed;
 		}
 		function AdminConsole({ connection }) {
 			const [auth, setAuth] = (0, react.useState)(null);
@@ -471,6 +483,7 @@ window.__ModuleLoader__.load({
 							})]
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ServiceStatusPanel, { connection }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(AgentContextSettings, { connection }),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProviderSettings, { connection })
 					]
 				})
@@ -620,6 +633,221 @@ window.__ModuleLoader__.load({
 							}, card.key);
 						})
 					})
+				]
+			});
+		}
+		function AgentContextSettings({ connection }) {
+			const [data, setData] = (0, react.useState)(null);
+			const [backgroundPrompts, setBackgroundPrompts] = (0, react.useState)("5");
+			const [timeEnabled, setTimeEnabled] = (0, react.useState)(true);
+			const [timeSeconds, setTimeSeconds] = (0, react.useState)("0");
+			const [message, setMessage] = (0, react.useState)(null);
+			const [loading, setLoading] = (0, react.useState)(true);
+			const [busy, setBusy] = (0, react.useState)(false);
+			const load = (0, react.useCallback)(async () => {
+				setLoading(true);
+				setMessage(null);
+				try {
+					const view = apiValue(await connection.api.settings.describe({}));
+					const namespaces = new Map(view.namespaces.map((namespace) => [namespace.ns, namespace]));
+					const background = namespaces.get(BACKGROUND_SETTINGS_NAMESPACE);
+					const time = namespaces.get(TIME_SETTINGS_NAMESPACE);
+					if (!background || !time) throw new Error("Agent context settings are unavailable.");
+					const backgroundValue = objectValue(background.value);
+					const timeValue = objectValue(time.value);
+					setData({
+						background,
+						time,
+						writable: view.writable
+					});
+					setBackgroundPrompts(String(backgroundValue.repeatEveryUserPrompts ?? 5));
+					setTimeEnabled(timeValue.enabled !== false);
+					setTimeSeconds(String(Number(timeValue.refreshIntervalMs ?? 0) / 1e3));
+				} catch (loadError) {
+					setMessage({
+						kind: "error",
+						text: errorText(loadError)
+					});
+				} finally {
+					setLoading(false);
+				}
+			}, [connection]);
+			(0, react.useEffect)(() => {
+				load();
+			}, [load]);
+			async function save(event) {
+				event.preventDefault();
+				if (!data?.writable) return;
+				setBusy(true);
+				setMessage(null);
+				try {
+					const repeatEveryUserPrompts = nonNegativeInteger(backgroundPrompts, "BACKGROUND prompt frequency");
+					const seconds = nonNegativeInteger(timeSeconds, "Time interval", MAX_INTERVAL_SECONDS);
+					const [backgroundResponse, timeResponse] = await Promise.all([connection.api.settings.mutate({
+						ns: data.background.ns,
+						ops: [{
+							op: "set",
+							path: ["repeatEveryUserPrompts"],
+							value: repeatEveryUserPrompts
+						}],
+						expectedRevision: data.background.revision
+					}), connection.api.settings.mutate({
+						ns: data.time.ns,
+						ops: [{
+							op: "set",
+							path: ["enabled"],
+							value: timeEnabled
+						}, {
+							op: "set",
+							path: ["refreshIntervalMs"],
+							value: seconds * 1e3
+						}],
+						expectedRevision: data.time.revision
+					})]);
+					const background = apiValue(backgroundResponse);
+					const time = apiValue(timeResponse);
+					setData({
+						...data,
+						background,
+						time
+					});
+					setMessage({
+						kind: "success",
+						text: "Agent context settings saved."
+					});
+				} catch (saveError) {
+					setMessage({
+						kind: "error",
+						text: errorText(saveError)
+					});
+				} finally {
+					setBusy(false);
+				}
+			}
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+				className: AdminConsole_module_css_default.section,
+				"aria-labelledby": "agent-context-title",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.sectionHeading,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.sectionKicker,
+							children: "Model context"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
+							id: "agent-context-title",
+							className: AdminConsole_module_css_default.sectionTitle,
+							children: "Agent context"
+						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: AdminConsole_module_css_default.sectionHint,
+							children: "Changes apply live to existing and new sessions."
+						})]
+					}),
+					loading && !data ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.loadingInline,
+						children: "Loading agent context…"
+					}) : null,
+					data ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+						onSubmit: save,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AdminConsole_module_css_default.contextGrid,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("article", {
+									className: AdminConsole_module_css_default.contextCard,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+											className: AdminConsole_module_css_default.sectionKicker,
+											children: "Workspace reference"
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", { children: "BACKGROUND.md" }),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "The file is always loaded when a session starts." })
+									] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+										className: AdminConsole_module_css_default.field,
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Repeat every user prompts" }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+												className: AdminConsole_module_css_default.input,
+												type: "number",
+												min: "0",
+												step: "1",
+												inputMode: "numeric",
+												value: backgroundPrompts,
+												onChange: (event) => setBackgroundPrompts(event.target.value),
+												"aria-describedby": "background-frequency-help",
+												disabled: !data.writable || busy
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+												id: "background-frequency-help",
+												className: AdminConsole_module_css_default.fieldHint,
+												children: "Use 0 for startup only. The default is every 5 additional user prompts."
+											})
+										]
+									})]
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("article", {
+									className: AdminConsole_module_css_default.contextCard,
+									children: [
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+												className: AdminConsole_module_css_default.sectionKicker,
+												children: "Current clock"
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", { children: "Time context" }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Supply the model with the current time and elapsed time." })
+										] }),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+											className: AdminConsole_module_css_default.toggleField,
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+												type: "checkbox",
+												checked: timeEnabled,
+												onChange: (event) => setTimeEnabled(event.target.checked),
+												disabled: !data.writable || busy
+											}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Inject current time" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: "Applies on the next eligible model step." })] })]
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+											className: AdminConsole_module_css_default.field,
+											children: [
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Minimum interval in seconds" }),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													className: AdminConsole_module_css_default.input,
+													type: "number",
+													min: "0",
+													max: MAX_INTERVAL_SECONDS,
+													step: "1",
+													inputMode: "numeric",
+													value: timeSeconds,
+													onChange: (event) => setTimeSeconds(event.target.value),
+													"aria-describedby": "time-frequency-help",
+													disabled: !data.writable || busy || !timeEnabled
+												}),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+													id: "time-frequency-help",
+													className: AdminConsole_module_css_default.fieldHint,
+													children: "Use 0 to inject on every eligible model step."
+												})
+											]
+										})
+									]
+								})]
+							}),
+							message ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
+								role: message.kind === "error" ? "alert" : "status",
+								children: message.text
+							}) : null,
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: AdminConsole_module_css_default.actions,
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+									type: "submit",
+									disabled: !data.writable || busy,
+									children: busy ? "Saving…" : "Save agent context"
+								})
+							})
+						]
+					}) : message ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
+						role: "alert",
+						children: message.text
+					}) : null
 				]
 			});
 		}
