@@ -221,41 +221,94 @@ function AdminLogin({ onAuthenticated, error: initialError }: { onAuthenticated:
   )
 }
 
+const ADMIN_PAGES = [
+  { id: 'connections', name: 'Connections', icon: 'connections', copy: 'Review service setup and verify connections when needed.' },
+  { id: 'agent-context', name: 'Agent context', icon: 'context', copy: 'Control workspace context and current-time injection.' },
+  { id: 'providers', name: 'AI providers', icon: 'providers', copy: 'Manage model access and credentials in one place.' },
+] as const
+
+function AdminIcon({ name }: { name: string }) {
+  const paths: Record<string, string> = {
+    connections: 'M8 3v5 M16 3v5 M6 8h12v3a6 6 0 0 1-12 0z M12 17v4',
+    context: 'M12 3a9 9 0 1 0 9 9 M12 7v5l3 2',
+    providers: 'M12 3l9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5',
+  }
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.connections} /></svg>
+}
+
+function currentPage() {
+  const hash = window.location.hash.slice(1).split('/')[0]
+  return ADMIN_PAGES.some((page) => page.id === hash) ? hash : 'connections'
+}
+
 function AdminWorkspace({ connection, email, onSignedOut }: { connection: any; email: string; onSignedOut: () => Promise<void> }) {
   const [signingOut, setSigningOut] = useState(false)
+  const [error, setError] = useState('')
+  const [page, setPage] = useState(currentPage)
+  const [visited, setVisited] = useState(() => new Set([currentPage()]))
+
+  useEffect(() => {
+    const change = () => {
+      const next = currentPage()
+      setPage(next)
+      setVisited((old) => new Set([...old, next]))
+    }
+    window.addEventListener('hashchange', change)
+    return () => window.removeEventListener('hashchange', change)
+  }, [])
+
+  const selected = ADMIN_PAGES.find((item) => item.id === page) || ADMIN_PAGES[0]
 
   async function signOut() {
     setSigningOut(true)
+    setError('')
     try {
-      await fetch('/admin/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      const response = await fetch('/admin/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      if (!response.ok) throw new Error('Sign-out failed. Please try again.')
       await onSignedOut()
+    } catch (signOutError) {
+      setError(errorText(signOutError))
     } finally {
       setSigningOut(false)
     }
   }
 
   return (
-    <main className={styles.page}>
-      <div className={styles.shell}>
+    <div className={styles.page}>
+      <a className={styles.skipLink} href="#admin-content" onClick={(event) => { event.preventDefault(); document.getElementById('admin-content')?.focus() }}>Skip to content</a>
+      <aside className={styles.sidebar}>
+        <a href="/admin" className={styles.brand}><span className={styles.brandMark}>S</span><span>Sentinel<small>Administration</small></span></a>
+        <p className={styles.navLabel}>WORKSPACE</p>
+        <nav className={styles.navigation} aria-label="Administration">
+          {ADMIN_PAGES.map((item) => (
+            <a href={`#${item.id}`} key={item.id} className={page === item.id ? styles.navActive : ''} aria-current={page === item.id ? 'page' : undefined}>
+              <AdminIcon name={item.icon} />
+              {item.name}
+            </a>
+          ))}
+        </nav>
+        <div className={styles.sidebarFoot}>
+          <a href="/" className={styles.backLink}>← Back to workspace</a>
+          <div className={styles.identity}>
+            <span className={styles.avatar}>{email.slice(0, 1).toUpperCase() || 'A'}</span>
+            <div><strong>Administrator</strong><span className={styles.account} title={email}>{email}</span></div>
+          </div>
+          <button className={styles.signOut} type="button" onClick={() => void signOut()} disabled={signingOut}>{signingOut ? 'Signing out…' : 'Sign out'}</button>
+        </div>
+      </aside>
+      <main id="admin-content" className={styles.shell} tabIndex={-1}>
+        <div className={styles.topbar}><span>Workspace / <strong>Administration</strong></span><span className={styles.adminBadge}>Admin access</span></div>
         <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>CITICTEL-CPC · SOC AGENT</p>
-            <h1 className={styles.title}>Administration console</h1>
-            <p className={styles.subtitle}>A clear view of service readiness and LLM provider access.</p>
-          </div>
-          <div className={styles.headerActions}>
-            <span className={styles.account}>{email}</span>
-            <button className={styles.button} type="button" onClick={() => void signOut()} disabled={signingOut}>
-              {signingOut ? 'Signing out…' : 'Sign out'}
-            </button>
-          </div>
+          <div><p className={styles.eyebrow}>CITICTEL-CPC · SOC AGENT</p><h1 className={styles.title}>{selected.name}</h1><p className={styles.subtitle}>{selected.copy}</p></div>
+          <span className={styles.headerMark}><AdminIcon name={selected.icon} /></span>
         </header>
-
-        <ServiceStatusPanel connection={connection} />
-        <AgentContextSettings connection={connection} />
-        <ProviderSettings connection={connection} />
-      </div>
-    </main>
+        {error ? <p className={styles.error} role="alert">{error}</p> : null}
+        {visited.has('connections') ? <div hidden={page !== 'connections'}><ServiceStatusPanel connection={connection} /></div> : null}
+        {visited.has('agent-context') ? <div hidden={page !== 'agent-context'}><AgentContextSettings connection={connection} /></div> : null}
+        {visited.has('providers') ? <div hidden={page !== 'providers'}><ProviderSettings connection={connection} /></div> : null}
+        <footer className={styles.pageFoot}>Sentinel administration · CITICTEL-CPC</footer>
+      </main>
+    </div>
   )
 }
 

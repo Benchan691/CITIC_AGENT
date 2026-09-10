@@ -94,7 +94,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AdminConsole.module.css.mjs
-		const css$9 = ".IhE_MG_page,.IhE_MG_loginPage{color:#edf3f7;background:#0b1014;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}.IhE_MG_page{background:radial-gradient(circle at 12% 0,#1e788a2b,#0000 34rem),radial-gradient(circle at 92% 8%,#ca8e3314,#0000 30rem),#0b1014}.IhE_MG_shell{width:min(1240px,100% - 48px);margin:0 auto;padding:42px 0 72px}.IhE_MG_header{border-bottom:1px solid #a4bec729;justify-content:space-between;align-items:flex-start;gap:32px;padding:0 0 34px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#80c8d0;letter-spacing:.15em;text-transform:uppercase;margin:0 0 9px;font-size:11px;font-weight:700;line-height:1.4}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:#f7fbfc;letter-spacing:-.035em;margin:0}.IhE_MG_title{font-size:clamp(30px,4vw,46px);line-height:1.05}.IhE_MG_subtitle{color:#9aadb5;max-width:600px;margin:13px 0 0;font-size:15px;line-height:1.6}.IhE_MG_headerActions{align-items:center;gap:14px;padding-top:4px;display:flex}.IhE_MG_account{color:#9aadb5;text-overflow:ellipsis;white-space:nowrap;max-width:240px;font-size:12px;overflow:hidden}.IhE_MG_section{margin-top:34px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:16px;display:flex}.IhE_MG_sectionKicker{color:#d3a968;margin-bottom:6px}.IhE_MG_sectionTitle{font-size:22px;line-height:1.2}.IhE_MG_sectionHint{color:#72838b;text-align:right;font-size:12px;line-height:1.5}.IhE_MG_statusGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;display:grid}.IhE_MG_contextGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_contextCard{background:#141f25c7;border:1px solid #97b9c226;border-radius:15px;flex-direction:column;gap:22px;min-width:0;padding:24px;display:flex;box-shadow:0 14px 42px #0000001f}.IhE_MG_contextCard h3{color:#eff7f8;margin:0;font-size:16px}.IhE_MG_contextCard p:not(.IhE_MG_sectionKicker){color:#82969e;margin:8px 0 0;font-size:12px;line-height:1.55}.IhE_MG_toggleField{color:#c9d7db;cursor:pointer;align-items:flex-start;gap:11px;display:flex}.IhE_MG_toggleField input{accent-color:#73cbd3;width:17px;height:17px;margin:1px 0 0}.IhE_MG_toggleField span{flex-direction:column;gap:4px;display:flex}.IhE_MG_toggleField strong{font-size:12px}.IhE_MG_toggleField small{color:#71858d;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_statusCard{background:#141f25c7;border:1px solid #97b9c226;border-radius:15px;gap:13px;min-width:0;padding:17px;display:flex;box-shadow:0 14px 42px #0000001f}.IhE_MG_statusIcon{color:#9edbe0;background:#2b6c7740;border:1px solid #80c8d042;border-radius:10px;flex:0 0 34px;place-items:center;width:34px;height:34px;font-size:14px;font-weight:750;display:grid}.IhE_MG_statusBody{min-width:0}.IhE_MG_statusTopline{justify-content:space-between;align-items:flex-start;gap:8px;display:flex}.IhE_MG_statusTopline h3{color:#eff7f8;margin:1px 0 0;font-size:14px;line-height:1.35}.IhE_MG_statusBody p{color:#82969e;margin:7px 0 0;font-size:12px;line-height:1.45}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;align-items:center;display:inline-flex}.IhE_MG_statusPill{letter-spacing:.02em;border-radius:999px;flex:none;gap:6px;padding:4px 7px;font-size:10px;font-weight:700}.IhE_MG_statusReady{color:#9ce5be;background:#2c895733}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#a9dce0;background:#468d9733}.IhE_MG_statusError{color:#ffb1b1;background:#8932363d}.IhE_MG_statusMuted{color:#9baab0;background:#7e909724}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#778990;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#59d28c;box-shadow:0 0 0 3px #59d28c1f}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#73cbd3;box-shadow:0 0 0 3px #73cbd31f}.IhE_MG_statusError .IhE_MG_statusDot{background:#f77;box-shadow:0 0 0 3px #ff77771f}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success,.IhE_MG_message.IhE_MG_success{color:#91dfb3}.IhE_MG_checkMessage.IhE_MG_error,.IhE_MG_message.IhE_MG_error,.IhE_MG_error{color:#ff9d9d}.IhE_MG_checkMessage.IhE_MG_info,.IhE_MG_message.IhE_MG_info{color:#9bd6df}.IhE_MG_textButton{color:#a9e2e6;cursor:pointer;font:inherit;background:0 0;border:0;margin-top:12px;padding:0;font-size:12px;font-weight:700}.IhE_MG_textButton:hover,.IhE_MG_textButton:focus-visible{color:#e4ffff;text-decoration:underline}.IhE_MG_textButton:disabled{cursor:wait;opacity:.55}.IhE_MG_envManaged{color:#71858d;margin-top:12px;font-size:11px;display:inline-block}.IhE_MG_button,.IhE_MG_dangerButton{color:#d9e7ea;cursor:pointer;min-height:38px;font:inherit;background:#1c2a31bf;border:1px solid #9ab8c038;border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700;transition:border-color .14s,background .14s,transform .14s}.IhE_MG_button:hover:not(:disabled),.IhE_MG_button:focus-visible,.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#274149e6;border-color:#94dbe194}.IhE_MG_button:active:not(:disabled),.IhE_MG_dangerButton:active:not(:disabled){transform:translateY(1px)}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled{cursor:not-allowed;opacity:.48}.IhE_MG_primary{color:#071215;background:#9bdde0;border-color:#0000}.IhE_MG_primary:hover:not(:disabled),.IhE_MG_primary:focus-visible{color:#071215;background:#c0f0ef;border-color:#0000}.IhE_MG_dangerButton{color:#ffb4b4;background:#782d302e;border-color:#e774744d}.IhE_MG_dangerButton:hover:not(:disabled),.IhE_MG_dangerButton:focus-visible{background:#89323659;border-color:#ff9191a6}.IhE_MG_error{margin:12px 0;font-size:12px;line-height:1.5}.IhE_MG_loading,.IhE_MG_loadingInline{color:#a2b6bc;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_loadingInline{padding:24px 0}.IhE_MG_providerLayout{background:#0f181dd6;border:1px solid #97b9c229;border-radius:17px;grid-template-columns:minmax(230px,280px) minmax(0,1fr);min-height:480px;display:grid;overflow:hidden;box-shadow:0 18px 60px #00000029}.IhE_MG_providerPicker{background:#141f25b3;border-right:1px solid #97b9c221;flex-direction:column;min-width:0;padding:17px 11px 12px;display:flex}.IhE_MG_pickerHeader{color:#b8c8cd;justify-content:space-between;align-items:center;padding:0 8px 11px;font-size:12px;font-weight:700;display:flex}.IhE_MG_countBadge{color:#a9dce0;background:#468d9733;border-radius:999px;justify-content:center;min-width:22px;padding:3px 6px;font-size:10px}.IhE_MG_providerList{scrollbar-color:#82bac080 transparent;scrollbar-width:thin;flex-direction:column;flex:1;gap:3px;min-height:0;max-height:410px;padding-right:4px;display:flex;overflow-y:auto}.IhE_MG_providerOption,.IhE_MG_customOption{color:#bdcbd0;cursor:pointer;width:100%;min-width:0;font:inherit;text-align:left;background:0 0;border:1px solid #0000;border-radius:10px;align-items:center;gap:10px;padding:11px 9px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_providerOption:focus-visible,.IhE_MG_customOption:hover,.IhE_MG_customOption:focus-visible{background:#36545b38;border-color:#7fc2c933}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{color:#f2fbfc;background:#386f7842;border-color:#7ecdd354}.IhE_MG_providerDot{flex:0 0 7px;width:7px;height:7px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:3px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{color:inherit;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700;overflow:hidden}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:#7f949b;text-overflow:ellipsis;white-space:nowrap;font-size:10px;overflow:hidden}.IhE_MG_customTag,.IhE_MG_customBadge{color:#e1bd7f;text-transform:uppercase;background:#a46f281f;border:1px solid #d3a9684d;border-radius:999px;padding:3px 6px;font-size:9px;font-weight:700}.IhE_MG_customOption{border-top:1px solid #97b9c221;border-radius:0;flex:none;margin-top:12px;padding-top:17px}.IhE_MG_addIcon{color:#e1bd7f;border:1px solid #d3a96859;border-radius:7px;flex:0 0 24px;place-items:center;width:24px;height:24px;font-size:17px;font-weight:400;display:grid}.IhE_MG_providerEditor{background:#0b12166b;min-width:0;padding:31px clamp(22px,4vw,48px) 36px}.IhE_MG_editorHeading{border-bottom:1px solid #97b9c221;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:24px;display:flex}.IhE_MG_editorTitle{font-size:25px;line-height:1.15}.IhE_MG_editorCopy{color:#879aa1;max-width:600px;margin:9px 0 0;font-size:13px;line-height:1.55}.IhE_MG_editorForm{flex-direction:column;gap:20px;max-width:720px;padding-top:26px;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_field{color:#c9d7db;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:700;display:flex}.IhE_MG_field em{color:#71858c;margin-left:4px;font-size:10px;font-style:normal;font-weight:500}.IhE_MG_input{box-sizing:border-box;color:#ecf5f6;width:100%;min-width:0;font:inherit;background:#1a272dc7;border:1px solid #97b9c233;border-radius:9px;outline:0;padding:11px 12px;font-size:13px;font-weight:500;transition:border-color .14s,box-shadow .14s}.IhE_MG_input::placeholder{color:#65777e}.IhE_MG_input:focus{border-color:#89d8deb3;box-shadow:0 0 0 3px #5bb7c021}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.56}.IhE_MG_textarea{resize:vertical;min-height:98px;line-height:1.55}.IhE_MG_fieldHint{color:#71858d;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_advanced{background:#19262c5c;border:1px solid #97b9c226;border-radius:11px}.IhE_MG_advanced summary{color:#c4d5d9;cursor:pointer;padding:13px 15px;font-size:12px;font-weight:700;list-style-position:inside}.IhE_MG_advanced summary:hover{color:#e7f5f6}.IhE_MG_advancedBody{flex-direction:column;gap:18px;padding:0 15px 18px;display:flex}.IhE_MG_discoveryRow{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_discovered{flex-wrap:wrap;gap:7px;display:flex}.IhE_MG_modelChip{color:#b6e6e8;cursor:pointer;font:inherit;background:#386f782e;border:1px solid #7ecdd340;border-radius:999px;padding:6px 9px;font-size:11px}.IhE_MG_modelChip:hover,.IhE_MG_modelChip:focus-visible{background:#386f7852;border-color:#7ecdd3a6}.IhE_MG_message{margin:20px 0 0;font-size:12px;line-height:1.5}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:24px;display:flex}.IhE_MG_confirmGroup{color:#d5b0b0;flex-wrap:wrap;align-items:center;gap:8px;font-size:11px;display:inline-flex}.IhE_MG_confirmGroup .IhE_MG_error{flex-basis:100%;margin:0}.IhE_MG_loginPage{box-sizing:border-box;background:radial-gradient(circle at 50% 0,#25747f47,#0000 35rem),linear-gradient(145deg,#0b1115,#101b20 58%,#11181b);place-items:center;min-height:100vh;padding:24px;display:grid}.IhE_MG_loginPanel{box-sizing:border-box;background:#111c22e0;border:1px solid #a4cad033;border-radius:20px;width:min(100%,430px);padding:38px;box-shadow:0 25px 90px #00000059}.IhE_MG_loginMark{color:#071215;background:#9bdde0;border:1px solid #9bdde080;border-radius:13px;place-items:center;width:42px;height:42px;margin-bottom:25px;font-size:22px;font-weight:800;display:grid}.IhE_MG_loginTitle{font-size:32px;line-height:1.08}.IhE_MG_loginCopy{color:#8fa4aa;margin:13px 0 28px;font-size:13px;line-height:1.6}.IhE_MG_form{flex-direction:column;gap:17px;display:flex}.IhE_MG_fullButton{width:100%;margin-top:3px}.IhE_MG_loginFootnote{color:#6f838a;margin:25px 0 0;font-size:11px;line-height:1.5}@media (width<=1000px){.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (width<=760px){.IhE_MG_shell{width:min(100% - 28px,620px);padding-top:28px}.IhE_MG_header,.IhE_MG_sectionHeading{flex-direction:column;align-items:flex-start}.IhE_MG_headerActions{justify-content:space-between;width:100%}.IhE_MG_sectionHint{text-align:left}.IhE_MG_statusGrid,.IhE_MG_contextGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-bottom:1px solid #97b9c221;border-right:0}.IhE_MG_providerList{max-height:230px}.IhE_MG_providerEditor{padding:25px 18px 30px}.IhE_MG_fieldGrid{grid-template-columns:1fr}}@media (width<=460px){.IhE_MG_loginPanel{padding:28px 22px}.IhE_MG_account{max-width:170px}.IhE_MG_editorHeading{flex-direction:column}}";
+		const css$9 = ".IhE_MG_page,.IhE_MG_loginPage{--ink:#202c35;--muted:#65747d;--line:#dfe5e5;--accent:#216b5c;--paper:#fff;color-scheme:light;color:var(--ink);background:#f4f6f5;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;line-height:1.5}.IhE_MG_page *,.IhE_MG_loginPage *{box-sizing:border-box}.IhE_MG_page [hidden]{display:none!important}.IhE_MG_page button,.IhE_MG_loginPage button,.IhE_MG_page input,.IhE_MG_page select,.IhE_MG_page textarea{font:inherit}.IhE_MG_page a{color:inherit}.IhE_MG_page :focus-visible,.IhE_MG_loginPage :focus-visible{outline-offset:3px;outline:3px solid #49a68d}.IhE_MG_page{grid-template-columns:232px minmax(0,1fr);display:grid}.IhE_MG_sidebar{color:#d3dfdc;background:#142c2c;flex-direction:column;height:100vh;padding:32px 18px 22px;display:flex;position:sticky;top:0}.IhE_MG_brand{letter-spacing:-.5px;align-items:center;gap:12px;padding:0 10px 42px;font-size:22px;font-weight:700;text-decoration:none;display:flex}.IhE_MG_brand small{letter-spacing:.3px;color:#a9bfba;font-size:11px;font-weight:400;display:block}.IhE_MG_brandMark{color:#194e40;background:#d9eee1;border-radius:12px;place-items:center;width:38px;height:42px;font-family:Georgia,serif;font-size:24px;display:grid}.IhE_MG_navLabel{letter-spacing:1.8px;color:#8da9a2;margin:0 0 12px;padding:0 14px;font-size:10px;font-weight:600}.IhE_MG_navigation{gap:5px;display:grid}.IhE_MG_navigation a{color:#b4c8c2;border-radius:7px;align-items:center;gap:12px;padding:12px 14px;font-size:13px;text-decoration:none;display:flex}.IhE_MG_navigation a:hover{color:#fff;background:#203d3b}.IhE_MG_navigation .IhE_MG_navActive{color:#f0f8f3;background:#2c4944;font-weight:600;box-shadow:inset 3px 0 #a9d3b7}.IhE_MG_sidebarFoot{margin-top:auto;padding:32px 10px 0}.IhE_MG_backLink{padding-bottom:24px;font-size:12px;text-decoration:none;display:block;color:#b8c9c4!important}.IhE_MG_identity{border-top:1px solid #37504a;gap:10px;min-width:0;padding:19px 0 10px;display:flex}.IhE_MG_identity>div{min-width:0}.IhE_MG_identity strong{color:#e0e9e5;font-size:12px;font-weight:500;display:block}.IhE_MG_avatar{color:#d4e9db;background:#36574b;border-radius:50%;flex:0 0 33px;place-items:center;height:33px;display:grid}.IhE_MG_account{text-overflow:ellipsis;white-space:nowrap;color:#9eb6ae;max-width:155px;font-size:11px;display:block;overflow:hidden}.IhE_MG_signOut{color:#b9cdc5;cursor:pointer;background:0 0;border:0;padding:8px 0;font-size:12px!important}.IhE_MG_shell{width:100%;min-width:0;max-width:1550px;margin:0 auto;padding:0 clamp(24px,4vw,64px)}.IhE_MG_topbar{border-bottom:1px solid var(--line);min-height:74px;color:var(--muted);justify-content:space-between;align-items:center;font-size:12px;display:flex}.IhE_MG_topbar strong{color:var(--ink);font-weight:500}.IhE_MG_adminBadge{color:#4c6259;background:#e8eeeb;border-radius:4px;padding:4px 10px;font-size:11px}.IhE_MG_header{justify-content:space-between;align-items:center;gap:24px;padding:34px 0 26px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#677f75;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 9px;font-size:10px;font-weight:700}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:var(--ink);letter-spacing:-.6px;margin:0;font-weight:600}.IhE_MG_title{font-size:34px;line-height:1.2}.IhE_MG_subtitle{color:var(--muted);margin:10px 0 0;font-size:14px}.IhE_MG_headerMark{color:#4c7161;background:#ecf1ec;border:1px solid #d3dfd8;border-radius:13px;place-items:center;width:48px;height:48px;display:grid}.IhE_MG_headerMark svg{width:24px;height:24px}.IhE_MG_section{margin:8px 0 32px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;display:flex}.IhE_MG_sectionTitle{font-size:20px}.IhE_MG_sectionHint{color:var(--muted);text-align:right;max-width:290px;font-size:12px}.IhE_MG_headerActions,.IhE_MG_toolbar{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0 0 28px;display:grid}.IhE_MG_metric{border:1px solid var(--line);background:#fff;border-radius:10px;flex-direction:column;padding:22px;text-decoration:none;display:flex;box-shadow:0 2px 3px #182e2610}.IhE_MG_metric:hover{border-color:#a8c4b8}.IhE_MG_metricLabel{color:#54675f;justify-content:space-between;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_metricLabel svg{color:#7a9689}.IhE_MG_metric>strong{letter-spacing:-1px;margin:18px 0;font-size:32px;font-weight:600;line-height:1.3}.IhE_MG_metric>small{color:var(--muted);justify-content:space-between;gap:12px;font-size:11px;display:flex}.IhE_MG_metricAttention{background:#fffaf2;border-color:#ebd6b7}.IhE_MG_metricAttention>strong{color:#976322}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.9fr) minmax(230px,1fr);align-items:start;gap:22px;display:grid}.IhE_MG_card{background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:0;margin-bottom:22px;padding:26px}.IhE_MG_helpCard{color:#455c4e;background:#eaf0e9;border:1px solid #dce5d9;border-radius:10px;padding:28px}.IhE_MG_helpCard h3{color:#294938;margin:0 0 12px;font-family:Georgia,serif;font-size:26px;font-weight:400;line-height:1.2}.IhE_MG_helpCard p{font-size:13px;line-height:1.75}.IhE_MG_steps{margin:22px 0;padding-left:20px;font-size:12px}.IhE_MG_steps li{padding:5px 0 5px 5px}.IhE_MG_quickLinks{margin-top:18px;display:grid}.IhE_MG_quickLinks a{border-bottom:1px solid #e9eeeb;align-items:center;gap:15px;padding:20px 0;text-decoration:none;display:flex}.IhE_MG_quickLinks a:last-child{border-bottom:0;padding-bottom:4px}.IhE_MG_quickLinks a>span:nth-child(2){flex:1}.IhE_MG_quickLinks strong{font-size:14px;font-weight:600;display:block}.IhE_MG_quickLinks small{color:var(--muted);margin-top:5px;font-size:12px;line-height:1.5;display:block}.IhE_MG_quickLinks a:hover strong{color:var(--accent)}.IhE_MG_quickIcon{color:#50725e;background:#f0f4f1;border:1px solid #e2eae4;border-radius:9px;flex:0 0 38px;place-items:center;width:38px;height:38px;display:grid}.IhE_MG_pageFoot{border-top:1px solid var(--line);color:#77867e;margin-top:30px;padding:24px 0;font-size:11px}.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_statusCard{border:1px solid var(--line);background:#fff;border-radius:10px;gap:15px;min-width:0;padding:22px;display:flex}.IhE_MG_statusIcon{color:#346e55;background:#edf4ef;border:1px solid #d6e4dc;border-radius:9px;flex:0 0 36px;place-items:center;height:36px;font-weight:600;display:grid}.IhE_MG_statusBody{flex:1;min-width:0}.IhE_MG_statusTopline{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;display:flex}.IhE_MG_statusTopline h3{margin:0;font-size:14px;font-weight:600}.IhE_MG_statusBody p{color:var(--muted);margin:9px 0 0;font-size:12px}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;border-radius:5px;align-items:center;gap:6px;padding:4px 9px;font-size:11px;font-weight:500;display:inline-flex}.IhE_MG_statusReady{color:#286043;background:#e5f2e9}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#385e73;background:#e8f0f4}.IhE_MG_statusError{color:#9d3e32;background:#fceee7}.IhE_MG_statusMuted{color:#65726e;background:#eff1ef}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#97a59e;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#378657}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#507c94}.IhE_MG_statusError .IhE_MG_statusDot{background:#bb5f4c}.IhE_MG_textButton{cursor:pointer;background:0 0;border:0;margin-top:14px;padding:0;font-weight:600;text-decoration:none;display:inline-block;color:var(--accent)!important;font-size:12px!important}.IhE_MG_textButton:hover{text-decoration:underline}.IhE_MG_envManaged{color:#76827c;margin-top:14px;font-size:11px;display:block}.IhE_MG_button,.IhE_MG_dangerButton{color:#3e5349;cursor:pointer;background:#fff;border:1px solid #d5deda;border-radius:6px;justify-content:center;align-items:center;gap:7px;min-height:38px;padding:9px 14px;line-height:1.3;text-decoration:none;display:inline-flex;font-size:12px!important;font-weight:600!important}.IhE_MG_button:hover:not(:disabled){background:#f2f6f3;border-color:#91b3a3}.IhE_MG_primary{color:#fff;background:#246b55;border-color:#246b55}.IhE_MG_primary:hover:not(:disabled){background:#19533f;border-color:#19533f}.IhE_MG_dangerButton{color:#a14235;background:#fff9f6;border-color:#eccdc3}.IhE_MG_dangerButton:hover{background:#fceee8}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled,.IhE_MG_textButton:disabled{cursor:not-allowed;opacity:.55}.IhE_MG_error,.IhE_MG_message{overflow-wrap:anywhere;border-radius:6px;margin:12px 0;padding:12px 15px;font-size:13px}.IhE_MG_error{color:#9b3c32;background:#fff0eb}.IhE_MG_success{color:#2b6748;background:#eaf5ed}.IhE_MG_info{color:#365e73;background:#edf3f7}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success{color:#2b6748;padding:5px}.IhE_MG_loading,.IhE_MG_loadingInline{color:#5d7167;background:#f4f6f5;padding:28px;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_providerLayout{border:1px solid var(--line);background:#fff;border-radius:10px;grid-template-columns:250px minmax(0,1fr);display:grid;overflow:hidden}.IhE_MG_providerPicker{border-right:1px solid var(--line);background:#fafbf9;min-width:0;padding:18px 12px}.IhE_MG_pickerHeader{justify-content:space-between;align-items:center;padding:0 8px 12px;font-size:12px;font-weight:600;display:flex}.IhE_MG_countBadge{color:#4a6c59;background:#e9efeb}.IhE_MG_providerList{flex-direction:column;gap:4px;max-height:430px;display:flex;overflow:auto}.IhE_MG_providerOption,.IhE_MG_customOption{text-align:left;width:100%;color:var(--ink);cursor:pointer;background:0 0;border:1px solid #0000;border-radius:6px;align-items:center;gap:10px;padding:12px 10px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_customOption:hover{background:#eef3ef}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{background:#e7f0e9;border-color:#c6d9cc}.IhE_MG_providerDot{flex:0 0 6px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{overflow-wrap:anywhere;font-size:12px;font-weight:600}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:var(--muted);font-size:10px}.IhE_MG_customTag,.IhE_MG_customBadge{color:#806239;background:#f4eee0;font-size:9px}.IhE_MG_customOption{border-top:1px solid var(--line);border-radius:0;margin-top:14px}.IhE_MG_addIcon{color:var(--accent);font-size:20px}.IhE_MG_providerEditor{min-width:0;padding:28px}.IhE_MG_editorHeading{border-bottom:1px solid var(--line);justify-content:space-between;align-items:flex-start;gap:15px;padding-bottom:22px;display:flex}.IhE_MG_editorTitle{font-size:20px}.IhE_MG_editorCopy{color:var(--muted);margin:10px 0 0;font-size:13px;line-height:1.6}.IhE_MG_editorForm,.IhE_MG_form,.IhE_MG_formFields{border:0;flex-direction:column;gap:20px;min-width:0;margin:22px 0 0;padding:0;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_field{color:#3f5449;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:600;display:flex}.IhE_MG_field em{color:var(--muted);font-size:11px;font-style:normal;font-weight:400}.IhE_MG_input{width:100%;min-width:0;color:var(--ink);background:#fff;border:1px solid #cedbd3;border-radius:6px;padding:10px 12px;font-weight:400;line-height:1.5;display:block;font-size:13px!important}.IhE_MG_input::placeholder{color:#7c8c82}.IhE_MG_input:focus{border-color:#559779}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.7;background:#f3f5f2}textarea.IhE_MG_input{resize:vertical}.IhE_MG_textarea{min-height:100px}.IhE_MG_fieldHint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.IhE_MG_advanced{border:1px solid var(--line);background:#fafbf9;border-radius:7px;margin-top:8px}.IhE_MG_advanced summary{cursor:pointer;color:#425e4e;padding:13px 16px;font-size:12px;font-weight:600}.IhE_MG_advancedBody{flex-direction:column;gap:16px;padding:0 16px 18px;display:flex}.IhE_MG_discoveryRow,.IhE_MG_discovered{flex-wrap:wrap;align-items:center;gap:10px;display:flex}.IhE_MG_modelChip{color:#3e6d50;cursor:pointer;background:#edf5ef;border:1px solid #cadecf;border-radius:5px;padding:7px 10px;font-size:12px}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;display:flex}.IhE_MG_confirmGroup{color:#8e4e42;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_confirmGroup .IhE_MG_error{width:100%}.IhE_MG_loginPage{background:#eaf0ea;place-items:center;padding:24px;display:grid}.IhE_MG_loginPanel{background:#fff;border:1px solid #d4dfd5;border-radius:14px;width:min(100%,430px);padding:40px;box-shadow:0 20px 80px #26443515}.IhE_MG_loginMark{color:#fff;background:#246b55;border-radius:11px;place-items:center;width:44px;height:44px;margin-bottom:26px;font-family:Georgia,serif;font-size:22px;display:grid}.IhE_MG_loginTitle{font-size:30px;line-height:1.2}.IhE_MG_loginCopy{color:var(--muted);margin:14px 0 25px;font-size:13px}.IhE_MG_fullButton{width:100%}.IhE_MG_loginFootnote{color:var(--muted);margin:24px 0 0;font-size:11px}.IhE_MG_notice{color:#526b5d;background:#edf2ef;border:1px solid #dce5df;border-radius:7px;align-items:center;gap:12px;padding:14px 18px;font-size:12px;display:flex}.IhE_MG_tabs{border-bottom:1px solid var(--line);flex-wrap:wrap;gap:4px;margin:22px 0;display:flex}.IhE_MG_tabs button{color:var(--muted);cursor:pointer;background:0 0;border:0;border-bottom:2px solid #0000;padding:12px 14px;font-size:12px}.IhE_MG_tabs .IhE_MG_activeTab{color:#256849;border-bottom-color:#256849;font-weight:600}.IhE_MG_toolbar{margin:0 0 18px}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{max-width:320px}.IhE_MG_toolbar>.IhE_MG_button:last-child{margin-left:auto}.IhE_MG_tableWrap{border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:22px;overflow:auto}.IhE_MG_table{border-collapse:collapse;text-align:left;width:100%;font-size:12px}.IhE_MG_table th{color:#67786d;border-bottom:1px solid var(--line);white-space:nowrap;background:#f9fbf8;padding:13px 18px;font-size:11px;font-weight:500}.IhE_MG_table td{vertical-align:top;border-bottom:1px solid #edf0ec;padding:17px 18px}.IhE_MG_table tr:last-child td{border-bottom:0}.IhE_MG_table td strong{font-weight:600}.IhE_MG_table td small{color:var(--muted);margin-top:5px;display:block}.IhE_MG_table td summary{cursor:pointer;min-width:150px}.IhE_MG_empty{color:var(--muted);text-align:center;padding:35px 22px;font-size:13px}.IhE_MG_checkboxGroup{border:1px solid var(--line);border-radius:7px;flex-wrap:wrap;gap:12px;max-height:230px;padding:14px;display:flex;overflow:auto}.IhE_MG_checkboxGroup legend{color:#4b6555;padding:0 5px;font-size:12px}.IhE_MG_checkboxGroup label,.IhE_MG_checkLabel{color:#3c5546;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_checkboxGroup input,.IhE_MG_checkLabel input{accent-color:#276e53;width:16px;height:16px}.IhE_MG_previewEnvelope{border:1px solid var(--line);overflow-wrap:anywhere;background:#f4f7f3;border-bottom:0;margin-top:24px;padding:20px;font-size:12px}.IhE_MG_previewFrame{border:1px solid var(--line);background:#fff;width:100%;height:560px}.IhE_MG_plainText{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;font-size:12px}.IhE_MG_deliveryDetails{overflow-wrap:anywhere;min-width:220px;max-width:360px;font-size:11px}.IhE_MG_mono{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,monospace!important}.IhE_MG_importRow{border-top:1px solid var(--line);overflow-wrap:anywhere;justify-content:space-between;align-items:center;gap:20px;padding:18px 0;font-size:12px;display:flex}.IhE_MG_importRow p{color:var(--muted)}.IhE_MG_srOnly{clip:rect(0,0,0,0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.IhE_MG_skipLink{z-index:10;background:#fff;padding:12px;position:fixed;top:0;left:240px;transform:translateY(-150%)}.IhE_MG_skipLink:focus{transform:translateY(0)}@media (width<=1150px){.IhE_MG_page{grid-template-columns:200px minmax(0,1fr)}.IhE_MG_sidebar{padding-inline:12px}.IhE_MG_shell{padding-inline:28px}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr)}.IhE_MG_metric{padding:18px}.IhE_MG_metric>strong{font-size:28px}.IhE_MG_providerLayout{grid-template-columns:210px minmax(0,1fr)}}@media (width<=900px){.IhE_MG_contentGrid{grid-template-columns:1fr}.IhE_MG_metrics{gap:10px}.IhE_MG_metric{padding:14px}.IhE_MG_metricLabel{font-size:11px}.IhE_MG_metricLabel svg{display:none}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-right:0;border-bottom:1px solid var(--line)}.IhE_MG_providerList{max-height:180px}.IhE_MG_notice{flex-direction:column;align-items:flex-start}}@media (width<=680px){.IhE_MG_page{display:block}.IhE_MG_sidebar{height:auto;padding:18px 16px 0;position:static}.IhE_MG_brand{padding:0 0 18px;font-size:19px}.IhE_MG_brandMark{width:30px;height:34px;font-size:20px}.IhE_MG_navLabel{display:none}.IhE_MG_navigation{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;display:grid}.IhE_MG_navigation a{border-radius:5px 5px 0 0;flex-direction:column;flex-shrink:0;justify-content:center;gap:6px;padding:10px 3px;font-size:10px}.IhE_MG_navigation svg{width:15px}.IhE_MG_navigation .IhE_MG_navActive{box-shadow:inset 0 -3px #a9d3b7}.IhE_MG_sidebarFoot{flex-wrap:wrap;align-items:center;gap:15px;padding:8px 0;display:flex}.IhE_MG_backLink{padding:0;font-size:11px}.IhE_MG_identity{display:none}.IhE_MG_signOut{margin-left:auto}.IhE_MG_shell{padding:0 18px}.IhE_MG_topbar{min-height:54px}.IhE_MG_header{padding:24px 0 20px}.IhE_MG_title{font-size:28px}.IhE_MG_headerMark{display:none}.IhE_MG_sectionHeading{flex-wrap:wrap;align-items:flex-start;gap:12px}.IhE_MG_metrics{grid-template-columns:1fr;gap:10px}.IhE_MG_metric{grid-template-columns:1fr auto;align-items:center;gap:8px;padding:16px 18px;display:grid}.IhE_MG_metric>strong{grid-area:1/2/3;margin:0;font-size:24px}.IhE_MG_metric>small{grid-column:1}.IhE_MG_metric small span{display:none}.IhE_MG_card,.IhE_MG_helpCard,.IhE_MG_providerEditor{padding:20px}.IhE_MG_fieldGrid{grid-template-columns:1fr}.IhE_MG_editorHeading{flex-wrap:wrap}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{width:100%;max-width:none}.IhE_MG_tabs{gap:0}.IhE_MG_tabs button{padding:11px 9px;font-size:11px}.IhE_MG_sectionHint{text-align:left}.IhE_MG_table td,.IhE_MG_table th{padding:12px}.IhE_MG_table{min-width:560px}.IhE_MG_importRow{flex-direction:column;align-items:flex-start}.IhE_MG_skipLink{left:16px}}.IhE_MG_contextGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_contextCard{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;padding:26px;box-shadow:0 2px 3px #182e2610}.IhE_MG_contextCard h3{color:var(--ink);margin:0;font-size:16px;font-weight:600}.IhE_MG_contextCard p:not(.IhE_MG_sectionKicker){color:var(--muted);margin:8px 0 0;font-size:12px;line-height:1.55}.IhE_MG_toggleField{color:#3f5449;cursor:pointer;align-items:flex-start;gap:11px;display:flex}.IhE_MG_toggleField input{accent-color:#276e53;width:17px;height:17px;margin:1px 0 0}.IhE_MG_toggleField span{flex-direction:column;gap:4px;display:flex}.IhE_MG_toggleField strong{font-size:12px}.IhE_MG_toggleField small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}@media (width<=900px){.IhE_MG_contextGrid{grid-template-columns:1fr}}@media (width<=680px){.IhE_MG_contextCard{padding:20px}.IhE_MG_navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}";
 		const tagId$9 = "dsh-soc-agent-client/AdminConsole.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$9) + "]") === null) {
 			const tag = document.createElement("style");
@@ -106,12 +106,22 @@ window.__ModuleLoader__.load({
 		var AdminConsole_module_css_default = {
 			"account": "IhE_MG_account",
 			"actions": "IhE_MG_actions",
+			"activeTab": "IhE_MG_activeTab",
 			"addIcon": "IhE_MG_addIcon",
+			"adminBadge": "IhE_MG_adminBadge",
 			"advanced": "IhE_MG_advanced",
 			"advancedBody": "IhE_MG_advancedBody",
+			"avatar": "IhE_MG_avatar",
+			"backLink": "IhE_MG_backLink",
+			"brand": "IhE_MG_brand",
+			"brandMark": "IhE_MG_brandMark",
 			"button": "IhE_MG_button",
+			"card": "IhE_MG_card",
+			"checkLabel": "IhE_MG_checkLabel",
 			"checkMessage": "IhE_MG_checkMessage",
+			"checkboxGroup": "IhE_MG_checkboxGroup",
 			"confirmGroup": "IhE_MG_confirmGroup",
+			"contentGrid": "IhE_MG_contentGrid",
 			"contextCard": "IhE_MG_contextCard",
 			"contextGrid": "IhE_MG_contextGrid",
 			"countBadge": "IhE_MG_countBadge",
@@ -120,12 +130,14 @@ window.__ModuleLoader__.load({
 			"customOptionSelected": "IhE_MG_customOptionSelected",
 			"customTag": "IhE_MG_customTag",
 			"dangerButton": "IhE_MG_dangerButton",
+			"deliveryDetails": "IhE_MG_deliveryDetails",
 			"discovered": "IhE_MG_discovered",
 			"discoveryRow": "IhE_MG_discoveryRow",
 			"editorCopy": "IhE_MG_editorCopy",
 			"editorForm": "IhE_MG_editorForm",
 			"editorHeading": "IhE_MG_editorHeading",
 			"editorTitle": "IhE_MG_editorTitle",
+			"empty": "IhE_MG_empty",
 			"envManaged": "IhE_MG_envManaged",
 			"error": "IhE_MG_error",
 			"eyebrow": "IhE_MG_eyebrow",
@@ -133,9 +145,14 @@ window.__ModuleLoader__.load({
 			"fieldGrid": "IhE_MG_fieldGrid",
 			"fieldHint": "IhE_MG_fieldHint",
 			"form": "IhE_MG_form",
+			"formFields": "IhE_MG_formFields",
 			"fullButton": "IhE_MG_fullButton",
 			"header": "IhE_MG_header",
 			"headerActions": "IhE_MG_headerActions",
+			"headerMark": "IhE_MG_headerMark",
+			"helpCard": "IhE_MG_helpCard",
+			"identity": "IhE_MG_identity",
+			"importRow": "IhE_MG_importRow",
 			"info": "IhE_MG_info",
 			"input": "IhE_MG_input",
 			"loading": "IhE_MG_loading",
@@ -147,9 +164,22 @@ window.__ModuleLoader__.load({
 			"loginPanel": "IhE_MG_loginPanel",
 			"loginTitle": "IhE_MG_loginTitle",
 			"message": "IhE_MG_message",
+			"metric": "IhE_MG_metric",
+			"metricAttention": "IhE_MG_metricAttention",
+			"metricLabel": "IhE_MG_metricLabel",
+			"metrics": "IhE_MG_metrics",
 			"modelChip": "IhE_MG_modelChip",
+			"mono": "IhE_MG_mono",
+			"navActive": "IhE_MG_navActive",
+			"navLabel": "IhE_MG_navLabel",
+			"navigation": "IhE_MG_navigation",
+			"notice": "IhE_MG_notice",
 			"page": "IhE_MG_page",
+			"pageFoot": "IhE_MG_pageFoot",
 			"pickerHeader": "IhE_MG_pickerHeader",
+			"plainText": "IhE_MG_plainText",
+			"previewEnvelope": "IhE_MG_previewEnvelope",
+			"previewFrame": "IhE_MG_previewFrame",
 			"primary": "IhE_MG_primary",
 			"providerDot": "IhE_MG_providerDot",
 			"providerDotReady": "IhE_MG_providerDotReady",
@@ -160,12 +190,20 @@ window.__ModuleLoader__.load({
 			"providerOptionSelected": "IhE_MG_providerOptionSelected",
 			"providerOptionText": "IhE_MG_providerOptionText",
 			"providerPicker": "IhE_MG_providerPicker",
+			"quickIcon": "IhE_MG_quickIcon",
+			"quickLinks": "IhE_MG_quickLinks",
+			"search": "IhE_MG_search",
 			"section": "IhE_MG_section",
 			"sectionHeading": "IhE_MG_sectionHeading",
 			"sectionHint": "IhE_MG_sectionHint",
 			"sectionKicker": "IhE_MG_sectionKicker",
 			"sectionTitle": "IhE_MG_sectionTitle",
 			"shell": "IhE_MG_shell",
+			"sidebar": "IhE_MG_sidebar",
+			"sidebarFoot": "IhE_MG_sidebarFoot",
+			"signOut": "IhE_MG_signOut",
+			"skipLink": "IhE_MG_skipLink",
+			"srOnly": "IhE_MG_srOnly",
 			"statusBody": "IhE_MG_statusBody",
 			"statusCard": "IhE_MG_statusCard",
 			"statusConfigured": "IhE_MG_statusConfigured",
@@ -178,12 +216,18 @@ window.__ModuleLoader__.load({
 			"statusPill": "IhE_MG_statusPill",
 			"statusReady": "IhE_MG_statusReady",
 			"statusTopline": "IhE_MG_statusTopline",
+			"steps": "IhE_MG_steps",
 			"subtitle": "IhE_MG_subtitle",
 			"success": "IhE_MG_success",
+			"table": "IhE_MG_table",
+			"tableWrap": "IhE_MG_tableWrap",
+			"tabs": "IhE_MG_tabs",
 			"textButton": "IhE_MG_textButton",
 			"textarea": "IhE_MG_textarea",
 			"title": "IhE_MG_title",
-			"toggleField": "IhE_MG_toggleField"
+			"toggleField": "IhE_MG_toggleField",
+			"toolbar": "IhE_MG_toolbar",
+			"topbar": "IhE_MG_topbar"
 		};
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
@@ -434,59 +478,202 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
+		const ADMIN_PAGES = [
+			{
+				id: "connections",
+				name: "Connections",
+				icon: "connections",
+				copy: "Review service setup and verify connections when needed."
+			},
+			{
+				id: "agent-context",
+				name: "Agent context",
+				icon: "context",
+				copy: "Control workspace context and current-time injection."
+			},
+			{
+				id: "providers",
+				name: "AI providers",
+				icon: "providers",
+				copy: "Manage model access and credentials in one place."
+			}
+		];
+		function AdminIcon({ name }) {
+			const paths = {
+				connections: "M8 3v5 M16 3v5 M6 8h12v3a6 6 0 0 1-12 0z M12 17v4",
+				context: "M12 3a9 9 0 1 0 9 9 M12 7v5l3 2",
+				providers: "M12 3l9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5"
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
+				width: "20",
+				height: "20",
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: "1.6",
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": "true",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: paths[name] || paths.connections })
+			});
+		}
+		function currentPage() {
+			const hash = window.location.hash.slice(1).split("/")[0];
+			return ADMIN_PAGES.some((page) => page.id === hash) ? hash : "connections";
+		}
 		function AdminWorkspace({ connection, email, onSignedOut }) {
 			const [signingOut, setSigningOut] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)("");
+			const [page, setPage] = (0, react.useState)(currentPage);
+			const [visited, setVisited] = (0, react.useState)(() => new Set([currentPage()]));
+			(0, react.useEffect)(() => {
+				const change = () => {
+					const next = currentPage();
+					setPage(next);
+					setVisited((old) => new Set([...old, next]));
+				};
+				window.addEventListener("hashchange", change);
+				return () => window.removeEventListener("hashchange", change);
+			}, []);
+			const selected = ADMIN_PAGES.find((item) => item.id === page) || ADMIN_PAGES[0];
 			async function signOut() {
 				setSigningOut(true);
+				setError("");
 				try {
-					await fetch("/admin/auth/logout", {
+					if (!(await fetch("/admin/auth/logout", {
 						method: "POST",
 						credentials: "same-origin"
-					});
+					})).ok) throw new Error("Sign-out failed. Please try again.");
 					await onSignedOut();
+				} catch (signOutError) {
+					setError(errorText(signOutError));
 				} finally {
 					setSigningOut(false);
 				}
 			}
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("main", {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: AdminConsole_module_css_default.page,
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					className: AdminConsole_module_css_default.shell,
-					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", {
-							className: AdminConsole_module_css_default.header,
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-									className: AdminConsole_module_css_default.eyebrow,
-									children: "CITICTEL-CPC · SOC AGENT"
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
-									className: AdminConsole_module_css_default.title,
-									children: "Administration console"
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-									className: AdminConsole_module_css_default.subtitle,
-									children: "A clear view of service readiness and LLM provider access."
-								})
-							] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-								className: AdminConsole_module_css_default.headerActions,
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
+						className: AdminConsole_module_css_default.skipLink,
+						href: "#admin-content",
+						onClick: (event) => {
+							event.preventDefault();
+							document.getElementById("admin-content")?.focus();
+						},
+						children: "Skip to content"
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
+						className: AdminConsole_module_css_default.sidebar,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("a", {
+								href: "/admin",
+								className: AdminConsole_module_css_default.brand,
 								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-									className: AdminConsole_module_css_default.account,
-									children: email
-								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									className: AdminConsole_module_css_default.button,
-									type: "button",
-									onClick: () => void signOut(),
-									disabled: signingOut,
-									children: signingOut ? "Signing out…" : "Sign out"
+									className: AdminConsole_module_css_default.brandMark,
+									children: "S"
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["Sentinel", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: "Administration" })] })]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: AdminConsole_module_css_default.navLabel,
+								children: "WORKSPACE"
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("nav", {
+								className: AdminConsole_module_css_default.navigation,
+								"aria-label": "Administration",
+								children: ADMIN_PAGES.map((item) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("a", {
+									href: `#${item.id}`,
+									className: page === item.id ? AdminConsole_module_css_default.navActive : "",
+									"aria-current": page === item.id ? "page" : void 0,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminIcon, { name: item.icon }), item.name]
+								}, item.id))
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AdminConsole_module_css_default.sidebarFoot,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
+										href: "/",
+										className: AdminConsole_module_css_default.backLink,
+										children: "← Back to workspace"
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: AdminConsole_module_css_default.identity,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: AdminConsole_module_css_default.avatar,
+											children: email.slice(0, 1).toUpperCase() || "A"
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Administrator" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: AdminConsole_module_css_default.account,
+											title: email,
+											children: email
+										})] })]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										className: AdminConsole_module_css_default.signOut,
+										type: "button",
+										onClick: () => void signOut(),
+										disabled: signingOut,
+										children: signingOut ? "Signing out…" : "Sign out"
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("main", {
+						id: "admin-content",
+						className: AdminConsole_module_css_default.shell,
+						tabIndex: -1,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AdminConsole_module_css_default.topbar,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["Workspace / ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Administration" })] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									className: AdminConsole_module_css_default.adminBadge,
+									children: "Admin access"
 								})]
-							})]
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ServiceStatusPanel, { connection }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(AgentContextSettings, { connection }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProviderSettings, { connection })
-					]
-				})
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", {
+								className: AdminConsole_module_css_default.header,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+										className: AdminConsole_module_css_default.eyebrow,
+										children: "CITICTEL-CPC · SOC AGENT"
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
+										className: AdminConsole_module_css_default.title,
+										children: selected.name
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+										className: AdminConsole_module_css_default.subtitle,
+										children: selected.copy
+									})
+								] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									className: AdminConsole_module_css_default.headerMark,
+									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AdminIcon, { name: selected.icon })
+								})]
+							}),
+							error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: AdminConsole_module_css_default.error,
+								role: "alert",
+								children: error
+							}) : null,
+							visited.has("connections") ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								hidden: page !== "connections",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ServiceStatusPanel, { connection })
+							}) : null,
+							visited.has("agent-context") ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								hidden: page !== "agent-context",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AgentContextSettings, { connection })
+							}) : null,
+							visited.has("providers") ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								hidden: page !== "providers",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProviderSettings, { connection })
+							}) : null,
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("footer", {
+								className: AdminConsole_module_css_default.pageFoot,
+								children: "Sentinel administration · CITICTEL-CPC"
+							})
+						]
+					})
+				]
 			});
 		}
 		function ServiceStatusPanel({ connection }) {
