@@ -620,8 +620,16 @@ class OfficialSplunkMCPClient:
                     "name": row_name,
                     "search": row.get("search", ""),
                     "description": row.get("description", ""),
-                    "is_scheduled": bool(row.get("cron_schedule")),
+                    "is_scheduled": _bool_value(
+                        row.get("is_scheduled", bool(row.get("cron_schedule")))
+                    ),
                     "cron_schedule": row.get("cron_schedule", ""),
+                    "dispatch.earliest_time": row.get(
+                        "dispatch.earliest_time", row.get("earliest_time", "")
+                    ),
+                    "dispatch.latest_time": row.get(
+                        "dispatch.latest_time", row.get("latest_time", "")
+                    ),
                     "next_scheduled_time": row.get("next_scheduled_time", ""),
                     "actions": row.get("actions", ""),
                     "alert_type": row.get("alert_type", ""),

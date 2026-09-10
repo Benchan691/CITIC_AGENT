@@ -297,7 +297,7 @@ async function serveAlertEmailSettings(request, response, ctx) {
     const payload = {}
     for (const key of [
       'limit', 'registration_offset', 'review_offset', 'ownership_offset',
-      'quarantine_offset', 'policy_offset',
+      'quarantine_offset', 'run_quarantine_offset', 'policy_offset',
     ]) {
       const value = url.searchParams.get(key)
       if (value !== null) payload[key] = value
@@ -918,6 +918,15 @@ function validateAlertEmailPolicyPayload(payload) {
   }
 }
 
+function validateAlertPolicyRemovalPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      typeof payload.customer_id !== 'string' || payload.customer_id.trim() === '' ||
+      typeof payload.registration_id !== 'string' || payload.registration_id.trim() === '') {
+    throw new Error('The alert policy override removal request is invalid.')
+  }
+  return { customer_id: payload.customer_id.trim(), registration_id: payload.registration_id.trim() }
+}
+
 function validateAlertIndexOwnershipPayload(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new Error('The alert index ownership request is invalid.')
@@ -970,6 +979,23 @@ function validateAlertRelinkPayload(payload) {
   }
 }
 
+function validateAlertReviewResolutionPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      typeof payload.review_id !== 'string' || payload.review_id.trim() === '' ||
+      typeof payload.customer_id !== 'string' || payload.customer_id.trim() === '' ||
+      !Array.isArray(payload.source_indexes) || payload.source_indexes.length === 0 || payload.source_indexes.length > 100) {
+    throw new Error('The alert review resolution request is invalid.')
+  }
+  const source_indexes = payload.source_indexes.map(value => {
+    if (typeof value !== 'string' || value.trim() === '' || value.length > 255 || /[*?$`]/u.test(value)) {
+      throw new Error('The alert review source index is invalid.')
+    }
+    return value.trim()
+  })
+  if (new Set(source_indexes).size !== source_indexes.length) throw new Error('The alert review source indexes must be unique.')
+  return { review_id: payload.review_id.trim(), customer_id: payload.customer_id.trim(), source_indexes }
+}
+
 function validateHeldAlertReleasePayload(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
       typeof payload.event_id !== 'string' || payload.event_id.trim() === '' ||
@@ -984,6 +1010,14 @@ function validateAlertMigrationPayload(payload) {
   const limit = payload.limit ?? 1000
   if (!Number.isInteger(limit) || limit < 1 || limit > 5000) throw new Error('The alert migration limit is invalid.')
   return { limit }
+}
+
+function validateAlertMigrationApplyPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      typeof payload.preview_run_id !== 'string' || payload.preview_run_id.trim() === '') {
+    throw new Error('A reviewed migration preview run ID is required.')
+  }
+  return { preview_run_id: payload.preview_run_id.trim() }
 }
 
 async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
@@ -1045,6 +1079,13 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       }
       return ok(await runAdmin('save-alert-email-policy', undefined, { ...request, actor_id: admin.email }, signal))
     }
+    case 'remove-alert-email-policy-override': {
+      const admin = requireAdmin(ctx)
+      let request
+      try { request = validateAlertPolicyRemovalPayload(payload) }
+      catch (error) { return badRequest(error instanceof Error ? error.message : 'The alert policy override removal request is invalid.') }
+      return ok(await runAdmin('remove-alert-email-policy-override', undefined, { ...request, actor_id: admin.email }, signal))
+    }
     case 'set-alert-index-ownership': {
       const admin = requireAdmin(ctx)
       let request
@@ -1066,6 +1107,13 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       catch (error) { return badRequest(error instanceof Error ? error.message : 'The alert relink request is invalid.') }
       return ok(await runAdmin('relink-alert-registration', undefined, { ...request, actor_id: admin.email }, signal))
     }
+    case 'resolve-alert-registration-review': {
+      const admin = requireAdmin(ctx)
+      let request
+      try { request = validateAlertReviewResolutionPayload(payload) }
+      catch (error) { return badRequest(error instanceof Error ? error.message : 'The alert review resolution request is invalid.') }
+      return ok(await runAdmin('resolve-alert-registration-review', undefined, { ...request, actor_id: admin.email }, signal))
+    }
     case 'release-held-alert': {
       const admin = requireAdmin(ctx)
       let request
@@ -1082,7 +1130,10 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
     }
     case 'backfill-alert-migration': {
       const admin = requireAdmin(ctx)
-      return ok(await runAdmin('backfill-alert-migration', undefined, { actor_id: admin.email }, signal))
+      let request
+      try { request = validateAlertMigrationApplyPayload(payload) }
+      catch (error) { return badRequest(error instanceof Error ? error.message : 'The alert migration apply request is invalid.') }
+      return ok(await runAdmin('backfill-alert-migration', undefined, { ...request, actor_id: admin.email }, signal))
     }
     case 'list-accounts': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'add-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
@@ -1273,6 +1324,12 @@ export function apply(ctx) {
           validateAlertEmailPolicyPayload,
         ),
       })
+      const alertEmailPolicyRemoval = ctx.webServer.register({
+        kind: 'exact', path: '/admin/alert-email/policy/remove',
+        handler: (request, response) => saveAlertEmailAdminResource(
+          request, response, ctx, 'remove-alert-email-policy-override', validateAlertPolicyRemovalPayload,
+        ),
+      })
       const alertEmailOwnership = ctx.webServer.register({
         kind: 'exact', path: '/admin/alert-email/ownership',
         handler: (request, response) => saveAlertEmailAdminResource(
@@ -1291,6 +1348,12 @@ export function apply(ctx) {
           request, response, ctx, 'relink-alert-registration', validateAlertRelinkPayload,
         ),
       })
+      const alertEmailReviewResolution = ctx.webServer.register({
+        kind: 'exact', path: '/admin/alert-email/review/resolve',
+        handler: (request, response) => saveAlertEmailAdminResource(
+          request, response, ctx, 'resolve-alert-registration-review', validateAlertReviewResolutionPayload,
+        ),
+      })
       const alertEmailRelease = ctx.webServer.register({
         kind: 'exact', path: '/admin/alert-email/release',
         handler: (request, response) => saveAlertEmailAdminResource(
@@ -1306,12 +1369,7 @@ export function apply(ctx) {
       const alertMigrationBackfill = ctx.webServer.register({
         kind: 'exact', path: '/admin/alert-email/migration/backfill',
         handler: (request, response) => saveAlertEmailAdminResource(
-          request, response, ctx, 'backfill-alert-migration', value => {
-            if (value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length) {
-              throw new Error('The alert migration backfill request must be empty.')
-            }
-            return {}
-          },
+          request, response, ctx, 'backfill-alert-migration', validateAlertMigrationApplyPayload,
         ),
       })
       const alertIngestWebhook = ctx.webServer.register({
@@ -1336,9 +1394,11 @@ export function apply(ctx) {
         alertEmailRule?.()
         alertEmailCustomer?.()
         alertEmailPolicy?.()
+        alertEmailPolicyRemoval?.()
         alertEmailOwnership?.()
         alertEmailRegistration?.()
         alertEmailRelink?.()
+        alertEmailReviewResolution?.()
         alertEmailRelease?.()
         alertMigrationPreview?.()
         alertMigrationBackfill?.()

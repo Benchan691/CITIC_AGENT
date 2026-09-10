@@ -6,6 +6,7 @@ from .citic_format import (
     extract_final_table_fields,
     validate_alert_delivery_spl,
     validate_citic_detection_spl,
+    validate_legacy_citic_detection_spl,
 )
 from .compiler import compile_citic_detection
 from .model import DetectionDraft, validate_detection
@@ -20,5 +21,6 @@ __all__ = [
     "extract_final_table_fields",
     "validate_alert_delivery_spl",
     "validate_citic_detection_spl",
+    "validate_legacy_citic_detection_spl",
     "validate_detection",
 ]

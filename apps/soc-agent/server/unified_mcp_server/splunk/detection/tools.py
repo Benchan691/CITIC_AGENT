@@ -30,7 +30,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
 
     @server.tool(annotations={"readOnlyHint": True})
     async def splunk_validate_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Validate a CITIC production saved-search definition; outputcsv is definition-only and is never executed here."""
+        """Validate result-producing CITIC alert SPL; legacy identity wrappers and outputcsv are rejected."""
         async def validate():
             return get_runtime(ctx).splunk_detection.validate_detection(detection)
         return await execute(ctx, "splunk", "validate_detection", validate)
@@ -72,10 +72,10 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
 
     @server.tool()
     async def splunk_write_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Prepare an editable new detection draft without writing; the editor Save keeps it disabled and never executes outputcsv."""
+        """Prepare an editable new result-only detection draft; explicit editor Save registers and publishes it disabled."""
         return await execute(ctx, "splunk", "write_detection", lambda: get_runtime(ctx).splunk_detection.write_detection(detection, actor_id=_authenticated_actor(get_runtime, ctx)))
 
     @server.tool()
     async def splunk_update_detection(ctx: Context, name: str, detection: dict[str, Any], expected_fingerprint: str) -> dict[str, Any]:
-        """Prepare an editable fingerprint-bound detection draft without writing; the editor Save preserves omitted fields, keeps it disabled, and never executes outputcsv."""
+        """Prepare a fingerprint-bound update draft; explicit editor Save uses revision-checked disabled publication."""
         return await execute(ctx, "splunk", "update_detection", lambda: get_runtime(ctx).splunk_detection.update_detection(name, detection, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))

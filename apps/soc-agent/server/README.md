@@ -95,7 +95,7 @@ already-received action deliveries and never creates a parallel event or email.
 The explicit legacy ingestion mode is retained only for unmigrated records.
 
 Automatic alert email uses the PostgreSQL outbox and a separate SMTP worker.
-Apply migrations 014, 015, 016, 017, 018, 019, 020, and 021 after 013 with sending stopped and
+Apply all numbered migrations through 024 after 013 with sending stopped and
 `ALERT_EMAIL_ENABLED=false`. Together they add the CID/AID/EID registry,
 deployment-scoped index ownership, transactional ID allocation, selected-result
 storage, administrator policy snapshots, signed webhook replay protection,
@@ -149,9 +149,13 @@ the rule template summary is a fallback description. No raw logs are copied.
 The same administrator page receives `alert_registrations`,
 `alert_registration_review`, and `alert_index_ownership` in its settings
 response. Per-customer or per-alert result policies are saved at
-`/admin/alert-email/policy`; `detail_columns`, required/optional mappings,
+`/admin/alert-email/policy`; overrides are removed at
+`/admin/alert-email/policy/remove`; `detail_columns`, required/optional mappings,
 `max_display_rows`, and the severity fallback are validated by the backend.
 Only administrators can create, edit, archive, or restore customer records.
+Activating index ownership performs an exact live lookup against the configured
+Splunk deployment. Registration reviews are resolved explicitly in the
+dashboard and only then allocate the first AID for an unresolved definition.
 The settings response also includes a bounded migration report covering CID,
 index ownership, alert registrations, unresolved reviews, and legacy events
 without EIDs. Historical events are never replayed as email.

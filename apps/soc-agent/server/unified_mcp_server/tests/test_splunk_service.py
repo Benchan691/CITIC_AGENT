@@ -42,6 +42,7 @@ class FakeClient:
             "is_scheduled": "1",
             "disabled": "1",
             "actions": "email",
+            "revision": "1",
         }
         self.saved_acl = {"app": "search", "owner": "nobody", "sharing": "app"}
 
@@ -95,21 +96,37 @@ class FakeClient:
             "acl": {**self.saved_acl, "app": app or self.saved_acl["app"], "owner": owner or self.saved_acl["owner"]},
         }
 
-    async def create_saved_search(self, fields):
+    async def get_write_capabilities(self):
+        return {
+            "version": 1,
+            "can_write": True,
+            "disabled_only": True,
+            "approved_actions": ["citic_alert_delivery", "email"],
+            "approved_apps": ["search"],
+            "approved_owners": ["nobody"],
+            "operations": ["create_saved_search", "update_saved_search", "operation_status"],
+        }
+
+    async def create_saved_search(self, fields, *, idempotency_key=None, expected_revision=None):
+        del idempotency_key, expected_revision
         self.created_fields = fields
         self.saved_content = {
             key: value for key, value in fields.items()
             if key not in {"name", "app", "owner"}
         }
+        self.saved_content["revision"] = "1"
         self.saved_acl = {"app": fields.get("app", "search"), "owner": fields.get("owner", "nobody"), "sharing": "app"}
         return {"entry": [{"name": fields["name"]}]}
 
-    async def update_saved_search(self, name, fields):
+    async def update_saved_search(self, name, fields, *, idempotency_key=None, expected_revision=None):
+        del idempotency_key
+        assert str(expected_revision) == str(self.saved_content["revision"])
         self.updated_fields = (name, fields)
         self.saved_content.update({
             key: value for key, value in fields.items()
             if key not in {"name", "app", "owner"}
         })
+        self.saved_content["revision"] = str(int(self.saved_content["revision"]) + 1)
         return {"entry": [{"name": name}]}
 
     async def run_saved_search(self, name, trigger_actions, max_count=100, app="", owner="", *, runtime_limit=None):
@@ -513,7 +530,7 @@ def test_detection_validation_reports_metadata_findings():
     service = SplunkService(settings())
     result = service.detection_service.validate_detection({
         "name": "PowerShell download",
-        "spl": citic_spl("index=main EventCode=4688 powershell"),
+        "spl": "index=main EventCode=4688 powershell | stats count by host",
         "cron_schedule": "*/5 * * * *",
         "severity": "high",
         "mitre_attack": ["T1059.001"],
@@ -529,7 +546,7 @@ def test_detection_validation_supports_realtime_alerts_and_input_aliases():
 
     result = service.detection_service.validate_detection({
         "name": "Realtime error alert",
-        "spl": citic_spl(),
+        "spl": "index=main error | stats count by host",
         "is_scheduled": True,
         "dispatch.earliest_time": "rt-5m",
         "dispatch.latest_time": "rt",
@@ -554,7 +571,7 @@ def test_detection_validation_supports_realtime_alerts_and_input_aliases():
     assert any("real-time" in warning for warning in result["warnings"])
 
 
-def test_detection_validation_allows_outputcsv_only_as_a_saved_search_definition():
+def test_detection_validation_rejects_legacy_outputcsv_identity_for_new_alerts():
     service = SplunkService(settings())
     result = service.detection_service.validate_detection({
         "name": "Client CSV alert",
@@ -565,10 +582,10 @@ def test_detection_validation_allows_outputcsv_only_as_a_saved_search_definition
         "dispatch.latest_time": "now",
     })
 
-    assert result["valid"] is True
-    assert result["query_validation"]["decision"] == "allow"
-    assert result["query_validation"]["allowed_commands"] == ["outputcsv"]
-    assert any("outputcsv" in warning for warning in result["warnings"])
+    assert result["valid"] is False
+    assert result["query_validation"]["decision"] == "deny"
+    assert "outputcsv" in result["query_validation"]["blocked_commands"]
+    assert any("outputcsv" in error for error in result["errors"])
 
 
 @pytest.mark.parametrize("command", ["outputlookup", "sendemail"])
@@ -616,7 +633,7 @@ def test_detection_validation_supports_custom_condition_per_result_throttle_and_
 
     result = service.detection_service.validate_detection({
         "name": "Custom throttled alert",
-        "spl": citic_spl(),
+        "spl": "index=main error | stats count by host, user, severity",
         "alert_type": "custom",
         "alert_condition": "severity=critical",
         "alert.digest_mode": False,
@@ -691,13 +708,13 @@ def test_detection_validation_rejects_non_scalar_action_parameters():
 @pytest.mark.asyncio
 async def test_backtest_and_writes_are_guarded_and_structured():
     service = SplunkService(settings(), FakeClient)
-    draft_without_write_gate = await service.detection_service.write_detection({"name": "x", "spl": citic_spl()})
+    draft_without_write_gate = await service.detection_service.write_detection({"name": "x", "spl": "index=main error | stats count by host"})
     assert draft_without_write_gate["status"] == "draft"
 
     writable = SplunkService(
         settings(detection_write_enabled=True), FakeClient
     )
-    payload = {"name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *"}
+    payload = {"name": "x", "spl": "index=main error | stats count by host", "cron_schedule": "*/5 * * * *"}
     draft = await writable.detection_service.write_detection(payload)
     assert draft["status"] == "draft"
     assert draft["enabled"] is False
@@ -738,7 +755,7 @@ async def test_detection_update_adds_citic_delivery_action_and_forces_disabled_s
         settings(detection_write_enabled=True), FakeClient
     )
     draft = await service.detection_service.write_detection({
-        "name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *",
+        "name": "x", "spl": "index=main error | stats count by host", "cron_schedule": "*/5 * * * *",
     })
     assert draft["status"] == "draft"
     current = await service.detection_service.get_detection("x")

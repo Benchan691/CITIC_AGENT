@@ -278,6 +278,8 @@ class AlertIngestionStore:
             "definition_fingerprint", "definition_revision", "registration_state",
             "delivery_state", "origin", "last_error", "delivery_enabled",
             "presence_state", "publication_state", "last_discovered_at",
+            "action_configured", "scope_review_fingerprint", "scope_reviewed_at",
+            "scope_reviewed_by",
             "created_at", "updated_at",
         )
 
@@ -298,7 +300,9 @@ class AlertIngestionStore:
                    r.stable_id, r.source_indexes, r.definition_fingerprint,
                    r.definition_revision, r.registration_state, r.delivery_state,
                    r.origin, r.last_error, r.delivery_enabled, r.presence_state,
-                   r.publication_state, r.last_discovered_at, r.created_at, r.updated_at
+                   r.publication_state, r.last_discovered_at, r.action_configured,
+                   r.scope_review_fingerprint, r.scope_reviewed_at, r.scope_reviewed_by,
+                   r.created_at, r.updated_at
             FROM sec_alert_registrations AS r
             JOIN customers AS c ON c.id = r.customer_id
         """
@@ -360,6 +364,10 @@ class AlertIngestionStore:
             WHERE ownership.splunk_deployment = %s
               AND ownership.index_name = ANY(%s)
               AND ownership.status = 'active'
+              AND ownership.verified_at IS NOT NULL
+              AND ownership.verification ->> 'verified' = 'true'
+              AND ownership.verification ->> 'deployment' = ownership.splunk_deployment
+              AND ownership.verification ->> 'index_name' = ownership.index_name
               AND customer.status = 'active'
               AND COALESCE(customer.cid, '') <> ''
             """,
@@ -372,6 +380,10 @@ class AlertIngestionStore:
             WHERE splunk_deployment = %s
               AND index_name = ANY(%s)
               AND status = 'active'
+              AND verified_at IS NOT NULL
+              AND verification ->> 'verified' = 'true'
+              AND verification ->> 'deployment' = splunk_deployment
+              AND verification ->> 'index_name' = index_name
             """,
             (deployment, list(normalized)),
         ).fetchone()
@@ -399,6 +411,10 @@ class AlertIngestionStore:
                 SELECT COUNT(*)
                 FROM sec_alert_index_ownership
                 WHERE splunk_deployment = %s AND status = 'active'
+                  AND verified_at IS NOT NULL
+                  AND verification ->> 'verified' = 'true'
+                  AND verification ->> 'deployment' = splunk_deployment
+                  AND verification ->> 'index_name' = index_name
                 """,
                 (deployment,),
             ).fetchone()
@@ -471,6 +487,7 @@ class AlertIngestionStore:
         customer_id: str,
         status: str = "active",
         actor: str = "",
+        verification: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Persist one administrator-approved deployment/index assignment."""
 
@@ -486,6 +503,17 @@ class AlertIngestionStore:
         status = str(status or "active").strip().casefold()
         if status not in {"active", "review", "retired"}:
             raise AlertIdentityError("invalid_index_status", "index ownership status is invalid")
+        evidence = dict(verification) if isinstance(verification, Mapping) else {}
+        if status == "active" and not (
+            evidence.get("verified") is True
+            and str(evidence.get("deployment") or "") == deployment
+            and str(evidence.get("index_name") or "") == index_name
+        ):
+            raise AlertIdentityError(
+                "index_not_verified",
+                "active ownership requires exact index verification from the approved Splunk integration",
+            )
+        evidence = _safe_value(evidence)
         with self._connect() as connection:
             customer = connection.execute(
                 "SELECT id::text, cid, status FROM customers WHERE id = %s::uuid FOR SHARE",
@@ -499,20 +527,31 @@ class AlertIngestionStore:
             row = connection.execute(
                 """
                 INSERT INTO sec_alert_index_ownership (
-                    splunk_deployment, index_name, customer_id, status, created_by, updated_by
-                ) VALUES (%s, %s, %s::uuid, %s, %s, %s)
+                    splunk_deployment, index_name, customer_id, status, created_by, updated_by,
+                    verified_at, verified_by, verification
+                ) VALUES (%s, %s, %s::uuid, %s, %s, %s,
+                          CASE WHEN %s = 'active' THEN NOW() END,
+                          CASE WHEN %s = 'active' THEN %s ELSE '' END, %s::jsonb)
                 ON CONFLICT (splunk_deployment, index_name) DO UPDATE SET
                     customer_id = EXCLUDED.customer_id, status = EXCLUDED.status,
-                    updated_by = EXCLUDED.updated_by, updated_at = NOW()
+                    updated_by = EXCLUDED.updated_by,
+                    verified_at = EXCLUDED.verified_at,
+                    verified_by = EXCLUDED.verified_by,
+                    verification = EXCLUDED.verification,
+                    updated_at = NOW()
                 RETURNING id::text, splunk_deployment, index_name, customer_id::text,
-                          status, updated_at
+                          status, verified_at, verified_by, verification, updated_at
                 """,
-                (deployment, index_name, customer_id, status, actor[:320], actor[:320]),
+                (
+                    deployment, index_name, customer_id, status, actor[:320], actor[:320],
+                    status, status, actor[:320], json.dumps(evidence, separators=(",", ":")),
+                ),
             ).fetchone()
         return {
             "id": str(row[0]), "deployment": row[1], "index_name": row[2],
             "customer_id": str(row[3]), "cid": cid, "status": row[4],
-            "updated_at": row[5],
+            "verified_at": row[5], "verified_by": row[6], "verification": row[7],
+            "naming_compliant": index_name.startswith(f"{cid}_"), "updated_at": row[8],
         }
 
     @staticmethod
@@ -653,27 +692,33 @@ class AlertIngestionStore:
                 )
             current_state = registration["registration_state"]
             publication = registration.get("publication_state")
+            action_configured = bool(registration.get("action_configured"))
             if current_state in {"retired", "inactive"}:
                 next_state = current_state
                 next_delivery = "blocked"
             elif publication == "pending":
                 next_state = "pending"
                 next_delivery = "blocked"
-            elif publication == "published":
+            elif action_configured and publication == "published":
                 next_state = "active"
                 next_delivery = "ready"
             else:
-                next_state = "needs_review"
+                next_state = "active"
                 next_delivery = "action_missing"
             connection.execute(
                 """
                 UPDATE sec_alert_registrations
                 SET source_indexes = %s, registration_state = %s,
                     delivery_state = %s, last_error = NULL,
+                    scope_review_fingerprint = definition_fingerprint,
+                    scope_reviewed_at = NOW(), scope_reviewed_by = %s,
                     updated_by = %s, updated_at = NOW()
                 WHERE id = %s::uuid
                 """,
-                (list(indexes), next_state, next_delivery, str(actor or "")[:320], registration_id),
+                (
+                    list(indexes), next_state, next_delivery, str(actor or "")[:320],
+                    str(actor or "")[:320], registration_id,
+                ),
             )
             review_where = [
                 "splunk_deployment = %s",
@@ -689,9 +734,10 @@ class AlertIngestionStore:
                 review_where.append("id = %s::uuid")
                 review_params.append(review_id)
             connection.execute(
-                "UPDATE sec_alert_registration_review SET resolved_at = NOW(), updated_at = NOW() WHERE "
+                "UPDATE sec_alert_registration_review SET registration_id = %s::uuid, "
+                "resolved_at = NOW(), resolved_by = %s, updated_at = NOW() WHERE "
                 + " AND ".join(review_where),
-                review_params,
+                [registration_id, str(actor or "")[:320], *review_params],
             )
             self._record_review_action(
                 connection,
@@ -705,6 +751,155 @@ class AlertIngestionStore:
                 (registration_id,),
             ).fetchone()
         return self._registration_dict(result)
+
+    def resolve_registration_review(
+        self,
+        review_id: str,
+        *,
+        customer_id: str,
+        source_indexes: Sequence[str],
+        actor: str = "",
+    ) -> dict[str, Any]:
+        """Approve one unresolved definition scope and allocate/relink its AID."""
+
+        indexes = self._source_indexes(source_indexes)
+        if not indexes or _INVALID_SOURCE_INDEX in indexes or len(indexes) != len(tuple(source_indexes or ())):
+            raise AlertIdentityError("invalid_scope", "review requires a non-empty list of exact source indexes")
+        with self._connect() as connection:
+            review = connection.execute(
+                """
+                SELECT id::text, splunk_deployment, app, owner, saved_search_name,
+                       COALESCE(stable_id, ''), definition, resolved_at
+                FROM sec_alert_registration_review
+                WHERE id = %s::uuid
+                FOR UPDATE
+                """,
+                (review_id,),
+            ).fetchone()
+            if review is None:
+                raise AlertIdentityError("unknown_review", "registration review was not found")
+            if review[7] is not None:
+                raise AlertIdentityError("review_resolved", "registration review has already been resolved")
+            deployment, app, owner, name, stable_id = map(str, review[1:6])
+            definition = dict(review[6]) if isinstance(review[6], Mapping) else {}
+            fingerprint = definition_fingerprint(definition)
+            customer = connection.execute(
+                "SELECT id::text, cid, status FROM customers WHERE id = %s::uuid FOR SHARE",
+                (customer_id,),
+            ).fetchone()
+            if customer is None:
+                raise AlertIdentityError("unknown_customer", "customer was not found")
+            cid = normalize_cid(customer[1])
+            if str(customer[2]).casefold() != "active":
+                raise AlertIdentityError("inactive_customer", "an inactive customer cannot own an active alert scope")
+            resolved = self._resolve_index_customer(connection, deployment, indexes)
+            if resolved is None or resolved[0] != str(customer[0]):
+                raise AlertIdentityError(
+                    "scope_conflict",
+                    "the selected indexes are not completely and uniquely owned by the selected customer",
+                )
+            existing_row = self._existing_definition_registration(
+                connection,
+                deployment=deployment,
+                app=app,
+                owner=owner,
+                name=name,
+                stable_id=stable_id,
+            )
+            action_configured = _has_delivery_action(definition.get("actions"))
+            if existing_row is None:
+                registration = self._create_registration(
+                    connection,
+                    customer_id=str(customer[0]),
+                    cid=cid,
+                    deployment=deployment,
+                    app=app,
+                    owner=owner,
+                    name=name,
+                    stable_id=stable_id,
+                    indexes=indexes,
+                    fingerprint=fingerprint,
+                    definition=definition,
+                    origin="discovery",
+                    actor=actor,
+                    action_configured=action_configured,
+                    publication_pending=False,
+                    delivery_enabled=False,
+                    scope_reviewed=True,
+                )
+            else:
+                current = self._registration_dict(existing_row)
+                if current["customer_id"] != str(customer[0]):
+                    raise AlertIdentityError(
+                        "customer_move_requires_new_registration",
+                        "moving an alert to another customer requires retiring its original registration",
+                    )
+                if current["registration_state"] in {"retired", "inactive"}:
+                    next_state = current["registration_state"]
+                    next_delivery = "blocked"
+                elif current["publication_state"] == "pending":
+                    next_state = "pending"
+                    next_delivery = "blocked"
+                else:
+                    next_state = "active"
+                    next_delivery = "ready" if action_configured else "action_missing"
+                revision = int(current["definition_revision"] or 1)
+                if fingerprint != current["definition_fingerprint"]:
+                    revision += 1
+                    connection.execute(
+                        """
+                        INSERT INTO sec_alert_registration_revisions (
+                            registration_id, revision, definition_fingerprint, definition, actor
+                        ) VALUES (%s::uuid, %s, %s, %s::jsonb, %s)
+                        ON CONFLICT (registration_id, revision) DO NOTHING
+                        """,
+                        (
+                            current["id"], revision, fingerprint,
+                            json.dumps(_safe_value(definition), separators=(",", ":")), actor[:320],
+                        ),
+                    )
+                connection.execute(
+                    """
+                    UPDATE sec_alert_registrations
+                    SET source_indexes = %s, definition_fingerprint = %s,
+                        definition_revision = %s, registration_state = %s,
+                        delivery_state = %s, action_configured = %s,
+                        action_verified_at = CASE WHEN %s THEN NOW() ELSE NULL END,
+                        scope_review_fingerprint = %s, scope_reviewed_at = NOW(),
+                        scope_reviewed_by = %s, last_error = NULL,
+                        updated_by = %s, updated_at = NOW()
+                    WHERE id = %s::uuid
+                    """,
+                    (
+                        list(indexes), fingerprint, revision, next_state, next_delivery,
+                        action_configured, action_configured, fingerprint, actor[:320],
+                        actor[:320], current["id"],
+                    ),
+                )
+                result = connection.execute(
+                    self._registration_select() + " WHERE r.id = %s::uuid",
+                    (current["id"],),
+                ).fetchone()
+                if result is None:
+                    raise AlertIngestError("registration_failed", "reviewed registration could not be updated")
+                registration = self._registration_dict(result)
+            connection.execute(
+                """
+                UPDATE sec_alert_registration_review
+                SET registration_id = %s::uuid, resolved_at = NOW(), resolved_by = %s,
+                    source_indexes = %s, updated_at = NOW()
+                WHERE id = %s::uuid AND resolved_at IS NULL
+                """,
+                (registration["id"], actor[:320], list(indexes), review_id),
+            )
+            self._record_review_action(
+                connection,
+                action="relink",
+                actor=actor,
+                registration_id=registration["id"],
+                details={"review_id": review_id, "customer_id": customer_id, "source_indexes": list(indexes)},
+            )
+            return registration
 
     def release_held_event(
         self,
@@ -754,6 +949,10 @@ class AlertIngestionStore:
                                  AND ownership.index_name = source.index_name
                                  AND ownership.customer_id = %s::uuid
                                  AND ownership.status = 'active'
+                                 AND ownership.verified_at IS NOT NULL
+                                 AND ownership.verification ->> 'verified' = 'true'
+                                 AND ownership.verification ->> 'deployment' = ownership.splunk_deployment
+                                 AND ownership.verification ->> 'index_name' = ownership.index_name
                            )
                        )
                     """,
@@ -860,7 +1059,7 @@ class AlertIngestionStore:
         fingerprint: str,
     ) -> dict[str, Any]:
         review_key = self._review_key(deployment, app, owner, name, stable_id, indexes, fingerprint)
-        connection.execute(
+        row = connection.execute(
             """
             INSERT INTO sec_alert_registration_review (
                 review_key, splunk_deployment, app, owner, saved_search_name,
@@ -870,7 +1069,10 @@ class AlertIngestionStore:
                 source_indexes = EXCLUDED.source_indexes,
                 definition = EXCLUDED.definition,
                 reason = EXCLUDED.reason,
+                attempt_count = sec_alert_registration_review.attempt_count + 1,
+                registration_id = NULL, resolved_at = NULL, resolved_by = '',
                 updated_at = NOW()
+            RETURNING id::text
             """,
             (
                 review_key,
@@ -883,9 +1085,12 @@ class AlertIngestionStore:
                 json.dumps(_safe_value(dict(definition)), separators=(",", ":")),
                 reason[:2_000],
             ),
-        )
+        ).fetchone()
+        if row is None:
+            raise AlertIngestError("registration_review_failed", "registration review could not be recorded")
         return {
             "status": "needs_review",
+            "review_id": str(row[0]),
             "review_key": review_key,
             "reason": reason[:2_000],
             "aid": None,
@@ -924,6 +1129,7 @@ class AlertIngestionStore:
         source_indexes: Sequence[str],
         fingerprint: str,
         reason: str,
+        action_configured: bool,
     ) -> None:
         registration = AlertIngestionStore._registration_dict(existing)
         connection.execute(
@@ -931,11 +1137,140 @@ class AlertIngestionStore:
             UPDATE sec_alert_registrations
             SET source_indexes = %s, definition_fingerprint = %s,
                 registration_state = 'needs_review', delivery_state = 'blocked',
-                last_error = %s, updated_at = NOW()
+                action_configured = %s,
+                scope_review_fingerprint = NULL, scope_reviewed_at = NULL,
+                scope_reviewed_by = '', last_error = %s, updated_at = NOW()
             WHERE id = %s::uuid
             """,
-            (list(source_indexes), fingerprint, reason[:2_000], registration["id"]),
+            (list(source_indexes), fingerprint, action_configured, reason[:2_000], registration["id"]),
         )
+
+    def _create_registration(
+        self,
+        connection: Any,
+        *,
+        customer_id: str,
+        cid: str,
+        deployment: str,
+        app: str,
+        owner: str,
+        name: str,
+        stable_id: str,
+        indexes: Sequence[str],
+        fingerprint: str,
+        definition: Mapping[str, Any],
+        origin: str,
+        actor: str,
+        action_configured: bool,
+        publication_pending: bool,
+        delivery_enabled: bool | None,
+        scope_reviewed: bool = False,
+    ) -> dict[str, Any]:
+        """Allocate and insert one registration while holding its customer counter."""
+
+        connection.execute(
+            """
+            INSERT INTO sec_alert_aid_counters (customer_id, next_sequence)
+            VALUES (%s::uuid, 0)
+            ON CONFLICT (customer_id) DO NOTHING
+            """,
+            (customer_id,),
+        )
+        counter_row = connection.execute(
+            """
+            SELECT next_sequence
+            FROM sec_alert_aid_counters
+            WHERE customer_id = %s::uuid
+            FOR UPDATE
+            """,
+            (customer_id,),
+        ).fetchone()
+        existing = self._existing_definition_registration(
+            connection,
+            deployment=deployment,
+            app=app,
+            owner=owner,
+            name=name,
+            stable_id=stable_id,
+        )
+        if existing is not None:
+            return self._registration_dict(existing)
+        sequence = int(counter_row[0]) if counter_row else 10_000
+        if sequence > 9_999:
+            raise AlertIdentityError("aid_capacity_exhausted", f"CID {cid} has exhausted AID capacity")
+        connection.execute(
+            """
+            UPDATE sec_alert_aid_counters
+            SET next_sequence = next_sequence + 1, updated_at = NOW()
+            WHERE customer_id = %s::uuid
+            """,
+            (customer_id,),
+        )
+        aid = f"{cid}-{sequence:04d}"
+        registration_state = "pending" if publication_pending else "active"
+        delivery_state = "blocked" if publication_pending else (
+            "ready" if action_configured else "action_missing"
+        )
+        publication_state = "pending" if publication_pending else (
+            "published" if action_configured else "unpublished"
+        )
+        enabled_for_delivery = bool(delivery_enabled) if delivery_enabled is not None else False
+        row = connection.execute(
+            """
+            INSERT INTO sec_alert_registrations (
+                customer_id, aid, aid_sequence, splunk_deployment, app, owner,
+                saved_search_name, stable_id, source_indexes, definition_fingerprint,
+                definition_revision, registration_state, delivery_state, delivery_enabled,
+                presence_state, publication_state, action_configured, action_verified_at, origin,
+                last_discovered_at, scope_review_fingerprint, scope_reviewed_at,
+                scope_reviewed_by, created_by, updated_by
+            ) VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, NULLIF(%s, ''), %s,
+                      %s, 1, %s, %s, %s, %s, %s, %s,
+                      CASE WHEN %s THEN NOW() END, %s,
+                      CASE WHEN %s = 'discovery' THEN NOW() END,
+                      CASE WHEN %s THEN %s END, CASE WHEN %s THEN NOW() END,
+                      CASE WHEN %s THEN %s ELSE '' END, %s, %s)
+            """ + self._registration_returning(),
+            (
+                customer_id, aid, sequence, deployment, app, owner, name, stable_id,
+                list(indexes), fingerprint, registration_state, delivery_state,
+                enabled_for_delivery, "present" if origin == "discovery" else "unknown",
+                publication_state, action_configured, action_configured, origin, origin,
+                scope_reviewed, fingerprint, scope_reviewed, scope_reviewed, actor[:320],
+                actor[:320], actor[:320],
+            ),
+        ).fetchone()
+        if row is None:
+            raise AlertIngestError("registration_failed", "alert registration could not be created")
+        registration = self._registration_dict(row)
+        connection.execute(
+            """
+            INSERT INTO sec_alert_registration_revisions (
+                registration_id, revision, definition_fingerprint, definition, actor
+            ) VALUES (%s::uuid, 1, %s, %s::jsonb, %s)
+            """,
+            (
+                registration["id"], fingerprint,
+                json.dumps(_safe_value(dict(definition)), separators=(",", ":")),
+                actor[:320],
+            ),
+        )
+        return registration
+
+    @staticmethod
+    def _registration_returning() -> str:
+        return """
+            RETURNING id::text, customer_id::text,
+                      (SELECT cid FROM customers WHERE id = sec_alert_registrations.customer_id),
+                      aid, aid_sequence, splunk_deployment, app, owner,
+                      saved_search_name, stable_id, source_indexes,
+                      definition_fingerprint, definition_revision,
+                      registration_state, delivery_state, origin, last_error,
+                      delivery_enabled, presence_state, publication_state,
+                      last_discovered_at, action_configured,
+                      scope_review_fingerprint, scope_reviewed_at, scope_reviewed_by,
+                      created_at, updated_at
+        """
 
     def register_definition(
         self,
@@ -1000,6 +1335,19 @@ class AlertIngestionStore:
                 name=name,
                 stable_id=stable_id,
             )
+            if (index_error or not indexes) and existing is not None:
+                reviewed = self._registration_dict(existing)
+                reviewed_indexes = tuple(reviewed.get("source_indexes") or ())
+                reviewed_customer = self._resolve_index_customer(connection, deployment, reviewed_indexes)
+                supplied_agrees = not supplied_indexes or set(supplied_indexes) == set(reviewed_indexes)
+                if (
+                    reviewed.get("scope_review_fingerprint") == fingerprint
+                    and reviewed_customer is not None
+                    and reviewed_customer[0] == reviewed["customer_id"]
+                    and supplied_agrees
+                ):
+                    indexes = reviewed_indexes
+                    index_error = None
             if index_error or not indexes:
                 if existing is not None:
                     self._block_registration_for_review(
@@ -1008,6 +1356,7 @@ class AlertIngestionStore:
                         source_indexes=indexes,
                         fingerprint=fingerprint,
                         reason=index_error or "source indexes could not be resolved exactly",
+                        action_configured=action_configured,
                     )
                 return self._record_registration_review(
                     connection,
@@ -1031,6 +1380,7 @@ class AlertIngestionStore:
                         source_indexes=indexes,
                         fingerprint=fingerprint,
                         reason=reason,
+                        action_configured=action_configured,
                     )
                 return self._record_registration_review(
                     connection,
@@ -1059,6 +1409,7 @@ class AlertIngestionStore:
                         source_indexes=indexes,
                         fingerprint=fingerprint,
                         reason=reason,
+                        action_configured=action_configured,
                     )
                     return self._record_registration_review(
                         connection,
@@ -1080,6 +1431,7 @@ class AlertIngestionStore:
                         source_indexes=indexes,
                         fingerprint=fingerprint,
                         reason=reason,
+                        action_configured=action_configured,
                     )
                     return self._record_registration_review(
                         connection,
@@ -1157,7 +1509,20 @@ class AlertIngestionStore:
                         delivery_state = %s, delivery_enabled = %s,
                         presence_state = CASE WHEN %s = 'discovery' THEN 'present' ELSE presence_state END,
                         publication_state = %s,
-                        action_verified_at = CASE WHEN %s THEN NOW() ELSE action_verified_at END,
+                        action_configured = %s,
+                        action_verified_at = CASE WHEN %s THEN NOW() ELSE NULL END,
+                        scope_review_fingerprint = CASE
+                            WHEN definition_fingerprint = %s THEN scope_review_fingerprint
+                            ELSE NULL
+                        END,
+                        scope_reviewed_at = CASE
+                            WHEN definition_fingerprint = %s THEN scope_reviewed_at
+                            ELSE NULL
+                        END,
+                        scope_reviewed_by = CASE
+                            WHEN definition_fingerprint = %s THEN scope_reviewed_by
+                            ELSE ''
+                        END,
                         origin = %s, last_error = %s,
                         last_discovered_at = CASE WHEN %s = 'discovery' THEN NOW() ELSE last_discovered_at END,
                         updated_by = %s, updated_at = NOW()
@@ -1169,102 +1534,36 @@ class AlertIngestionStore:
                               definition_fingerprint, definition_revision,
                               registration_state, delivery_state, origin, last_error,
                               delivery_enabled, presence_state, publication_state,
-                              last_discovered_at, created_at, updated_at
+                              last_discovered_at, action_configured,
+                              scope_review_fingerprint, scope_reviewed_at, scope_reviewed_by,
+                              created_at, updated_at
                     """,
                     (app, owner, name, stable_id, list(indexes), fingerprint, revision,
                      registration_state, delivery_state, enabled_for_delivery, origin,
-                     publication_state, action_configured, origin, preserved_error, origin,
+                     publication_state, action_configured, action_configured,
+                     fingerprint, fingerprint, fingerprint, origin, preserved_error, origin,
                      actor[:320], current["id"]),
                 ).fetchone()
                 return self._registration_dict(updated)
 
-            counter = connection.execute(
-                """
-                INSERT INTO sec_alert_aid_counters (customer_id, next_sequence)
-                VALUES (%s::uuid, 0)
-                ON CONFLICT (customer_id) DO NOTHING
-                """,
-                (customer_id,),
-            )
-            del counter
-            counter_row = connection.execute(
-                """
-                SELECT next_sequence
-                FROM sec_alert_aid_counters
-                WHERE customer_id = %s::uuid
-                FOR UPDATE
-                """,
-                (customer_id,),
-            ).fetchone()
-            # The counter lock serializes distinct allocations.  Recheck the
-            # definition identity after acquiring it so concurrent discovery,
-            # human, and agent registrations share one existing AID.
-            existing_after_lock = self._existing_definition_registration(
+            return self._create_registration(
                 connection,
+                customer_id=customer_id,
+                cid=cid,
                 deployment=deployment,
                 app=app,
                 owner=owner,
                 name=name,
                 stable_id=stable_id,
+                indexes=indexes,
+                fingerprint=fingerprint,
+                definition=definition,
+                origin=origin,
+                actor=actor,
+                action_configured=action_configured,
+                publication_pending=publication_pending,
+                delivery_enabled=delivery_enabled,
             )
-            if existing_after_lock is not None:
-                return self._registration_dict(existing_after_lock)
-            sequence = int(counter_row[0]) if counter_row else 10_000
-            if sequence > 9_999:
-                raise AlertIdentityError("aid_capacity_exhausted", f"CID {cid} has exhausted AID capacity")
-            connection.execute(
-                """
-                UPDATE sec_alert_aid_counters
-                SET next_sequence = next_sequence + 1, updated_at = NOW()
-                WHERE customer_id = %s::uuid
-                """,
-                (customer_id,),
-            )
-            aid = f"{cid}-{sequence:04d}"
-            delivery_state = "ready" if action_configured else "action_missing"
-            registration_state = "pending" if publication_pending else "active"
-            publication_state = "pending" if publication_pending else (
-                "published" if action_configured else "unpublished"
-            )
-            enabled_for_delivery = bool(delivery_enabled) if delivery_enabled is not None else False
-            row = connection.execute(
-                """
-                INSERT INTO sec_alert_registrations (
-                    customer_id, aid, aid_sequence, splunk_deployment, app, owner,
-                    saved_search_name, stable_id, source_indexes, definition_fingerprint,
-                    definition_revision, registration_state, delivery_state, delivery_enabled,
-                    presence_state, publication_state, action_verified_at, origin,
-                    last_discovered_at, created_by, updated_by
-                ) VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, NULLIF(%s, ''), %s,
-                          %s, 1, %s, %s, %s, %s,
-                          %s, CASE WHEN %s THEN NOW() END, %s,
-                          CASE WHEN %s = 'discovery' THEN NOW() END, %s, %s)
-                RETURNING id::text, customer_id::text,
-                          (SELECT cid FROM customers WHERE id = sec_alert_registrations.customer_id),
-                          aid, aid_sequence, splunk_deployment, app, owner,
-                          saved_search_name, stable_id, source_indexes,
-                          definition_fingerprint, definition_revision,
-                          registration_state, delivery_state, origin, last_error,
-                          delivery_enabled, presence_state, publication_state,
-                          last_discovered_at, created_at, updated_at
-                """,
-                (customer_id, aid, sequence, deployment, app, owner, name, stable_id,
-                 list(indexes), fingerprint, registration_state, delivery_state,
-                 enabled_for_delivery, "present" if origin == "discovery" else "unknown",
-                 publication_state, action_configured, origin, origin,
-                 actor[:320], actor[:320]),
-            ).fetchone()
-            registration = self._registration_dict(row)
-            connection.execute(
-                """
-                INSERT INTO sec_alert_registration_revisions (
-                    registration_id, revision, definition_fingerprint, definition, actor
-                ) VALUES (%s::uuid, 1, %s, %s::jsonb, %s)
-                """,
-                (registration["id"], fingerprint,
-                 json.dumps(_safe_value(dict(definition)), separators=(",", ":")), actor[:320]),
-            )
-            return registration
 
     def list_alert_registrations(self, *, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         with self._connect() as connection:
@@ -1276,11 +1575,14 @@ class AlertIngestionStore:
         return [self._registration_dict(row) for row in rows]
 
     def retire_unseen_discoveries(self, deployment: str, before: datetime) -> int:
-        """Mark definitions absent from a complete catalog pass inactive.
+        """Mark definitions absent from a complete catalog pass as missing.
 
         Only registrations previously observed by discovery are eligible. A
         new human/agent registration that has not reached the next catalog
-        pass must not be retired merely because it has no discovery timestamp.
+        pass must not be marked missing merely because it has no discovery
+        timestamp. Presence is independent of registration and publication
+        state, so a later discovery pass can restore presence without reviving
+        a retired registration or completing a failed publication.
         """
 
         deployment = normalize_deployment(deployment)
@@ -1288,13 +1590,14 @@ class AlertIngestionStore:
             result = connection.execute(
                 """
                 UPDATE sec_alert_registrations
-                SET registration_state = 'inactive', delivery_state = 'blocked',
+                SET presence_state = 'missing', delivery_state = 'blocked',
                     last_error = 'saved-search definition was absent from a complete discovery pass',
                     updated_at = NOW()
                 WHERE splunk_deployment = %s
                   AND last_discovered_at IS NOT NULL
                   AND last_discovered_at < %s
-                  AND registration_state IN ('active', 'needs_review', 'failed')
+                  AND presence_state <> 'missing'
+                  AND registration_state <> 'retired'
                 """,
                 (deployment, before),
             )
@@ -1336,6 +1639,7 @@ class AlertIngestionStore:
                         ELSE 'ready'
                     END,
                     publication_state = CASE WHEN %s THEN 'published' ELSE 'failed' END,
+                    action_configured = CASE WHEN %s THEN TRUE ELSE action_configured END,
                     action_verified_at = CASE WHEN %s THEN NOW() ELSE action_verified_at END,
                     last_error = CASE
                         WHEN %s THEN last_error
@@ -1350,6 +1654,7 @@ class AlertIngestionStore:
                     preserved_state,
                     "active" if success else "failed",
                     preserved_state,
+                    success,
                     success,
                     success,
                     success,
@@ -1400,6 +1705,7 @@ class AlertIngestionStore:
                 UPDATE sec_alert_registrations
                 SET delivery_state = %s,
                     publication_state = %s,
+                    action_configured = TRUE,
                     action_verified_at = NOW(),
                     updated_by = %s,
                     updated_at = NOW()
@@ -1411,7 +1717,9 @@ class AlertIngestionStore:
                           definition_fingerprint, definition_revision,
                           registration_state, delivery_state, origin, last_error,
                           delivery_enabled, presence_state, publication_state,
-                          last_discovered_at, created_at, updated_at
+                          last_discovered_at, action_configured,
+                          scope_review_fingerprint, scope_reviewed_at, scope_reviewed_by,
+                          created_at, updated_at
                 """,
                 (delivery_state, publication_state, str(actor or "")[:320], registration_id),
             ).fetchone()
@@ -1665,7 +1973,8 @@ class AlertIngestionStore:
                 f"""
                 SELECT ownership.id::text, ownership.splunk_deployment,
                        ownership.index_name, ownership.customer_id::text,
-                       customer.cid, ownership.status, ownership.updated_at
+                       customer.cid, ownership.status, ownership.verified_at,
+                       ownership.verified_by, ownership.verification, ownership.updated_at
                 FROM sec_alert_index_ownership AS ownership
                 JOIN customers AS customer ON customer.id = ownership.customer_id
                 {where}
@@ -1674,8 +1983,14 @@ class AlertIngestionStore:
                 """,
                 params,
             ).fetchall()
-        keys = ("id", "deployment", "index_name", "customer_id", "cid", "status", "updated_at")
-        return [dict(zip(keys, row, strict=True)) for row in rows]
+        keys = (
+            "id", "deployment", "index_name", "customer_id", "cid", "status",
+            "verified_at", "verified_by", "verification", "updated_at",
+        )
+        result = [dict(zip(keys, row, strict=True)) for row in rows]
+        for item in result:
+            item["naming_compliant"] = str(item["index_name"]).startswith(f"{item['cid']}_")
+        return result
 
     def migration_report(self, *, sample_limit: int = 100) -> dict[str, Any]:
         """Return a bounded, read-only view of legacy-to-new identity coverage."""
@@ -1700,7 +2015,8 @@ class AlertIngestionStore:
             ).fetchone()
             index_rows = connection.execute(
                 """
-                SELECT splunk_deployment, index_name, customer_id::text, status
+                SELECT splunk_deployment, index_name, customer_id::text, status,
+                       verified_at, verified_by, verification
                 FROM sec_alert_index_ownership
                 ORDER BY splunk_deployment, index_name
                 LIMIT %s
@@ -1710,6 +2026,11 @@ class AlertIngestionStore:
             index_counts = connection.execute(
                 """
                 SELECT COUNT(*), COUNT(*) FILTER (WHERE status = 'active'),
+                       COUNT(*) FILTER (WHERE status = 'active'
+                           AND verified_at IS NOT NULL
+                           AND verification ->> 'verified' = 'true'
+                           AND verification ->> 'deployment' = splunk_deployment
+                           AND verification ->> 'index_name' = index_name),
                        COUNT(*) FILTER (WHERE status = 'review'),
                        COUNT(*) FILTER (WHERE status = 'retired')
                 FROM sec_alert_index_ownership
@@ -1755,9 +2076,12 @@ class AlertIngestionStore:
             "indexes": {
                 "total": int(index_counts[0] or 0),
                 "active": int(index_counts[1] or 0),
-                "review": int(index_counts[2] or 0),
-                "retired": int(index_counts[3] or 0),
-                "sample": [dict(deployment=r[0], index_name=r[1], customer_id=r[2], status=r[3]) for r in index_rows],
+                "verified_active": int(index_counts[2] or 0),
+                "unverified_active": max(0, int(index_counts[1] or 0) - int(index_counts[2] or 0)),
+                "review": int(index_counts[3] or 0),
+                "retired": int(index_counts[4] or 0),
+                "sample": [dict(deployment=r[0], index_name=r[1], customer_id=r[2], status=r[3],
+                                verified_at=r[4], verified_by=r[5], verification=r[6]) for r in index_rows],
             },
             "alerts": {
                 "total": int(registration_counts[0] or 0),
@@ -1774,6 +2098,23 @@ class AlertIngestionStore:
             },
             "historical_email_replay": False,
         }
+
+    @staticmethod
+    def _migration_state_token(connection: Any) -> str:
+        snapshots: list[tuple[Any, ...]] = []
+        for table, timestamp in (
+            ("customers", "updated_at"),
+            ("sec_alert_index_ownership", "updated_at"),
+            ("sec_alert_registrations", "updated_at"),
+            ("sec_alert_registration_review", "updated_at"),
+            ("sec_events", "created_at"),
+        ):
+            row = connection.execute(
+                f"SELECT COUNT(*), MAX({timestamp}), MIN(id::text), MAX(id::text) FROM {table}"
+            ).fetchone()
+            snapshots.append(tuple(row or (0, None, None, None)))
+        encoded = json.dumps(snapshots, default=str, separators=(",", ":"))
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
     def migration_preview(self, *, actor: str = "", limit: int = 1_000) -> dict[str, Any]:
         """Create a repeatable, bounded reconciliation report.
@@ -1798,7 +2139,7 @@ class AlertIngestionStore:
             index_rows = connection.execute(
                 """
                 SELECT o.splunk_deployment, o.index_name, o.customer_id::text,
-                       c.cid, o.status
+                       c.cid, o.status, o.verified_at, o.verified_by, o.verification
                 FROM sec_alert_index_ownership AS o
                 JOIN customers AS c ON c.id = o.customer_id
                 ORDER BY o.splunk_deployment, o.index_name
@@ -1880,6 +2221,7 @@ class AlertIngestionStore:
                   AND r.aid IS NOT NULL AND r.aid <> ''
                 """
             ).fetchone()[0] or 0)
+            state_token = self._migration_state_token(connection)
 
         def trim(rows: Sequence[Any]) -> tuple[list[Any], bool]:
             return list(rows[:limit]), len(rows) > limit
@@ -1894,6 +2236,7 @@ class AlertIngestionStore:
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "complete": not any((customers_truncated, indexes_truncated, registrations_truncated, reviews_truncated, conflicts_truncated, historical_truncated)),
             "limit": limit,
+            "state_token": state_token,
             "customer_mappings": {
                 "total": customer_count,
                 "rows": [dict(id=r[0], cid=r[1], legacy_gid=r[2], name=r[3], status=r[4],
@@ -1902,7 +2245,12 @@ class AlertIngestionStore:
             },
             "index_mappings": {
                 "total": index_count,
-                "rows": [dict(deployment=r[0], index_name=r[1], customer_id=r[2], cid=r[3], status=r[4]) for r in indexes],
+                "rows": [dict(deployment=r[0], index_name=r[1], customer_id=r[2], cid=r[3], status=r[4],
+                              verified_at=r[5], verified_by=r[6], verification=r[7],
+                              routing_authority=bool(r[5]) and isinstance(r[7], Mapping)
+                              and r[7].get("verified") is True
+                              and r[7].get("deployment") == r[0]
+                              and r[7].get("index_name") == r[1]) for r in indexes],
                 "truncated": indexes_truncated,
             },
             "definition_matches": {
@@ -1942,7 +2290,7 @@ class AlertIngestionStore:
             ).fetchone()
         return {"run_id": str(row[0]), "mode": "preview", "historical_email_suppressed": True, "report": report}
 
-    def migration_backfill(self, *, actor: str = "") -> dict[str, Any]:
+    def migration_backfill(self, preview_run_id: str, *, actor: str = "") -> dict[str, Any]:
         """Backfill only events with reliable registered identity and time.
 
         All legacy rows are marked as historical-email-suppressed in the same
@@ -1951,6 +2299,37 @@ class AlertIngestionStore:
         backfilled = 0
         skipped = 0
         with self._connect() as connection:
+            preview = connection.execute(
+                """
+                SELECT report
+                FROM sec_alert_migration_runs
+                WHERE id = %s::uuid AND mode = 'preview'
+                FOR UPDATE
+                """,
+                (preview_run_id,),
+            ).fetchone()
+            if preview is None:
+                raise AlertIdentityError("migration_preview_required", "a reviewed migration preview is required")
+            preview_report = dict(preview[0]) if isinstance(preview[0], Mapping) else {}
+            if preview_report.get("complete") is not True:
+                raise AlertIdentityError("migration_preview_incomplete", "the selected migration preview was truncated or incomplete")
+            already_applied = connection.execute(
+                "SELECT 1 FROM sec_alert_migration_runs WHERE source_preview_id = %s::uuid",
+                (preview_run_id,),
+            ).fetchone()
+            if already_applied:
+                raise AlertIdentityError("migration_preview_applied", "the selected migration preview was already applied")
+            connection.execute(
+                """
+                LOCK TABLE customers, sec_alert_index_ownership, sec_alert_registrations,
+                           sec_alert_registration_review, sec_events IN SHARE MODE
+                """
+            )
+            if preview_report.get("state_token") != self._migration_state_token(connection):
+                raise AlertIdentityError(
+                    "migration_preview_stale",
+                    "migration data changed after preview; create and review a new preview",
+                )
             candidates = connection.execute(
                 """
                 SELECT e.id::text, e.customer_id::text, e.event_id, e.event_data,
@@ -2049,13 +2428,20 @@ class AlertIngestionStore:
             report = {"backfilled": backfilled, "legacy_suppressed": skipped, "historical_email_replay": False}
             row = connection.execute(
                 """
-                INSERT INTO sec_alert_migration_runs (mode, actor, report, historical_email_suppressed)
-                VALUES ('backfill', %s, %s::jsonb, TRUE)
+                INSERT INTO sec_alert_migration_runs (
+                    mode, actor, report, historical_email_suppressed, source_preview_id
+                ) VALUES ('backfill', %s, %s::jsonb, TRUE, %s::uuid)
                 RETURNING id::text
                 """,
-                (str(actor or "")[:320], json.dumps(report, separators=(",", ":"))),
+                (
+                    str(actor or "")[:320], json.dumps(report, separators=(",", ":")),
+                    preview_run_id,
+                ),
             ).fetchone()
-        return {"run_id": str(row[0]), "mode": "backfill", "historical_email_suppressed": True, **report}
+        return {
+            "run_id": str(row[0]), "source_preview_id": preview_run_id,
+            "mode": "backfill", "historical_email_suppressed": True, **report,
+        }
 
     def get_alert_policy(
         self,
@@ -2322,13 +2708,54 @@ class AlertIngestionStore:
             raise RuntimeError("alert email policy was not created")
         return dict(zip(("id", "customer_id", "registration_id", "policy", "revision", "updated_at"), row, strict=True))
 
+    def delete_alert_policy_override(
+        self,
+        customer_id: str,
+        registration_id: str,
+        *,
+        actor: str = "",
+    ) -> dict[str, Any]:
+        """Remove only a per-alert override so the customer default is inherited."""
+
+        with self._connect() as connection:
+            owner = connection.execute(
+                "SELECT customer_id::text FROM sec_alert_registrations WHERE id = %s::uuid FOR SHARE",
+                (registration_id,),
+            ).fetchone()
+            if owner is None or str(owner[0]) != str(customer_id):
+                raise AlertIdentityError(
+                    "policy_registration_mismatch",
+                    "alert policy registration does not belong to the selected customer",
+                )
+            deleted = connection.execute(
+                """
+                DELETE FROM sec_alert_email_policies
+                WHERE customer_id = %s::uuid AND registration_id = %s::uuid
+                RETURNING id::text, revision
+                """,
+                (customer_id, registration_id),
+            ).fetchone()
+            self._record_review_action(
+                connection,
+                action="remove_policy_override",
+                actor=actor,
+                registration_id=registration_id,
+                details={
+                    "customer_id": customer_id,
+                    "removed_policy_id": str(deleted[0]) if deleted else None,
+                    "removed_revision": int(deleted[1]) if deleted else None,
+                },
+            )
+        inherited = self.ensure_alert_policy(customer_id, registration_id, actor=actor or "system")
+        return {"removed": deleted is not None, "inherited_policy": inherited}
+
     def _quarantine_alert_run_on_connection(
         self,
         connection: Any,
         payload: Mapping[str, Any],
         reason: str,
     ) -> dict[str, Any]:
-        safe = _safe_value(dict(payload)) if isinstance(payload, Mapping) else {}
+        safe = _safe_value(self._business_payload(payload)) if isinstance(payload, Mapping) else {}
         deployment = str((payload or {}).get("deployment") or "unknown").strip()[:512]
         sid = str((payload or {}).get("sid") or (payload or {}).get("search_id") or "").strip()[:1_024] or None
         name = str((payload or {}).get("alert_name") or (payload or {}).get("name") or "").strip()[:255] or None
@@ -2365,6 +2792,49 @@ class AlertIngestionStore:
     def quarantine_alert_run(self, payload: Mapping[str, Any], reason: str) -> dict[str, Any]:
         with self._connect() as connection:
             return self._quarantine_alert_run_on_connection(connection, payload, reason)
+
+    def list_alert_run_quarantine(self, *, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        """List unresolved custom-action runs for administrator review."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id::text, dedup_key, splunk_deployment, splunk_sid,
+                       alert_name, trigger_time, reason, attempt_count,
+                       last_attempt_at, created_at, updated_at
+                FROM sec_alert_run_quarantine
+                WHERE resolved_at IS NULL
+                ORDER BY created_at, id
+                LIMIT %s OFFSET %s
+                """,
+                (max(1, min(int(limit), 1_000)), max(0, int(offset))),
+            ).fetchall()
+        keys = (
+            "id", "dedup_key", "deployment", "splunk_sid", "alert_name",
+            "trigger_time", "reason", "attempt_count", "last_attempt_at",
+            "created_at", "updated_at",
+        )
+        return [dict(zip(keys, row, strict=True)) for row in rows]
+
+    @staticmethod
+    def _resolve_alert_run_quarantine(
+        connection: Any,
+        *,
+        deployment: str,
+        sid: str,
+        alert_name: str,
+    ) -> None:
+        connection.execute(
+            """
+            UPDATE sec_alert_run_quarantine
+            SET resolved_at = NOW(), last_attempt_at = NOW(),
+                attempt_count = attempt_count + 1, updated_at = NOW()
+            WHERE resolved_at IS NULL
+              AND splunk_deployment = %s
+              AND splunk_sid = %s
+              AND alert_name IS NOT DISTINCT FROM %s
+            """,
+            (deployment, sid, alert_name or None),
+        )
 
     def _find_registration(self, connection: Any, run: AlertRunPayload, *, lock: bool = False) -> Any:
         suffix = " FOR UPDATE" if lock else ""
@@ -2523,6 +2993,12 @@ class AlertIngestionStore:
                             "conflicting content for an existing registered run",
                         )
                     if receipt[0]:
+                        self._resolve_alert_run_quarantine(
+                            connection,
+                            deployment=run.deployment,
+                            sid=run.sid,
+                            alert_name=run.alert_name,
+                        )
                         return {
                             "status": "duplicate",
                             "duplicate": True,
@@ -2632,6 +3108,12 @@ class AlertIngestionStore:
                     connection, payload, "conflicting content for an existing registered run"
                 )
             if receipt is not None and receipt[0]:
+                self._resolve_alert_run_quarantine(
+                    connection,
+                    deployment=run.deployment,
+                    sid=run.sid,
+                    alert_name=run.alert_name,
+                )
                 return {
                     "status": "duplicate",
                     "duplicate": True,
@@ -2733,7 +3215,15 @@ class AlertIngestionStore:
                     "payload retained count conflicts with the approved row projection",
                 )
             if run.matching_count is not None:
-                if run.matching_count < matching_total or (not run.truncated and run.matching_count != matching_total):
+                empty_projection = not approved_transport_columns and not run.rows
+                if (
+                    run.matching_count < matching_total
+                    or (
+                        not run.truncated
+                        and run.matching_count != matching_total
+                        and not empty_projection
+                    )
+                ):
                     return self._quarantine_alert_run_on_connection(
                         connection,
                         payload,
@@ -2771,6 +3261,10 @@ class AlertIngestionStore:
                                  AND ownership.index_name = source.index_name
                                  AND ownership.customer_id = %s::uuid
                                  AND ownership.status = 'active'
+                                 AND ownership.verified_at IS NOT NULL
+                                 AND ownership.verification ->> 'verified' = 'true'
+                                 AND ownership.verification ->> 'deployment' = ownership.splunk_deployment
+                                 AND ownership.verification ->> 'index_name' = ownership.index_name
                            )
                        )
                     """,
@@ -2912,6 +3406,21 @@ class AlertIngestionStore:
                  run.deployment, registration["definition_revision"], policy_id, policy_revision,
                  run.trigger_time_precision),
             ).fetchone()
+            self._resolve_alert_run_quarantine(
+                connection,
+                deployment=run.deployment,
+                sid=run.sid,
+                alert_name=run.alert_name,
+            )
+            connection.execute(
+                """
+                UPDATE sec_alert_delivery_reconciliation
+                SET trigger_time = %s, observed_at = NOW(), status = 'received',
+                    reason = 'custom action receipt committed'
+                WHERE registration_id = %s::uuid AND splunk_sid = %s
+                """,
+                (run.trigger_time, registration["id"], run.sid),
+            )
             return {
                 "status": "stored",
                 "duplicate": False,
@@ -3129,6 +3638,27 @@ class AlertIngestionStore:
         event_data = dict(alert.event_data)
         event_data["legacy_ingestion_mode"] = "explicit"
         with self._connect() as connection:
+            # Registered definitions are owned exclusively by the CID/AID/EID
+            # receiver.  This prevents legacy polling and the custom action
+            # from creating separate events for the same migrated alert.
+            registered = connection.execute(
+                """
+                SELECT 1
+                FROM sec_alert_registrations
+                WHERE saved_search_name = %s
+                  AND registration_state <> 'retired'
+                  AND (%s = '' OR app = %s)
+                  AND (%s = '' OR owner = %s)
+                LIMIT 1
+                """,
+                (
+                    alert.alert_name or "",
+                    str(event_data.get("app") or "").strip(), str(event_data.get("app") or "").strip(),
+                    str(event_data.get("owner") or "").strip(), str(event_data.get("owner") or "").strip(),
+                ),
+            ).fetchone()
+            if registered:
+                return False
             row = connection.execute(
                 """
                 INSERT INTO sec_events (
@@ -3358,7 +3888,7 @@ class AlertIngestionService:
             if register is not None:
                 for raw in definitions:
                     if not isinstance(raw, Mapping):
-                        continue
+                        raise RuntimeError("Splunk returned a malformed saved-search definition.")
                     actions = raw.get("actions", "")
                     action_text = ",".join(str(item) for item in actions) if isinstance(actions, Sequence) and not isinstance(actions, (str, bytes, bytearray)) else str(actions or "")
                     has_alert_fields = any(

@@ -19,15 +19,20 @@ alerts. Configure the action command environment with:
   source indexes or SPL are required when a run can arrive before discovery
   has registered the definition.
 
-The action reads the original CSV result file from the standard nested
-configuration or `SPLUNK_ALERT_RESULTS_FILE`/`SPLUNK_ARG_8`. It also accepts
-`.csv.gz`. A deployment wrapper may instead send a JSON object on stdin with
+The action durably freezes the original CSV result file before its first
+network request. It reads the path from the standard nested configuration or
+`SPLUNK_ALERT_RESULTS_FILE`/`SPLUNK_ARG_8`, and detects gzip by content rather
+than filename. A deployment wrapper may instead send a JSON object on stdin with
 `results_file`, `sid`, `search_name`, `trigger_time`, `definition`, and `rows`.
 The action sends original result fields (the backend applies the administrator
 policy), preserves original row positions, excludes `_raw`, and records
 bounded truncation metadata. A durable local spool survives action-process
-restarts; configure `CITIC_ALERT_SPOOL_DIR`, `CITIC_ALERT_SPOOL_MAX_RUNS`, and
-`CITIC_ALERT_SPOOL_MAX_BYTES` for the Splunk service account.
+restarts and copies the original result artifact before the Splunk job can
+remove it. The included scripted input drains that spool every 30 seconds,
+even when no later alert fires. Configure `CITIC_ALERT_SPOOL_DIR`,
+`CITIC_ALERT_SPOOL_MAX_RUNS`, and `CITIC_ALERT_SPOOL_MAX_BYTES` for the Splunk
+service account, and monitor the `_internal` sourcetype
+`citic:alert:delivery:spool` for saturation or permanent failures.
 
 Select **CITIC Alert Delivery** in the saved-search alert actions. Discovery
 does not silently enable this action on existing searches. The SOC backend

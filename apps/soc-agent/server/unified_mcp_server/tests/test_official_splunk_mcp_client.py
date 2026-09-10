@@ -71,6 +71,25 @@ async def test_official_index_pagination_advances_from_page_info(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_saved_search_catalog_cap_is_explicitly_incomplete(monkeypatch):
+    adapter = client()
+
+    async def call(name, arguments):
+        assert name == "splunk_get_knowledge_objects"
+        return {
+            "results": [{"name": "one", "search": "index=main"}],
+            "truncated": True,
+            "total_rows": 2,
+            "page_info": {"offset": 0, "perPage": 1},
+        }
+
+    monkeypatch.setattr(adapter, "_call", call)
+    assert [item["name"] for item in await adapter.get_saved_searches(count=1)] == ["one"]
+    assert adapter.last_saved_search_catalog_complete is False
+    assert "cap" in adapter.last_saved_search_catalog_error
+
+
+@pytest.mark.asyncio
 async def test_lookup_catalog_fetches_full_page_for_exact_ruleset_lookup(monkeypatch):
     adapter = client()
     captured = {}

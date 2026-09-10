@@ -52,19 +52,16 @@ already running, restart it manually after the update.
 
 ## Configure Splunk alerts
 
-Use the Splunk detection MCP workflow to validate and stage saved-search alert
-settings. The official MCP server currently exposes read-only tools, so the
-inline editor can review drafts but cannot commit a remote detection change.
-For example, a scheduled alert can include:
+Use the Splunk detection workflow to validate and stage saved-search alerts.
+Core Splunk access remains read-only; an optional, separately deployed and
+authenticated write extension performs only approved disabled saved-search
+publication after harness approval and an explicit authenticated editor Save.
 
-For production detections, write only the detection logic first. Run
-`splunk_compile_citic_detection` with the four-digit rule number, explicit
-case/GID prefix, threat metadata, and event mappings. Review its generated
-`production_spl` and derived `backtest_spl`; validate and backtest the returned
-values, then pass only `production_spl` to `splunk_write_detection` or
-`splunk_update_detection`. The compiler adds the CITIC fields, final `table`,
-and dynamic `outputcsv`. Investigation SPL remains flexible and does not need
-this wrapper.
+Start with result-producing detection logic. `splunk_compile_citic_detection`
+may add mapped detail fields and a final `table`, but it does not construct
+GID, CID, AID, EID, or output files. Review and backtest the returned SPL, then
+pass it to `splunk_write_detection` or `splunk_update_detection`. A catalog
+rule number may remain content metadata, but it is not alert identity.
 
 ```json
 {
@@ -80,10 +77,7 @@ this wrapper.
   "alert.digest_mode": true,
   "alert.suppress": false,
   "alert.expires": "24h",
-  "alert.track": true,
-  "actions": "email,logevent",
-  "action.logevent": true,
-  "action.email.to": "soc@example.invalid"
+  "alert.track": true
 }
 ```
 
@@ -91,15 +85,16 @@ Real-time alerts use `is_scheduled: true` with `rt...` dispatch time values;
 `alert_type` describes the trigger condition, not the timing mode. Omitted
 settings remain unchanged on updates, while empty or `null` values clear
 non-secret settings. `splunk_write_detection` is create-only, while
-`splunk_update_detection` requires the current fingerprint and applies patch
-semantics. Both tools return browser-editable drafts and never write by
-themselves. Credential-like action settings are preserved by Splunk and are
-not returned or accepted for replacement.
+`splunk_update_detection` requires the current fingerprint and a verified
+Splunk revision. Both tools return browser-editable drafts and never write by
+themselves. The Save workflow allocates an AID in PostgreSQL, installs the
+backend-owned **CITIC Alert Delivery** action parameters, verifies the saved
+definition, and leaves it disabled. A real triggered run receives one EID.
 
 The harness asks for approval before either detection draft tool runs. After
-approval, review the inline editor; Save remains unavailable because MCP does
-not expose detection mutation tools. Cancel makes no Splunk change. MCP does
-not expose an enable/disable operation and never enables a detection.
+approval, review the inline editor and Save explicitly. Cancel makes no Splunk
+change. A failed publication retains its allocated AID for reconciliation.
+Activation remains a separate operator action; MCP never enables a detection.
 
 Persistent CSV lookups use the same draft/editor pattern. `splunk_get_lookup`
 reads the canonical CSV, while `splunk_write_lookup`, `splunk_update_lookup`,
@@ -110,18 +105,13 @@ fingerprints, but Save and Delete are unavailable until MCP exposes lookup
 mutation tools. The CSV editor does not execute `outputlookup` or
 `outputcsv`.
 
-For new rules, follow the detection-writing workflow in
-`skills/detection-engineering/SKILL.md` and the SPL format in
-`skills/spl-writing/SKILL.md`. The checklist covers alert type, time range,
-cron (when scheduled), expiry, trigger conditions, trigger behavior, throttle,
-and trigger actions. The team defaults are Add to Triggered Alerts (`alert.track=true`) and Log Event (`actions=logevent` plus
-`action.logevent=1`). Log Event source, sourcetype, host, and index are fixed to
-`$name$`, `ticket_details`, empty, and `ticket_summary`; event text is generated
-from the final table. Client-email rules may append the documented `outputcsv`
-filename subsearch. MCP keeps `outputcsv` blocked for ordinary searches and
-backtests; it is accepted only inside a disabled detection draft and is never
-executed by MCP. No MCP path invokes `outputcsv` or `outputlookup` merely by
-preparing or saving a disabled detection definition.
+For new rules, follow `skills/detection-engineering/SKILL.md`,
+`skills/spl-writing/SKILL.md`, and `docs/SPLUNK_ALERT_EMAIL_SETUP.md`. New
+customer-delivery alerts must return detection details only and must not use
+`GID`, `Event_GID`, `Event_Rulenum`, `outputcsv`, `logevent`, or Splunk's
+standard Send email action. Customer recipients, selected fields, filters,
+severity mapping, and row limits are administrator-owned. Exact source indexes
+must be verified to one customer before delivery can become active.
 
 ## Splunk background context
 

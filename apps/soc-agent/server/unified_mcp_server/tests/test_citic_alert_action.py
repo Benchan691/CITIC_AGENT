@@ -80,11 +80,25 @@ def test_action_reads_nested_configuration_filters_before_retention_and_preserve
 def test_action_defaults_to_no_detail_fields_and_rejects_invalid_policy_projection():
     action = _action_module()
     payload = action.build_payload(_source(rows=[{"device": "host-1", "severity": "high"}], selected_columns="[]"))
-    assert payload["rows"] == [{}]
+    assert payload["rows"] == []
     assert payload["matching_count"] == 1
+    assert payload["retained_count"] == 0
+    assert payload["truncated"] is False
 
     with pytest.raises(ValueError, match="selected columns"):
         action.build_payload(_source(selected_columns='["_raw"]', rows=[]))
+
+
+def test_action_detects_compressed_csv_by_content_not_filename(tmp_path):
+    action = _action_module()
+    result_file = tmp_path / "results.csv"
+    with gzip.open(result_file, "wt", encoding="utf-8", newline="") as stream:
+        stream.write("device,severity\nhost-1,high\n")
+
+    payload = action.build_payload(_source(results_file=str(result_file), rows=None))
+
+    assert payload["rows"] == [{"device": "host-1", "severity": "high"}]
+    assert payload["original_row_positions"] == [0]
 
 
 def test_action_carries_backend_owned_definition_for_trigger_before_discovery():
@@ -195,6 +209,56 @@ def test_action_spool_persists_source_when_policy_context_is_temporarily_unavail
     assert list(tmp_path.glob("*.json")) == []
 
 
+def test_action_spool_freezes_result_file_until_policy_retry(monkeypatch, tmp_path):
+    action = _action_module()
+    spool_dir = tmp_path / "spool"
+    monkeypatch.setenv("CITIC_ALERT_SPOOL_DIR", str(spool_dir))
+    result_file = tmp_path / "results.csv.gz"
+    with gzip.open(result_file, "wt", encoding="utf-8", newline="") as stream:
+        stream.write("device,severity\n")
+        stream.write("host-1,high\n")
+    spool = action.DurableSpool()
+    spool.enqueue_source(_source(results_file=str(result_file), rows=None), "frozen-run-1")
+    result_file.unlink()
+
+    envelope_path = next(spool_dir.glob("*.json"))
+    envelope = json.loads(envelope_path.read_text())
+    frozen_path = Path(envelope["source_results_file"])
+    assert frozen_path.is_file()
+
+    monkeypatch.setattr(
+        action,
+        "fetch_action_context",
+        lambda value, replay_id=None: {
+            "registration_id": "registration-1",
+            "policy_id": "policy-1",
+            "policy_revision": 2,
+            "definition_revision": 4,
+            "selected_columns": ["device", "severity"],
+        },
+    )
+    sent = []
+    monkeypatch.setattr(action, "send", lambda payload, replay_id=None: sent.append((payload, replay_id)))
+
+    delivered, error = spool.flush()
+    assert (delivered, error) == (1, None)
+    assert sent[0][0]["rows"] == [{"device": "host-1", "severity": "high"}]
+    assert sent[0][1] == "frozen-run-1"
+    assert not frozen_path.exists()
+
+
+def test_action_marks_upstream_result_file_truncation():
+    action = _action_module()
+    payload = action.build_payload(_source(
+        result_count=5,
+        rows=[{"device": "host-1", "severity": "high"}],
+        row_filters="[]",
+    ))
+    assert payload["source_result_count"] == 5
+    assert payload["retained_count"] == 1
+    assert payload["truncated"] is True
+
+
 def test_action_spool_failed_entries_consume_the_bound(monkeypatch, tmp_path):
     action = _action_module()
     monkeypatch.setenv("CITIC_ALERT_SPOOL_DIR", str(tmp_path))
@@ -212,3 +276,35 @@ def test_action_spool_failed_entries_consume_the_bound(monkeypatch, tmp_path):
     assert len(list(tmp_path.glob("*.failed"))) == 1
     with pytest.raises(action.SpoolSaturatedError):
         spool.enqueue(_source(rows=[]), "run-failed-2")
+
+
+def test_action_main_persists_source_before_any_network_work(monkeypatch):
+    action = _action_module()
+    calls = []
+
+    class FakeSpool:
+        def enqueue_source(self, source, replay_id):
+            calls.append(("enqueue", source, replay_id))
+
+        def flush(self):
+            assert calls and calls[0][0] == "enqueue"
+            calls.append(("flush",))
+            return 1, None
+
+        def pending(self):
+            return 0
+
+        def failed(self):
+            return 0
+
+    monkeypatch.setattr(action, "DurableSpool", FakeSpool)
+    monkeypatch.setattr(action, "_input", lambda: {"sid": "sid-1"})
+    monkeypatch.setenv("CITIC_ALERT_REPLAY_ID", "replay-1")
+    monkeypatch.setattr(
+        action,
+        "_with_action_context",
+        lambda *_args, **_kwargs: pytest.fail("main must not perform network work before enqueue"),
+    )
+
+    assert action.main() == 0
+    assert calls == [("enqueue", {"sid": "sid-1"}, "replay-1"), ("flush",)]

@@ -6,6 +6,7 @@ import pytest
 
 import unified_mcp_server.admin_cli as module
 from unified_mcp_server.errors import ServiceError
+from unified_mcp_server.alert_identity import AlertIdentityError
 
 
 def test_subscription_server_connection_test_closes_service(monkeypatch):
@@ -172,3 +173,173 @@ def test_receive_alert_run_forwards_verified_webhook_context(monkeypatch):
         "replay_id": "replay-1",
         "closed": True,
     }
+
+
+def test_action_context_failure_is_visible_in_run_quarantine(monkeypatch):
+    captured = {}
+    splunk_settings = SimpleNamespace(
+        configured=True,
+        deployment_id="splunk-prod",
+        detection_app="citic",
+        detection_owner="nobody",
+    )
+
+    class DetectionService:
+        async def get_detection(self, name):
+            assert name == "review alert"
+            return {
+                "name": name,
+                "spl": "index=CPC_security | table device",
+                "actions": "citic_alert_delivery",
+                "stable_id": "splunk-guid-1",
+                "fingerprint": "transport-only",
+                "splunk_revision": "9",
+            }
+
+    class Service:
+        def __init__(self, settings):
+            assert settings is splunk_settings
+            self.detection_service = DetectionService()
+
+        async def close(self):
+            captured["service_closed"] = True
+
+    class FakeStore:
+        def resolve_alert_action_context(self, payload, **kwargs):
+            raise AlertIdentityError("alert_registration_review", "scope requires review")
+
+        def quarantine_alert_run(self, payload, reason):
+            captured.update(payload=payload, reason=reason)
+
+        def close(self):
+            captured["closed"] = True
+
+    monkeypatch.setattr(module.AlertIngestionStore, "from_env", staticmethod(FakeStore))
+    monkeypatch.setattr(module, "_settings", lambda _store: SimpleNamespace(splunk=splunk_settings))
+    monkeypatch.setattr(module, "SplunkService", Service)
+    payload = {
+        "deployment": "splunk-prod",
+        "_authenticated_deployment": "splunk-prod",
+        "_authenticated_replay_id": "replay-1",
+        "sid": "sid-1",
+        "alert_name": "review alert",
+        "spl": "index=stale_or_wrong",
+        "source_indexes": ["stale_or_wrong"],
+    }
+
+    with pytest.raises(ServiceError, match="scope requires review"):
+        asyncio.run(module.resolve_alert_action_context("store", payload))
+
+    assert captured["payload"]["spl"] == "index=CPC_security | table device"
+    assert captured["payload"]["source_indexes"] == []
+    assert captured["payload"]["stable_id"] == "splunk-guid-1"
+    assert "fingerprint" not in captured["payload"]["definition"]
+    assert "alert_registration_review" in captured["reason"]
+    assert captured["service_closed"] is True
+    assert captured["closed"] is True
+
+
+def test_action_context_rejects_missing_live_delivery_action(monkeypatch):
+    captured = {}
+    splunk_settings = SimpleNamespace(
+        configured=True,
+        deployment_id="splunk-prod",
+        detection_app="citic",
+        detection_owner="nobody",
+    )
+
+    class DetectionService:
+        async def get_detection(self, _name):
+            return {"name": "alert", "spl": "index=CPC_security", "actions": "email"}
+
+    class Service:
+        def __init__(self, _settings):
+            self.detection_service = DetectionService()
+
+        async def close(self):
+            captured["service_closed"] = True
+
+    class FakeStore:
+        def quarantine_alert_run(self, payload, reason):
+            captured.update(payload=payload, reason=reason)
+
+        def close(self):
+            captured["store_closed"] = True
+
+    monkeypatch.setattr(module, "_settings", lambda _store: SimpleNamespace(splunk=splunk_settings))
+    monkeypatch.setattr(module, "SplunkService", Service)
+    monkeypatch.setattr(module.AlertIngestionStore, "from_env", staticmethod(FakeStore))
+
+    with pytest.raises(ServiceError, match="does not have"):
+        asyncio.run(module.resolve_alert_action_context("store", {
+            "deployment": "splunk-prod",
+            "_authenticated_deployment": "splunk-prod",
+            "_authenticated_replay_id": "replay-2",
+            "sid": "sid-2",
+            "alert_name": "alert",
+        }))
+
+    assert "alert_action_missing" in captured["reason"]
+    assert captured["service_closed"] is True
+    assert captured["store_closed"] is True
+
+
+def test_active_index_ownership_is_verified_against_the_bound_deployment(monkeypatch):
+    captured = {}
+    splunk_settings = SimpleNamespace(configured=True, deployment_id="splunk-prod")
+    monkeypatch.setattr(module, "_settings", lambda _store: SimpleNamespace(splunk=splunk_settings))
+
+    class Core:
+        async def request(self, operation):
+            class Client:
+                async def get_indexes(self):
+                    return [{"name": "CPC_security"}, {"name": "_internal"}]
+            return await operation(Client())
+
+    class Service:
+        def __init__(self, settings):
+            assert settings is splunk_settings
+            self.core = Core()
+
+        async def close(self):
+            captured["service_closed"] = True
+
+    class AlertStore:
+        def set_index_ownership(self, **kwargs):
+            captured.update(kwargs)
+            return {"index_name": kwargs["index_name"], "status": kwargs["status"]}
+
+        def close(self):
+            captured["store_closed"] = True
+
+    monkeypatch.setattr(module, "SplunkService", Service)
+    monkeypatch.setattr(module.AlertIngestionStore, "from_env", staticmethod(lambda: AlertStore()))
+
+    result = asyncio.run(module.set_alert_index_ownership("store", {
+        "deployment": "splunk-prod",
+        "index_name": "CPC_security",
+        "customer_id": "customer-1",
+        "status": "active",
+        "actor_id": "admin@example.test",
+    }))
+
+    assert result["ownership"] == {"index_name": "CPC_security", "status": "active"}
+    assert captured["verification"] == {
+        "verified": True,
+        "source": "official_splunk_mcp",
+        "deployment": "splunk-prod",
+        "index_name": "CPC_security",
+    }
+    assert captured["service_closed"] is True
+    assert captured["store_closed"] is True
+
+
+def test_active_index_ownership_rejects_unknown_or_wrong_deployment(monkeypatch):
+    splunk_settings = SimpleNamespace(configured=True, deployment_id="splunk-prod")
+    monkeypatch.setattr(module, "_settings", lambda _store: SimpleNamespace(splunk=splunk_settings))
+
+    with pytest.raises(ServiceError, match="does not match"):
+        asyncio.run(module.set_alert_index_ownership("store", {
+            "deployment": "splunk-other", "index_name": "CPC_security",
+            "customer_id": "customer-1", "status": "active",
+        }))

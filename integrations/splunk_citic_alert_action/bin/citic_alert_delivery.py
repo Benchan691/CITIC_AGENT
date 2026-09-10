@@ -16,6 +16,7 @@ import hmac
 import json
 import os
 import secrets
+import shutil
 import sys
 import tempfile
 import time
@@ -211,6 +212,10 @@ def _row_budget_with_counts(
         if not _filter_matches(row, filters):
             continue
         matching_count += 1
+        # An empty administrator projection is intentional data minimization:
+        # retain the run counts without transmitting placeholder empty rows.
+        if not selected_columns:
+            continue
         if len(retained) >= max_rows or budget_exhausted:
             truncated = True
             continue
@@ -223,7 +228,7 @@ def _row_budget_with_counts(
         retained.append(projected)
         retained_positions.append(position)
         used += len(encoded)
-    if matching_count > len(retained):
+    if selected_columns and matching_count > len(retained):
         truncated = True
     return retained, retained_positions, truncated, len(rows), matching_count
 
@@ -250,7 +255,9 @@ def _read_results_with_counts(
     result_path = Path(path)
     if not result_path.is_file():
         raise ValueError("Splunk result file is not available")
-    opener = gzip.open if result_path.suffix.casefold() == ".gz" else open
+    with result_path.open("rb") as probe:
+        compressed = probe.read(2) == b"\x1f\x8b"
+    opener = gzip.open if compressed else open
     rows: list[Mapping[str, Any]] = []
     positions: list[int] = []
     source_total = 0
@@ -373,6 +380,9 @@ def build_payload(source: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("result_count is invalid") from exc
     if result_count < source_total or result_count < 0:
         raise ValueError("result_count is invalid")
+    # Splunk can expose a result count larger than the bounded result artifact.
+    # Preserve that upstream truncation instead of claiming this run is complete.
+    truncated = bool(truncated or result_count > source_total)
 
     name = str(_pick(source, config, "alert_name", "saved_search_name", "search_name", env=("SPLUNK_ALERT_NAME", "SPLUNK_ARG_5")) or "").strip()
     app = str(_pick(source, config, "app", env=("CITIC_ALERT_APP", "SPLUNK_ALERT_APP")) or "").strip()
@@ -571,6 +581,9 @@ def fetch_action_context(source: Mapping[str, Any], *, replay_id: str | None = N
         "spl": spl or "",
         "source_indexes": indexes if isinstance(indexes, list) else [],
         "definition": definition,
+        "sid": str(_pick(source, config, "sid", "search_id", env=("SPLUNK_SID", "SPLUNK_ARG_3")) or "").strip(),
+        "trigger_time": str(_pick(source, config, "trigger_time", "triggerTime", "run_time", env=("CITIC_ALERT_TRIGGER_TIME", "SPLUNK_ALERT_TRIGGER_TIME", "SPLUNK_ARG_4")) or "").strip(),
+        "result_count": _pick(source, config, "result_count", "source_result_count", env=("CITIC_ALERT_RESULT_COUNT", "SPLUNK_ALERT_RESULT_COUNT")),
     }
     url, secret = _policy_endpoint()
     return _signed_post(
@@ -608,10 +621,13 @@ class DurableSpool:
     def _files(self) -> list[Path]:
         return sorted(self.path.glob("*.json"), key=lambda item: item.name)
 
+    def _run_files(self) -> list[Path]:
+        return sorted((*self.path.glob("*.json"), *self.path.glob("*.failed")), key=lambda item: item.name)
+
     def _all_files(self) -> list[Path]:
         """Return pending and terminal entries for the bounded spool budget."""
         return sorted(
-            (*self.path.glob("*.json"), *self.path.glob("*.failed")),
+            (*self._run_files(), *self.path.glob("*.results"), *self.path.glob("*.results.gz")),
             key=lambda item: item.name,
         )
 
@@ -641,11 +657,11 @@ class DurableSpool:
         target = self.path / f"{time.time_ns():020d}-{digest}.json"
         lock = self._lock()
         try:
-            files = self._all_files()
-            if any(digest in item.name for item in files):
-                return next(item for item in files if digest in item.name)
-            used = sum(item.stat().st_size for item in files if item.is_file())
-            if len(files) >= self.max_runs or used + len(envelope) > self.max_bytes:
+            run_files = self._run_files()
+            if any(digest in item.name for item in run_files):
+                return next(item for item in run_files if digest in item.name)
+            used = sum(item.stat().st_size for item in self._all_files() if item.is_file())
+            if len(run_files) >= self.max_runs or used + len(envelope) > self.max_bytes:
                 raise SpoolSaturatedError("CITIC alert delivery spool is full")
             with tempfile.NamedTemporaryFile("wb", dir=self.path, prefix=".pending-", delete=False) as stream:
                 temporary = Path(stream.name)
@@ -669,9 +685,92 @@ class DurableSpool:
         projects the run, atomically replaces this envelope with the immutable
         payload, and only then sends it to the backend.
         """
-        return self._enqueue_envelope(
-            {"replay_id": replay_id, "source": source, "attempts": 0, "next_attempt_at": 0}
+        frozen_source = dict(source)
+        config = _configuration(source)
+        rows = _pick(source, config, "rows", "results")
+        results_file = _pick(
+            source,
+            config,
+            "results_file", "results_file_path", "result_file",
+            env=("SPLUNK_ALERT_RESULTS_FILE", "SPLUNK_ARG_8"),
         )
+        if isinstance(rows, list) or not results_file:
+            return self._enqueue_envelope(
+                {"replay_id": replay_id, "source": frozen_source, "attempts": 0, "next_attempt_at": 0}
+            )
+        source_path = Path(str(results_file))
+        if not source_path.is_file():
+            raise ValueError("Splunk result file is not available")
+        source_size = source_path.stat().st_size
+        if source_size > self.max_bytes:
+            raise SpoolSaturatedError("original alert result file exceeds the configured spool size")
+        digest_source = json.dumps(
+            {"replay_id": replay_id, "source": frozen_source},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        digest = hashlib.sha256(digest_source).hexdigest()
+        timestamp = f"{time.time_ns():020d}"
+        result_suffix = ".results.gz" if source_path.suffix.casefold() == ".gz" else ".results"
+        frozen_result = self.path / f"{timestamp}-{digest}{result_suffix}"
+        frozen_source["results_file"] = str(frozen_result)
+        value = {
+            "replay_id": replay_id,
+            "source": frozen_source,
+            "source_results_file": str(frozen_result),
+            "attempts": 0,
+            "next_attempt_at": 0,
+        }
+        envelope = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        target = self.path / f"{timestamp}-{digest}.json"
+        lock = self._lock()
+        temporary_result: Path | None = None
+        temporary_envelope: Path | None = None
+        try:
+            run_files = self._run_files()
+            duplicate = next((item for item in run_files if digest in item.name), None)
+            if duplicate:
+                return duplicate
+            used = sum(item.stat().st_size for item in self._all_files() if item.is_file())
+            if len(run_files) >= self.max_runs or used + source_size + len(envelope) > self.max_bytes:
+                raise SpoolSaturatedError("CITIC alert delivery spool is full")
+            with tempfile.NamedTemporaryFile("wb", dir=self.path, prefix=".source-", delete=False) as stream:
+                temporary_result = Path(stream.name)
+                with source_path.open("rb") as source_stream:
+                    shutil.copyfileobj(source_stream, stream, length=1024 * 1024)
+                stream.flush()
+                os.fsync(stream.fileno())
+            actual_source_size = temporary_result.stat().st_size
+            if used + actual_source_size + len(envelope) > self.max_bytes:
+                raise SpoolSaturatedError("CITIC alert delivery spool is full")
+            with tempfile.NamedTemporaryFile("wb", dir=self.path, prefix=".pending-", delete=False) as stream:
+                temporary_envelope = Path(stream.name)
+                stream.write(envelope)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary_result, frozen_result)
+            temporary_result = None
+            os.replace(temporary_envelope, target)
+            temporary_envelope = None
+            return target
+        finally:
+            if temporary_result is not None:
+                temporary_result.unlink(missing_ok=True)
+            if temporary_envelope is not None:
+                temporary_envelope.unlink(missing_ok=True)
+            self._unlock(lock)
+
+    def _cleanup_source_result(self, envelope: Mapping[str, Any]) -> None:
+        value = str(envelope.get("source_results_file") or "").strip()
+        if not value:
+            return
+        candidate = Path(value)
+        try:
+            if candidate.parent.resolve() == self.path.resolve() and candidate.name.endswith((".results", ".results.gz")):
+                candidate.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     def _rewrite(self, path: Path, envelope: Mapping[str, Any]) -> None:
         encoded = json.dumps(envelope, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -735,8 +834,10 @@ class DurableSpool:
                         )
                         projected_envelope = dict(envelope)
                         projected_envelope.pop("source", None)
+                        projected_envelope.pop("source_results_file", None)
                         projected_envelope["payload"] = payload
                         self._rewrite(item, projected_envelope)
+                        self._cleanup_source_result(envelope)
                         # Keep the immutable, backend-approved projection for
                         # retries.  Refetching policy context after a
                         # transient transport failure could otherwise turn a
@@ -758,6 +859,7 @@ class DurableSpool:
                     item.rename(item.with_suffix(".failed"))
                     return delivered, f"spool entry failed: {type(exc).__name__}"
                 else:
+                    self._cleanup_source_result(envelope)
                     item.unlink(missing_ok=True)
                     delivered += 1
         finally:
@@ -774,22 +876,15 @@ class DurableSpool:
 def main() -> int:
     try:
         spool = DurableSpool()
-        _, prior_error = spool.flush()
         replay_id = _env("CITIC_ALERT_REPLAY_ID", default=secrets.token_urlsafe(24))
         source = _input()
-        try:
-            payload = build_payload(_with_action_context(source, replay_id="policy-" + replay_id))
-        except DeliveryTransientError:
-            # Persist before returning.  A process exit is not a durable retry
-            # mechanism, but the local spool is.
-            spool.enqueue_source(source, replay_id)
-            payload = None
-        if payload is not None:
-            spool.enqueue(payload, replay_id)
+        # Freeze the original results before the first network request. The
+        # flush operation fetches policy, atomically replaces this source
+        # envelope with the immutable projection, and only then transmits it.
+        spool.enqueue_source(source, replay_id)
         _, current_error = spool.flush()
-        error = current_error or prior_error
-        if error or spool.pending() or spool.failed():
-            print(f"CITIC alert delivery queued for retry: {str(error or 'backend acknowledgement pending')[:240]}", file=sys.stderr)
+        if current_error or spool.pending() or spool.failed():
+            print(f"CITIC alert delivery queued for retry: {str(current_error or 'backend acknowledgement pending')[:240]}", file=sys.stderr)
             return 1
     except Exception as exc:
         print(f"CITIC alert delivery failed: {str(exc)[:240]}", file=sys.stderr)

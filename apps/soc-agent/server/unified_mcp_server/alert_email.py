@@ -236,7 +236,7 @@ def render_alert_email(context: AlertEmailContext) -> tuple[str, str]:
                     for column in context.detail_columns
                 )
     if context.metadata.get("detail_truncated"):
-        body += "\n[Additional result rows were retained outside this email.]"
+        body += "\n[Additional matching result rows were omitted by the approved limits.]"
     translations = {
         'CN': ['已收到安全告警。','客户','客户 GID','告警','严重程度','事件时间','规则编号','结果数量','事件编号','描述','修复建议','日志源类型','请使用事件编号或 Splunk SID 在 SOC 系统中检索证据。'],
         'ZH': ['已收到安全告警。','客戶','客戶 GID','告警','嚴重程度','事件時間','規則編號','結果數量','事件編號','描述','修復建議','日誌來源類型','請使用事件編號或 Splunk SID 在 SOC 系統中檢索證據。'],
@@ -379,6 +379,10 @@ class AlertEmailStore:
                                 AND ownership.index_name = source.index_name
                                 AND ownership.customer_id = registration.customer_id
                                 AND ownership.status = 'active'
+                                AND ownership.verified_at IS NOT NULL
+                                AND ownership.verification ->> 'verified' = 'true'
+                                AND ownership.verification ->> 'deployment' = ownership.splunk_deployment
+                                AND ownership.verification ->> 'index_name' = ownership.index_name
                           )
                       )
                       AND NOT COALESCE((event.event_data ->> 'email_held')::boolean, FALSE)
@@ -420,13 +424,17 @@ class AlertEmailStore:
                                         AND ownership.index_name = source.index_name
                                         AND ownership.customer_id = registration.customer_id
                                         AND ownership.status = 'active'
+                                        AND ownership.verified_at IS NOT NULL
+                                        AND ownership.verification ->> 'verified' = 'true'
+                                        AND ownership.verification ->> 'deployment' = ownership.splunk_deployment
+                                        AND ownership.verification ->> 'index_name' = ownership.index_name
                                   )
                               )
                               AND NOT COALESCE((event.event_data ->> 'email_held')::boolean, FALSE)
                           )
                       )
                     ORDER BY outbox.created_at, outbox.id
-                    FOR UPDATE SKIP LOCKED
+                    FOR UPDATE OF outbox SKIP LOCKED
                     LIMIT %s
                 ), claimed AS (
                     UPDATE sec_event_email_outbox AS outbox
@@ -571,6 +579,9 @@ class AlertEmailStore:
             publication_failures = connection.execute(
                 "SELECT COUNT(*) FROM sec_alert_registrations WHERE publication_state = 'failed'"
             ).fetchone()
+            quarantined_runs = connection.execute(
+                "SELECT COUNT(*) FROM sec_alert_run_quarantine WHERE resolved_at IS NULL"
+            ).fetchone()
         return dict(source_types=[dict(id=r[0], name=r[1]) for r in sources],
                     history=[dict(zip(('event_id','eid','customer_id','cid','aid','event_eid','customer','status','created','smtp_accepted','accepted','rejected','error'), r)) for r in history],
                     metrics={
@@ -580,6 +591,7 @@ class AlertEmailStore:
                         "held_events": int(held_count[0] or 0) if held_count else 0,
                         "discovery_incomplete_24h": int(discovery_incomplete[0] or 0) if discovery_incomplete else 0,
                         "publication_failures": int(publication_failures[0] or 0) if publication_failures else 0,
+                        "quarantined_runs": int(quarantined_runs[0] or 0) if quarantined_runs else 0,
                     })
 
     def preview(self, customer_id, event_id):
@@ -992,6 +1004,10 @@ class AlertEmailStore:
                              AND ownership.index_name = source.index_name
                              AND ownership.customer_id = %s
                              AND ownership.status = 'active'
+                             AND ownership.verified_at IS NOT NULL
+                             AND ownership.verification ->> 'verified' = 'true'
+                             AND ownership.verification ->> 'deployment' = ownership.splunk_deployment
+                             AND ownership.verification ->> 'index_name' = ownership.index_name
                        )
                    )
                 """,

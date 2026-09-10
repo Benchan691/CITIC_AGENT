@@ -38,6 +38,23 @@ ALLOWED_BASE_FIELDS = {
     "alert.suppress", "alert.suppress.period", "alert.suppress.fields",
     "alert.suppress.group_name", "alert.expires", "alert.track", "actions",
 }
+ALLOWED_ACTION_FIELDS = {
+    "action.citic_alert_delivery",
+    "action.citic_alert_delivery.param.payload_format",
+    "action.citic_alert_delivery.param.deployment",
+    "action.citic_alert_delivery.param.registration_id",
+    "action.citic_alert_delivery.param.stable_id",
+    "action.citic_alert_delivery.param.spl",
+    "action.citic_alert_delivery.param.source_indexes",
+    "action.citic_alert_delivery.param.app",
+    "action.citic_alert_delivery.param.owner",
+    "action.citic_alert_delivery.param.policy_id",
+    "action.citic_alert_delivery.param.policy_revision",
+    "action.citic_alert_delivery.param.definition_revision",
+    "action.citic_alert_delivery.param.selected_columns",
+    "action.citic_alert_delivery.param.row_filters",
+    "action.citic_alert_delivery.param.max_stored_rows",
+}
 
 
 def _env(name: str, default: str = "") -> str:
@@ -66,6 +83,16 @@ def _json_hash(value: Mapping[str, Any]) -> str:
 
 def _bool_text(value: Any) -> str:
     return "1" if _flag(value) else "0"
+
+
+def _field_text(value: Any) -> str:
+    if isinstance(value, bool):
+        return _bool_text(value)
+    if isinstance(value, Mapping):
+        return ",".join(sorted(str(item).strip() for item in value if str(item).strip()))
+    if isinstance(value, (list, tuple, set)):
+        return ",".join(str(item).strip() for item in value if str(item).strip())
+    return str(value if value is not None else "").strip()
 
 
 def _approved_apps() -> set[str]:
@@ -154,7 +181,10 @@ class WriteExtension:
         if not isinstance(fields, Mapping):
             raise ValueError("fields must be an object")
         normalized = {str(key): value for key, value in fields.items()}
-        unknown = [key for key in normalized if key not in ALLOWED_BASE_FIELDS and not key.startswith("action.citic_alert_delivery.param.") and key != "action.citic_alert_delivery"]
+        unknown = [
+            key for key in normalized
+            if key not in ALLOWED_BASE_FIELDS and key not in ALLOWED_ACTION_FIELDS
+        ]
         if unknown:
             raise ValueError("unsupported saved-search fields: " + ", ".join(sorted(unknown)[:10]))
         app = str(normalized.get("app", "")).strip()
@@ -226,6 +256,24 @@ class WriteExtension:
             return dict(content) if isinstance(content, Mapping) else {}
         return {}
 
+    @staticmethod
+    def _matches_desired(content: Mapping[str, Any], fields: Mapping[str, Any]) -> bool:
+        for key, expected in fields.items():
+            if key in {"app", "owner", "name"}:
+                continue
+            actual = content.get(key)
+            if key == "actions":
+                actual_values = {item for item in _field_text(actual).split(",") if item}
+                expected_values = {item for item in _field_text(expected).split(",") if item}
+                if actual_values != expected_values:
+                    return False
+            elif key in {"disabled", "is_scheduled", "alert.suppress", "action.citic_alert_delivery"}:
+                if _bool_text(actual) != _bool_text(expected):
+                    return False
+            elif _field_text(actual) != _field_text(expected):
+                return False
+        return True
+
     def _perform(
         self,
         operation: str,
@@ -253,8 +301,17 @@ class WriteExtension:
             if actual_revision is None or str(actual_revision) != str(expected_revision):
                 raise ValueError("saved-search revision changed or cannot be verified")
         response = self._rest("POST", url, form)
-        content = self._entry_content(response)
-        return {"name": name, "app": app, "owner": owner, "revision": content.get("revision") or response.get("revision", ""), "response": _safe_json(response)}
+        read_back = self._rest("GET", self._base_url(owner, app, name) + "?output_mode=json")
+        content = self._entry_content(read_back)
+        if not content or not self._matches_desired(content, fields):
+            raise RuntimeError("saved-search publication readback did not match the approved definition")
+        return {
+            "name": name,
+            "app": app,
+            "owner": owner,
+            "revision": content.get("revision") or content.get("eai:acl.updated") or response.get("revision", ""),
+            "response": _safe_json(read_back),
+        }
 
     def write(
         self,
@@ -326,9 +383,8 @@ class WriteExtension:
                     self._base_url(str(fields.get("owner", "")), str(fields.get("app", "")), row["target_name"]) + "?output_mode=json",
                 )
                 content = self._entry_content(response)
-                for key in fields.keys() - {"app", "owner", "name"}:
-                    if key in fields and str(content.get(key, "")) != str(fields[key]):
-                        return None
+                if not content or not self._matches_desired(content, fields):
+                    return None
                 result = {"name": row["target_name"], "app": fields.get("app", ""), "owner": fields.get("owner", ""), "revision": content.get("revision", ""), "response": _safe_json(response)}
             except Exception:
                 return None
@@ -337,6 +393,8 @@ class WriteExtension:
         return result
 
     def operation_status(self, operation_id: str) -> dict[str, Any]:
+        if not isinstance(operation_id, str) or not operation_id.strip() or len(operation_id) > 256:
+            raise ValueError("operation id is invalid")
         with self._connect() as connection:
             row = connection.execute("SELECT * FROM operations WHERE idempotency_key = ?", (operation_id,)).fetchone()
         if row is None:

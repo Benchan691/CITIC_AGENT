@@ -53,6 +53,11 @@ def test_compiler_returns_valid_production_and_safe_backtest_forms():
     assert compiled["detection"]["action.citic_alert_delivery"] is True
     assert compiled["detection"]["spl"] == compiled["production_spl"]
     assert compiled["detection"]["enabled"] is False
+    assert compiled["content_metadata"] == {
+        "rule_number": "0724",
+        "legacy_case_prefix": "50176",
+    }
+    assert any("not written" in warning for warning in compiled["production_validation"]["warnings"])
     assert compiled["table_fields"] == [
         "Event_Threat Name",
         "Event_Threat Type",
@@ -89,6 +94,9 @@ def test_compiler_appends_optional_fields_without_legacy_event_identity():
     [
         {"detection_logic": "index=main | outputcsv file"},
         {"detection_logic": "index=main | eval rulename=\"1234\""},
+        {"detection_logic": "index=main | eval EID=\"forged\""},
+        {"event_field_mappings": {"AID": '"forged"'}},
+        {"extra_table_fields": ["Event_GID"]},
         {"event_field_mappings": {"Fix_Source Type": "index=main | head 1", "Event_Hostname": "host"}},
     ],
 )

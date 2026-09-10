@@ -9,6 +9,7 @@ from unified_mcp_server.tests.citic_fixtures import citic_spl
 
 CURRENT_SPL = citic_spl()
 UPDATED_SPL = citic_spl("index=main critical")
+NEW_SPL = "index=main error | stats count by host"
 
 
 def settings(**overrides):
@@ -42,6 +43,7 @@ class MutableClient:
             "is_scheduled": "1",
             "disabled": "1",
             "actions": "notable",
+            "revision": "1",
         }
         self.acl = {"app": "search", "owner": "nobody", "sharing": "app"}
 
@@ -56,16 +58,32 @@ class MutableClient:
             raise SplunkAPIError("not found", status_code=404)
         return {"name": name, "content": dict(self.content), "acl": dict(self.acl)}
 
-    async def create_saved_search(self, fields):
+    async def get_write_capabilities(self):
+        return {
+            "version": 1,
+            "can_write": True,
+            "disabled_only": True,
+            "approved_actions": ["citic_alert_delivery", "email", "notable"],
+            "approved_apps": ["search"],
+            "approved_owners": ["nobody"],
+            "operations": ["create_saved_search", "update_saved_search", "operation_status"],
+        }
+
+    async def create_saved_search(self, fields, *, idempotency_key=None, expected_revision=None):
+        del idempotency_key, expected_revision
         self.writes.append(("create", dict(fields)))
         self.exists = True
         self.content = {key: value for key, value in fields.items() if key not in {"name", "app", "owner"}}
+        self.content["revision"] = "1"
         self.acl.update({"app": fields["app"], "owner": fields["owner"]})
         return {}
 
-    async def update_saved_search(self, name, fields):
+    async def update_saved_search(self, name, fields, *, idempotency_key=None, expected_revision=None):
+        del idempotency_key
+        assert str(expected_revision) == str(self.content["revision"])
         self.writes.append(("update", name, dict(fields)))
         self.content.update({key: value for key, value in fields.items() if key not in {"app", "owner"}})
+        self.content["revision"] = str(int(self.content["revision"]) + 1)
         return {}
 
 
@@ -73,7 +91,7 @@ class MutableClient:
 async def test_write_and_update_return_editable_drafts_without_writing():
     service = SplunkService(settings(detection_write_enabled=False), MutableClient)
 
-    created = await service.detection_service.write_detection({"name": "new-rule", "spl": CURRENT_SPL})
+    created = await service.detection_service.write_detection({"name": "new-rule", "spl": NEW_SPL})
     assert created["status"] == "draft"
     assert created["operation"] == "write"
     assert created["draft"]["name"] == "new-rule"
@@ -112,7 +130,7 @@ async def test_save_create_is_explicit_scoped_and_disabled():
     service = SplunkService(settings(), EmptyClient)
     draft = await service.detection_service.write_detection({
         "name": "new-rule",
-        "spl": CURRENT_SPL,
+        "spl": NEW_SPL,
         "cron_schedule": "*/5 * * * *",
         "actions": "notable",
         "action.notable": True,
@@ -186,13 +204,13 @@ async def test_save_update_persists_complete_alert_settings_and_stays_disabled()
 @pytest.mark.asyncio
 async def test_save_rejects_disabled_gate_enablement_existing_target_and_stale_update():
     disabled = SplunkService(settings(detection_write_enabled=False), MutableClient)
-    draft = await disabled.detection_service.write_detection({"name": "new-rule", "spl": CURRENT_SPL})
+    draft = await disabled.detection_service.write_detection({"name": "new-rule", "spl": NEW_SPL})
     with pytest.raises(ServiceError) as gate:
         await disabled.detection_service.save_detection("write", draft["draft"], actor_id="analyst-a")
     assert gate.value.code == "operation_disabled"
 
     service = SplunkService(settings(), MutableClient)
-    existing = await service.detection_service.write_detection({"name": "rule", "spl": CURRENT_SPL})
+    existing = await service.detection_service.write_detection({"name": "rule", "spl": NEW_SPL})
     with pytest.raises(ServiceError) as target:
         await service.detection_service.save_detection("write", existing["draft"], actor_id="analyst-a")
     assert target.value.code == "target_mismatch"
@@ -201,7 +219,7 @@ async def test_save_rejects_disabled_gate_enablement_existing_target_and_stale_u
     with pytest.raises(ServiceError) as invalid:
         await service.detection_service.save_detection(
             "write",
-            {"name": "invalid", "spl": CURRENT_SPL, "alert_type": "number of events"},
+            {"name": "invalid", "spl": NEW_SPL, "alert_type": "number of events"},
             actor_id="analyst-a",
         )
     assert invalid.value.code == "detection_invalid"
@@ -225,7 +243,7 @@ async def test_save_rejects_disabled_gate_enablement_existing_target_and_stale_u
 @pytest.mark.asyncio
 async def test_save_requires_authenticated_actor_and_rejects_enablement():
     service = SplunkService(settings(), MutableClient)
-    draft = await service.detection_service.write_detection({"name": "new-rule", "spl": CURRENT_SPL})
+    draft = await service.detection_service.write_detection({"name": "new-rule", "spl": NEW_SPL})
 
     with pytest.raises(ServiceError) as unauthorized:
         await service.detection_service.save_detection("write", draft["draft"])
@@ -233,7 +251,7 @@ async def test_save_requires_authenticated_actor_and_rejects_enablement():
 
     with pytest.raises(ServiceError) as enabled:
         await service.detection_service.save_detection(
-            "write", {"name": "new-rule", "spl": CURRENT_SPL, "enabled": True}, actor_id="analyst-a"
+            "write", {"name": "new-rule", "spl": NEW_SPL, "enabled": True}, actor_id="analyst-a"
         )
     assert enabled.value.code == "invalid_input"
 
@@ -277,24 +295,67 @@ async def test_secret_action_fields_are_hidden_preserved_and_rejected():
 
 
 @pytest.mark.asyncio
-async def test_outputcsv_draft_is_saveable_without_execution():
+async def test_new_outputcsv_draft_is_rejected_as_legacy_identity():
     class EmptyClient(MutableClient):
         def __init__(self, config):
             super().__init__(config)
             self.exists = False
 
     service = SplunkService(settings(), EmptyClient)
-    draft = await service.detection_service.write_detection({
-        "name": "client-csv-rule",
-        "spl": CURRENT_SPL,
-        "is_scheduled": True,
-        "cron_schedule": "*/15 * * * *",
-        "actions": "citic_alert_delivery",
-        "action.citic_alert_delivery": True,
-    })
-    assert any("outputcsv" in warning for warning in draft["validation_warnings"])
+    with pytest.raises(ServiceError) as error:
+        await service.detection_service.write_detection({
+            "name": "client-csv-rule",
+            "spl": CURRENT_SPL,
+            "is_scheduled": True,
+            "cron_schedule": "*/15 * * * *",
+            "actions": "citic_alert_delivery",
+            "action.citic_alert_delivery": True,
+        })
+
+    assert error.value.code == "legacy_detection_contract"
     assert service.core._client is None
-    result = await service.detection_service.save_detection("write", draft["draft"], actor_id="analyst-a")
-    assert result["created"] is True
-    assert service.core._client.writes[0][1]["search"] == CURRENT_SPL
-    assert service.core._client.writes[0][1]["disabled"] == "1"
+
+
+@pytest.mark.asyncio
+async def test_save_fails_closed_without_extension_capability_or_revision():
+    class NoCapabilityClient(MutableClient):
+        async def get_write_capabilities(self):
+            return {"version": 1, "can_write": False}
+
+    class NoRevisionClient(MutableClient):
+        def __init__(self, config):
+            super().__init__(config)
+            self.content.pop("revision")
+
+    no_capability = SplunkService(settings(), NoCapabilityClient)
+    draft = await no_capability.detection_service.update_detection(
+        "rule",
+        {"description": "reviewed"},
+        (await no_capability.detection_service.get_detection("rule"))["fingerprint"],
+    )
+    with pytest.raises(ServiceError) as capability_error:
+        await no_capability.detection_service.save_detection(
+            "update",
+            draft["draft"],
+            name="rule",
+            expected_fingerprint=draft["expected_fingerprint"],
+            actor_id="analyst-a",
+        )
+    assert capability_error.value.code == "write_extension_capability_missing"
+    assert no_capability.core._client.writes == []
+
+    no_revision = SplunkService(settings(), NoRevisionClient)
+    current = await no_revision.detection_service.get_detection("rule")
+    draft = await no_revision.detection_service.update_detection(
+        "rule", {"description": "reviewed"}, current["fingerprint"]
+    )
+    with pytest.raises(ServiceError) as revision_error:
+        await no_revision.detection_service.save_detection(
+            "update",
+            draft["draft"],
+            name="rule",
+            expected_fingerprint=draft["expected_fingerprint"],
+            actor_id="analyst-a",
+        )
+    assert revision_error.value.code == "saved_search_revision_unavailable"
+    assert no_revision.core._client.writes == []

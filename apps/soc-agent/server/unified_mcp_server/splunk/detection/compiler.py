@@ -11,8 +11,11 @@ from .citic_format import validate_alert_delivery_spl
 
 _FIELD_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_. &-]*$")
 _WRAPPER = re.compile(
-    r"\b(?:outputcsv|casename)\b|\beval\s+(?:\"?rulename\"?|\"?search\"?)\s*=",
+    r"\b(?:outputcsv|casename)\b|\beval\s+(?:\"?(?:rulename|search|CID|AID|EID|GID|Event_GID|Event_Rulenum)\"?)\s*=",
     re.IGNORECASE,
+)
+_BACKEND_IDENTITY_FIELDS = frozenset(
+    {"cid", "aid", "eid", "gid", "event_gid", "event_rulenum"}
 )
 _CONTROL = re.compile(r"[|;\[\]\r\n]")
 def _splunk_string(value: str, field: str) -> str:
@@ -95,8 +98,10 @@ def compile_citic_detection(
     if rulename and (not isinstance(rulename, str) or not re.fullmatch(r"\d{4}", rulename.strip())):
         raise ValueError("rulename must be exactly four digits")
     rulename = rulename.strip() if isinstance(rulename, str) else ""
+    warnings: list[str] = []
     if case_prefix:
         _splunk_string(case_prefix.strip() if isinstance(case_prefix, str) else case_prefix, "case_prefix")
+        warnings.append("case_prefix is legacy metadata and is not written into alert-delivery SPL")
     if not isinstance(threat_name, str) or not isinstance(threat_type, str):
         raise ValueError("threat_name and threat_type must be strings")
     if threat_name:
@@ -110,6 +115,8 @@ def compile_citic_detection(
     for field, expression in event_field_mappings.items():
         if not isinstance(field, str) or not field.strip() or not _FIELD_NAME.fullmatch(field.strip()):
             raise ValueError(f"invalid event field mapping: {field}")
+        if field.strip().casefold().replace(" ", "_") in _BACKEND_IDENTITY_FIELDS:
+            raise ValueError(f"backend-owned identity field cannot be mapped: {field}")
         mappings[field.strip()] = _scalar_expression(expression, f"event_field_mappings.{field}")
     if extra_table_fields is not None and not isinstance(extra_table_fields, (list, tuple)):
         raise ValueError("extra_table_fields must be an array of field names")
@@ -118,6 +125,8 @@ def compile_citic_detection(
         if not isinstance(field, str) or not field.strip() or not _FIELD_NAME.fullmatch(field.strip()):
             raise ValueError(f"invalid extra table field: {field}")
         field = field.strip()
+        if field.casefold().replace(" ", "_") in _BACKEND_IDENTITY_FIELDS:
+            raise ValueError(f"backend-owned identity field cannot be projected: {field}")
         if field not in extras:
             extras.append(field)
     fields = _table_fields(
@@ -141,6 +150,7 @@ def compile_citic_detection(
     production_spl = _append_stages(logic, stages)
     backtest_spl = production_spl
     production_validation = validate_alert_delivery_spl(production_spl)
+    production_validation["warnings"] = [*production_validation["warnings"], *warnings]
     detection = {
         "spl": production_spl,
         "enabled": False,
@@ -160,6 +170,10 @@ def compile_citic_detection(
         },
         "table_fields": fields,
         "event_template": "",
+        "content_metadata": {
+            "rule_number": rulename or None,
+            "legacy_case_prefix": case_prefix.strip() if isinstance(case_prefix, str) and case_prefix.strip() else None,
+        },
         "detection": detection,
     }
 

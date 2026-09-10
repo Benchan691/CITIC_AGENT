@@ -24,10 +24,13 @@ An administrator must:
    dedicated webhook secret, and the matching deployment ID. Do not put
    secrets, recipients, CID, AID, or EID values in SPL.
 
-Apply migrations 014–021 with email sending stopped, review the migration
-preview, and enable production delivery only after the test workflow succeeds.
-The backend allocates AIDs; neither a person, SPL, nor an agent constructs
-them.
+Apply all numbered migrations through 024 with email sending stopped, review
+the exact preview run in the administrator dashboard, and apply that same run
+ID before enabling production delivery. A changed or already-used preview is
+rejected. The backend allocates AIDs; neither a person, SPL, nor an agent
+constructs them. Install and capability-test the separately deployed
+`integrations/splunk_citic_write_extension` before allowing editor Save. Its
+operation database must be on persistent storage.
 
 ## Create a safe test alert in Splunk Web
 

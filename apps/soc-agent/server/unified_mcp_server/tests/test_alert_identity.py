@@ -5,6 +5,7 @@ import pytest
 from unified_mcp_server.alert_identity import (
     AlertIdentityError,
     AlertRunPayload,
+    definition_fingerprint,
     extract_static_indexes,
     format_eid,
     normalize_alert_policy,
@@ -16,9 +17,15 @@ from unified_mcp_server.alert_identity import (
 def test_static_index_extraction_requires_exact_sources():
     assert extract_static_indexes(
         '| tstats count where index="CPC_security" OR index=CEC_endpoint'
-    )[1] is not None
+    ) == (("CPC_security", "CEC_endpoint"), None)
     assert extract_static_indexes('index=CPC_security OR host=outside')[1] is not None
     assert extract_static_indexes('index=CPC_security | outputcsv [search index=other]')[1] is not None
+    assert extract_static_indexes('index=CPC_security | append [search index=CEC_endpoint]') == (
+        ("CPC_security", "CEC_endpoint"), None
+    )
+    assert extract_static_indexes('index=CPC_security | where status="ok" OR status="new"') == (
+        ("CPC_security",), None
+    )
     assert extract_static_indexes('| search index=$index_macro$') == (
         (),
         "saved search uses a dynamic, wildcard, or non-index source",
@@ -34,6 +41,52 @@ def test_static_index_extraction_requires_exact_sources():
         (),
         "saved search contains an index field expression outside its source clause",
     )
+
+
+def test_definition_fingerprint_normalizes_transport_aliases_and_metadata():
+    editor_draft = {
+        "saved_search_name": "Alert",
+        "spl": "index=CPC_security\r\n",
+        "earliest_time": "-5m",
+        "latest_time": "now",
+        "cron_schedule": "*/5 * * * *",
+        "is_scheduled": True,
+        "disabled": True,
+        "severity": "high",
+        "mitre_technique": "T1110",
+        "risk_score": 80,
+    }
+    discovery_row = {
+        "name": "Alert",
+        "search": "index=CPC_security",
+        "dispatch.earliest_time": "-5m",
+        "dispatch.latest_time": "now",
+        "cron_schedule": "*/5 * * * *",
+        "is_scheduled": "1",
+        "actions": "citic_alert_delivery",
+        "action.citic_alert_delivery.registration_id": "registration-1",
+        "alert.track": "1",
+        "next_scheduled_time": "2026-09-10T10:00:00Z",
+    }
+    exact_read = {
+        "content": {
+            "search": "index=CPC_security",
+            "dispatch.earliest_time": "-5m",
+            "dispatch.latest_time": "now",
+            "cron_schedule": "*/5 * * * *",
+            "is_scheduled": "true",
+            "disabled": "0",
+        },
+        "name": "Alert",
+        "stable_id": "splunk-guid",
+        "updated_at": "2026-09-10T09:59:00Z",
+    }
+
+    expected = definition_fingerprint(editor_draft)
+    assert definition_fingerprint(discovery_row) == expected
+    assert definition_fingerprint(exact_read) == expected
+    assert definition_fingerprint({**editor_draft, "spl": "index=CPC_security error"}) != expected
+    assert definition_fingerprint({**editor_draft, "cron_schedule": "*/10 * * * *"}) != expected
 
 
 def test_eid_contains_utc_time_and_postgres_run_sequence():
@@ -76,6 +129,15 @@ def test_projection_applies_only_explicit_safe_row_filters():
     )
     assert (total, stored, truncated) == (1, 1, False)
     assert retained == [{"device": "host-1", "severity": "high"}]
+
+
+def test_empty_policy_counts_results_without_retaining_empty_detail_rows():
+    retained, total, stored, truncated, columns = project_selected_rows(
+        [{"device": "host-1"}, {"device": "host-2"}],
+        policy={"detail_columns": []},
+    )
+
+    assert (retained, total, stored, truncated, columns) == ([], 2, 0, False, ())
 
 
 def test_policy_rejects_raw_and_executable_filter_values():

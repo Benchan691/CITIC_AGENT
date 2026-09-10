@@ -119,7 +119,7 @@ def render_html(context):
             for position, row in zip(positions[:display_limit], context.detail_rows[:display_limit], strict=False)
         )
     if context.metadata.get('detail_truncated'):
-        values['event_data'] += '<p>Additional result rows were retained outside this email.</p>'
+        values['event_data'] += '<p>Additional matching result rows were omitted by the approved limits.</p>'
     return Template(path.read_text()).safe_substitute(values)
 
 

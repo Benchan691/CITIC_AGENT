@@ -1201,7 +1201,7 @@ run_check_mode() {
   echo
   echo "${B}Parameters${N} ${D}(environment > apps/soc-agent/server/.env > vendor/deepseek-harness/.env > .env.example)${N}"
 
-  local v splunk_endpoint markitdown_enabled
+  local v splunk_endpoint markitdown_enabled write_enabled ingest_enabled email_enabled
   v="$(lookup APP_POSTGRES_URI)"
   if is_pg_uri "$v"; then
     if pg_reachable "$v"; then ok "APP_POSTGRES_URI (and psql can connect)"
@@ -1238,6 +1238,57 @@ run_check_mode() {
   done
   splunk_endpoint="$(effective_splunk_endpoint)"
   if check_http_policy "Splunk" "$splunk_endpoint" SPLUNK_ALLOW_INSECURE_HTTP "$(lookup SPLUNK_ALLOW_INSECURE_HTTP)"; then :; else fails=$((fails+1)); fi
+
+  write_enabled="$(lookup SPLUNK_ALLOW_DETECTION_WRITE)"
+  case "${write_enabled,,}" in
+    1|y|yes|true|on)
+      if [ -n "$(lookup SPLUNK_DEPLOYMENT_ID)" ] \
+        && is_http_url "$(lookup SPLUNK_WRITE_MCP_ENDPOINT)" \
+        && [ -n "$(lookup SPLUNK_WRITE_MCP_TOKEN)" ]; then
+        if check_http_policy "Splunk write extension" "$(lookup SPLUNK_WRITE_MCP_ENDPOINT)" SPLUNK_ALLOW_INSECURE_HTTP "$(lookup SPLUNK_ALLOW_INSECURE_HTTP)"; then
+          ok "disabled detection publication extension configuration"
+        else
+          fails=$((fails+1))
+        fi
+      else
+        bad "SPLUNK_DEPLOYMENT_ID, SPLUNK_WRITE_MCP_ENDPOINT, and SPLUNK_WRITE_MCP_TOKEN are required when detection publication is enabled"
+        fails=$((fails+1))
+      fi
+      ;;
+    0|n|no|false|off|'') ok "detection publication remains operator-disabled" ;;
+    *) bad "SPLUNK_ALLOW_DETECTION_WRITE must be true or false"; fails=$((fails+1)) ;;
+  esac
+
+  ingest_enabled="$(lookup ALERT_INGEST_ENABLED)"
+  case "${ingest_enabled,,}" in
+    1|y|yes|true|on)
+      if [ -n "$(lookup SPLUNK_DEPLOYMENT_ID)" ] && {
+        [ "$(lookup ALERT_INGEST_WEBHOOK_SECRETS_JSON)" != "{}" ] \
+          || { [ -n "$(lookup ALERT_INGEST_WEBHOOK_SECRET)" ] && [ -n "$(lookup ALERT_INGEST_WEBHOOK_DEPLOYMENT)" ]; }
+      }; then
+        ok "deployment-bound alert ingestion authentication"
+      else
+        bad "alert ingestion requires SPLUNK_DEPLOYMENT_ID and a deployment-bound webhook secret"
+        fails=$((fails+1))
+      fi
+      ;;
+    0|n|no|false|off|'') ok "alert ingestion remains operator-disabled" ;;
+    *) bad "ALERT_INGEST_ENABLED must be true or false"; fails=$((fails+1)) ;;
+  esac
+
+  email_enabled="$(lookup ALERT_EMAIL_ENABLED)"
+  case "${email_enabled,,}" in
+    1|y|yes|true|on)
+      if [ -n "$(lookup ALERT_SMTP_HOST)" ] && [ -n "$(lookup ALERT_EMAIL_FROM)" ]; then
+        ok "automatic alert SMTP configuration"
+      else
+        bad "ALERT_SMTP_HOST and ALERT_EMAIL_FROM are required when automatic alert email is enabled"
+        fails=$((fails+1))
+      fi
+      ;;
+    0|n|no|false|off|'') ok "automatic alert email remains operator-disabled" ;;
+    *) bad "ALERT_EMAIL_ENABLED must be true or false"; fails=$((fails+1)) ;;
+  esac
 
   v="$(lookup ZIMBRA_HOST)"
   if is_http_url "$v"; then ok "ZIMBRA_HOST"

@@ -85,6 +85,120 @@ def normalize_deployment(value: Any) -> str:
     return deployment
 
 
+def _split_unquoted(value: str, delimiter: str) -> list[str]:
+    """Split on an unquoted character or Boolean word."""
+
+    parts: list[str] = []
+    start = 0
+    quote = ""
+    escaped = False
+    index = 0
+    word = delimiter.isalpha()
+    while index < len(value):
+        character = value[index]
+        if quote:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = ""
+            index += 1
+            continue
+        if character in {'"', "'"}:
+            quote = character
+            index += 1
+            continue
+        if word:
+            candidate = value[index:index + len(delimiter)]
+            before = value[index - 1] if index else " "
+            after_at = index + len(delimiter)
+            after = value[after_at] if after_at < len(value) else " "
+            matched = (
+                candidate.casefold() == delimiter.casefold()
+                and not (before.isalnum() or before == "_")
+                and not (after.isalnum() or after == "_")
+            )
+        else:
+            matched = character == delimiter
+        if matched:
+            parts.append(value[start:index])
+            index += len(delimiter)
+            start = index
+            continue
+        index += 1
+    parts.append(value[start:])
+    return parts
+
+
+def _extract_subsearches(value: str) -> tuple[str, list[str], str | None]:
+    """Remove balanced unquoted subsearches and return their contents."""
+
+    visible = list(value)
+    stack: list[int] = []
+    subsearches: list[str] = []
+    quote = ""
+    escaped = False
+    for index, character in enumerate(value):
+        if quote:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = ""
+            continue
+        if character in {'"', "'"}:
+            quote = character
+        elif character == "[":
+            stack.append(index)
+        elif character == "]":
+            if not stack:
+                return value, [], "saved search contains an unmatched subsearch bracket"
+            start = stack.pop()
+            if not stack:
+                subsearches.append(value[start + 1:index])
+                visible[start:index + 1] = " " * (index + 1 - start)
+    if quote:
+        return value, [], "saved search contains an unterminated quoted value"
+    if stack:
+        return value, [], "saved search contains an incomplete nested source"
+    return "".join(visible), subsearches, None
+
+
+def _source_indexes(stage: str) -> tuple[list[str], str | None]:
+    """Extract exact indexes from one source-producing search branch."""
+
+    if re.search(r"\bNOT\b", stage, re.IGNORECASE):
+        return [], "negated source branches require administrator review"
+    indexes: list[str] = []
+    spans: list[tuple[int, int]] = []
+    for match in SAFE_INDEX_RE.finditer(stage):
+        value = next((item for item in match.groups() if item), "").strip()
+        if not value or len(value) > 255:
+            return [], "saved search contains an invalid index reference"
+        indexes.append(value)
+        spans.append(match.span())
+    for match in INDEX_IN_RE.finditer(stage):
+        body = match.group(1).strip()
+        if not body:
+            return [], "saved search contains an empty index list"
+        token_pattern = re.compile(r'"([^"\\]+)"|\'([^\'\\]+)\'|([A-Za-z0-9][A-Za-z0-9_.:-]*)')
+        values = list(token_pattern.finditer(body))
+        if not values or token_pattern.sub("", body).strip(" ,\t\r\n"):
+            return [], "saved search contains a dynamic or invalid index list"
+        indexes.extend(next(item for item in value.groups() if item) for value in values)
+        spans.append(match.span())
+    if any(not any(start <= token.start() < end for start, end in spans) for token in INDEX_TOKEN_RE.finditer(stage)):
+        return [], "saved search contains an unsupported or unresolved index expression"
+    branches = _split_unquoted(stage, "OR")
+    if len(branches) > 1 and any(not INDEX_TOKEN_RE.search(branch) for branch in branches):
+        return [], "every Boolean source branch must contain an exact index restriction"
+    if not indexes:
+        return [], "saved search source index could not be resolved exactly"
+    return list(dict.fromkeys(indexes)), None
+
+
 def extract_static_indexes(spl: Any) -> tuple[tuple[str, ...], str | None]:
     """Return exact ``index=...`` references or a review reason.
 
@@ -96,87 +210,98 @@ def extract_static_indexes(spl: Any) -> tuple[tuple[str, ...], str | None]:
     text = str(spl or "").strip()
     if not text:
         return (), "saved search has no SPL definition"
-    # Until every Boolean branch can be proven bounded, fail closed. A
-    # positive index reference does not constrain an OR or negated branch.
-    if re.search(r"\b(?:OR|NOT)\b", text, re.IGNORECASE):
-        return (), "Boolean source branches require administrator review"
-    if "[" in text or "]" in text:
-        return (), "nested search sources require administrator review"
     if WILDCARD_RE.search(text):
         return (), "saved search uses a dynamic, wildcard, or non-index source"
-    def stage_command(position: int) -> str:
-        stage_start = text.rfind("|", 0, position) + 1
-        stage = text[stage_start:position]
-        command = re.match(r"\s*([A-Za-z][A-Za-z0-9_]*)", stage)
-        return command.group(1).casefold() if command else ""
-
+    visible, subsearches, error = _extract_subsearches(text)
+    if error:
+        return (), error
     indexes: list[str] = []
-    matches: list[tuple[int, int]] = []
-    for match in SAFE_INDEX_RE.finditer(text):
-        command = stage_command(match.start())
-        if command not in _SOURCE_INDEX_COMMANDS and command in _NON_SOURCE_INDEX_COMMANDS:
+    stages = [stage.strip() for stage in _split_unquoted(visible, "|") if stage.strip()]
+    for position, stage in enumerate(stages):
+        command_match = re.match(r"([A-Za-z][A-Za-z0-9_]*)", stage)
+        command = command_match.group(1).casefold() if command_match else ""
+        if command == "outputcsv" and subsearches:
+            return (), "outputcsv subsearches are legacy identity wrappers and require review"
+        source_stage = (
+            (position == 0 and command not in _NON_SOURCE_INDEX_COMMANDS)
+            or command in {"tstats", "mstats", "from", "union"}
+        )
+        if source_stage:
+            stage_indexes, error = _source_indexes(stage)
+            if error and not (command == "union" and subsearches):
+                return (), error
+            indexes.extend(stage_indexes)
+        elif INDEX_TOKEN_RE.search(stage):
             return (), "saved search contains an index field expression outside its source clause"
-        if command and command not in _SOURCE_INDEX_COMMANDS:
-            return (), "saved search contains an index field expression in an unsupported search branch"
-        value = next((item for item in match.groups() if item), "").strip()
-        if not value or len(value) > 255:
-            return (), "saved search contains an invalid index reference"
-        indexes.append(value)
-        matches.append(match.span())
-    for match in INDEX_IN_RE.finditer(text):
-        command = stage_command(match.start())
-        if command not in _SOURCE_INDEX_COMMANDS and command in _NON_SOURCE_INDEX_COMMANDS:
-            return (), "saved search contains an index field expression outside its source clause"
-        if command and command not in _SOURCE_INDEX_COMMANDS:
-            return (), "saved search contains an index field expression in an unsupported search branch"
-        body = match.group(1).strip()
-        if not body:
-            return (), "saved search contains an empty index list"
-        token_pattern = re.compile(r'"([^"\\]+)"|\'([^\'\\]+)\'|([A-Za-z0-9][A-Za-z0-9_.:-]*)')
-        values = list(token_pattern.finditer(body))
-        if not values:
-            return (), "saved search contains an invalid index list"
-        remainder = token_pattern.sub("", body)
-        if remainder.strip(" ,\t\r\n"):
-            return (), "saved search contains a dynamic or invalid index list"
-        for item_match in values:
-            value = next(item for item in item_match.groups() if item)
-            if len(value) > 255:
-                return (), "saved search contains an invalid index reference"
-            indexes.append(value)
-        matches.append(match.span())
-    for match in INDEX_TOKEN_RE.finditer(text):
-        if any(start <= match.start() < end for start, end in matches):
-            continue
-        stage_start = text.rfind("|", 0, match.start()) + 1
-        stage = text[stage_start:match.start()]
-        command = re.match(r"\s*([A-Za-z][A-Za-z0-9_]*)", stage)
-        if command and command.group(1).casefold() not in _SOURCE_INDEX_COMMANDS:
-            return (), "saved search contains an index field expression outside its source clause"
-        return (), "saved search contains an unsupported or unresolved index expression"
+    for subsearch in subsearches:
+        nested_indexes, error = extract_static_indexes(subsearch)
+        if error:
+            return (), error
+        indexes.extend(nested_indexes)
     indexes = list(dict.fromkeys(indexes))
-    if not indexes:
-        return (), "saved search source index could not be resolved exactly"
-    return tuple(indexes), None
+    return (tuple(indexes), None) if indexes else ((), "saved search source index could not be resolved exactly")
 
 
 def definition_fingerprint(definition: Mapping[str, Any]) -> str:
-    normalized = {
-        str(key): definition[key]
-        for key in sorted(definition)
-        if (
-            str(key).casefold()
-            not in {
-                "aid", "eid", "cid", "created_at", "updated_at", "last_modified",
-                "next_scheduled_time", "discovered_at", "last_discovered_at",
-                "definition_revision", "revision", "stable_id", "guid", "uid",
-                "registration_id", "definition_fingerprint", "origin", "actor",
-                "last_error", "actions", "alert.track",
-                "splunk_revision",
-            }
-            and not str(key).casefold().startswith("action.")
-        )
+    """Hash one canonical saved-search definition representation.
+
+    Editor drafts, discovery rows, and exact saved-search reads expose the
+    same Splunk fields under slightly different aliases. Keep only persisted,
+    meaningful definition fields here so UI-only metadata, action transport
+    parameters, activation state, and next-run timestamps cannot manufacture
+    a revision change.
+    """
+    flattened = dict(definition)
+    content = flattened.pop("content", None)
+    if isinstance(content, Mapping):
+        flattened = {**content, **flattened}
+    aliases = {
+        "name": ("name", "saved_search_name"),
+        "search": ("search", "spl"),
+        "description": ("description",),
+        "is_scheduled": ("is_scheduled",),
+        "cron_schedule": ("cron_schedule",),
+        "dispatch.earliest_time": ("dispatch.earliest_time", "earliest_time"),
+        "dispatch.latest_time": ("dispatch.latest_time", "latest_time"),
+        "dispatch.rt_backfill": ("dispatch.rt_backfill",),
+        "dispatch.indexedrealtime": ("dispatch.indexedRealtime", "dispatch.indexedrealtime"),
+        "dispatch.indexedrealtimeoffset": (
+            "dispatch.indexedRealtimeOffset", "dispatch.indexedrealtimeoffset",
+        ),
+        "dispatch.indexedrealtimeminspan": (
+            "dispatch.indexedRealtimeMinSpan", "dispatch.indexedrealtimeminspan",
+        ),
+        "dispatch.rt_maximum_span": ("dispatch.rt_maximum_span",),
+        "alert_type": ("alert_type", "counttype"),
+        "alert_comparator": ("alert_comparator", "relation"),
+        "alert_threshold": ("alert_threshold", "quantity"),
+        "alert_condition": ("alert_condition",),
+        "alert.digest_mode": ("alert.digest_mode",),
+        "alert.suppress": ("alert.suppress",),
+        "alert.suppress.period": ("alert.suppress.period",),
+        "alert.suppress.fields": ("alert.suppress.fields",),
+        "alert.suppress.group_name": ("alert.suppress.group_name",),
+        "alert.expires": ("alert.expires",),
     }
+    casefolded = {str(key).casefold(): value for key, value in flattened.items()}
+    boolean_fields = {
+        "is_scheduled", "dispatch.rt_backfill", "dispatch.indexedrealtime",
+        "alert.digest_mode", "alert.suppress",
+    }
+    normalized: dict[str, Any] = {}
+    for name, source_names in aliases.items():
+        value: Any = ""
+        for source_name in source_names:
+            if source_name.casefold() in casefolded:
+                value = casefolded[source_name.casefold()]
+                break
+        if name in boolean_fields:
+            value = value is True or str(value).strip().casefold() in {"1", "true", "yes", "on"}
+        elif value is None:
+            value = ""
+        if isinstance(value, str):
+            value = value.replace("\r\n", "\n").strip()
+        normalized[name] = value
     encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
@@ -501,6 +626,8 @@ def project_selected_rows_with_counts(
         if _row_matches_filters(row, approved["row_filters"])
     ]
     matching_total = len(filtered)
+    if not columns:
+        return [], source_total, matching_total, 0, False, columns
     retained: list[Any] = []
     used_bytes = 0
     truncated = matching_total > max_rows
@@ -640,7 +767,13 @@ class AlertRunPayload:
         raw_truncated = value.get("truncated", False)
         if not isinstance(raw_truncated, bool):
             raise AlertIdentityError("invalid_result_count", "truncated must be boolean")
-        if retained_count < matching_count and not raw_truncated:
+        raw_selected = value.get("selected_columns", [])
+        has_selected_columns = bool(
+            isinstance(raw_selected, Sequence)
+            and not isinstance(raw_selected, (str, bytes, bytearray))
+            and any(str(item).strip() for item in raw_selected)
+        )
+        if retained_count < matching_count and has_selected_columns and not raw_truncated:
             raise AlertIdentityError("invalid_result_count", "truncated must be true when matching results were retained partially")
         raw_positions = value.get("original_row_positions", value.get("row_positions"))
         if raw_positions is None:
@@ -667,7 +800,7 @@ class AlertRunPayload:
         severity = str(value.get("severity") or value.get("urgency") or "").strip().casefold() or None
         if severity not in {None, "info", "low", "medium", "high", "critical"}:
             severity = None
-        selected = value.get("selected_columns", [])
+        selected = raw_selected
         if not isinstance(selected, Sequence) or isinstance(selected, (str, bytes, bytearray)):
             selected = []
         columns = tuple(dict.fromkeys(str(item).strip() for item in selected if str(item).strip()))[:100]

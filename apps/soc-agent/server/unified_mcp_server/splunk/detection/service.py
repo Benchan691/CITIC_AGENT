@@ -10,7 +10,11 @@ from typing import Any
 from ..core.service import SplunkCore
 from ..search.executor import SearchExecutor
 from ...alert_identity import definition_fingerprint
-from .citic_format import validate_citic_detection_spl, validate_alert_delivery_spl
+from .citic_format import (
+    validate_alert_delivery_spl,
+    validate_citic_detection_spl,
+    validate_legacy_citic_detection_spl,
+)
 from .compiler import compile_citic_detection
 from .model import (
     DetectionDraft,
@@ -220,6 +224,53 @@ class SplunkDetectionService:
             values = str(actions or "").split(",")
         return any(str(item).strip().casefold() == "citic_alert_delivery" for item in values)
 
+    def _require_write_capability(
+        self,
+        capability: Any,
+        *,
+        operation: str,
+        fields: Mapping[str, Any],
+    ) -> None:
+        """Fail closed unless the deployed extension advertises this write."""
+
+        if not isinstance(capability, Mapping):
+            raise ServiceError(
+                "write_extension_capability_missing",
+                "The approved Splunk write extension did not return a valid capability contract.",
+            )
+        operations = {str(item) for item in capability.get("operations", [])}
+        apps = {str(item) for item in capability.get("approved_apps", [])}
+        owners = {str(item) for item in capability.get("approved_owners", [])}
+        approved_actions = {str(item) for item in capability.get("approved_actions", [])}
+        requested_actions = {
+            item.strip()
+            for item in str(fields.get("actions") or "").split(",")
+            if item.strip()
+        }
+        try:
+            version = int(capability.get("version", 0))
+        except (TypeError, ValueError):
+            version = 0
+        if (
+            version < 1
+            or capability.get("can_write") is not True
+            or capability.get("disabled_only") is not True
+            or operation not in operations
+            or "operation_status" not in operations
+            or self.core.settings.detection_app not in apps
+            or self.core.settings.detection_owner not in owners
+            or "citic_alert_delivery" not in approved_actions
+            or not requested_actions.issubset(approved_actions)
+        ):
+            raise ServiceError(
+                "write_extension_capability_missing",
+                "The approved Splunk write extension does not authorize this disabled saved-search publication.",
+                details={
+                    "operation": operation,
+                    "requested_actions": sorted(requested_actions),
+                },
+            )
+
     @staticmethod
     def _reject_dual_spl_payload(payload: dict[str, Any]) -> None:
         supplied = [key for key in ("production_spl", "backtest_spl", "detection_logic") if key in payload]
@@ -297,6 +348,9 @@ class SplunkDetectionService:
             "app": self.core.settings.detection_app,
             "owner": self.core.settings.detection_owner,
             "sharing": acl.get("sharing", ""),
+            "stable_id": str(
+                content.get("stable_id") or content.get("guid") or content.get("uid") or ""
+            ).strip()[:512],
         }
         detection.update(alert_fields)
         # Keep the legacy aliases in reads while exposing the source names
@@ -314,7 +368,9 @@ class SplunkDetectionService:
             alert_fields.get("is_scheduled", detection["is_scheduled"])
         )
         detection["actions"] = alert_fields.get("actions", detection["actions"]) or ""
-        detection["splunk_revision"] = content.get("revision") or content.get("eai:acl.updated") or ""
+        detection["splunk_revision"] = (
+            content.get("revision") or content.get("eai:acl.updated") or content.get("updated") or ""
+        )
         detection["fingerprint"] = self._fingerprint(detection)
         return detection
 
@@ -330,8 +386,9 @@ class SplunkDetectionService:
         self,
         payload: dict[str, Any],
         *,
-        allow_outputcsv: bool = True,
+        allow_outputcsv: bool = False,
         require_citic_format: bool = True,
+        legacy_contract: bool = False,
     ) -> dict[str, Any]:
         if isinstance(payload, dict):
             self._reject_dual_spl_payload(payload)
@@ -347,7 +404,11 @@ class SplunkDetectionService:
         )
         result = validate_detection(draft, query_validation=query_validation)
         citic_format = (
-            validate_citic_detection_spl(draft.spl)
+            (
+                validate_legacy_citic_detection_spl(draft.spl)
+                if legacy_contract
+                else validate_citic_detection_spl(draft.spl)
+            )
             if require_citic_format
             else {"valid": True, "errors": [], "warnings": []}
         )
@@ -395,7 +456,9 @@ class SplunkDetectionService:
         backtest_errors: list[str] = []
         if backtest_query["decision"] != "allow":
             backtest_errors.append("backtest SPL is not allowed by the safety policy")
-        production_warnings = list(production_format["warnings"])
+        production_warnings = list(
+            compiled.get("production_validation", {}).get("warnings", production_format["warnings"])
+        )
         return {
             **compiled,
             "production_validation": {
@@ -521,8 +584,13 @@ class SplunkDetectionService:
         self._reject_dual_spl_payload(payload)
         self._reject_enablement(payload)
         legacy_contract = self._uses_legacy_contract(payload)
+        if legacy_contract:
+            raise ServiceError(
+                "legacy_detection_contract",
+                "New alerts cannot use GID, Event_GID, Event_Rulenum, or outputcsv identity wrappers.",
+            )
         validation = self.validate_detection(
-            {**payload, "enabled": False}, allow_outputcsv=legacy_contract
+            {**payload, "enabled": False}, allow_outputcsv=False
         )
         if not validation["valid"]:
             raise ServiceError("detection_invalid", "Detection validation failed.", details=validation)
@@ -551,8 +619,17 @@ class SplunkDetectionService:
         current = await self.get_detection(name)
         self._require_expected(expected_fingerprint, current)
         merged = self._merge_detection_payload(current, payload, name=name)
-        legacy_contract = self._uses_legacy_contract(current) or self._uses_legacy_contract(merged)
-        validation = self.validate_detection(merged, allow_outputcsv=legacy_contract)
+        legacy_contract = self._uses_legacy_contract(current)
+        if not legacy_contract and self._uses_legacy_contract(merged):
+            raise ServiceError(
+                "legacy_detection_contract",
+                "A registered alert cannot be changed back to the legacy GID/outputcsv contract.",
+            )
+        validation = self.validate_detection(
+            merged,
+            allow_outputcsv=legacy_contract,
+            legacy_contract=legacy_contract,
+        )
         if not validation["valid"]:
             raise ServiceError("detection_invalid", "Detection validation failed.", details=validation)
         draft = DetectionDraft.from_payload(merged)
@@ -634,44 +711,19 @@ class SplunkDetectionService:
                 return await method() if callable(method) else {}
 
             capability = await self.core.request(capabilities)
-            if isinstance(capability, Mapping) and capability.get("can_write") is False:
-                raise ServiceError(
-                    "write_extension_capability_missing",
-                    "The approved Splunk write extension does not permit saved-search writes.",
-                )
             async def create_call(client: Any, fields: dict[str, Any]) -> Any:
-                method = client.create_saved_search
-                if idempotency_key is None:
-                    return await method(fields)
-                try:
-                    return await method(fields, idempotency_key=idempotency_key)
-                except TypeError as exc:
-                    if idempotency_key is not None and "idempotency_key" in str(exc):
-                        return await method(fields)
-                    raise
+                return await client.create_saved_search(
+                    fields,
+                    idempotency_key=idempotency_key,
+                )
 
             async def update_call(client: Any, target_name: str, fields: dict[str, Any], expected_revision: Any = None) -> Any:
-                method = client.update_saved_search
-                if idempotency_key is None:
-                    if expected_revision is None:
-                        return await method(target_name, fields)
-                    try:
-                        return await method(target_name, fields, expected_revision=expected_revision)
-                    except TypeError as exc:
-                        if "expected_revision" in str(exc):
-                            return await method(target_name, fields)
-                        raise
-                try:
-                    return await method(target_name, fields, idempotency_key=idempotency_key, expected_revision=expected_revision)
-                except TypeError as exc:
-                    if "idempotency_key" in str(exc) or "expected_revision" in str(exc):
-                        try:
-                            return await method(target_name, fields, idempotency_key=idempotency_key)
-                        except TypeError as nested:
-                            if "idempotency_key" in str(nested):
-                                return await method(target_name, fields)
-                            raise
-                    raise
+                return await client.update_saved_search(
+                    target_name,
+                    fields,
+                    idempotency_key=idempotency_key,
+                    expected_revision=expected_revision,
+                )
             if operation == "write":
                 state, draft, validation = self._prepare_write(payload)
                 if name is not None and self._normalize_name(name) != state["name"]:
@@ -679,8 +731,14 @@ class SplunkDetectionService:
                 target = state["name"]
                 if await self._get_optional_detection(target) is not None:
                     raise ServiceError("target_mismatch", "The detection target already exists.")
+                write_fields = self._write_fields_from_state(state, creating=True)
+                self._require_write_capability(
+                    capability,
+                    operation="create_saved_search",
+                    fields=write_fields,
+                )
                 await self.core.request(
-                    lambda client: create_call(client, self._write_fields_from_state(state, creating=True))
+                    lambda client: create_call(client, write_fields)
                 )
                 persisted = await self.get_detection(target)
                 if not self._has_delivery_action(persisted):
@@ -699,16 +757,28 @@ class SplunkDetectionService:
                     "validation_warnings": validation["warnings"],
                 }
 
-            target, current, _before, after, draft, validation, actions_changed = await self._prepare_update(
+            target, _current, _before, after, draft, validation, actions_changed = await self._prepare_update(
                 name or "", payload, expected_fingerprint or ""
             )
             fresh = await self._get_optional_detection(target)
             if fresh is None:
                 raise ServiceError("target_mismatch", "The detection target no longer exists.")
             self._require_expected(expected_fingerprint or "", fresh)
+            revision = fresh.get("splunk_revision")
+            if not revision:
+                raise ServiceError(
+                    "saved_search_revision_unavailable",
+                    "Splunk did not provide a stable saved-search revision for this update.",
+                )
+            write_fields = self._write_fields_from_state(after)
+            self._require_write_capability(
+                capability,
+                operation="update_saved_search",
+                fields=write_fields,
+            )
             await self.core.request(
                 lambda client: update_call(
-                    client, target, self._write_fields_from_state(after), current.get("splunk_revision") or None
+                    client, target, write_fields, revision
                 )
             )
             persisted = await self.get_detection(target)

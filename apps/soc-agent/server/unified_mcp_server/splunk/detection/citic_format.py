@@ -53,6 +53,13 @@ _CASE_NAME = re.compile(
     re.IGNORECASE,
 )
 _RETURN_CASE = re.compile(r"(?:^|\|)\s*return\s+\$casename\s*$", re.IGNORECASE)
+_BACKEND_IDENTITY_ASSIGNMENT = re.compile(
+    r'\beval\s+"?(?:CID|AID|EID|GID|Event_GID|Event_Rulenum)"?\s*=',
+    re.IGNORECASE,
+)
+_BACKEND_IDENTITY_FIELDS = frozenset(
+    {"cid", "aid", "eid", "gid", "event_gid", "event_rulenum"}
+)
 
 
 def _split_top_level_pipeline(spl: str) -> list[str]:
@@ -204,7 +211,7 @@ def _empty_spl_value(value: str | None) -> bool:
     return value.strip() in {'""', "''"}
 
 
-def _validate_legacy_citic_detection_spl(spl: str) -> dict[str, object]:
+def validate_legacy_citic_detection_spl(spl: str) -> dict[str, object]:
     """Validate one legacy production detection SPL definition."""
     errors: list[str] = []
     warnings: list[str] = []
@@ -296,9 +303,13 @@ def validate_alert_delivery_spl(spl: str) -> dict[str, object]:
         return {"valid": False, "errors": ["spl is required"], "warnings": []}
     if any(_command(stage) == "outputcsv" for stage in stages):
         errors.append("new alert-delivery SPL must not use outputcsv")
+    if _BACKEND_IDENTITY_ASSIGNMENT.search(spl):
+        errors.append("CID, AID, EID, GID, Event_GID, and Event_Rulenum are backend-owned identity fields")
     table_fields = _parse_table_fields(stages[-1]) if _command(stages[-1]) == "table" else []
     if len(table_fields) != len(set(table_fields)):
         errors.append("final table must not contain duplicate fields")
+    if any(field.casefold().replace(" ", "_") in _BACKEND_IDENTITY_FIELDS for field in table_fields):
+        errors.append("final table must not project backend-owned identity fields")
     if table_fields and "_raw" in table_fields:
         warnings.append("_raw is excluded from customer detail delivery by default")
     return {
@@ -311,13 +322,13 @@ def validate_alert_delivery_spl(spl: str) -> dict[str, object]:
 
 
 def validate_citic_detection_spl(spl: str) -> dict[str, object]:
-    """Validate new alert-delivery SPL while retaining legacy read support."""
+    """Validate the default CID/AID/EID alert-delivery SPL contract.
 
-    if isinstance(spl, str) and re.search(
-        r"(?i)\boutputcsv\b|\beval\s+(?:\"?Event_GID\"?|\"?Event_Rulenum\"?|\"?GID\"?)\s*=",
-        spl,
-    ):
-        return _validate_legacy_citic_detection_spl(spl)
+    Legacy validation is deliberately separate.  Otherwise a caller could
+    opt a newly created alert back into GID identity merely by including an
+    old output field in its SPL.
+    """
+
     return validate_alert_delivery_spl(spl)
 
 
@@ -327,4 +338,5 @@ __all__ = [
     "extract_final_table_fields",
     "validate_alert_delivery_spl",
     "validate_citic_detection_spl",
+    "validate_legacy_citic_detection_spl",
 ]

@@ -12,7 +12,7 @@ from typing import Any
 
 from .config import ServerSettings
 from .alert_email import AlertEmailStore
-from .alert_ingest import AlertIdentityError, AlertIngestionStore
+from .alert_ingest import AlertIdentityError, AlertIngestionStore, _has_delivery_action
 from .attachment_converter import AttachmentConversionLimits, AttachmentConverter
 from .bridge_auth import require_host_capability
 from .email.service import EmailSubscriptionService
@@ -117,6 +117,7 @@ def get_alert_email_settings(
     review_offset = page_value("review_offset", 0, 10_000_000)
     ownership_offset = page_value("ownership_offset", 0, 10_000_000)
     quarantine_offset = page_value("quarantine_offset", 0, 10_000_000)
+    run_quarantine_offset = page_value("run_quarantine_offset", 0, 10_000_000)
     policy_offset = page_value("policy_offset", 0, 10_000_000)
     settings = _settings(_store)
     alert_store = AlertEmailStore.from_env()
@@ -131,6 +132,7 @@ def get_alert_email_settings(
             registration_review = ingest_store.list_alert_registration_review(limit=page_size, offset=review_offset)
             index_ownership = ingest_store.list_alert_index_ownership(limit=page_size, offset=ownership_offset)
             quarantine = ingest_store.list_unresolved_quarantine(limit=page_size, offset=quarantine_offset)
+            run_quarantine = ingest_store.list_alert_run_quarantine(limit=page_size, offset=run_quarantine_offset)
             policies = ingest_store.list_alert_policies(limit=page_size, offset=policy_offset)
             migration_report = ingest_store.migration_report()
         finally:
@@ -144,6 +146,7 @@ def get_alert_email_settings(
             "alert_registration_review": registration_review,
             "alert_index_ownership": index_ownership,
             "alert_quarantine": quarantine,
+            "alert_run_quarantine": run_quarantine,
             "alert_policies": policies,
             "migration_report": migration_report,
             "pagination": {
@@ -152,12 +155,14 @@ def get_alert_email_settings(
                 "review_offset": review_offset,
                 "ownership_offset": ownership_offset,
                 "quarantine_offset": quarantine_offset,
+                "run_quarantine_offset": run_quarantine_offset,
                 "policy_offset": policy_offset,
                 "next_offsets": {
                     "registration_offset": registration_offset + page_size if len(registrations) == page_size else None,
                     "review_offset": review_offset + page_size if len(registration_review) == page_size else None,
                     "ownership_offset": ownership_offset + page_size if len(index_ownership) == page_size else None,
                     "quarantine_offset": quarantine_offset + page_size if len(quarantine) == page_size else None,
+                    "run_quarantine_offset": run_quarantine_offset + page_size if len(run_quarantine) == page_size else None,
                     "policy_offset": policy_offset + page_size if len(policies) == page_size else None,
                 },
             },
@@ -233,6 +238,26 @@ def save_alert_email_policy(_store: PostgresStore, payload: Mapping[str, Any]) -
         alert_store.close()
 
 
+def remove_alert_email_policy_override(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    customer_id = payload.get("customer_id")
+    registration_id = payload.get("registration_id")
+    if (
+        not isinstance(customer_id, str) or not customer_id.strip()
+        or not isinstance(registration_id, str) or not registration_id.strip()
+    ):
+        raise ValueError("customer_id and registration_id are required")
+    alert_store = AlertIngestionStore.from_env()
+    if alert_store is None:
+        raise RuntimeError("APP_POSTGRES_URI is required for alert email policy settings.")
+    try:
+        return alert_store.delete_alert_policy_override(
+            customer_id.strip(), registration_id.strip(),
+            actor=str(payload.get("actor_id") or "admin"),
+        )
+    finally:
+        alert_store.close()
+
+
 def receive_alert_run(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
     alert_store = AlertIngestionStore.from_env()
     if alert_store is None:
@@ -251,20 +276,77 @@ def receive_alert_run(_store: PostgresStore, payload: Mapping[str, Any]) -> dict
         alert_store.close()
 
 
-def resolve_alert_action_context(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+async def resolve_alert_action_context(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve policy only after reading the current saved-search definition."""
     alert_store = AlertIngestionStore.from_env()
     if alert_store is None:
         raise RuntimeError("APP_POSTGRES_URI is required for alert action context resolution.")
+    service: SplunkService | None = None
+    quarantine_payload: Mapping[str, Any] = payload
     try:
+        deployment = str(payload.get("_authenticated_deployment") or "").strip()
+        name = str(
+            payload.get("alert_name")
+            or payload.get("saved_search_name")
+            or payload.get("search_name")
+            or ""
+        ).strip()
+        settings = _settings(_store).splunk
+        if not settings.configured or not settings.deployment_id:
+            raise ServiceError(
+                "splunk_configuration_error",
+                "The approved Splunk deployment is not configured for action verification.",
+            )
+        if deployment != settings.deployment_id:
+            raise ServiceError(
+                "splunk_deployment_mismatch",
+                "The action deployment does not match this server's approved Splunk integration.",
+            )
+        if not name:
+            raise ServiceError("invalid_alert_name", "The saved-search name is required.")
+        service = SplunkService(settings)
+        current = await service.detection_service.get_detection(name)
+        if not _has_delivery_action(current.get("actions", "")):
+            raise ServiceError(
+                "alert_action_missing",
+                "The current saved search does not have CITIC Alert Delivery configured.",
+            )
+        verified_payload = dict(payload)
+        verified_payload.update(
+            {
+                "alert_name": str(current.get("name") or name),
+                "app": settings.detection_app,
+                "owner": settings.detection_owner,
+                "stable_id": str(current.get("stable_id") or ""),
+                "spl": str(current.get("spl") or ""),
+                # Parse the live SPL in the registry. Embedded action indexes
+                # are assertions and cannot become routing authority.
+                "source_indexes": [],
+                "definition": {
+                    key: value
+                    for key, value in current.items()
+                    if key not in {"fingerprint", "splunk_revision"}
+                },
+            }
+        )
+        quarantine_payload = verified_payload
         try:
             return alert_store.resolve_alert_action_context(
-                payload,
-                authenticated_deployment=payload.get("_authenticated_deployment"),
+                verified_payload,
+                authenticated_deployment=deployment,
                 replay_id=payload.get("_authenticated_replay_id"),
             )
         except AlertIdentityError as exc:
             raise ServiceError(exc.code, str(exc)) from exc
+    except ServiceError as exc:
+        alert_store.quarantine_alert_run(
+            quarantine_payload,
+            f"action context {exc.code}: {exc.message}",
+        )
+        raise
     finally:
+        if service is not None:
+            await service.close()
         alert_store.close()
 
 
@@ -278,22 +360,55 @@ def get_alert_migration_report(_store: PostgresStore) -> dict[str, Any]:
         alert_store.close()
 
 
-def set_alert_index_ownership(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+async def set_alert_index_ownership(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
     required = (payload.get("deployment"), payload.get("index_name"), payload.get("customer_id"))
     if not all(isinstance(value, str) and value.strip() for value in required):
         raise ValueError("deployment, index_name, and customer_id are required")
     status = payload.get("status", "active")
     if not isinstance(status, str):
         raise ValueError("status is invalid")
+    deployment = required[0].strip()
+    index_name = required[1].strip()
+    verification: dict[str, Any] = {}
+    if status.strip().casefold() == "active":
+        settings = _settings(_store).splunk
+        if not settings.configured:
+            raise ServiceError("splunk_configuration_error", "Splunk must be configured before ownership can be activated.")
+        if not settings.deployment_id or settings.deployment_id != deployment:
+            raise ServiceError(
+                "splunk_deployment_mismatch",
+                "The requested deployment does not match this server's approved Splunk integration.",
+            )
+        service = SplunkService(settings)
+        try:
+            rows = await service.core.request(lambda client: client.get_indexes())
+        finally:
+            await service.close()
+        names = {
+            str(row.get("name") or row.get("index") or row.get("title") or "").strip()
+            for row in rows if isinstance(row, Mapping)
+        }
+        if index_name not in names:
+            raise ServiceError(
+                "splunk_index_not_found",
+                "The exact index was not returned by the approved Splunk deployment.",
+            )
+        verification = {
+            "verified": True,
+            "source": "official_splunk_mcp",
+            "deployment": deployment,
+            "index_name": index_name,
+        }
     alert_store = AlertIngestionStore.from_env()
     if alert_store is None:
         raise RuntimeError("APP_POSTGRES_URI is required for alert ownership settings.")
     try:
         return {
             "ownership": alert_store.set_index_ownership(
-                deployment=required[0].strip(), index_name=required[1].strip(),
+                deployment=deployment, index_name=index_name,
                 customer_id=required[2].strip(), status=status,
                 actor=str(payload.get("actor_id") or "admin"),
+                verification=verification,
             )
         }
     finally:
@@ -346,6 +461,30 @@ def relink_alert_registration(_store: PostgresStore, payload: Mapping[str, Any])
         alert_store.close()
 
 
+def resolve_alert_registration_review(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    review_id = payload.get("review_id")
+    customer_id = payload.get("customer_id")
+    indexes = payload.get("source_indexes")
+    if (
+        not isinstance(review_id, str) or not review_id.strip()
+        or not isinstance(customer_id, str) or not customer_id.strip()
+        or not isinstance(indexes, list)
+    ):
+        raise ValueError("review_id, customer_id, and source_indexes are required")
+    alert_store = AlertIngestionStore.from_env()
+    if alert_store is None:
+        raise RuntimeError("APP_POSTGRES_URI is required for alert registration review.")
+    try:
+        return {
+            "registration": alert_store.resolve_registration_review(
+                review_id.strip(), customer_id=customer_id.strip(), source_indexes=indexes,
+                actor=str(payload.get("actor_id") or "admin"),
+            )
+        }
+    finally:
+        alert_store.close()
+
+
 def release_held_alert(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
     event_id = payload.get("event_id")
     customer_id = payload.get("customer_id")
@@ -376,11 +515,16 @@ def preview_alert_migration(_store: PostgresStore, payload: Mapping[str, Any]) -
 
 
 def backfill_alert_migration(_store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
+    preview_run_id = payload.get("preview_run_id")
+    if not isinstance(preview_run_id, str) or not preview_run_id.strip():
+        raise ValueError("preview_run_id is required")
     alert_store = AlertIngestionStore.from_env()
     if alert_store is None:
         raise RuntimeError("APP_POSTGRES_URI is required for alert migration backfill.")
     try:
-        return alert_store.migration_backfill(actor=str(payload.get("actor_id") or "admin"))
+        return alert_store.migration_backfill(
+            preview_run_id.strip(), actor=str(payload.get("actor_id") or "admin")
+        )
     finally:
         alert_store.close()
 
@@ -522,18 +666,22 @@ def main() -> None:
             result = save_customer_email_config(store, payload)
         elif command == "save-alert-email-policy":
             result = save_alert_email_policy(store, payload)
+        elif command == "remove-alert-email-policy-override":
+            result = remove_alert_email_policy_override(store, payload)
         elif command == "receive-alert-run":
             result = receive_alert_run(store, payload)
         elif command == "resolve-alert-action-context":
-            result = resolve_alert_action_context(store, payload)
+            result = asyncio.run(resolve_alert_action_context(store, payload))
         elif command == "get-alert-migration-report":
             result = get_alert_migration_report(store)
         elif command == "set-alert-index-ownership":
-            result = set_alert_index_ownership(store, payload)
+            result = asyncio.run(set_alert_index_ownership(store, payload))
         elif command == "set-alert-registration":
             result = set_alert_registration(store, payload)
         elif command == "relink-alert-registration":
             result = relink_alert_registration(store, payload)
+        elif command == "resolve-alert-registration-review":
+            result = resolve_alert_registration_review(store, payload)
         elif command == "release-held-alert":
             result = release_held_alert(store, payload)
         elif command == "preview-alert-migration":
@@ -556,12 +704,14 @@ def main() -> None:
             "save-alert-email-rule",
             "save-customer-email-config",
             "save-alert-email-policy",
+            "remove-alert-email-policy-override",
             "receive-alert-run",
             "resolve-alert-action-context",
             "get-alert-migration-report",
             "set-alert-index-ownership",
             "set-alert-registration",
             "relink-alert-registration",
+            "resolve-alert-registration-review",
             "release-held-alert",
             "preview-alert-migration",
             "backfill-alert-migration",
