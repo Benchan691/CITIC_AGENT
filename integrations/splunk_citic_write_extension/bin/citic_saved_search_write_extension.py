@@ -168,6 +168,8 @@ class WriteExtension:
         action_values = [str(item).strip() for item in action_values if str(item).strip()]
         if APPROVED_ACTION not in action_values:
             raise ValueError("CITIC Alert Delivery must be selected explicitly")
+        if set(action_values) != {APPROVED_ACTION}:
+            raise ValueError("only the approved CITIC Alert Delivery action is permitted")
         if not _flag(normalized.get("action.citic_alert_delivery", True)):
             raise ValueError("CITIC Alert Delivery action is disabled")
         name = str(normalized.get("name", "")).strip()
@@ -239,7 +241,12 @@ class WriteExtension:
         owner = str(fields["owner"])
         name = str(fields.get("name") or search_name)
         form = {key: value for key, value in fields.items() if key not in {"app", "owner", "name"}}
+        if operation == "create_saved_search":
+            form["name"] = name
         url = self._base_url(owner, app, None if operation == "create_saved_search" else name)
+        url += "?output_mode=json"
+        if operation == "update_saved_search" and expected_revision is None:
+            raise ValueError("expected_revision is required for update")
         if operation == "update_saved_search" and expected_revision is not None:
             current = self._entry_content(self._rest("GET", url))
             actual_revision = current.get("revision") or current.get("eai:acl.updated") or current.get("updated")
@@ -316,10 +323,10 @@ class WriteExtension:
                     return None
                 response = self._rest(
                     "GET",
-                    self._base_url(str(fields.get("owner", "")), str(fields.get("app", "")), row["target_name"]),
+                    self._base_url(str(fields.get("owner", "")), str(fields.get("app", "")), row["target_name"]) + "?output_mode=json",
                 )
                 content = self._entry_content(response)
-                for key in ("search", "description", "disabled", "actions"):
+                for key in fields.keys() - {"app", "owner", "name"}:
                     if key in fields and str(content.get(key, "")) != str(fields[key]):
                         return None
                 result = {"name": row["target_name"], "app": fields.get("app", ""), "owner": fields.get("owner", ""), "revision": content.get("revision", ""), "response": _safe_json(response)}

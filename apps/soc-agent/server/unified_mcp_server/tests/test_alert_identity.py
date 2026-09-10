@@ -16,7 +16,9 @@ from unified_mcp_server.alert_identity import (
 def test_static_index_extraction_requires_exact_sources():
     assert extract_static_indexes(
         '| tstats count where index="CPC_security" OR index=CEC_endpoint'
-    ) == (("CPC_security", "CEC_endpoint"), None)
+    )[1] is not None
+    assert extract_static_indexes('index=CPC_security OR host=outside')[1] is not None
+    assert extract_static_indexes('index=CPC_security | outputcsv [search index=other]')[1] is not None
     assert extract_static_indexes('| search index=$index_macro$') == (
         (),
         "saved search uses a dynamic, wildcard, or non-index source",

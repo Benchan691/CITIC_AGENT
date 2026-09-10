@@ -778,6 +778,10 @@ class AlertIngestionStore:
                     "customer authorization, registration action, recipients, or source ownership is still invalid",
                 )
             event_data = dict(row[3]) if isinstance(row[3], Mapping) else {}
+            if row[15] == "uncertain":
+                raise AlertIdentityError("uncertain_delivery", "resolve the SMTP outcome before releasing this run")
+            if "missing required result columns" in str(event_data.get("email_hold_reason", "")):
+                raise AlertIdentityError("incomplete_results", "required source fields remain absent from the original run")
             event_data["email_held"] = False
             event_data.pop("email_hold_reason", None)
             event_data["email_released_by"] = str(actor or "")[:320]
@@ -2178,6 +2182,11 @@ class AlertIngestionStore:
                         "policy_registration_mismatch",
                         "alert policy registration does not belong to the selected customer",
                     )
+            existing = select_existing()
+            if existing:
+                return as_record(existing)
+            # Absence of an override means inheritance, not an empty override.
+            registration_id = None
             existing = select_existing()
             if existing:
                 return as_record(existing)

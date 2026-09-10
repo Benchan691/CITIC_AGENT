@@ -96,40 +96,14 @@ def extract_static_indexes(spl: Any) -> tuple[tuple[str, ...], str | None]:
     text = str(spl or "").strip()
     if not text:
         return (), "saved search has no SPL definition"
-    # The compiler's outputcsv wrapper contains an intentional subsearch that
-    # does not choose the event source. Remove only that known wrapper; every
-    # other nested search is reviewed until a parser can prove its scope.
-    wrapper = re.search(r"(?is)\|\s*outputcsv\s*\[", text)
-    if wrapper:
-        depth = 1
-        end = wrapper.end()
-        quote = False
-        escaped = False
-        for position in range(end, len(text)):
-            character = text[position]
-            if quote:
-                if escaped:
-                    escaped = False
-                elif character == "\\":
-                    escaped = True
-                elif character == '"':
-                    quote = False
-                continue
-            if character == '"':
-                quote = True
-            elif character == "[":
-                depth += 1
-            elif character == "]":
-                depth -= 1
-                if depth == 0:
-                    text = text[: wrapper.start()] + text[position + 1 :]
-                    break
-        else:
-            return (), "saved search contains an incomplete nested source"
+    # Until every Boolean branch can be proven bounded, fail closed. A
+    # positive index reference does not constrain an OR or negated branch.
+    if re.search(r"\b(?:OR|NOT)\b", text, re.IGNORECASE):
+        return (), "Boolean source branches require administrator review"
+    if "[" in text or "]" in text:
+        return (), "nested search sources require administrator review"
     if WILDCARD_RE.search(text):
         return (), "saved search uses a dynamic, wildcard, or non-index source"
-    if "[" in text or "]" in text:
-        return (), "saved search contains a nested source that requires review"
     def stage_command(position: int) -> str:
         stage_start = text.rfind("|", 0, position) + 1
         stage = text[stage_start:position]
