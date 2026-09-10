@@ -2,8 +2,8 @@
 
 The service mirrors the detection workflow: MCP tools prepare draft envelopes
 without writing, and an explicit editor Save (actor resolved server-side from
-the application session) performs the single transactional write. Publication
-to Splunk is a separate operator action gated by SPLUNK_ALLOW_LOOKUP_WRITE.
+the application session) performs the single transactional write. Catalog
+data is never published to Splunk by this application.
 """
 
 from __future__ import annotations
@@ -13,13 +13,11 @@ from ..blocking_io import run_blocking
 
 from ..config import SplunkSettings, redact_endpoint
 from ..errors import ServiceError
-from ..splunk_service import SplunkService
 from .model import CATALOG_EDITABLE_COLUMNS, CATALOG_LABELS, CATALOGS, empty_record
 from .publish import (
     LOOKUP_COLUMNS,
     canonical_checksum,
     lookup_rows,
-    parse_lookup_csv,
     render_lookup_csv,
     validate_publication,
 )
@@ -28,33 +26,25 @@ from .validation import validate_payload, validation_error
 
 
 class CatalogService:
-    """Facade over catalog storage, validation, and Splunk publication."""
+    """Facade over catalog storage, validation, and read-only export previews."""
 
     def __init__(
         self,
         store: CatalogStore | None,
         splunk_settings: SplunkSettings,
-        splunk: SplunkService | None = None,
     ) -> None:
         self.store = store
         self.settings = splunk_settings
-        self._splunk = splunk
 
     @classmethod
     def from_env(
         cls,
         splunk_settings: SplunkSettings,
-        splunk: SplunkService | None = None,
     ) -> "CatalogService":
         store = CatalogStore.from_env()
-        if splunk is None:
-            splunk = SplunkService(splunk_settings)
-        return cls(store, splunk_settings, splunk)
+        return cls(store, splunk_settings)
 
     async def close(self) -> None:
-        if self._splunk is not None:
-            await self._splunk.close()
-            self._splunk = None
         if self.store is not None and hasattr(self.store, "close"):
             await run_blocking(self.store.close)
 
@@ -324,182 +314,6 @@ class CatalogService:
             "destination": self._destination(self._lookup_name(catalog)),
             "content_preview": csv_text[:2000],
         }
-
-    async def publish_catalog(self, catalog: str, *, actor_id: str | None = None) -> dict[str, Any]:
-        catalog = self._require_catalog(catalog)
-        actor = self._actor_id(actor_id, required=True)
-        if not self.settings.lookup_write_enabled:
-            raise ServiceError(
-                "operation_disabled",
-                "Lookup publication is disabled. Set SPLUNK_ALLOW_LOOKUP_WRITE=true after review.",
-            )
-        splunk = self._splunk
-        if splunk is None:
-            raise ServiceError("not_configured", "The Splunk publish path is unavailable.")
-        store = self._require_store()
-        records = await run_blocking(store.all_records, catalog, include_archived=False)
-        customers = await run_blocking(self._customers_by_id)
-        rows = lookup_rows(catalog, records, customers)
-        report = validate_publication(catalog, records, customers)
-        if not report["valid"]:
-            raise ServiceError(
-                "publication_blocked",
-                "The catalog snapshot failed publication validation; resolve the errors first.",
-                details=report,
-            )
-        lookup_name = self._lookup_name(catalog)
-        csv_text = render_lookup_csv(LOOKUP_COLUMNS[catalog], rows)
-        checksum = canonical_checksum(rows)
-        previous = await run_blocking(store.latest_publication, catalog, outcome="published")
-        publication = await run_blocking(store.create_publication,
-            catalog=catalog,
-            lookup_name=lookup_name,
-            checksum=checksum,
-            destination=self._destination(lookup_name),
-            actor=actor,
-            content_snapshot=csv_text,
-        )
-        try:
-            await splunk.core.request(
-                lambda client: client.upload_lookup_contents(
-                    lookup_name,
-                    self.settings.lookup_app,
-                    self.settings.lookup_owner,
-                    csv_text,
-                )
-            )
-            read_back = await splunk.core.request(
-                lambda client: client.search_oneshot(
-                    f'| inputlookup "{lookup_name}"',
-                    earliest_time="0",
-                    latest_time="now",
-                    max_count=100000,
-                )
-            )
-        except ServiceError as exc:
-            failed = await run_blocking(store.set_publication_outcome,
-                publication["publication_id"], outcome="failed", error=exc.message
-            )
-            return {
-                "status": "failed",
-                "published": False,
-                "publication": _publication_summary(failed),
-                "read_back_checksum": "",
-                "validation": report,
-            }
-        read_back_checksum = canonical_checksum(read_back)
-        if read_back_checksum != checksum:
-            failed = await run_blocking(store.set_publication_outcome,
-                publication["publication_id"],
-                outcome="failed",
-                error="Read-back verification failed; the published lookup does not match the catalog snapshot.",
-            )
-            return {
-                "status": "failed",
-                "published": False,
-                "publication": _publication_summary(failed),
-                "read_back_checksum": read_back_checksum,
-                "validation": report,
-            }
-        saved = await run_blocking(store.set_publication_outcome,
-            publication["publication_id"],
-            outcome="published",
-            verified=True,
-        )
-        return {
-            "status": "published",
-            "published": True,
-            "publication": _publication_summary(saved),
-            "read_back_checksum": read_back_checksum,
-            "replaced_publication": _publication_summary(previous),
-            "validation": report,
-        }
-
-    async def rollback_publication(self, publication_id: str, *, actor_id: str | None = None) -> dict[str, Any]:
-        actor = self._actor_id(actor_id, required=True)
-        if not self.settings.lookup_write_enabled:
-            raise ServiceError(
-                "operation_disabled",
-                "Lookup publication is disabled. Set SPLUNK_ALLOW_LOOKUP_WRITE=true after review.",
-            )
-        splunk = self._splunk
-        if splunk is None:
-            raise ServiceError("not_configured", "The Splunk publish path is unavailable.")
-        store = self._require_store()
-        previous = await run_blocking(store.get_publication, publication_id)
-        if previous is None or previous["outcome"] != "published" or not previous["content_snapshot"]:
-            raise ServiceError(
-                "invalid_input",
-                "Only a verified published revision with a stored snapshot can be restored.",
-            )
-        lookup_name = previous["lookup_name"]
-        snapshot = previous["content_snapshot"]
-        checksum = previous["content_checksum"] or canonical_checksum(parse_lookup_csv(snapshot))
-        publication = await run_blocking(store.create_publication,
-            catalog=previous["catalog"],
-            lookup_name=lookup_name,
-            checksum=checksum,
-            destination=self._destination(lookup_name),
-            actor=actor,
-            content_snapshot=snapshot,
-        )
-        await run_blocking(store.set_publication_outcome, publication["publication_id"], outcome="pending")
-        try:
-            await splunk.core.request(
-                lambda client: client.upload_lookup_contents(
-                    lookup_name,
-                    self.settings.lookup_app,
-                    self.settings.lookup_owner,
-                    snapshot,
-                )
-            )
-            read_back = await splunk.core.request(
-                lambda client: client.search_oneshot(
-                    f'| inputlookup "{lookup_name}"',
-                    earliest_time="0",
-                    latest_time="now",
-                    max_count=100000,
-                )
-            )
-        except ServiceError as exc:
-            failed = await run_blocking(store.set_publication_outcome,
-                publication["publication_id"], outcome="failed", error=exc.message
-            )
-            return {
-                "status": "failed",
-                "published": False,
-                "publication": _publication_summary(failed),
-                "read_back_checksum": "",
-            }
-        read_back_checksum = canonical_checksum(read_back)
-        if read_back_checksum != canonical_checksum(parse_lookup_csv(snapshot)):
-            failed = await run_blocking(store.set_publication_outcome,
-                publication["publication_id"],
-                outcome="failed",
-                error="Rollback verification failed; the lookup does not match the restored snapshot.",
-            )
-            return {
-                "status": "failed",
-                "published": False,
-                "publication": _publication_summary(failed),
-                "read_back_checksum": read_back_checksum,
-            }
-        saved = await run_blocking(store.set_publication_outcome,
-            publication["publication_id"],
-            outcome="published",
-            verified=True,
-        )
-        await run_blocking(store.set_publication_outcome,
-            publication_id, outcome="rolled_back", error="Replaced by a rollback publication."
-        )
-        return {
-            "status": "published",
-            "published": True,
-            "publication": _publication_summary(saved),
-            "read_back_checksum": read_back_checksum,
-            "restored_publication": _publication_summary(previous),
-        }
-
 
 def _publication_summary(publication: dict[str, Any] | None) -> dict[str, Any] | None:
     if publication is None:

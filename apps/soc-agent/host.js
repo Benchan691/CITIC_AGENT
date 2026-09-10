@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS, SPLUNK_LOOKUP_ACTION_TOOLS } from './policy.js'
+import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, DOMAIN_TOOLS, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS } from './policy.js'
 import { runAuthCommand } from './ownership.js'
 import { installInvestigationProjection } from './investigation.js'
 
@@ -21,14 +21,11 @@ const CATALOG_ENDPOINTS = new Set([
   'catalog-preview-publish',
   'save-catalog-record',
   'archive-catalog-record',
-  'publish-catalog',
-  'rollback-publication',
 ])
 const HARD_ATTACHMENT_BYTES = 100_000_000
 const HARD_MARKDOWN_CHARS = 2_000_000
-const HARD_LOOKUP_BYTES = 50_000_000
 
-export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS, SPLUNK_LOOKUP_ACTION_TOOLS }
+export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS }
 
 const ACTION_NAMES = new Set(ACTION_TOOLS)
 const nodeRequire = createRequire(import.meta.url)
@@ -183,10 +180,6 @@ function policyValue(ctx, sessionPolicies, sessionId) {
     autoApproveActions: [...actions].filter(name => !ALWAYS_ASK_ACTION_TOOLS.includes(name)),
     source: session === undefined ? 'defaults' : 'session',
   }
-}
-
-function detectionApprovalReason(exec) {
-  return 'This Splunk detection draft requires approval before it can run.'
 }
 
 function catalogApprovalReason(exec) {
@@ -384,31 +377,6 @@ function validateAttachmentPayload(payload) {
   return { filename, content_type: contentType, data, limits: { max_bytes: maxBytes, max_chars: maxChars } }
 }
 
-function validateDetectionSavePayload(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new Error('The detection save request is invalid.')
-  }
-  const operation = payload.operation
-  if (operation !== 'write' && operation !== 'update') {
-    throw new Error('The detection save operation is invalid.')
-  }
-  if (!payload.detection || typeof payload.detection !== 'object' || Array.isArray(payload.detection)) {
-    throw new Error('The detection draft is invalid.')
-  }
-  if (payload.name !== undefined && (typeof payload.name !== 'string' || payload.name.trim() === '')) {
-    throw new Error('The detection name is invalid.')
-  }
-  if (payload.expected_fingerprint !== undefined && payload.expected_fingerprint !== null && typeof payload.expected_fingerprint !== 'string') {
-    throw new Error('The detection fingerprint is invalid.')
-  }
-  return {
-    operation,
-    detection: payload.detection,
-    ...(payload.name === undefined ? {} : { name: payload.name }),
-    ...(payload.expected_fingerprint === undefined ? {} : { expected_fingerprint: payload.expected_fingerprint }),
-  }
-}
-
 const CATALOG_NAMES = new Set(['customer', 'rule', 'fix_source_type'])
 
 function validateCatalogSavePayload(payload) {
@@ -488,37 +456,6 @@ function validateCatalogNamePayload(payload) {
   }
 }
 
-function validateLookupSavePayload(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new Error('The lookup CSV save request is invalid.')
-  }
-  const operation = payload.operation
-  if (!['write', 'update', 'delete'].includes(operation)) {
-    throw new Error('The lookup CSV save operation is invalid.')
-  }
-  if (typeof payload.name !== 'string' || payload.name.trim() === '' || payload.name.length > 255) {
-    throw new Error('The lookup CSV name is invalid.')
-  }
-  if (operation !== 'delete') {
-    if (typeof payload.content !== 'string') throw new Error('The lookup CSV content is invalid.')
-    if (Buffer.byteLength(payload.content, 'utf8') > HARD_LOOKUP_BYTES) {
-      throw new Error('The lookup CSV content is too large.')
-    }
-  }
-  if (operation !== 'write' && (typeof payload.expected_fingerprint !== 'string' || payload.expected_fingerprint.trim() === '')) {
-    throw new Error('The lookup CSV fingerprint is invalid.')
-  }
-  if (payload.expected_fingerprint !== undefined && payload.expected_fingerprint !== null && typeof payload.expected_fingerprint !== 'string') {
-    throw new Error('The lookup CSV fingerprint is invalid.')
-  }
-  return {
-    operation,
-    name: payload.name,
-    ...(operation === 'delete' ? {} : { content: payload.content }),
-    ...(payload.expected_fingerprint === undefined ? {} : { expected_fingerprint: payload.expected_fingerprint }),
-  }
-}
-
 async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
   switch (endpoint) {
     case 'get-action-catalog': requireUser(ctx); return ok({ actions: ACTION_CATALOG })
@@ -554,16 +491,6 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
     case 'send-email': {
       const session = requireUser(ctx)
       return ok(await runAuthCommand('send-email', { ...payload, session_id: session.id }))
-    }
-    case 'save-detection': {
-      const session = requireUser(ctx)
-      let request
-      try {
-        request = validateDetectionSavePayload(payload)
-      } catch (error) {
-        return badRequest(error instanceof Error ? error.message : 'The detection save request is invalid.')
-      }
-      return ok(await runAuthCommand('save-detection', { ...request, session_id: session.id }))
     }
     case 'catalog-list': {
       const session = requireUser(ctx)
@@ -609,33 +536,6 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
         return badRequest(error instanceof Error ? error.message : 'The catalog archive request is invalid.')
       }
       return ok(await runAuthCommand('archive-catalog-record', { ...request, session_id: session.id }))
-    }
-    case 'publish-catalog': {
-      const session = requireAdmin(ctx)
-      return ok(await runAuthCommand('publish-catalog', {
-        ...validateCatalogNamePayload(payload),
-        session_id: session.id,
-      }))
-    }
-    case 'rollback-publication': {
-      const session = requireAdmin(ctx)
-      if (typeof payload?.publication_id !== 'string' || payload.publication_id.trim() === '') {
-        return badRequest('The publication ID is invalid.')
-      }
-      return ok(await runAuthCommand('rollback-publication', {
-        publication_id: payload.publication_id,
-        session_id: session.id,
-      }))
-    }
-    case 'save-lookup': {
-      const session = requireUser(ctx)
-      let request
-      try {
-        request = validateLookupSavePayload(payload)
-      } catch (error) {
-        return badRequest(error instanceof Error ? error.message : 'The lookup CSV save request is invalid.')
-      }
-      return ok(await runAuthCommand('save-lookup', { ...request, session_id: session.id }))
     }
     case 'list-signatures': {
       const session = requireUser(ctx)
@@ -708,11 +608,7 @@ export function apply(ctx) {
       return Promise.resolve({
         kind: 'ask',
         reason: alwaysAsk
-          ? DETECTION_ACTION_TOOLS.includes(exec.name)
-            ? detectionApprovalReason(exec)
-            : SPLUNK_LOOKUP_ACTION_TOOLS.includes(exec.name)
-              ? 'This Splunk lookup CSV change requires approval before it can run.'
-              : catalogApprovalReason(exec)
+          ? catalogApprovalReason(exec)
           : 'This action changes a SOC system, sends email, or changes a persistent schedule.',
       })
     }
@@ -767,22 +663,6 @@ export function apply(ctx) {
           const message = error instanceof Error ? error.message.trim() : ''
           if (message.startsWith(prefix)) return internalError(message)
           return internalError(`${prefix} ${message || 'The test process did not return a diagnostic. Check the server .env configuration and server logs.'}`)
-        }
-        if (endpoint === 'save-detection') {
-          const code = typeof error?.code === 'string' ? error.code : 'internal'
-          const message = code === 'internal'
-            ? 'The detection could not be saved.'
-            : error instanceof Error ? error.message : 'The detection could not be saved.'
-          const details = error?.details && typeof error.details === 'object' ? error.details : {}
-          return { ok: false, error: { code, message, details } }
-        }
-        if (endpoint === 'save-lookup') {
-          const code = typeof error?.code === 'string' ? error.code : 'internal'
-          const message = code === 'internal'
-            ? 'The lookup CSV could not be saved.'
-            : error instanceof Error ? error.message : 'The lookup CSV could not be saved.'
-          const details = error?.details && typeof error.details === 'object' ? error.details : {}
-          return { ok: false, error: { code, message, details } }
         }
         if (CATALOG_ENDPOINTS.has(endpoint)) {
           const code = typeof error?.code === 'string' ? error.code : 'internal'

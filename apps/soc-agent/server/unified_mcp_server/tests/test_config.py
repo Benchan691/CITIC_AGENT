@@ -31,8 +31,6 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.zimbra.allow_send is True
     assert settings.splunk.configured is False
     assert settings.zimbra.configured is False
-    assert settings.splunk.detection_write_enabled is False
-    assert settings.splunk.lookup_write_enabled is False
     assert settings.splunk.lookup_app == "search"
     assert settings.splunk.lookup_owner == "nobody"
     assert settings.splunk.lookup_max_bytes == 5_000_000
@@ -421,13 +419,10 @@ def test_official_splunk_mcp_endpoint_is_explicit_and_redacted():
         )
 
 
-def test_detection_write_flags_are_explicit_and_visible_without_secrets():
+def test_splunk_read_scopes_and_limits_are_visible_without_write_flags():
     settings = ServerSettings.from_env(
         {
-            "SPLUNK_ALLOW_DETECTION_WRITE": "true",
-            "SPLUNK_ALLOW_DETECTION_ENABLE": "true",
             "SPLUNK_DETECTION_APP": "security_app",
-            "SPLUNK_ALLOW_LOOKUP_WRITE": "true",
             "SPLUNK_LOOKUP_APP": "lookup_app",
             "SPLUNK_LOOKUP_OWNER": "lookup_owner",
             "SPLUNK_LOOKUP_MAX_BYTES": "12345",
@@ -436,10 +431,9 @@ def test_detection_write_flags_are_explicit_and_visible_without_secrets():
         }
     )
     status = settings.public_status()
-    assert status["splunk"]["detection_write_enabled"] is True
-    assert "detection_enable_enabled" not in status["splunk"]
+    assert "detection_write_enabled" not in status["splunk"]
+    assert "lookup_write_enabled" not in status["splunk"]
     assert status["splunk"]["detection_app"] == "security_app"
-    assert status["splunk"]["lookup_write_enabled"] is True
     assert status["splunk"]["lookup_app"] == "lookup_app"
     assert status["splunk"]["lookup_owner"] == "lookup_owner"
     assert status["splunk"]["lookup_max_bytes"] == 12345

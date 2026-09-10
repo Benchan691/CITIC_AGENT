@@ -18,7 +18,7 @@ export function apply(ctx) {
   }, 'soc-agent-auth: Harness transport integration')
   ctx.on('mcp/request-meta', async (exec, serverName, next) => {
     const upstream = await next()
-    if (serverName !== 'soc_agent') return upstream
+    if (serverName !== 'soc_agent' && serverName !== 'splunk_official') return upstream
     const metadata = auth.mcpRequestMeta(exec)
     if (!metadata?.soc_session_id) return upstream
     return {

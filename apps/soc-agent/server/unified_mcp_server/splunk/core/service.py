@@ -57,6 +57,15 @@ class SplunkCore:
             allow_outputcsv=allow_outputcsv,
         )
         policy_data = policy.to_dict()
+        official_mcp = bool(str(getattr(self.settings, "mcp_endpoint", "")).strip())
+        decision = "allow" if official_mcp else policy.decision
+        if official_mcp:
+            policy_data = {
+                **policy_data,
+                "decision": decision,
+                "local_enforcement": False,
+                "provider_guardrails": True,
+            }
         result = {
             "query": query,
             "earliest_time": earliest_time,
@@ -70,8 +79,8 @@ class SplunkCore:
                 if command not in policy.allowed_commands
             ],
             "allowed_commands": policy.allowed_commands,
-            "decision": policy.decision,
-            "would_execute": policy.decision == "allow",
+            "decision": decision,
+            "would_execute": decision == "allow",
             "policy": policy_data,
         }
         # Keep the structured policy easy to consume for existing callers that

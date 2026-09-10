@@ -121,7 +121,7 @@ class Runtime:
             zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
             postgres=postgres,
             account_store=accounts,
-            catalog=CatalogService.from_env(settings.splunk, splunk=splunk_service),
+            catalog=CatalogService.from_env(settings.splunk),
         )
 
     async def close(self) -> None:

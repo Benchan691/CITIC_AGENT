@@ -30,7 +30,6 @@ test('search projection preserves counts and evidence while reducing complete ev
   assert.equal(result.evidence.id, 'snapshot-1')
   assert.equal(result.evidence.read_tool, 'soc_evidence_read')
   assert.equal(JSON.parse(content[0].text).data.result.rows.length, 50)
-  assert.equal(projectInvestigationResult('mcp__soc_agent__splunk_write_detection', content), undefined)
 })
 
 test('small aggregate tables and explicit zero counts remain intact', () => {

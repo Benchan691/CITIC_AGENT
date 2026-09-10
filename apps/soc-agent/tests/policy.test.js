@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { ACTION_CATALOG, apply, APPROVAL_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DETECTION_ACTION_TOOLS, DOMAIN_TOOLS, SPLUNK_LOOKUP_ACTION_TOOLS } from '../host.js'
+import { ACTION_CATALOG, apply, APPROVAL_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, OFFICIAL_SPLUNK_READ_TOOLS } from '../host.js'
 import { ACTION_TOOLS, READ_ONLY_TOOLS } from '../policy.js'
 import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 
@@ -15,7 +15,7 @@ const policyAuth = {
 }
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 70)
+  assert.equal(DOMAIN_TOOLS.size, 78)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__catalog_archive_record',
     'mcp__soc_agent__catalog_update_customer',
@@ -26,11 +26,6 @@ test('interactive analyst policy exposes the exact product tool set', () => {
     'mcp__soc_agent__catalog_write_rule',
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
-    'mcp__soc_agent__splunk_delete_lookup',
-    'mcp__soc_agent__splunk_update_detection',
-    'mcp__soc_agent__splunk_update_lookup',
-    'mcp__soc_agent__splunk_write_detection',
-    'mcp__soc_agent__splunk_write_lookup',
     'mcp__soc_agent__update_subscription',
     'mcp__soc_agent__zimbra_create_email_filter',
     'mcp__soc_agent__zimbra_create_folder',
@@ -51,9 +46,9 @@ test('interactive analyst policy exposes the exact product tool set', () => {
 })
 
 test('SOC policy has disjoint read-only and action categories', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 41)
+  assert.equal(READ_ONLY_TOOLS.length, 54)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__zimbra_list_accounts'), false)
-  assert.equal(ACTION_TOOLS.length, 29)
+  assert.equal(ACTION_TOOLS.length, 24)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__catalog_list_rules'), true)
@@ -76,9 +71,11 @@ test('SOC policy has disjoint read-only and action categories', () => {
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_compile_citic_detection'), false)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_find_lookup'), false)
   assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_list_lookups'), false)
-  assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_write_lookup'), true)
-  assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_update_lookup'), true)
-  assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__splunk_delete_lookup'), true)
+  assert.equal(OFFICIAL_SPLUNK_READ_TOOLS.length, 13)
+  for (const name of OFFICIAL_SPLUNK_READ_TOOLS) {
+    assert.equal(READ_ONLY_TOOLS.includes(name), true)
+    assert.equal(ACTION_TOOLS.includes(name), false)
+  }
   assert.equal(READ_ONLY_TOOLS.includes('scheduled_task_list'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__list_subscriptions'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__get_subscription_schema'), true)
@@ -98,7 +95,7 @@ test('SOC policy has disjoint read-only and action categories', () => {
 })
 
 test('scheduled workers have an exact read-only allowlist', () => {
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 35)
+  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 48)
   for (const name of READ_ONLY_DOMAIN_TOOLS) {
     assert.equal(DOMAIN_TOOLS.has(name), true)
     assert.equal(APPROVAL_TOOLS.has(name), false)
@@ -107,7 +104,6 @@ test('scheduled workers have an exact read-only allowlist', () => {
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_move_email'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__splunk_list_indexes'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__splunk_list_data_sources'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.some(name => DETECTION_ACTION_TOOLS.includes(name)), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_send_email'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_use_signature_on_email'), false)
   assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_list_signatures'), true)
@@ -133,6 +129,9 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.deepEqual(await preExecute({ name: 'exit_plan_mode' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'ask_user_question' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_search' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.deepEqual(await preExecute({ name: 'mcp__splunk_official__splunk_run_query' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_write_detection' }, () => ({ kind: 'delegate' }))).kind, 'deny')
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_write_lookup' }, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_list_indexes' }, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_find_lookup' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_list_lookups' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
@@ -217,62 +216,6 @@ test('SOC action approval defaults fail closed and session overrides are live', 
   assert.equal((await rpcHandler('get-action-policy', { session_id: session.id })).value.source, 'defaults')
 })
 
-test('detection changes cannot be auto-approved by action name', async () => {
-  const handlers = new Map()
-  const session = { id: 'soc-detection-policy-1' }
-  const agent = { id: session.id, session, ctx: { tools: { restrict() {} } } }
-  let saved = { autoApproveActions: [...DETECTION_ACTION_TOOLS] }
-  let rpcHandler
-  apply({
-    get(name) {
-      if (name === 'settings') return { get: () => saved }
-      if (name === 'socAuth') return policyAuth
-      return undefined
-    },
-    on(event, handler) { handlers.set(event, handler) },
-    agents: { roots: () => [agent] },
-    sessions: { get: id => id === session.id ? session : undefined },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
-  })
-  const preExecute = handlers.get('tools/pre-execute')
-  for (const name of DETECTION_ACTION_TOOLS) {
-    const decision = await preExecute({ name, agent, arguments: {} }, () => ({ kind: 'delegate' }))
-    assert.equal(decision.kind, 'ask')
-    assert.match(decision.reason, /detection draft requires approval/)
-  }
-  const policy = await rpcHandler('get-action-policy', { session_id: session.id })
-  assert.equal(policy.value.autoApproveActions.some(name => DETECTION_ACTION_TOOLS.includes(name)), false)
-  saved = { autoApproveActions: [] }
-})
-
-test('lookup CSV changes cannot be auto-approved by action name', async () => {
-  const handlers = new Map()
-  const session = { id: 'soc-lookup-policy-1' }
-  const agent = { id: session.id, session, ctx: { tools: { restrict() {} } } }
-  let saved = { autoApproveActions: [...SPLUNK_LOOKUP_ACTION_TOOLS] }
-  let rpcHandler
-  apply({
-    get(name) {
-      if (name === 'settings') return { get: () => saved }
-      if (name === 'socAuth') return policyAuth
-      return undefined
-    },
-    on(event, handler) { handlers.set(event, handler) },
-    agents: { roots: () => [agent] },
-    sessions: { get: id => id === session.id ? session : undefined },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
-  })
-  const preExecute = handlers.get('tools/pre-execute')
-  for (const name of SPLUNK_LOOKUP_ACTION_TOOLS) {
-    const decision = await preExecute({ name, agent, arguments: {} }, () => ({ kind: 'delegate' }))
-    assert.equal(decision.kind, 'ask')
-    assert.match(decision.reason, /lookup CSV change requires approval/)
-  }
-  const policy = await rpcHandler('get-action-policy', { session_id: session.id })
-  assert.equal(policy.value.autoApproveActions.some(name => SPLUNK_LOOKUP_ACTION_TOOLS.includes(name)), false)
-  saved = { autoApproveActions: [] }
-})
-
 test('catalog changes cannot be auto-approved by action name', async () => {
   const handlers = new Map()
   const session = { id: 'soc-catalog-policy-1' }
@@ -334,71 +277,6 @@ test('save-catalog-record is an authenticated editor RPC with strict request val
     operation: 'write',
     catalog: 'rule',
     record: { rule_number: '0001', rule_name_en: 'Threat Detection' },
-  })
-  assert.deepEqual(unauthenticated, {
-    ok: false,
-    error: { code: 'authentication-required', message: 'authentication required', details: {} },
-  })
-})
-
-test('save-detection is an authenticated editor RPC with strict request validation', async () => {
-  let rpcHandler
-  apply({
-    get(name) {
-      return name === 'socAuth' ? policyAuth : undefined
-    },
-    on() {},
-    agents: { roots: () => [] },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
-  })
-
-  const invalid = await rpcHandler('save-detection', { operation: 'write' })
-  assert.deepEqual(invalid, {
-    ok: false,
-    error: { code: 'bad-request', message: 'The detection draft is invalid.', details: { issues: [] } },
-  })
-
-  apply({
-    on() {},
-    agents: { roots: () => [] },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
-  })
-  const unauthenticated = await rpcHandler('save-detection', {
-    operation: 'write',
-    detection: { name: 'Rule', spl: 'index=main error' },
-  })
-  assert.deepEqual(unauthenticated, {
-    ok: false,
-    error: { code: 'authentication-required', message: 'authentication required', details: {} },
-  })
-})
-
-test('save-lookup is an authenticated editor RPC with strict request validation', async () => {
-  let rpcHandler
-  apply({
-    get(name) {
-      return name === 'socAuth' ? policyAuth : undefined
-    },
-    on() {},
-    agents: { roots: () => [] },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
-  })
-
-  const invalid = await rpcHandler('save-lookup', { operation: 'write', name: 'rules.csv' })
-  assert.deepEqual(invalid, {
-    ok: false,
-    error: { code: 'bad-request', message: 'The lookup CSV content is invalid.', details: { issues: [] } },
-  })
-
-  apply({
-    on() {},
-    agents: { roots: () => [] },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
-  })
-  const unauthenticated = await rpcHandler('save-lookup', {
-    operation: 'write',
-    name: 'rules.csv',
-    content: 'id\n1\n',
   })
   assert.deepEqual(unauthenticated, {
     ok: false,

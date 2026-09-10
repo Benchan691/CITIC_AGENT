@@ -627,21 +627,6 @@ class OfficialSplunkMCPClient:
         # against an already-created SID and remains a local compatibility path.
         return await (await self._rest()).get_job_result_fields(sid, fields, max_count=max_count)
 
-    async def create_lookup_contents(self, name: str, app: str, owner: str, rows: list[list[str]]) -> dict[str, Any]:
-        return await (await self._rest()).create_lookup_contents(name, app, owner, rows)
-
-    async def update_lookup_contents(self, name: str, app: str, owner: str, rows: list[list[str]]) -> dict[str, Any]:
-        return await (await self._rest()).update_lookup_contents(name, app, owner, rows)
-
-    async def delete_lookup_table_file(self, name: str, app: str = "", owner: str = "") -> dict[str, Any]:
-        return await (await self._rest()).delete_lookup_table_file(name, app, owner)
-
-    async def create_saved_search(self, fields: dict[str, Any]) -> dict[str, Any]:
-        return await (await self._rest()).create_saved_search(fields)
-
-    async def update_saved_search(self, search_name: str, fields: dict[str, Any]) -> dict[str, Any]:
-        return await (await self._rest()).update_saved_search(search_name, fields)
-
     async def _rest(self) -> SplunkClient:
         if self._rest_client is None:
             config = dict(self.config)

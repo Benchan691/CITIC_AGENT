@@ -38,6 +38,8 @@ export interface ToolBridgeOptions {
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
+  /** Exact raw MCP tool names permitted for registration; omission allows all. */
+  allowedToolNames?: readonly string[]
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -157,10 +159,14 @@ export async function syncTools(
 ): Promise<ToolDisposers> {
   // Phase 1: fetch and build the next generation without touching the registry.
   const definitions = new Map<string, ToolDefinition>()
+  const allowedToolNames = opts.allowedToolNames === undefined
+    ? undefined
+    : new Set(opts.allowedToolNames)
   let cursor: string | undefined
   do {
     const response = await listToolsUncached(client, cursor)
     for (const tool of response.tools) {
+      if (allowedToolNames !== undefined && !allowedToolNames.has(tool.name)) continue
       const publicName = publicToolName(opts.serverName, tool.name)
       if (definitions.has(publicName)) {
         throw new Error(

@@ -44,6 +44,7 @@ The model sees `mcp__github__create_issue`, `mcp__web__search`, … — the same
 | `url` | http | yes | MCP server URL |
 | `headers` | http | no | Extra headers (e.g. auth tokens) |
 | `toolCallTimeoutMs` | both | no | Timeout per `callTool` invocation (default 60000) |
+| `allowedToolNames` | both | no | Exact raw MCP tool names to register; omission exposes all discovered tools |
 | `failOnStartupError` | both | no | Reject plugin activation when initial connection or tool synchronization fails (default `false`) |
 | `reconnect.enabled` | both | no | Reconnect automatically after a lost connection (default `true`) |
 | `reconnect.initialDelayMs` | both | no | First reconnect delay in ms; doubles per consecutive failed attempt (default 500) |
@@ -61,7 +62,7 @@ Every MCP tool has two names: the raw MCP name (sent on the wire in `tools/call`
 
 ## Behavior
 
-- On connect: plugin activation awaits `listTools()` and registers each tool via `ctx.tools.register()` under its public name before the composition starts its first turn. Initial connection, discovery, or registration failure is always logged; it rejects activation when `failOnStartupError` is true and otherwise activates with no tools.
+- On connect: plugin activation awaits `listTools()` and registers each allowlisted tool via `ctx.tools.register()` under its public name before the composition starts its first turn. When `allowedToolNames` is omitted, all discovered tools are registered. Initial connection, discovery, or registration failure is always logged; it rejects activation when `failOnStartupError` is true and otherwise activates with no tools.
 - Listens for `notifications/tools/list_changed` → re-syncs; a fetch-phase failure keeps the previous generation registered, while a registration conflict rolls back the attempted generation and leaves no tools from that server.
 - Tool execute: an uncached `tools/call` request carries the raw name and arguments with timeout and abort support. Before dispatch, the `mcp/request-meta` waterfall receives the execution and server name. A host plugin may contribute transport `_meta` without changing model arguments or patching the MCP SDK; no listener means no `_meta`. Listener disposal removes the contribution. This adds no model calls, prompt tokens, or model-visible context and does not change the prompt prefix.
 - Canonical success is `{ content: JsonValue[], structuredContent? }`; complete JSON MCP blocks survive for programmatic callers. A supported advertised `outputSchema` validates `structuredContent`; unsupported schema vocabulary falls back to unconstrained `JsonValue`.

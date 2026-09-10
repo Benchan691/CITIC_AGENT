@@ -1,7 +1,9 @@
 import pytest
 
-from unified_mcp_server.splunk.core.service import _default_client_factory
+from unified_mcp_server.config import SplunkSettings
+from unified_mcp_server.splunk.core.service import SplunkCore, _default_client_factory
 from unified_mcp_server.splunk.official_mcp_client import OfficialSplunkMCPClient
+from unified_mcp_server.splunk.search.executor import SearchExecutor
 from unified_mcp_server.splunk.splunk_client import SplunkAPIError, SplunkClient
 
 
@@ -28,6 +30,68 @@ def test_default_factory_selects_official_client_only_when_endpoint_is_set():
         _default_client_factory({"splunk_host": "splunk.example", "splunk_port": 8089}),
         SplunkClient,
     )
+
+
+def test_splunk_clients_expose_no_mutation_methods():
+    for client_type in (OfficialSplunkMCPClient, SplunkClient):
+        for name in (
+            "create_lookup_contents",
+            "update_lookup_contents",
+            "delete_lookup_table_file",
+            "create_saved_search",
+            "update_saved_search",
+        ):
+            assert not hasattr(client_type, name)
+
+
+@pytest.mark.asyncio
+async def test_official_path_bypasses_local_query_and_resource_admission():
+    class Provider:
+        def __init__(self, _config):
+            self.called = False
+
+        async def connect(self):
+            pass
+
+        async def disconnect(self):
+            pass
+
+        async def run_search_job(self, *args, **kwargs):
+            self.called = True
+            return {
+                "events": [{"ok": True}],
+                "columns": ["ok"],
+                "metadata": {"total_result_count": 1, "splunk_result_truncated": False},
+            }
+
+    settings = SplunkSettings(
+        host="splunk.example",
+        port=8089,
+        username="",
+        password="",
+        token="token",
+        verify_ssl=True,
+        request_timeout=5,
+        job_timeout=30,
+        max_events=1000,
+        risk_tolerance=0,
+        safe_timerange="24h",
+        sanitize_output=True,
+        mcp_endpoint="https://splunk.example/mcp",
+    )
+    core = SplunkCore(settings, Provider)
+    result = await SearchExecutor(core).execute(
+        "index=* | outputlookup should_be_rejected_by_provider.csv",
+        earliest_time="0",
+        latest_time="now",
+        limit=10_000,
+    )
+
+    assert result["validation"]["decision"] == "allow"
+    assert result["validation"]["policy"]["local_enforcement"] is False
+    assert result["limit"] == 1_000
+    assert core._client.called is True
+    await core.close()
 
 
 @pytest.mark.asyncio

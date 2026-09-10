@@ -203,6 +203,27 @@ describe('syncTools', () => {
     expect(ctx.tools.get('add')).toBeUndefined()
   })
 
+  it('registers only exact raw names from the configured allowlist', async () => {
+    const client = createMockClient([
+      { name: 'splunk_run_query', inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
+      { name: 'splunk_delete_index', inputSchema: { type: 'object' } },
+    ])
+
+    const disposers = await syncTools(client as never, ctx, {
+      ...defaultOpts,
+      serverName: 'splunk_official',
+      allowedToolNames: ['splunk_run_query'],
+    }, new Map())
+
+    expect([...disposers.keys()]).toEqual(['mcp__splunk_official__splunk_run_query'])
+    expect(ctx.tools.get('mcp__splunk_official__splunk_run_query')?.parameters).toEqual({
+      type: 'object',
+      properties: { query: { type: 'string' } },
+      required: ['query'],
+    })
+    expect(ctx.tools.get('mcp__splunk_official__splunk_delete_index')).toBeUndefined()
+  })
+
   it('lets two servers publish the same raw name side by side', async () => {
     const clientA = createMockClient([{ name: 'search', inputSchema: { type: 'object' } }])
     const clientB = createMockClient([{ name: 'search', inputSchema: { type: 'object' } }])

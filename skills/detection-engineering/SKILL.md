@@ -1,6 +1,6 @@
 ---
 name: detection-engineering
-description: Design, review, validate, backtest, write, or update Splunk detections through controlled tools. Use when investigation evidence should become a new or modified rule.
+description: Design, review, validate, and backtest Splunk detections using read-only tools. Use when investigation evidence should become a proposed new or modified rule.
 ---
 
 # Detection Engineering
@@ -9,17 +9,15 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 
 ## Invariants
 
-- Inspect an existing rule immediately before modifying it; use its fresh fingerprint.
-- New and modified rules are always written disabled. MCP never enables a
-  detection and has no explicit disable operation.
-- Validate before every backtest or write.
+- Inspect an existing rule immediately before proposing a modification.
+- MCP never creates, updates, enables, disables, or rolls back a detection.
+- Validate before every backtest or handoff.
 - Backtests are bounded samples, not total match counts or proof of production quality.
 - Generic saved-search writes do not persist severity, ATT&CK, risk, suppression, or provider-specific action settings.
 - If a rule is later activated outside MCP, require a persisted schedule and at least one persisted Splunk alert action.
 - Do not invent MITRE mappings, severity, risk objects, or scores.
-- Detection draft tools always require harness approval, and a remembered
-  approval for a detection tool name is never sufficient. A separate explicit
-  Save in the authenticated editor is the only detection write action.
+- Any deployment must occur through a separately controlled human Splunk
+  process outside this application.
 
 ## Tools
 
@@ -29,14 +27,10 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 - Compile production CITIC SPL with `splunk_compile_citic_detection`; follow
   the `spl-writing` skill for the required wrapper and field order.
 - Test with `splunk_backtest_detection` using a bounded period, result count, and selected fields.
-- Stage a disabled draft with `splunk_write_detection` for a new rule or
-  `splunk_update_detection(..., expected_fingerprint=...)` for an existing
-  rule; these return the complete editor state and do not write yet.
-- Let the harness approval complete, review the inline editor, and use its
-  explicit Save action. Cancel leaves Splunk unchanged. Save always persists
-  the detection disabled.
-- If activation or rollback is required, use the separately controlled human
-  Splunk process outside MCP.
+- Produce a concise reviewed handoff containing the validated definition,
+  backtest evidence, limitations, and recommended deployment settings.
+- Use a separately controlled human Splunk process for creation, changes,
+  activation, rollback, or removal.
 
 ## CITIC team rule-writing workflow
 
@@ -45,20 +39,18 @@ For a new customer detection:
 1. Review the rule catalog and select a rule number not already used in the
    four-digit range `0000`–`9999`. Prefer the managed catalog tools
    (`catalog_list_rules`, then a `catalog_write_rule` draft followed by the
-   editor's explicit Save); the published `Ruleset.csv` lookup on Splunk
-   remains the source consumers read.
+   editor's explicit Save). Existing Splunk lookup data remains read-only.
 2. Create the corresponding catalog row and fill in its required rule
    information, using the verified `[COMPANY_SHORT] detection alert name`
-   convention. New rows stay saved-but-unpublished until an operator runs the
-   catalog publish action.
+   convention. Catalog changes remain local to the application.
 3. Complete the alert configuration checklist below.
-4. Write the detection rule through the controlled workflow.
+4. Prepare the validated rule for the separately controlled deployment process.
 
 Production detections start with detection logic only. Call
 `splunk_compile_citic_detection`; do not hand-write the CITIC wrapper or submit
 separate production and backtest SPL. Use the returned `production_spl` for
-validation and `splunk_write_detection`/`splunk_update_detection`, and use only
-the derived `backtest_spl` for testing.
+validation and the external deployment handoff, and use only the derived
+`backtest_spl` for testing.
 
 The required production fields are:
 

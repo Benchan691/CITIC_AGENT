@@ -47,19 +47,12 @@ replacement for `AGENTS.md`.
 - Splunk investigation is read-only by default and must remain customer-scoped.
 - Treat Splunk results as evidence; distinguish observations, inferences,
   unknowns, and recommendations.
-- Detection changes use the approved flow: validate, write or update a
-  disabled browser-editable draft, review it in the inline editor, and Save
-  it explicitly.
-- Use `splunk_write_detection` for a create-only rule and
-  `splunk_update_detection` with the fresh fingerprint for an existing rule.
-  Both operations return drafts; only the authenticated editor Save writes,
-  and it always persists the detection disabled.
-- MCP never enables a detection and has no explicit disable operation.
-  Authorized staff must use a separately controlled Splunk process outside MCP
-  when activation or rollback is required.
+- Detection work in this application is read-only: inspect, compile, validate,
+  and backtest, then provide a reviewed handoff for a separately controlled
+  human Splunk change process.
+- MCP never creates, updates, enables, disables, or rolls back a detection.
 - Authentication, environment configuration, customer context, and live
   evidence come from their authoritative sources, not from this document.
 - The Ruleset, Customer Information, and Fix Source type catalogs are managed
-  in PostgreSQL with audited, revision-checked edits. Splunk lookups such as
-  `Ruleset.csv` receive published snapshots through the controlled catalog
-  publish action; hand-editing those lookups on the search head is superseded.
+  in PostgreSQL with audited, revision-checked edits. The application can
+  preview lookup snapshots but cannot publish or modify Splunk lookups.

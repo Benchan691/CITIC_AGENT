@@ -12,37 +12,6 @@ from unified_mcp_server.control_server import handle_request
 from unified_mcp_server.errors import ServiceError
 
 
-@pytest.mark.parametrize("operation", ["write", "update", "delete"])
-async def test_lookup_save_dispatches_through_persistent_channel(monkeypatch, operation):
-    from unified_mcp_server import auth_cli
-
-    calls = []
-
-    class LookupService:
-        async def save_lookup(self, *args, **kwargs):
-            calls.append((args, kwargs))
-            return {"status": "saved", "operation": operation}
-
-        async def close(self):
-            calls.append("closed")
-
-    monkeypatch.setattr(auth_cli, "_splunk_service", lambda payload: (LookupService(), "fixture-actor"))
-    payload = {"operation": operation, "name": "fixture.csv", "expected_fingerprint": "fixture-version"}
-    if operation != "delete":
-        payload["content"] = "key,value\nexample,1\n"
-    result = await handle_request({"id": "lookup-save", "command": "save-lookup", "payload": payload})
-
-    assert result == {"id": "lookup-save", "ok": True, "result": {"status": "saved", "operation": operation}}
-    assert calls == [
-        ((operation, "fixture.csv"), {
-            "content": payload.get("content"),
-            "expected_fingerprint": "fixture-version",
-            "actor_id": "fixture-actor",
-        }),
-        "closed",
-    ]
-
-
 async def test_handle_request_returns_result_envelope():
     response = await handle_request({"id": "a1", "command": "no-real-command-can-run-here", "payload": {}})
     # Unknown commands surface as bounded operation failures, not crashes.
@@ -88,7 +57,7 @@ def test_command_failure_shapes_are_bounded_and_credential_free():
     assert login_failure == {"code": "authentication_failed", "message": "authentication failed", "details": {}}
     service_failure = command_failure("catalog-list", ServiceError("not_configured", "Catalog storage missing."))
     assert service_failure["code"] == "not_configured"
-    generic = command_failure("save-detection", RuntimeError("boom"))
+    generic = command_failure("send-email", RuntimeError("boom"))
     assert generic == {"code": "operation_failed", "message": "The requested operation failed.", "details": {}}
 
 

@@ -14,6 +14,7 @@ from unified_mcp_server.errors import ServiceError
 from ..core.service import SplunkCore
 from .resource_manager import SearchResourceManager
 from .resource_policy import (
+    ResourceAdmissionResult,
     SearchResourceConfig,
     SearchResourceExecution,
     SearchResourcePolicy,
@@ -278,6 +279,27 @@ class SearchExecutor:
         principal_id: str | None,
         workload_type: SearchWorkloadType,
     ) -> AsyncIterator[SearchResourceExecution]:
+        if str(getattr(self.core.settings, "mcp_endpoint", "")).strip():
+            effective_limit = min(requested_limit, 1_000)
+            principal = principal_id.strip() if isinstance(principal_id, str) and principal_id.strip() else "anonymous"
+            admission = ResourceAdmissionResult(
+                allowed=True,
+                cost_class="low",
+                reasons=["Search admission is enforced by the official Splunk MCP server."],
+                max_runtime_seconds=60,
+                max_results=effective_limit,
+                max_lookback_seconds=None,
+                concurrency_weight=1,
+                budget_cost=0,
+                workload_type=workload_type,
+            )
+            yield SearchResourceExecution(
+                admission=admission,
+                requested_max_results=requested_limit,
+                effective_max_results=effective_limit,
+                principal_id=principal,
+            )
+            return
         profile = self.resource_policy.profile(validation, requested_limit)
         admission = self.resource_policy.evaluate(profile, workload_type)
         try:

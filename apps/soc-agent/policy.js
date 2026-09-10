@@ -1,7 +1,24 @@
 // Shared SOC tool policy categories.
 
+export const OFFICIAL_SPLUNK_READ_TOOLS = Object.freeze([
+  'mcp__splunk_official__splunk_run_query',
+  'mcp__splunk_official__splunk_get_info',
+  'mcp__splunk_official__splunk_get_indexes',
+  'mcp__splunk_official__splunk_get_index_info',
+  'mcp__splunk_official__splunk_get_metadata',
+  'mcp__splunk_official__splunk_get_knowledge_objects',
+  'mcp__splunk_official__splunk_run_saved_search',
+  'mcp__splunk_official__splunk_list_alerts',
+  'mcp__splunk_official__splunk_get_alert_details',
+  'mcp__splunk_official__splunk_list_fired_alerts',
+  'mcp__splunk_official__splunk_get_fired_alert_details',
+  'mcp__splunk_official__splunk_get_alert_throttle',
+  'mcp__splunk_official__splunk_list_active_throttles',
+])
+
 export const READ_ONLY_TOOLS = Object.freeze([
   'skill',
+  ...OFFICIAL_SPLUNK_READ_TOOLS,
   'mcp__soc_agent__system_get_status',
   'mcp__soc_agent__splunk_validate_query',
   'mcp__soc_agent__splunk_search',
@@ -59,8 +76,6 @@ export const ACTION_CATALOG = Object.freeze([
   { name: 'mcp__soc_agent__zimbra_create_folder', group: 'Zimbra', label: 'Create folder' },
   { name: 'mcp__soc_agent__zimbra_create_signature', group: 'Zimbra', label: 'Create signature' },
   { name: 'mcp__soc_agent__zimbra_delete_signature', group: 'Zimbra', label: 'Delete signature' },
-  { name: 'mcp__soc_agent__splunk_write_detection', group: 'Splunk', label: 'Write detection' },
-  { name: 'mcp__soc_agent__splunk_update_detection', group: 'Splunk', label: 'Update detection' },
   { name: 'mcp__soc_agent__catalog_write_rule', group: 'Catalogs', label: 'Create Ruleset draft' },
   { name: 'mcp__soc_agent__catalog_update_rule', group: 'Catalogs', label: 'Edit Ruleset record' },
   { name: 'mcp__soc_agent__catalog_write_customer', group: 'Catalogs', label: 'Create customer draft' },
@@ -68,9 +83,6 @@ export const ACTION_CATALOG = Object.freeze([
   { name: 'mcp__soc_agent__catalog_write_fix_source_type', group: 'Catalogs', label: 'Create Fix Source type draft' },
   { name: 'mcp__soc_agent__catalog_update_fix_source_type', group: 'Catalogs', label: 'Edit Fix Source type record' },
   { name: 'mcp__soc_agent__catalog_archive_record', group: 'Catalogs', label: 'Archive or restore catalog record' },
-  { name: 'mcp__soc_agent__splunk_write_lookup', group: 'Splunk', label: 'Create lookup CSV' },
-  { name: 'mcp__soc_agent__splunk_update_lookup', group: 'Splunk', label: 'Update lookup CSV' },
-  { name: 'mcp__soc_agent__splunk_delete_lookup', group: 'Splunk', label: 'Delete lookup CSV' },
   { name: 'mcp__soc_agent__create_subscription', group: 'Subscriptions', label: 'Create subscription' },
   { name: 'mcp__soc_agent__update_subscription', group: 'Subscriptions', label: 'Update subscription' },
   { name: 'mcp__soc_agent__delete_subscription', group: 'Subscriptions', label: 'Delete subscription' },
@@ -83,14 +95,6 @@ export const ACTION_CATALOG = Object.freeze([
 
 export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
 
-// Detection drafts and catalog drafts always require the harness approval
-// flow. These names must never be satisfied by the generic remembered
-// action-name policy.
-export const DETECTION_ACTION_TOOLS = Object.freeze([
-  'mcp__soc_agent__splunk_write_detection',
-  'mcp__soc_agent__splunk_update_detection',
-])
-
 export const CATALOG_ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__catalog_write_rule',
   'mcp__soc_agent__catalog_update_rule',
@@ -101,19 +105,9 @@ export const CATALOG_ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__catalog_archive_record',
 ])
 
-// Lookup CSV mutations are draft-producing actions, but remembered approval
-// must never bypass the harness gate before the editor can commit them.
-export const SPLUNK_LOOKUP_ACTION_TOOLS = Object.freeze([
-  'mcp__soc_agent__splunk_write_lookup',
-  'mcp__soc_agent__splunk_update_lookup',
-  'mcp__soc_agent__splunk_delete_lookup',
-])
-
 // Draft changes must never be auto-approved by a remembered session policy.
 export const ALWAYS_ASK_ACTION_TOOLS = Object.freeze([
-  ...DETECTION_ACTION_TOOLS,
   ...CATALOG_ACTION_TOOLS,
-  ...SPLUNK_LOOKUP_ACTION_TOOLS,
 ])
 
 export const DOMAIN_TOOLS = new Set([...READ_ONLY_TOOLS, ...ACTION_TOOLS])

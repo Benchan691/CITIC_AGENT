@@ -60,7 +60,7 @@ def make_service(store=None):
         safe_timerange="24h",
         sanitize_output=True,
     )
-    return CatalogService(store, settings, splunk=None)
+    return CatalogService(store, settings)
 
 
 def test_service_without_storage_reports_not_configured():
@@ -175,11 +175,3 @@ def test_save_fix_source_type_verifies_default_fix_index_against_customer_gid():
     ))
     assert result["saved"] is True
 
-
-def test_publish_is_blocked_without_lookup_write_flag():
-    import asyncio
-
-    service = make_service(StubStore())
-    with pytest.raises(ServiceError) as caught:
-        asyncio.run(service.publish_catalog("rule", actor_id="a"))
-    assert caught.value.code == "operation_disabled"

@@ -111,54 +111,6 @@ class SplunkService:
     async def get_lookup(self, name: str) -> dict[str, Any]:
         return await self.search_service.get_lookup(name)
 
-    async def write_lookup(self, name: str, content: str, *, actor_id: str | None = None) -> dict[str, Any]:
-        return await self.search_service.write_lookup(name, content, actor_id=actor_id)
-
-    async def update_lookup(
-        self,
-        name: str,
-        content: str,
-        expected_fingerprint: str,
-        *,
-        actor_id: str | None = None,
-    ) -> dict[str, Any]:
-        return await self.search_service.update_lookup(
-            name,
-            content,
-            expected_fingerprint,
-            actor_id=actor_id,
-        )
-
-    async def delete_lookup(
-        self,
-        name: str,
-        expected_fingerprint: str,
-        *,
-        actor_id: str | None = None,
-    ) -> dict[str, Any]:
-        return await self.search_service.delete_lookup(
-            name,
-            expected_fingerprint,
-            actor_id=actor_id,
-        )
-
-    async def save_lookup(
-        self,
-        operation: str,
-        name: str,
-        *,
-        content: str | None = None,
-        expected_fingerprint: str | None = None,
-        actor_id: str | None = None,
-    ) -> dict[str, Any]:
-        return await self.search_service.save_lookup(
-            operation,
-            name,
-            content=content,
-            expected_fingerprint=expected_fingerprint,
-            actor_id=actor_id,
-        )
-
     async def get_detection(self, name: str) -> dict[str, Any]:
         return await self.detection_service.get_detection(name)
 
@@ -222,29 +174,6 @@ class SplunkService:
 
     async def get_security_finding(self, finding_id: str) -> dict[str, Any]:
         return await self.security_queue_service.get_security_finding(finding_id)
-
-    async def write_detection(self, payload: dict[str, Any], *, actor_id: str | None = None) -> dict[str, Any]:
-        return await self.detection_service.write_detection(payload, actor_id=actor_id)
-
-    async def update_detection(self, name: str, payload: dict[str, Any], expected_fingerprint: str, *, actor_id: str | None = None) -> dict[str, Any]:
-        return await self.detection_service.update_detection(name, payload, expected_fingerprint, actor_id=actor_id)
-
-    async def save_detection(
-        self,
-        operation: str,
-        payload: dict[str, Any],
-        *,
-        name: str | None = None,
-        expected_fingerprint: str | None = None,
-        actor_id: str | None = None,
-    ) -> dict[str, Any]:
-        return await self.detection_service.save_detection(
-            operation,
-            payload,
-            name=name,
-            expected_fingerprint=expected_fingerprint,
-            actor_id=actor_id,
-        )
 
     async def close(self) -> None:
         await self.core.close()

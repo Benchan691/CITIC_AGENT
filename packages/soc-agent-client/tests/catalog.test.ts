@@ -148,7 +148,7 @@ test('toolview registers every draft tool and saves through the authenticated RP
   assert.match(source, /data-dshcf-preserve="true"/)
 
   const manager = readFileSync(join(ROOT, 'src/client/CatalogManager.tsx'), 'utf8')
-  for (const endpoint of ['catalog-list', 'catalog-get', 'catalog-history', 'save-catalog-record', 'archive-catalog-record', 'catalog-preview-publish', 'publish-catalog', 'rollback-publication']) {
+  for (const endpoint of ['catalog-list', 'catalog-get', 'catalog-history', 'save-catalog-record', 'archive-catalog-record', 'catalog-preview-publish']) {
     assert.ok(manager.includes(endpoint), `manager must call ${endpoint}`)
   }
 

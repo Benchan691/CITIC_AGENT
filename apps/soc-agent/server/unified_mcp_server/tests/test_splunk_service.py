@@ -126,23 +126,6 @@ class FakeClient:
             "acl": {**self.saved_acl, "app": app or self.saved_acl["app"], "owner": owner or self.saved_acl["owner"]},
         }
 
-    async def create_saved_search(self, fields):
-        self.created_fields = fields
-        self.saved_content = {
-            key: value for key, value in fields.items()
-            if key not in {"name", "app", "owner"}
-        }
-        self.saved_acl = {"app": fields.get("app", "search"), "owner": fields.get("owner", "nobody"), "sharing": "app"}
-        return {"entry": [{"name": fields["name"]}]}
-
-    async def update_saved_search(self, name, fields):
-        self.updated_fields = (name, fields)
-        self.saved_content.update({
-            key: value for key, value in fields.items()
-            if key not in {"name", "app", "owner"}
-        })
-        return {"entry": [{"name": name}]}
-
     async def run_saved_search(self, name, trigger_actions, max_count=100, app="", owner="", *, runtime_limit=None):
         return {
             "search_name": name,
@@ -720,22 +703,10 @@ def test_detection_validation_rejects_non_scalar_action_parameters():
 
 
 @pytest.mark.asyncio
-async def test_backtest_and_writes_are_guarded_and_structured():
+async def test_backtest_is_read_only_bounded_and_structured():
     service = SplunkService(settings(), FakeClient)
-    draft_without_write_gate = await service.write_detection({"name": "x", "spl": citic_spl()})
-    assert draft_without_write_gate["status"] == "draft"
-
-    writable = SplunkService(
-        settings(detection_write_enabled=True), FakeClient
-    )
     payload = {"name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *"}
-    draft = await writable.write_detection(payload)
-    assert draft["status"] == "draft"
-    assert draft["enabled"] is False
-    assert "splunk" not in draft
-    assert draft["requires_action_configuration"] is False
-    assert draft["review_only_metadata"]["persisted"] is False
-    backtest = await writable.backtest_detection(
+    backtest = await service.backtest_detection(
         {**payload, "spl": "index=main error"}, max_count=10, fields=["card"]
     )
     assert backtest["sample_count"] == 1
@@ -745,57 +716,3 @@ async def test_backtest_and_writes_are_guarded_and_structured():
     assert backtest["search_metadata"]["mcp_context_truncated"] is False
     assert backtest["fields"] == ["card"]
     assert backtest["sample_events"] == [{"card": "****-****-****-1111"}]
-    current = await writable.get_detection("x")
-    update_draft = await writable.update_detection(
-        "x", {"description": "updated"}, current["fingerprint"], actor_id="test-analyst"
-    )
-    disabled = await writable.save_detection(
-        "update",
-        update_draft["draft"],
-        name="x",
-        expected_fingerprint=update_draft["expected_fingerprint"],
-        actor_id="test-analyst",
-    )
-    assert disabled["enabled"] is False
-    assert "splunk" not in disabled
-    assert writable.core._client.updated_fields[0] == "x"
-    assert writable.core._client.updated_fields[1]["disabled"] == "1"
-    assert "alert.track" not in writable.core._client.updated_fields[1]
-
-
-@pytest.mark.asyncio
-async def test_detection_update_adds_company_log_event_and_forces_disabled_state():
-    service = SplunkService(
-        settings(detection_write_enabled=True), FakeClient
-    )
-    draft = await service.write_detection({
-        "name": "x", "spl": citic_spl(), "cron_schedule": "*/5 * * * *",
-    })
-    assert draft["status"] == "draft"
-    current = await service.get_detection("x")
-    update_draft = await service.update_detection(
-        "x", {"description": "reviewed"}, current["fingerprint"], actor_id="test-analyst"
-    )
-    assert update_draft["draft"]["disabled"] is True
-    updated = await service.save_detection(
-        "update",
-        update_draft["draft"],
-        name="x",
-        expected_fingerprint=update_draft["expected_fingerprint"],
-        actor_id="test-analyst",
-    )
-    assert updated["actions_preserved"] is False
-    assert updated["actions_updated"] is True
-    assert updated["detection"]["actions"] == "email,logevent"
-    assert service.core._client.updated_fields[1]["actions"] == "email,logevent"
-
-
-@pytest.mark.asyncio
-async def test_detection_modification_rejects_a_stale_fingerprint():
-    service = SplunkService(settings(detection_write_enabled=True), FakeClient)
-    current = await service.get_detection("x")
-
-    with pytest.raises(ServiceError) as error:
-        await service.update_detection("x", {"description": "changed"}, "stale")
-
-    assert error.value.code == "detection_changed"

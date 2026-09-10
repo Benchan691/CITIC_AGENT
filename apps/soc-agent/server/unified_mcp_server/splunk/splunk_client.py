@@ -902,89 +902,6 @@ class SplunkClient:
         except Exception as exc:
             raise SplunkAPIError("Failed to get lookup CSV contents.") from exc
 
-    async def _post_lookup_contents(
-        self,
-        name: str,
-        app: str,
-        owner: str,
-        rows: list[list[str]],
-        operation: str,
-    ) -> Dict[str, Any]:
-        self._ensure_connected()
-        try:
-            response = await self._client.post(
-                self._lookup_contents_path(),
-                data={
-                    "lookup_file": name,
-                    "namespace": app or "search",
-                    "lookup_type": "csv",
-                    "owner": owner or "nobody",
-                    "contents": json.dumps(rows, ensure_ascii=False, separators=(",", ":")),
-                },
-                params={"output_mode": "json"},
-            )
-            payload = self._response_json_value(response, f"lookup CSV {operation}")
-            if isinstance(payload, dict):
-                self._raise_message_errors(payload, f"lookup CSV {operation}")
-                return payload
-            return {"result": payload}
-        except SplunkAPIError as exc:
-            if exc.status_code == 404:
-                raise SplunkAPIError(
-                    "The Splunk Lookup File Editing API is unavailable; install or enable it before saving lookup CSV contents.",
-                    status_code=exc.status_code,
-                ) from exc
-            if exc.status_code in {401, 403}:
-                raise SplunkAPIError(
-                    "Splunk denied lookup CSV editing; verify the authenticated user's upload_lookup_files permission.",
-                    status_code=exc.status_code,
-                ) from exc
-            raise
-        except Exception as exc:
-            raise SplunkAPIError(f"Failed to {operation} lookup CSV contents.") from exc
-
-    async def create_lookup_contents(
-        self, name: str, app: str, owner: str, rows: list[list[str]]
-    ) -> Dict[str, Any]:
-        """Create a CSV lookup through the authenticated content editor API."""
-        return await self._post_lookup_contents(name, app, owner, rows, "create")
-
-    async def update_lookup_contents(
-        self, name: str, app: str, owner: str, rows: list[list[str]]
-    ) -> Dict[str, Any]:
-        """Replace a CSV lookup through the authenticated content editor API."""
-        return await self._post_lookup_contents(name, app, owner, rows, "update")
-
-    async def delete_lookup_table_file(
-        self, name: str, app: str = "", owner: str = ""
-    ) -> Dict[str, Any]:
-        """Delete one lookup-table file in its explicit app/owner namespace."""
-        self._ensure_connected()
-        try:
-            response = await self._client.delete(
-                self._lookup_file_path(name, app, owner),
-                params={"output_mode": "json"},
-            )
-            try:
-                response.raise_for_status()
-            except httpx.HTTPStatusError as exc:
-                raise SplunkAPIError(
-                    "Failed to delete lookup-table file.",
-                    status_code=exc.response.status_code,
-                ) from exc
-            try:
-                payload = response.json()
-            except (TypeError, ValueError):
-                return {}
-            if not isinstance(payload, dict):
-                raise SplunkAPIError("Splunk returned a malformed lookup delete response.")
-            self._raise_message_errors(payload, "lookup delete")
-            return payload
-        except SplunkAPIError:
-            raise
-        except Exception as exc:
-            raise SplunkAPIError("Failed to delete lookup-table file.") from exc
-            
     async def get_saved_searches(self, name: str = "", app: str = "", count: int = 50) -> List[Dict[str, Any]]:
         """Get list of all saved searches.
         
@@ -1058,43 +975,6 @@ class SplunkClient:
         except Exception as e:
             raise SplunkAPIError("Failed to get saved search.") from e
 
-    async def create_saved_search(self, fields: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a saved search using the standard Splunk REST fields."""
-        self._ensure_connected()
-        try:
-            values = {str(key): str(value) for key, value in fields.items() if value is not None}
-            scope = {key: values.pop(key) for key in ("app", "owner") if key in values}
-            response = await self._client.post(
-                self._saved_searches_path(scope.get("app", ""), scope.get("owner", "")),
-                data=values,
-                params={"output_mode": "json"},
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPStatusError as e:
-            raise SplunkAPIError("Failed to create saved search.", status_code=e.response.status_code) from e
-        except Exception as e:
-            raise SplunkAPIError("Failed to create saved search.") from e
-
-    async def update_saved_search(self, search_name: str, fields: Dict[str, Any]) -> Dict[str, Any]:
-        """Update fields on an existing saved search."""
-        self._ensure_connected()
-        try:
-            values = {str(key): str(value) for key, value in fields.items() if value is not None}
-            scope = {key: values.pop(key) for key in ("app", "owner") if key in values}
-            url = f"{self._saved_searches_path(scope.get('app', ''), scope.get('owner', ''))}/{quote(search_name, safe='')}"
-            response = await self._client.post(
-                url,
-                data=values,
-                params={"output_mode": "json"},
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPStatusError as e:
-            raise SplunkAPIError("Failed to update saved search.", status_code=e.response.status_code) from e
-        except Exception as e:
-            raise SplunkAPIError("Failed to update saved search.") from e
-            
     async def run_saved_search(
         self,
         search_name: str,

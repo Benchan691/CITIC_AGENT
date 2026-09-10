@@ -149,13 +149,11 @@ class SplunkSettings:
     risk_tolerance: int
     safe_timerange: str
     sanitize_output: bool
-    detection_write_enabled: bool = False
     detection_app: str = "search"
     detection_owner: str = "nobody"
     search_planner_enabled: bool = False
     search_reuse_ttl_seconds: int = 300
     evidence_store_path: str = ""
-    lookup_write_enabled: bool = False
     lookup_app: str = "search"
     lookup_owner: str = "nobody"
     rule_lookup_name: str = "Ruleset.csv"
@@ -171,8 +169,8 @@ class SplunkSettings:
     search_planner_max_refinements: int = 0
     allow_insecure_http: bool = False
     # When configured, supported read operations use Splunk's official MCP
-    # Server. The REST URL remains available for CITIC-specific operations
-    # that the official server does not expose (for example lookup editing).
+    # Server. The REST URL remains available only for bounded read
+    # compatibility operations that the official server does not expose.
     mcp_endpoint: str = ""
 
     def __post_init__(self) -> None:
@@ -468,13 +466,11 @@ class ServerSettings:
             risk_tolerance=_integer(env, splunk_risk_name, 75, 0, 100),
             safe_timerange=_value(env, splunk_safe_name, "24h"),
             sanitize_output=_boolean(env, splunk_sanitize_name, True),
-            detection_write_enabled=_boolean(env, "SPLUNK_ALLOW_DETECTION_WRITE", False),
             detection_app=_value(env, "SPLUNK_DETECTION_APP", "search"),
             detection_owner=_value(env, "SPLUNK_DETECTION_OWNER", "nobody"),
             search_planner_enabled=_boolean(env, "SPLUNK_SEARCH_PLANNER_ENABLED", False),
             search_reuse_ttl_seconds=_integer(env, "SPLUNK_SEARCH_REUSE_TTL_SECONDS", 300, 0, 3600),
             evidence_store_path=_value(env, "SOC_EVIDENCE_STORE"),
-            lookup_write_enabled=_boolean(env, "SPLUNK_ALLOW_LOOKUP_WRITE", False),
             lookup_app=_value(env, "SPLUNK_LOOKUP_APP") or "search",
             lookup_owner=_value(env, "SPLUNK_LOOKUP_OWNER") or "nobody",
             rule_lookup_name=_value(env, "SPLUNK_RULE_LOOKUP_NAME", "Ruleset.csv"),
@@ -572,9 +568,7 @@ class ServerSettings:
                 "max_events": self.splunk.max_events,
                 "risk_tolerance": self.splunk.risk_tolerance,
                 "sanitize_output": self.splunk.sanitize_output,
-                "detection_write_enabled": self.splunk.detection_write_enabled,
                 "detection_app": self.splunk.detection_app,
-                "lookup_write_enabled": self.splunk.lookup_write_enabled,
                 "lookup_app": self.splunk.lookup_app,
                 "lookup_owner": self.splunk.lookup_owner,
                 "lookup_max_bytes": self.splunk.lookup_max_bytes,

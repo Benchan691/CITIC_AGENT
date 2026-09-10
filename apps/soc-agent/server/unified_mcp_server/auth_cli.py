@@ -18,7 +18,6 @@ from .catalog.service import CatalogService
 from .errors import ServiceError
 from .zimbra.mail.service import ZimbraMailService
 from .postgres_store import PostgresStore, normalize_zimbra_email
-from .splunk_service import SplunkService
 from .zimbra import zimbra_login
 from .blocking_io import run_blocking
 from .request_context import operation_budget
@@ -28,7 +27,6 @@ from .request_context import operation_budget
 class CommandRuntime:
     store: PostgresStore | None
     settings: ServerSettings
-    splunk: SplunkService | None = None
     catalog: CatalogService | None = None
     lock: Lock = field(default_factory=Lock)
 
@@ -38,17 +36,10 @@ class CommandRuntime:
         store = PostgresStore.from_env()
         return cls(store, settings)
 
-    def splunk_service(self):
-        with self.lock:
-            if self.splunk is None:
-                self.splunk = SplunkService(self.settings.splunk)
-            return self.splunk
-
     def catalog_service(self):
-        splunk = self.splunk_service()
         with self.lock:
             if self.catalog is None:
-                self.catalog = CatalogService.from_env(self.settings.splunk, splunk=splunk)
+                self.catalog = CatalogService.from_env(self.settings.splunk)
             return self.catalog
 
 
@@ -65,8 +56,6 @@ async def command_runtime():
         _command_runtime.reset(token)
         if runtime.catalog is not None:
             await runtime.catalog.close()
-        if runtime.splunk is not None:
-            await runtime.splunk.close()
         if runtime.store is not None:
             await asyncio.to_thread(runtime.store.close)
 
@@ -78,7 +67,7 @@ def _settings():
 
 async def _close_service(service):
     runtime = _command_runtime.get()
-    if runtime is None or (service is not runtime.splunk and service is not runtime.catalog):
+    if runtime is None or service is not runtime.catalog:
         await service.close()
 
 
@@ -150,65 +139,6 @@ async def send_email(payload: dict[str, Any]) -> dict[str, Any]:
 async def list_signatures(payload: dict[str, Any]) -> dict[str, Any]:
     service = await run_blocking(_service, payload, principal=str(payload.get("session_id", "")))
     return await service.list_signatures()
-
-
-def _splunk_service(payload: dict[str, Any]) -> tuple[SplunkService, str]:
-    store = _store()
-    session = store.get_app_session(str(payload.get("session_id", "")))
-    if session is None:
-        raise ValueError("authentication failed")
-    runtime = _command_runtime.get()
-    return (runtime.splunk_service() if runtime else SplunkService(_settings().splunk)), session.user_id
-
-
-async def save_detection(payload: dict[str, Any]) -> dict[str, Any]:
-    operation = payload.get("operation")
-    detection = payload.get("detection")
-    if operation not in {"write", "update"} or not isinstance(detection, dict):
-        raise ValueError("invalid detection save request")
-    name = payload.get("name")
-    if name is not None and not isinstance(name, str):
-        raise ValueError("invalid detection save request")
-    expected_fingerprint = payload.get("expected_fingerprint")
-    if expected_fingerprint is not None and not isinstance(expected_fingerprint, str):
-        raise ValueError("invalid detection save request")
-    service, actor_id = await run_blocking(_splunk_service, payload, principal=str(payload.get("session_id", "")))
-    try:
-        return await service.save_detection(
-            operation,
-            detection,
-            name=name,
-            expected_fingerprint=expected_fingerprint,
-            actor_id=actor_id,
-        )
-    finally:
-        await _close_service(service)
-
-
-async def save_lookup(payload: dict[str, Any]) -> dict[str, Any]:
-    operation = payload.get("operation")
-    name = payload.get("name")
-    content = payload.get("content")
-    expected_fingerprint = payload.get("expected_fingerprint")
-    if operation not in {"write", "update", "delete"} or not isinstance(name, str):
-        raise ValueError("invalid lookup save request")
-    if operation in {"write", "update"} and not isinstance(content, str):
-        raise ValueError("invalid lookup save request")
-    if operation in {"update", "delete"} and not isinstance(expected_fingerprint, str):
-        raise ValueError("invalid lookup save request")
-    if expected_fingerprint is not None and not isinstance(expected_fingerprint, str):
-        raise ValueError("invalid lookup save request")
-    service, actor_id = await run_blocking(_splunk_service, payload, principal=str(payload.get("session_id", "")))
-    try:
-        return await service.save_lookup(
-            operation,
-            name,
-            content=content,
-            expected_fingerprint=expected_fingerprint,
-            actor_id=actor_id,
-        )
-    finally:
-        await _close_service(service)
 
 
 def _catalog_session(payload: dict[str, Any]) -> str:
@@ -326,24 +256,6 @@ async def archive_catalog_record(payload: dict[str, Any]) -> dict[str, Any]:
         await _close_service(service)
 
 
-async def publish_catalog(payload: dict[str, Any]) -> dict[str, Any]:
-    service, actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
-    try:
-        return await service.publish_catalog(str(payload.get("catalog", "")), actor_id=actor_id)
-    finally:
-        await _close_service(service)
-
-
-async def rollback_publication(payload: dict[str, Any]) -> dict[str, Any]:
-    service, actor_id = await run_blocking(_catalog_context, payload, principal=str(payload.get("session_id", "")))
-    try:
-        return await service.rollback_publication(
-            str(payload.get("publication_id", "")), actor_id=actor_id
-        )
-    finally:
-        await _close_service(service)
-
-
 _SYNC_COMMANDS = {
     "login": login,
     "logout": logout,
@@ -352,8 +264,6 @@ _SYNC_COMMANDS = {
 _ASYNC_COMMANDS = {
     "send-email": send_email,
     "list-signatures": list_signatures,
-    "save-detection": save_detection,
-    "save-lookup": save_lookup,
     "catalog-list": catalog_list,
     "catalog-get": catalog_get,
     "catalog-history": catalog_history,
@@ -361,8 +271,6 @@ _ASYNC_COMMANDS = {
     "catalog-preview-publish": catalog_preview_publish,
     "save-catalog-record": save_catalog_record,
     "archive-catalog-record": archive_catalog_record,
-    "publish-catalog": publish_catalog,
-    "rollback-publication": rollback_publication,
 }
 
 KNOWN_COMMANDS = frozenset({*_SYNC_COMMANDS, *_ASYNC_COMMANDS})

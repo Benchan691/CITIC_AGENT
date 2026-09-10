@@ -267,38 +267,6 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
     }
   }
 
-  const publish = async () => {
-    if (!window.confirm(`Publish the ${CATALOG_LABELS[catalog]} catalog to Splunk as ${valueText(preview?.lookup_name)}?`)) return
-    setStatus('busy')
-    setError(null)
-    try {
-      await rpc(connection, 'publish-catalog', { catalog })
-      const result = await rpc(connection, 'catalog-preview-publish', { catalog })
-      setPreview(result)
-      await loadSideData(selected ? valueText(selected.record_id) : null)
-      setStatus('saved')
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-      setStatus('failed')
-    }
-  }
-
-  const rollback = async (publicationId: string) => {
-    if (!window.confirm('Restore this previously published revision to Splunk?')) return
-    setStatus('busy')
-    setError(null)
-    try {
-      await rpc(connection, 'rollback-publication', { publication_id: publicationId })
-      const result = await rpc(connection, 'catalog-preview-publish', { catalog })
-      setPreview(result)
-      await loadSideData(selected ? valueText(selected.record_id) : null)
-      setStatus('saved')
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-      setStatus('failed')
-    }
-  }
-
   if (authError) {
     return (
       <div className={css.page}>
@@ -420,12 +388,9 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
           )}
 
           <details className={css.section} open>
-            <summary>Publication to Splunk</summary>
+            <summary>Read-only export preview</summary>
             <div className={css.publishBar}>
               <button className={css.button} type="button" disabled={status === 'busy'} onClick={() => { void loadPreview() }}>Preview snapshot</button>
-              {preview && (
-                <button className={`${css.button} ${css.primary}`} type="button" disabled={status === 'busy'} onClick={() => { void publish() }}>Publish…</button>
-              )}
             </div>
             {preview && (
               <div className={css.preview}>
@@ -433,7 +398,7 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
                 <div>Checksum: <code>{valueText(preview.content_checksum)}</code></div>
                 <div className={(preview.validation as Record<string, unknown>)?.valid ? css.success : css.error}>
                   {(preview.validation as Record<string, unknown>)?.valid
-                    ? 'Validation passed; ready to publish.'
+                    ? 'Validation passed; snapshot is ready for review.'
                     : JSON.stringify((preview.validation as Record<string, unknown>)?.errors)}
                 </div>
                 {Array.isArray((preview.validation as Record<string, unknown>)?.warnings) && ((preview.validation as Record<string, unknown>).warnings as string[]).length > 0 && (
@@ -444,7 +409,7 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
             {publications.length > 0 && (
               <table className={css.publicationTable}>
                 <thead>
-                  <tr><th>When</th><th>Outcome</th><th>Checksum</th><th>Actor</th><th /></tr>
+                  <tr><th>When</th><th>Outcome</th><th>Checksum</th><th>Actor</th></tr>
                 </thead>
                 <tbody>
                   {publications.map(publication => (
@@ -453,11 +418,6 @@ export function CatalogManager({ connection }: { connection: ConnectionHandle })
                       <td><StatusPill status={valueText(publication.outcome)} /></td>
                       <td><code>{valueText(publication.content_checksum).slice(0, 12)}</code></td>
                       <td>{valueText(publication.actor)}</td>
-                      <td>
-                        {publication.outcome === 'published' && (
-                          <button className={css.button} type="button" onClick={() => { void rollback(valueText(publication.publication_id)) }}>Restore</button>
-                        )}
-                      </td>
                     </tr>
                   ))}
                 </tbody>

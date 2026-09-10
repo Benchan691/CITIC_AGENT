@@ -28,7 +28,7 @@ test('CITIC SOC defers generic Splunk background until a Splunk tool is visible'
   const background = readFileSync(join(repoRoot, 'BACKGROUND.md'), 'utf8')
   const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')
 
-  assert.match(citicPreset, /instructionFileCandidates:\n\s+- AGENTS\.md\n\s+- CLAUDE\.md\n\s+deferredInstructionFileCandidates:\n\s+- BACKGROUND\.md\n\s+deferredToolNamePrefixes:\n\s+- mcp__soc_agent__splunk_/)
+  assert.match(citicPreset, /instructionFileCandidates:\n\s+- AGENTS\.md\n\s+- CLAUDE\.md\n\s+deferredInstructionFileCandidates:\n\s+- BACKGROUND\.md\n\s+deferredToolNamePrefixes:\n\s+- mcp__soc_agent__splunk_\n\s+- mcp__splunk_official__splunk_/)
   assert.equal((citicPreset.match(/BACKGROUND\.md/g) ?? []).length, 1)
   assert.match(background, /not\s+authorization/i)
   assert.match(background, /\[COMPANY_SHORT\] detection alert name/)
@@ -63,6 +63,19 @@ test('SOC profile disables native shell and permission controls', () => {
   for (const id of ['subprocess', 'sandbox', 'bash-sandbox', 'permission', 'ui-permission', 'tool-bash', 'tool-pwsh']) {
     assert.match(patch, new RegExp(`- id: ${id}\\n  disabled: true`), id)
   }
+})
+
+test('SOC profile exposes only allowlisted official Splunk reads when configured', () => {
+  const productRoot = fileURLToPath(new URL('..', import.meta.url))
+  const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
+  assert.match(patch, /- id: splunk-official-mcp[\s\S]*serverName: splunk_official[\s\S]*transport: streamable-http/)
+  assert.match(patch, /disabled: !!js "!process\.env\.SPLUNK_MCP_ENDPOINT \|\| !process\.env\.SPLUNK_TOKEN"/)
+  assert.match(patch, /Authorization: !!js "'Bearer ' \+ \(process\.env\.SPLUNK_TOKEN \|\| ''\)"/)
+  const official = patch.slice(patch.indexOf('- id: splunk-official-mcp'), patch.indexOf('- id: soc-agent-auth-host'))
+  for (const name of ['splunk_run_query', 'splunk_get_indexes', 'splunk_get_metadata', 'splunk_get_knowledge_objects', 'splunk_run_saved_search', 'splunk_list_fired_alerts']) {
+    assert.match(official, new RegExp(`- ${name}\\n`))
+  }
+  assert.doesNotMatch(official, /splunk_(create|update|delete|write)_/)
 })
 
 test('Harness discovers and loads the repository SOC skills through the skill tool', () => {
@@ -149,7 +162,9 @@ test('SOC skills are concise, scoped, and use bounded action parameters', () => 
   }
   const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')
   assert.match(detection, /splunk_list_saved_searches\(name=/)
-  assert.match(detection, /disabled draft/i)
+  assert.match(detection, /read-only/i)
+  assert.match(detection, /separately controlled human Splunk/i)
+  assert.doesNotMatch(detection, /splunk_(write|update)_detection/)
 
   const triage = readFileSync(join(repoRoot, 'skills', 'soc-incident-triage', 'SKILL.md'), 'utf8')
   assert.match(triage, /Do not load every specialist skill up front/)

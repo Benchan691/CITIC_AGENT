@@ -5,17 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from mcp.server.fastmcp import Context
-from unified_mcp_server.errors import ServiceError
-
-
-def _authenticated_actor(get_runtime, ctx: Context) -> str:
-    identity = getattr(get_runtime(ctx), "identity", None)
-    actor = getattr(identity, "user_id", "") or getattr(identity, "zimbra_email", "")
-    if not isinstance(actor, str) or not actor.strip():
-        raise ServiceError("not_authorized", "An authenticated SOC user is required for detection changes.")
-    return actor.strip()
-
-
 def _principal_id(get_runtime, ctx: Context) -> str:
     identity = getattr(get_runtime(ctx), "identity", None)
     principal = getattr(identity, "user_id", "") or getattr(identity, "zimbra_email", "")
@@ -69,13 +58,3 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success, fail
     async def splunk_backtest_detection(ctx: Context, detection: dict[str, Any], earliest_time: str = "-7d", latest_time: str = "now", max_count: int = 50, fields: list[str] | None = None) -> dict[str, Any]:
         """Run a bounded read-only detection sample; outputcsv and other writes are rejected."""
         return await execute(ctx, "splunk", "backtest_detection", lambda: get_runtime(ctx).splunk_detection.backtest_detection(detection, earliest_time, latest_time, max_count, fields, principal_id=_principal_id(get_runtime, ctx)))
-
-    @server.tool()
-    async def splunk_write_detection(ctx: Context, detection: dict[str, Any]) -> dict[str, Any]:
-        """Prepare an editable new detection draft without writing; the editor Save keeps it disabled and never executes outputcsv."""
-        return await execute(ctx, "splunk", "write_detection", lambda: get_runtime(ctx).splunk_detection.write_detection(detection, actor_id=_authenticated_actor(get_runtime, ctx)))
-
-    @server.tool()
-    async def splunk_update_detection(ctx: Context, name: str, detection: dict[str, Any], expected_fingerprint: str) -> dict[str, Any]:
-        """Prepare an editable fingerprint-bound detection draft without writing; the editor Save preserves omitted fields, keeps it disabled, and never executes outputcsv."""
-        return await execute(ctx, "splunk", "update_detection", lambda: get_runtime(ctx).splunk_detection.update_detection(name, detection, expected_fingerprint, actor_id=_authenticated_actor(get_runtime, ctx)))

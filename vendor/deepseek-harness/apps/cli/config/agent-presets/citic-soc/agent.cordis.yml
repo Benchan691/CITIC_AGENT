@@ -26,6 +26,7 @@
       - BACKGROUND.md
     deferredToolNamePrefixes:
       - mcp__soc_agent__splunk_
+      - mcp__splunk_official__splunk_
 
 # SOC procedures are skills; the loader exposes only discovered, applicable
 # guidance and avoids baking long workflows into the permanent prompt.
