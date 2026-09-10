@@ -10,6 +10,7 @@
   "files": [
     "cordis.patch.yml",
     "host.js",
+    "splunk-bridge.js",
     "auth-host.js",
     "ownership.js",
     "scheduler.js",
@@ -18,6 +19,7 @@
   "exports": {
     ".": "./package.json",
     "./host": "./host.js",
+    "./splunk-bridge": "./splunk-bridge.js",
     "./auth-host": "./auth-host.js",
     "./ownership": "./ownership.js",
     "./scheduler": "./scheduler.js",

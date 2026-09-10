@@ -68,14 +68,15 @@ test('SOC profile disables native shell and permission controls', () => {
 test('SOC profile exposes only allowlisted official Splunk reads when configured', () => {
   const productRoot = fileURLToPath(new URL('..', import.meta.url))
   const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
-  assert.match(patch, /- id: splunk-official-mcp[\s\S]*serverName: splunk_official[\s\S]*transport: streamable-http/)
-  assert.match(patch, /disabled: !!js "!process\.env\.SPLUNK_MCP_ENDPOINT \|\| !process\.env\.SPLUNK_TOKEN"/)
-  assert.match(patch, /Authorization: !!js "'Bearer ' \+ \(process\.env\.SPLUNK_TOKEN \|\| ''\)"/)
-  const official = patch.slice(patch.indexOf('- id: splunk-official-mcp'), patch.indexOf('- id: soc-agent-auth-host'))
+  const bridge = readFileSync(join(productRoot, 'splunk-bridge.js'), 'utf8')
+  assert.match(patch, /- id: splunk-official-mcp\n\s+name: dsh-soc-agent\/splunk-bridge/)
+  assert.match(bridge, /transport: 'streamable-http'/)
+  assert.match(bridge, /Authorization: `Bearer \$\{token\}`/)
+  assert.match(bridge, /if \(!endpoint \|\| !token\) return undefined/)
   for (const name of ['splunk_run_query', 'splunk_get_indexes', 'splunk_get_metadata', 'splunk_get_knowledge_objects', 'splunk_run_saved_search', 'splunk_list_fired_alerts']) {
-    assert.match(official, new RegExp(`- ${name}\\n`))
+    assert.match(bridge, new RegExp(`'${name}'`))
   }
-  assert.doesNotMatch(official, /splunk_(create|update|delete|write)_/)
+  assert.doesNotMatch(bridge, /splunk_(create|update|delete|write)_/)
 })
 
 test('Harness discovers and loads the repository SOC skills through the skill tool', () => {
@@ -155,9 +156,13 @@ test('SOC skills are concise, scoped, and use bounded action parameters', () => 
     'false-positive-analysis',
   ]) {
     const content = readFileSync(join(repoRoot, 'skills', name, 'SKILL.md'), 'utf8')
-    assert.equal(content.includes('splunk_list_indexes'), false, name)
-    assert.equal(content.includes('splunk_list_data_sources'), false, name)
-    assert.match(content, /splunk_list_saved_searches\(name=/)
+    if (name === 'splunk-investigation') {
+      assert.match(content, /mcp__splunk_official__splunk_run_query/)
+      assert.match(content, /mcp__splunk_official__splunk_get_knowledge_objects/)
+      assert.doesNotMatch(content, /`splunk_search|`splunk_validate_query|`soc_evidence_read/)
+    } else {
+      assert.match(content, /splunk_list_saved_searches\(name=/)
+    }
     assert.equal(content.split('\n').length < 140, true, `${name} should stay concise`)
   }
   const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')

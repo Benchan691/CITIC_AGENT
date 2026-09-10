@@ -5,11 +5,10 @@ One command drives the full loop:
 
     python3 benchmarks/run_benchmark.py [--scenarios S1,S4] [--keep] [--list]
 
-  preflight (target-safety gate + required lookups auto-copied from prod)
+  preflight (target-safety gate + read-only fixture checks)
     -> per scenario: run the agent headlessly against the TEST Splunk
-    -> grade answers AND observable Splunk state against the BACKGROUND.md
+    -> grade answers and read-only tool activity against the BACKGROUND.md
        daily-workflow checklists
-    -> cleanup every artifact the agent produced (detection drafts)
     -> write benchmarks/results/<ts>/report.md + report.json
 
 The agent's MCP server is pointed at the TEST Splunk through a generated
@@ -35,11 +34,9 @@ from bench_lib import (  # noqa: E402
     HARNESS,
     REPO,
     RESULTS_DIR,
-    ensure_required_lookups,
-    get_prod_auth,
+    require_lookups,
     get_test_auth,
     load_harness_env,
-    prod_client,
     run_dsh_headless,
     test_client,
 )
@@ -104,7 +101,7 @@ def write_overlay(cfg: dict) -> Path:
 # ---------------------------------------------------------------- preflight
 
 
-def preflight(cfg: dict, scenarios: list[dict]) -> tuple[dict, dict, list[str]]:
+def preflight(cfg: dict, scenarios: list[dict]) -> tuple[dict, None]:
     test = test_client(cfg)
     name = test.server_name()
     log(f"target serverName = {name!r} at {test.base}")
@@ -116,9 +113,7 @@ def preflight(cfg: dict, scenarios: list[dict]) -> tuple[dict, dict, list[str]]:
         if not load_harness_env().get(key):
             log(f"warning: {key} missing in vendor/deepseek-harness/.env")
 
-    needs_prod = any("catalog" in s["id"] for s in scenarios)
-    prod = prod_client(cfg) if needs_prod else None
-    copied = ensure_required_lookups(test, prod, log)
+    require_lookups(test)
 
     if not (HARNESS / "node_modules").exists():
         raise SystemExit("harness dependencies missing: cd vendor/deepseek-harness && pnpm install")
@@ -130,28 +125,7 @@ def preflight(cfg: dict, scenarios: list[dict]) -> tuple[dict, dict, list[str]]:
             "  cd vendor/deepseek-harness && pnpm dsh plugin --profile bench add "
             f"{REPO}/apps/soc-agent {REPO}/packages/soc-agent-client"
         )
-    return test, prod, copied
-
-
-# ------------------------------------------------------------------- cleanup
-
-
-def cleanup_created(test, baseline: dict, log) -> list[str]:
-    """Delete saved searches the benchmark created (diff against baseline)."""
-    after = test.list_saved_searches(app="search")
-    created = [n for n in after if n not in baseline]
-    deleted = []
-    for name in created:
-        if test.delete_saved_search(name, app="search", owner="nobody"):
-            deleted.append(name)
-            log(f"deleted created saved search: {name}")
-        else:
-            log(f"!! could not delete: {name}")
-    gone = test.list_saved_searches(app="search")
-    leftovers = [n for n in created if n in gone]
-    if leftovers:
-        log(f"!! still present after delete: {leftovers}")
-    return deleted
+    return test, None
 
 
 # --------------------------------------------------------------------- main
@@ -160,7 +134,6 @@ def cleanup_created(test, baseline: dict, log) -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="CITIC_AGENT SOC benchmark")
     ap.add_argument("--scenarios", default="", help="comma-separated ids (default: all)")
-    ap.add_argument("--keep", action="store_true", help="skip cleanup of produced artifacts")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")
     args = ap.parse_args()
 
@@ -180,18 +153,15 @@ def main() -> int:
     cfg = {"test_url": DEFAULT_TEST, "test_user": t_user, "test_password": t_pw}
 
     log("preflight")
-    test, prod, copied = preflight(cfg, selected)
+    test, prod = preflight(cfg, selected)
 
     overlay = write_overlay(cfg)
     log(f"overlay written: {overlay}")
 
-    baseline = test.list_saved_searches(app="search")
-    log(f"baseline: {len(baseline)} saved searches in app search")
-
     from bench_lib import parse_tool_activity, restore_server_env, swap_server_env
 
     original_env = swap_server_env(cfg)
-    log("server .env swapped to TEST Splunk (detection write on, enable off)")
+    log("server .env swapped to the read-only TEST Splunk configuration")
     results_dir = RESULTS_DIR / datetime.now().strftime("%Y%m%d_%H%M%S")
     results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -234,13 +204,6 @@ def main() -> int:
         restore_server_env(original_env)
         log("server .env restored")
 
-    deleted = []
-    if not args.keep:
-        log("cleanup: removing artifacts the agent produced")
-        deleted = cleanup_created(test, baseline, log)
-    else:
-        log("cleanup skipped (--keep)")
-
     total_checks = sum(len(r["checks"]) for r in results)
     passed_checks = sum(1 for r in results for c in r["checks"] if c["passed"])
     scenario_passes = sum(1 for r in results if r["passed"])
@@ -254,8 +217,6 @@ def main() -> int:
             "scenarios_total": len(results),
             "checks_passed": passed_checks,
             "checks_total": total_checks,
-            "cleanup_deleted": deleted,
-            "lookups_provisioned": copied,
         },
     }
     (results_dir / "report.json").write_text(json.dumps(report, indent=1))
@@ -284,10 +245,6 @@ def main() -> int:
             lines.append("")
             lines.append("> " + excerpt[:600].replace("\n", "\n> "))
         lines.append("")
-    if deleted:
-        lines.append(f"Cleanup deleted: {deleted}")
-    if copied:
-        lines.append(f"Lookups provisioned during preflight: {copied}")
     (results_dir / "report.md").write_text("\n".join(lines))
 
     log(f"report: {results_dir / 'report.md'}")

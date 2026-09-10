@@ -188,14 +188,15 @@ class SplunkSettings:
 
     @property
     def configured(self) -> bool:
-        return bool(
-            (self.host or self.mcp_endpoint)
-            and (self.token or (self.username and self.password))
-        )
+        if self.mcp_endpoint:
+            return bool(self.token)
+        return bool(self.host and (self.token or (self.username and self.password)))
 
     @property
     def missing(self) -> list[str]:
-        missing = [] if (self.host or self.mcp_endpoint) else ["SPLUNK_HOST or SPLUNK_MCP_ENDPOINT"]
+        if self.mcp_endpoint:
+            return [] if self.token else ["SPLUNK_TOKEN"]
+        missing = [] if self.host else ["SPLUNK_HOST or SPLUNK_MCP_ENDPOINT"]
         if not self.token and not (self.username and self.password):
             missing.append("SPLUNK_TOKEN or SPLUNK_USERNAME/SPLUNK_PASSWORD")
         return missing
@@ -437,11 +438,6 @@ class ServerSettings:
                 "SPLUNK_MCP_ENDPOINT",
                 allow_insecure_http=splunk_allow_insecure_http,
             )
-            if not splunk_host:
-                parsed_mcp_endpoint = urlsplit(splunk_mcp_endpoint)
-                splunk_host = parsed_mcp_endpoint.hostname or splunk_host
-                if not splunk_url and parsed_mcp_endpoint.port:
-                    splunk_port = parsed_mcp_endpoint.port
         if not splunk_url and splunk_host:
             splunk_port = _integer(env, "SPLUNK_PORT", 8089, 1, 65535)
             scheme = _value(env, "SPLUNK_SCHEME", "https").lower()
@@ -579,7 +575,7 @@ class ServerSettings:
                 "security_queue": self.splunk.security_queue.to_dict(),
                 "search_planner_max_refinements": self.splunk.search_planner_max_refinements,
                 "search_planner_enabled": self.splunk.search_planner_enabled,
-                "official_mcp_enabled": bool(self.splunk.mcp_endpoint),
+                "official_mcp_enabled": bool(self.splunk.mcp_endpoint and self.splunk.token),
                 "official_mcp_endpoint": redact_endpoint(self.splunk.mcp_endpoint),
             },
             "zimbra": {

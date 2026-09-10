@@ -197,30 +197,8 @@
         toolCallTimeoutMs: 185000
         failOnStartupError: true
     - id: splunk-official-mcp
-      name: '@deepseek-ai/dsh-mcp-client'
-      disabled: !!js "!process.env.SPLUNK_MCP_ENDPOINT || !process.env.SPLUNK_TOKEN"
-      config:
-        serverName: splunk_official
-        transport: streamable-http
-        url: !!js "process.env.SPLUNK_MCP_ENDPOINT || 'http://127.0.0.1/disabled'"
-        headers:
-          Authorization: !!js "'Bearer ' + (process.env.SPLUNK_TOKEN || '')"
-        allowedToolNames:
-          - splunk_run_query
-          - splunk_get_info
-          - splunk_get_indexes
-          - splunk_get_index_info
-          - splunk_get_metadata
-          - splunk_get_knowledge_objects
-          - splunk_run_saved_search
-          - splunk_list_alerts
-          - splunk_get_alert_details
-          - splunk_list_fired_alerts
-          - splunk_get_fired_alert_details
-          - splunk_get_alert_throttle
-          - splunk_list_active_throttles
-        toolCallTimeoutMs: 185000
-        failOnStartupError: true
+      name: dsh-soc-agent/splunk-bridge
+      description: Conditional direct bridge for the official read-only Splunk MCP tools.
     - id: soc-agent-auth-host
       name: dsh-soc-agent/auth-host
       description: Zimbra-backed application login and server-side workspace ownership boundary.

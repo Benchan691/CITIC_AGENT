@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { projectInvestigationResult } from '../investigation.js'
-import { installInvestigationProjection } from '../investigation.js'
+import { installInvestigationProjection, projectInvestigationResult, projectOfficialSplunkResult } from '../investigation.js'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -38,6 +37,18 @@ test('small aggregate tables and explicit zero counts remain intact', () => {
   const projected = projectInvestigationResult('mcp__soc_agent__splunk_search', content)
   assert.deepEqual(JSON.parse(projected[0].text).data.result.rows, rows)
   assert.equal(projectInvestigationResult('mcp__soc_agent__splunk_search', content, 1), undefined)
+})
+
+test('official Splunk output is sanitized and bounded without blocking the read', () => {
+  const projected = projectOfficialSplunkResult(
+    'mcp__splunk_official__splunk_run_query',
+    [{ type: 'text', text: `card=4111 1111 1111 1234 ssn=123-45-6789 ${'界'.repeat(100)}` }],
+    120,
+  )
+  assert.ok(Buffer.byteLength(projected[0].text) <= 120)
+  assert.doesNotMatch(projected[0].text, /4111|123-45-6789/)
+  assert.match(projected[0].text, /official Splunk MCP output truncated/)
+  assert.equal(projectOfficialSplunkResult('mcp__soc_agent__splunk_search', [], 120), undefined)
 })
 
 test('Loader tool execution projects model output while retaining the canonical value and disposes cleanly', async () => {

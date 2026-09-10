@@ -419,6 +419,21 @@ def test_official_splunk_mcp_endpoint_is_explicit_and_redacted():
         )
 
 
+def test_official_splunk_mcp_requires_a_bearer_token():
+    settings = ServerSettings.from_env(
+        {
+            "SPLUNK_MCP_ENDPOINT": "https://splunk.example.com/services/mcp",
+            "SPLUNK_USERNAME": "legacy-user",
+            "SPLUNK_PASSWORD": "legacy-password",
+        }
+    )
+
+    assert settings.splunk.host == ""
+    assert settings.splunk.configured is False
+    assert settings.splunk.missing == ["SPLUNK_TOKEN"]
+    assert settings.public_status()["splunk"]["official_mcp_enabled"] is False
+
+
 def test_splunk_read_scopes_and_limits_are_visible_without_write_flags():
     settings = ServerSettings.from_env(
         {

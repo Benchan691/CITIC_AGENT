@@ -502,6 +502,23 @@ collect_parameters() {
     ask_value SPLUNK_PORT "Splunk management port" is_port "${cur:-8089}"
   fi
 
+  # The direct official MCP bridge is optional. When configured, it is the
+  # primary read path and requires SPLUNK_TOKEN below.
+  cur="$(lookup SPLUNK_MCP_ENDPOINT)"
+  while :; do
+    printf 'Official Splunk MCP endpoint (leave blank to keep legacy REST reads only)'
+    if [ -n "$cur" ]; then printf ' [%s]' "$cur"; fi
+    printf ': ' >&2
+    IFS= read -r input || exit 1
+    input="${input%$'\r'}"
+    if [ -z "$input" ]; then input="$cur"; fi
+    if [ -z "$input" ] || is_http_url "$input"; then
+      VALUES[SPLUNK_MCP_ENDPOINT]="$(trim "$input")"
+      break
+    fi
+    printf '%s  invalid: %s. Please type it again.%s\n' "$Y" "$REASON" "$N" >&2
+  done
+
   # Splunk credentials: a token wins over user/password when both exist.
   if [ -n "$(lookup SPLUNK_TOKEN)" ]; then
     ok "Splunk token found (SPLUNK_TOKEN)"
@@ -650,7 +667,7 @@ write_files() {
     SOC_ADMIN_EMAIL SOC_ADMIN_PASSWORD \
     APP_POSTGRES_URI APP_SETTINGS_ENCRYPTION_KEY \
     SPLUNK_URL SPLUNK_HOST SPLUNK_PORT SPLUNK_SCHEME \
-    SPLUNK_TOKEN SPLUNK_USERNAME SPLUNK_PASSWORD SPLUNK_VERIFY_SSL \
+    SPLUNK_MCP_ENDPOINT SPLUNK_TOKEN SPLUNK_USERNAME SPLUNK_PASSWORD SPLUNK_VERIFY_SSL \
     SPLUNK_ALLOW_INSECURE_HTTP \
     ZIMBRA_HOST ZIMBRA_VERIFY_SSL ZIMBRA_ALLOW_INSECURE_HTTP \
     MARKITDOWN_LLM_ENABLED MARKITDOWN_LLM_API_KEY MARKITDOWN_LLM_MODEL \

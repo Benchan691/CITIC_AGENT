@@ -1,10 +1,10 @@
 """Adapter for Splunk's official MCP Server.
 
 The SOC services depend on the small interface historically provided by
-``SplunkClient``.  This adapter keeps that interface stable while routing the
-supported read operations through Splunk MCP Server 2.0.  CITIC-only writes
-and search-job result reads remain available through the existing REST client
-until the official server exposes equivalent, approval-aware operations.
+``SplunkClient``. This adapter keeps that interface stable while routing the
+supported read operations through Splunk MCP Server 2.0. Bounded lookup
+compatibility and existing search-job result reads may still use the legacy
+REST client; no Splunk mutations are exposed.
 """
 
 from __future__ import annotations

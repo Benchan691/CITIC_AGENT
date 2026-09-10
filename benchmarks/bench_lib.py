@@ -1,5 +1,5 @@
-"""Shared helpers for the CITIC_AGENT SOC benchmark: Splunk REST access, dsh
-invocation, session-log parsing, and lookup provisioning.
+"""Shared helpers for the CITIC_AGENT SOC benchmark: read-only Splunk access,
+dsh invocation, session-log parsing, and lookup readiness checks.
 
 Credentials are read from (in order):
   1. environment variables: BENCH_TEST_AUTH, BENCH_PROD_AUTH ("user:pass")
@@ -71,7 +71,7 @@ def get_prod_auth() -> tuple[str, str]:
 
 
 class SplunkREST:
-    """Minimal read/write Splunk REST client for one instance."""
+    """Minimal read-only Splunk REST client for one instance."""
 
     def __init__(self, base_url: str, user: str, password: str, verify_ssl: bool = False):
         self.base = base_url.rstrip("/")
@@ -189,15 +189,6 @@ class SplunkREST:
                 return e["content"]
         return None
 
-    def delete_saved_search(self, name: str, app: str = "search", owner: str = "-") -> bool:
-        from urllib.parse import quote
-
-        status, _ = self.request(
-            f"/servicesNS/{owner}/{app}/saved/searches/{quote(name, safe='')}",
-            method="DELETE",
-        )
-        return status in (200, 204)
-
     def lookup_exists(self, name: str, app: str = "search") -> bool:
         status, body = self.request(
             f"/servicesNS/-/{app}/data/lookup-table-files?count=0&output_mode=json"
@@ -271,8 +262,6 @@ def swap_server_env(cfg: dict) -> str:
         "SPLUNK_PORT": "8089",
         "SPLUNK_VERIFY_SSL": "0",
         "SPLUNK_ALLOW_INSECURE_HTTP": "1",
-        "SPLUNK_ALLOW_DETECTION_WRITE": "1",
-        "SPLUNK_ALLOW_DETECTION_ENABLE": "0",
         "SPLUNK_DETECTION_APP": "search",
         "SPLUNK_DETECTION_OWNER": "nobody",
         "SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP": "1",
@@ -469,67 +458,11 @@ def _span(t0, t1):
 # ------------------------------------------------------------------ lookups
 
 
-def ensure_required_lookups(test: SplunkREST, prod: SplunkREST | None, log) -> list[str]:
-    """Return list of lookups that were copied from prod to test (or failed)."""
-    copied = []
-    for name in REQUIRED_LOOKUPS:
-        if test.lookup_exists(name):
-            continue
-        log(f"lookup {name} missing on test")
-        if prod is None:
-            log(f"  !! no prod credentials; cannot copy {name}")
-            copied.append(f"{name} (MISSING, no prod access)")
-            continue
-        rows = prod.lookup_rows(name, app="search")
-        if not rows:
-            log(f"  !! prod returned no rows for {name}")
-            copied.append(f"{name} (MISSING, prod empty)")
-            continue
-        _place_lookup_on_test(name, rows, log)
-        copied.append(f"{name} (copied {len(rows)} rows from prod)")
-    return copied
-
-
-def _place_lookup_on_test(name: str, rows: list[dict], log) -> None:
-    """Write lookup rows onto the test box: export CSV locally, scp, install."""
-    import csv
-    import io
-
-    buf = io.StringIO()
-    if rows:
-        writer = csv.DictWriter(buf, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        for r in rows:
-            writer.writerow({k: r.get(k, "") for k in rows[0].keys()})
-    local = Path("/tmp/bench_lookup.csv")
-    local.write_text(buf.getvalue())
-    app = "search"
-    subprocess.run(
-        [
-            "scp",
-            "-o",
-            "BatchMode=yes",
-            "-o",
-            "StrictHostKeyChecking=accept-new",
-            "-q",
-            str(local),
-            f"root@100.89.29.121:/opt/splunk/etc/apps/{app}/lookups/{name}",
-        ],
-        check=True,
-        timeout=120,
-    )
-    subprocess.run(
-        [
-            "ssh",
-            "-o",
-            "BatchMode=yes",
-            "-o",
-            "StrictHostKeyChecking=accept-new",
-            "root@100.89.29.121",
-            f"chown splunk:splunk '/opt/splunk/etc/apps/{app}/lookups/{name}' && chmod 644 '/opt/splunk/etc/apps/{app}/lookups/{name}'",
-        ],
-        check=True,
-        timeout=60,
-    )
-    local.unlink(missing_ok=True)
-    log(f"  copied {name} to test ({len(rows)} rows)")
+def require_lookups(test: SplunkREST) -> None:
+    """Fail preflight when a required fixture is absent; never provision it."""
+    missing = [name for name in REQUIRED_LOOKUPS if not test.lookup_exists(name)]
+    if missing:
+        raise SystemExit(
+            "Read-only benchmark fixtures are missing on the test Splunk: "
+            + ", ".join(missing)
+        )
