@@ -176,7 +176,6 @@ async def test_lookup_client_uses_read_only_content_endpoint():
 
     assert await client.get_lookup_contents("Ruleset.csv", "search", "nobody") == [["id"], ["1"]]
     assert client._client.call == (
-        "get",
         "/services/data/lookup_edit/lookup_contents",
         {
             "output_mode": "json",
