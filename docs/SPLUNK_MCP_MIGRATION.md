@@ -5,6 +5,10 @@ when both `SPLUNK_MCP_ENDPOINT` and `SPLUNK_TOKEN` are configured. The bridge
 forwards the bearer token and publishes allowlisted tools under the
 `mcp__splunk_official__...` namespace.
 
+`SPLUNK_VERIFY_SSL` defaults to `true`. A deployment with a self-signed chain
+can set it to `false`; the exception applies only to the official MCP
+connection, not to every HTTPS request in the host process.
+
 ## Exposed official tools
 
 - SPL query execution

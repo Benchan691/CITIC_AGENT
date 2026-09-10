@@ -72,6 +72,7 @@ test('SOC profile exposes only allowlisted official Splunk reads when configured
   assert.match(patch, /- id: splunk-official-mcp\n\s+name: dsh-soc-agent\/splunk-bridge/)
   assert.match(bridge, /transport: 'streamable-http'/)
   assert.match(bridge, /Authorization: `Bearer \$\{token\}`/)
+  assert.match(bridge, /verifyTls/)
   assert.match(bridge, /if \(!endpoint \|\| !token\) return undefined/)
   for (const name of ['splunk_run_query', 'splunk_get_indexes', 'splunk_get_metadata', 'splunk_get_knowledge_objects', 'splunk_run_saved_search', 'splunk_list_fired_alerts']) {
     assert.match(bridge, new RegExp(`'${name}'`))

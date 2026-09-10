@@ -41,6 +41,7 @@ ignored `.env` file:
 ```dotenv
 SPLUNK_MCP_ENDPOINT=https://splunk.example:8000/en-US/splunkd/__raw/services/mcp
 SPLUNK_TOKEN=
+SPLUNK_VERIFY_SSL=true
 SPLUNK_ALLOW_INSECURE_HTTP=false
 ```
 
@@ -51,6 +52,9 @@ the harness approval and local query-admission gates; Splunk MCP Server owns
 query guardrails and its 1,000-event response cap. Authentication, session and
 customer isolation, sanitization, evidence handling, model-visible output
 limits, and transport deadlines remain application-enforced.
+Set `SPLUNK_VERIFY_SSL=false` only while a self-signed chain cannot be
+installed in the machine trust store. That exception is scoped to this MCP
+connection and does not disable TLS checks process-wide.
 
 The Python adapter remains for compatibility reads such as bounded lookup and
 existing search-job result retrieval. An official MCP rejection is surfaced

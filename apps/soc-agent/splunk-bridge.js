@@ -41,11 +41,13 @@ export function resolveOfficialSplunkConfig(env = process.env, serverRoot) {
   const endpoint = read('SPLUNK_MCP_ENDPOINT')
   const token = read('SPLUNK_TOKEN')
   if (!endpoint || !token) return undefined
+  const verifyTls = !/^(0|false|no|off)$/i.test(read('SPLUNK_VERIFY_SSL'))
   return {
     serverName: 'splunk_official',
     transport: 'streamable-http',
     url: endpoint,
     headers: { Authorization: `Bearer ${token}` },
+    verifyTls,
     allowedToolNames: [...OFFICIAL_SPLUNK_TOOL_NAMES],
     toolCallTimeoutMs: 185_000,
     failOnStartupError: true,

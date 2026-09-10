@@ -88,6 +88,8 @@ export interface StreamableHttpConfig {
   url: string
   /** Additional headers attached to MCP requests. */
   headers: Record<string, string>
+  /** Whether to validate the remote TLS certificate chain. */
+  verifyTls?: boolean
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
   /** Optional exact raw MCP tool names to expose; omission exposes every tool. */
@@ -126,6 +128,7 @@ export const Config = z.union([
     serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
     url: z.string().required(),
     headers: z.dict(String).default({}),
+    verifyTls: z.boolean().default(true),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
     allowedToolNames: z.array(String),
     failOnStartupError: z.boolean().default(false),

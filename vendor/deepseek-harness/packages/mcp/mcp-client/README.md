@@ -43,6 +43,7 @@ The model sees `mcp__github__create_issue`, `mcp__web__search`, … — the same
 | `cwd` | stdio | no | Working directory for the child process |
 | `url` | http | yes | MCP server URL |
 | `headers` | http | no | Extra headers (e.g. auth tokens) |
+| `verifyTls` | http | no | Validate the server certificate chain (default `true`) |
 | `toolCallTimeoutMs` | both | no | Timeout per `callTool` invocation (default 60000) |
 | `allowedToolNames` | both | no | Exact raw MCP tool names to register; omission exposes all discovered tools |
 | `failOnStartupError` | both | no | Reject plugin activation when initial connection or tool synchronization fails (default `false`) |

@@ -519,8 +519,12 @@ collect_parameters() {
     printf '%s  invalid: %s. Please type it again.%s\n' "$Y" "$REASON" "$N" >&2
   done
 
-  # Splunk credentials: a token wins over user/password when both exist.
-  if [ -n "$(lookup SPLUNK_TOKEN)" ]; then
+  # Splunk credentials: the official MCP endpoint requires a bearer token;
+  # legacy REST can use either that token or username/password.
+  if [ -n "${VALUES[SPLUNK_MCP_ENDPOINT]-}" ] && [ -z "$(lookup SPLUNK_TOKEN)" ]; then
+    ask_value SPLUNK_TOKEN "Splunk MCP bearer token" is_nonempty "" secret
+    VALUES[SPLUNK_USERNAME]=""; VALUES[SPLUNK_PASSWORD]=""
+  elif [ -n "$(lookup SPLUNK_TOKEN)" ]; then
     ok "Splunk token found (SPLUNK_TOKEN)"
     VALUES[SPLUNK_TOKEN]="$(lookup SPLUNK_TOKEN)"
     VALUES[SPLUNK_USERNAME]=""; VALUES[SPLUNK_PASSWORD]=""
@@ -1320,7 +1324,14 @@ run_check_mode() {
     else bad "SPLUNK_PORT missing or invalid"; fails=$((fails+1)); fi
   fi
 
-  if [ -n "$(lookup SPLUNK_TOKEN)" ] || { [ -n "$(lookup SPLUNK_USERNAME)" ] && [ -n "$(lookup SPLUNK_PASSWORD)" ]; }; then
+  v="$(lookup SPLUNK_MCP_ENDPOINT)"
+  if [ -n "$v" ]; then
+    if is_http_url "$v"; then ok "SPLUNK_MCP_ENDPOINT"
+    else bad "SPLUNK_MCP_ENDPOINT is not an http(s) URL"; fails=$((fails+1)); fi
+    if [ -n "$(lookup SPLUNK_TOKEN)" ]; then ok "Splunk MCP bearer token"
+    else bad "SPLUNK_TOKEN is required with SPLUNK_MCP_ENDPOINT"; fails=$((fails+1)); fi
+    if check_http_policy "Splunk MCP" "$v" SPLUNK_ALLOW_INSECURE_HTTP "$(lookup SPLUNK_ALLOW_INSECURE_HTTP)"; then :; else fails=$((fails+1)); fi
+  elif [ -n "$(lookup SPLUNK_TOKEN)" ] || { [ -n "$(lookup SPLUNK_USERNAME)" ] && [ -n "$(lookup SPLUNK_PASSWORD)" ]; }; then
     ok "Splunk credentials (token or username/password)"
   else bad "SPLUNK_TOKEN or SPLUNK_USERNAME+SPLUNK_PASSWORD missing"; fails=$((fails+1)); fi
 
