@@ -170,6 +170,10 @@ class SplunkSettings:
     security_queue: SecurityQueueConfig = field(default_factory=SecurityQueueConfig)
     search_planner_max_refinements: int = 0
     allow_insecure_http: bool = False
+    # When configured, supported read operations use Splunk's official MCP
+    # Server. The REST URL remains available for CITIC-specific operations
+    # that the official server does not expose (for example lookup editing).
+    mcp_endpoint: str = ""
 
     def __post_init__(self) -> None:
         _validate_http_endpoint(
@@ -178,14 +182,22 @@ class SplunkSettings:
             allow_bare_host=not bool(self.url),
             allow_insecure_http=self.allow_insecure_http,
         )
+        _validate_http_endpoint(
+            self.mcp_endpoint,
+            "SPLUNK_MCP_ENDPOINT",
+            allow_insecure_http=self.allow_insecure_http,
+        )
 
     @property
     def configured(self) -> bool:
-        return bool(self.host and (self.token or (self.username and self.password)))
+        return bool(
+            (self.host or self.mcp_endpoint)
+            and (self.token or (self.username and self.password))
+        )
 
     @property
     def missing(self) -> list[str]:
-        missing = [] if self.host else ["SPLUNK_HOST"]
+        missing = [] if (self.host or self.mcp_endpoint) else ["SPLUNK_HOST or SPLUNK_MCP_ENDPOINT"]
         if not self.token and not (self.username and self.password):
             missing.append("SPLUNK_TOKEN or SPLUNK_USERNAME/SPLUNK_PASSWORD")
         return missing
@@ -202,6 +214,9 @@ class SplunkSettings:
             "allow_insecure_http": self.allow_insecure_http,
             "request_timeout": self.request_timeout,
             "job_timeout": self.job_timeout,
+            "splunk_mcp_endpoint": self.mcp_endpoint,
+            "splunk_lookup_app": self.lookup_app,
+            "splunk_lookup_owner": self.lookup_owner,
         }
 
 
@@ -406,6 +421,7 @@ class ServerSettings:
             else _value(env, "SPLUNK_HOST")
         )
         splunk_allow_insecure_http = _boolean(env, "SPLUNK_ALLOW_INSECURE_HTTP", False)
+        splunk_mcp_endpoint = _value(env, "SPLUNK_MCP_ENDPOINT")
         splunk_url = _value(env, "SPLUNK_URL")
         splunk_port = 8089
         if splunk_url:
@@ -417,7 +433,18 @@ class ServerSettings:
             parsed_splunk_url = urlsplit(splunk_url)
             splunk_host = parsed_splunk_url.hostname or splunk_host
             splunk_port = parsed_splunk_url.port or splunk_port
-        elif splunk_host:
+        if splunk_mcp_endpoint:
+            _validate_http_endpoint(
+                splunk_mcp_endpoint,
+                "SPLUNK_MCP_ENDPOINT",
+                allow_insecure_http=splunk_allow_insecure_http,
+            )
+            if not splunk_host:
+                parsed_mcp_endpoint = urlsplit(splunk_mcp_endpoint)
+                splunk_host = parsed_mcp_endpoint.hostname or splunk_host
+                if not splunk_url and parsed_mcp_endpoint.port:
+                    splunk_port = parsed_mcp_endpoint.port
+        if not splunk_url and splunk_host:
             splunk_port = _integer(env, "SPLUNK_PORT", 8089, 1, 65535)
             scheme = _value(env, "SPLUNK_SCHEME", "https").lower()
             if scheme not in {"http", "https"}:
@@ -462,6 +489,7 @@ class ServerSettings:
             security_queue=security_queue,
             search_planner_max_refinements=search_planner_max_refinements,
             allow_insecure_http=splunk_allow_insecure_http,
+            mcp_endpoint=splunk_mcp_endpoint,
         )
         zimbra_host = _value(env, "ZIMBRA_HOST")
         zimbra_allow_insecure_http = _boolean(env, "ZIMBRA_ALLOW_INSECURE_HTTP", False)
@@ -557,6 +585,8 @@ class ServerSettings:
                 "security_queue": self.splunk.security_queue.to_dict(),
                 "search_planner_max_refinements": self.splunk.search_planner_max_refinements,
                 "search_planner_enabled": self.splunk.search_planner_enabled,
+                "official_mcp_enabled": bool(self.splunk.mcp_endpoint),
+                "official_mcp_endpoint": redact_endpoint(self.splunk.mcp_endpoint),
             },
             "zimbra": {
                 "configured": self.zimbra.configured,

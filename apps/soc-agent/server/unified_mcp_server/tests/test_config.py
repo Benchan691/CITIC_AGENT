@@ -395,6 +395,32 @@ def test_splunk_and_zimbra_http_require_explicit_opt_out():
     assert zimbra.zimbra.allow_insecure_http is True
 
 
+def test_official_splunk_mcp_endpoint_is_explicit_and_redacted():
+    settings = ServerSettings.from_env(
+        {
+            "SPLUNK_URL": "https://splunk.example.com:8089",
+            "SPLUNK_MCP_ENDPOINT": "http://splunk.example.com:8000/en-US/splunkd/__raw/services/mcp",
+            "SPLUNK_ALLOW_INSECURE_HTTP": "true",
+            "SPLUNK_TOKEN": "mcp-secret",
+        }
+    )
+
+    assert settings.splunk.mcp_endpoint.endswith("/services/mcp")
+    assert settings.splunk.configured is True
+    status = json.dumps(settings.public_status())
+    assert "mcp-secret" not in status
+    assert "/services/mcp" not in status
+    assert status.find("official_mcp_enabled") >= 0
+
+    with pytest.raises(ValueError, match="SPLUNK_MCP_ENDPOINT"):
+        ServerSettings.from_env(
+            {
+                "SPLUNK_MCP_ENDPOINT": "http://splunk.example.com:8000/services/mcp",
+                "SPLUNK_TOKEN": "token",
+            }
+        )
+
+
 def test_detection_write_flags_are_explicit_and_visible_without_secrets():
     settings = ServerSettings.from_env(
         {

@@ -15,6 +15,7 @@ from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 
 from .client import SplunkAPIError, SplunkClient
+from ..official_mcp_client import OfficialSplunkMCPClient
 from ..query_policy import QueryPolicyConfig, SplunkQueryPolicy
 from .guardrails import sanitize_output
 
@@ -25,11 +26,11 @@ class SplunkCore:
     def __init__(
         self,
         settings: SplunkSettings,
-        client_factory: Callable[[dict[str, object]], SplunkClient] = SplunkClient,
+        client_factory: Callable[[dict[str, object]], Any] | None = None,
         query_policy: SplunkQueryPolicy | None = None,
     ) -> None:
         self.settings = settings
-        self._client_factory = client_factory
+        self._client_factory = client_factory or _default_client_factory
         self.query_policy = query_policy or SplunkQueryPolicy(
             getattr(settings, "query_policy", QueryPolicyConfig())
         )
@@ -167,3 +168,10 @@ class SplunkCore:
             retryable=(status is None or status >= 500) if code == "splunk_api_error" else False,
             details=details,
         )
+
+
+def _default_client_factory(config: dict[str, object]) -> Any:
+    """Select the official MCP adapter when its endpoint is configured."""
+    if str(config.get("splunk_mcp_endpoint", "")).strip():
+        return OfficialSplunkMCPClient(config)
+    return SplunkClient(config)
