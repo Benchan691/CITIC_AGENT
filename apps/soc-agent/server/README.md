@@ -32,7 +32,10 @@ source. Catalog records are edited through the authenticated editor workflow.
 The application can preview validated lookup snapshots but cannot publish them
 to Splunk. The
 `/admin` console shows service status and manages LLM provider credentials, but
-does not expose or edit deployment variables.
+does not expose or edit deployment variables. The user model picker includes
+only providers whose named credential is currently configured; adding or
+removing a credential refreshes that picker without exposing the credential
+reference to users.
 
 The host exposes the approved official Splunk MCP read tools directly when
 both `SPLUNK_MCP_ENDPOINT` and `SPLUNK_TOKEN` are set. Configure them in the

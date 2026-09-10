@@ -570,6 +570,59 @@ test('scoped session-log downloads enforce ownership on their direct request sha
   assert.deepEqual(calls, ['session-a'])
 })
 
+test('scoped model catalog hides providers whose named credential was removed', async () => {
+  const { auth } = authFixture()
+  let openRouterConfigured = false
+  auth.ctx = {
+    get(name) {
+      if (name === 'llm') return {
+        listConfigurableProviders: () => [
+          { provider: 'openrouter', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openrouter'] },
+          { provider: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
+          { provider: 'ollama', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'ollama'] },
+        ],
+      }
+      if (name === 'settings') return {
+        get: () => ({ providers: {
+          openrouter: { apiKeyEnv: 'OPENROUTER_API_KEY' },
+          openai: { apiKeyEnv: 'OPENAI_API_KEY' },
+          ollama: {},
+        } }),
+      }
+      if (name === 'credentials') return {
+        describe: async ref => ({ configured: ref === 'OPENROUTER_API_KEY' ? openRouterConfigured : true }),
+      }
+      return undefined
+    },
+  }
+  const groups = [
+    { id: 'openrouter', name: 'OpenRouter', models: [{ id: 'openai/gpt-5' }] },
+    { id: 'openai', name: 'OpenAI', models: [{ id: 'gpt-5' }] },
+    { id: 'ollama', name: 'Ollama', models: [{ id: 'qwen3' }] },
+  ]
+  const api = {
+    sessions: {
+      models: async request => response(request, {
+        current: { provider: 'openrouter', model: 'openai/gpt-5' },
+        routable: true,
+        groups,
+        failures: [{ id: 'openrouter', name: 'OpenRouter', message: 'catalog unavailable' }],
+      }),
+    },
+  }
+  const scoped = createScopedApiProxy(api, auth)
+
+  const removed = await scoped.sessions.models({ rpcId: 'models-removed', payload: { sessionId: 'session-a' } })
+  assert.deepEqual(removed.result.value.groups.map(group => group.id), ['openai', 'ollama'])
+  assert.deepEqual(removed.result.value.failures, [])
+  assert.equal(removed.result.value.routable, false)
+
+  openRouterConfigured = true
+  const restored = await scoped.sessions.models({ rpcId: 'models-restored', payload: { sessionId: 'session-a' } })
+  assert.deepEqual(restored.result.value.groups.map(group => group.id), ['openrouter', 'openai', 'ollama'])
+  assert.equal(restored.result.value.routable, true)
+})
+
 test('scoped streams redact foreign snapshot IDs and unprojected remote events', async () => {
   const { auth } = authFixture()
   const api = {
@@ -578,6 +631,7 @@ test('scoped streams redact foreign snapshot IDs and unprojected remote events',
         yield { rpcId: '1', payload: { type: 'host/workspace-order-changed', workspaceIds: ['workspace-a', 'workspace-b'] } }
         yield { rpcId: '2', payload: { type: 'host/archived-sessions-changed', archivedSessionIds: ['session-a', 'session-b'] } }
         yield { rpcId: '3', payload: { type: 'host/remote-event', event: 'opaque', args: ['session-b'] } }
+        yield { rpcId: '4', payload: { type: 'host/remote-event', event: 'credentials/reference-updated', args: ['OPENROUTER_API_KEY'] } }
       },
     },
   }
@@ -586,9 +640,15 @@ test('scoped streams redact foreign snapshot IDs and unprojected remote events',
   assert.deepEqual(frames.map(frame => frame.payload.type), [
     'host/workspace-order-changed',
     'host/archived-sessions-changed',
+    'host/remote-event',
   ])
   assert.deepEqual(frames[0].payload.workspaceIds, ['workspace-a'])
   assert.deepEqual(frames[1].payload.archivedSessionIds, ['session-a'])
+  assert.deepEqual(frames[2].payload, {
+    type: 'host/remote-event',
+    event: 'llm/adapters-updated',
+    args: [],
+  })
 })
 
 test('scoped mux streams do not subscribe to foreign session checkpoints', async () => {

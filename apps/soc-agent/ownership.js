@@ -143,6 +143,43 @@ function requestPayload(request) {
   return request?.payload !== undefined ? request.payload : (request ?? {})
 }
 
+function serviceOf(ctx, name) {
+  try { return ctx?.get?.(name) ?? ctx?.[name] } catch { return ctx?.[name] }
+}
+
+function pathValue(value, path) {
+  let current = value
+  for (const segment of path) {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return undefined
+    current = current[segment]
+  }
+  return current
+}
+
+/** Providers with an explicit credential reference that currently resolves to nothing. */
+async function unavailableCredentialProviders(ctx, providerIds) {
+  const llm = serviceOf(ctx, 'llm')
+  const settings = serviceOf(ctx, 'settings')
+  const credentials = serviceOf(ctx, 'credentials')
+  if (!llm || !settings || !credentials) return new Set()
+
+  const directory = new Map(llm.listConfigurableProviders().map(entry => [entry.provider, entry]))
+  const unavailable = new Set()
+  await Promise.all([...providerIds].map(async provider => {
+    const entry = directory.get(provider)
+    if (!entry?.settingsNs) return
+    const profile = pathValue(settings.get(entry.settingsNs), entry.settingsPath ?? [])
+    const ref = typeof profile?.apiKeyEnv === 'string' ? profile.apiKeyEnv.trim() : ''
+    if (!ref) return
+    try {
+      if (!(await credentials.describe(ref)).configured) unavailable.add(provider)
+    } catch {
+      unavailable.add(provider)
+    }
+  }))
+  return unavailable
+}
+
 function sessionIdOf(agent) {
   return String(agent?.id ?? agent?.session?.id ?? '')
 }
@@ -801,9 +838,19 @@ async function filterFrame(frame, store, userId, rememberPendingResponse, applic
         archivedSessionIds: payload.archivedSessionIds.filter(id => allowed.has(String(id))),
       })
     }
-    // Remote events are an unprojected host-level escape hatch. They are not
-    // safe to forward through a multi-user stream because their arguments may
-    // contain workspace/session identifiers or other user data.
+    // A credential invalidation contains a host-level reference name. Replace
+    // it with the argument-free topology event the model picker already uses,
+    // so every user refreshes without learning the credential reference.
+    if (payload?.type === 'host/remote-event' && payload.event === 'credentials/reference-updated') {
+      return withPayload(frame, {
+        type: 'host/remote-event',
+        event: 'llm/adapters-updated',
+        args: [],
+      })
+    }
+    // Other remote events are an unprojected host-level escape hatch. They are
+    // not safe to forward through a multi-user stream because their arguments
+    // may contain workspace/session identifiers or other user data.
     if (payload?.type === 'stream/error') {
       return withPayload(frame, {
         type: 'stream/error',
@@ -988,6 +1035,17 @@ export function createScopedApiProxy(api, auth) {
       return response
     }
     if (domain === 'sessions') {
+      if (method === 'models') {
+        const providerIds = new Set((value?.groups ?? []).map(group => String(group.id)))
+        if (value?.current?.provider) providerIds.add(String(value.current.provider))
+        const unavailable = await unavailableCredentialProviders(auth.ctx, providerIds)
+        return { ...response, result: { ...response.result, value: {
+          ...value,
+          routable: value?.routable === true && !unavailable.has(String(value?.current?.provider ?? '')),
+          groups: (value?.groups ?? []).filter(group => !unavailable.has(String(group.id))),
+          failures: (value?.failures ?? []).filter(failure => !unavailable.has(String(failure.id))),
+        } } }
+      }
       if (method === 'list') {
         const allowed = await auth.store.userSessionIds(session.userId)
         const folders = await auth.store.userFolderIds(session.userId)
