@@ -16,6 +16,7 @@ from .model import (
     DetectionDraft,
     public_alert_fields,
     validate_detection,
+    without_schedule_metadata,
 )
 from unified_mcp_server.errors import ServiceError
 
@@ -77,6 +78,7 @@ class SplunkDetectionService:
         content = result.get("content", {}) if isinstance(result, dict) else {}
         if not isinstance(content, dict):
             content = {}
+        content = without_schedule_metadata(content)
         acl = result.get("acl", {}) if isinstance(result, dict) and isinstance(result.get("acl"), dict) else {}
         alert_fields = public_alert_fields(content)
         detection = {

@@ -51,6 +51,31 @@ _FIELD_ALIASES = {
     "relation": "alert_comparator",
     "quantity": "alert_threshold",
 }
+_SCHEDULE_FIELDS = frozenset({
+    "is_scheduled",
+    "cron_schedule",
+    "next_scheduled_time",
+    "dispatch.rt_backfill",
+    "dispatch.indexedRealtime",
+    "dispatch.indexedRealtimeOffset",
+    "dispatch.indexedRealtimeMinSpan",
+    "dispatch.rt_maximum_span",
+})
+
+
+def without_schedule_metadata(content: Mapping[str, Any]) -> dict[str, Any]:
+    """Drop automatic activation metadata while preserving ordinary alert fields."""
+    if not isinstance(content, Mapping):
+        return {}
+    result = {key: value for key, value in content.items() if key not in _SCHEDULE_FIELDS}
+    bounds = (
+        result.get("dispatch.earliest_time", result.get("earliest_time", "")),
+        result.get("dispatch.latest_time", result.get("latest_time", "")),
+    )
+    if any(isinstance(value, str) and _REALTIME_TIME.match(value) for value in bounds):
+        for key in ("dispatch.earliest_time", "dispatch.latest_time", "earliest_time", "latest_time"):
+            result.pop(key, None)
+    return result
 
 
 def canonical_alert_field_name(key: Any) -> str | None:
@@ -103,7 +128,7 @@ def canonical_alert_fields(payload: Mapping[str, Any]) -> dict[str, str]:
             continue
         fields[canonical] = _scalar_value(canonical, value)
         priorities[canonical] = priority
-    return _without_realtime_bounds(fields)
+    return without_schedule_metadata(fields)
 
 
 def public_alert_fields(content: Mapping[str, Any]) -> dict[str, str]:
@@ -125,15 +150,7 @@ def public_alert_fields(content: Mapping[str, Any]) -> dict[str, str]:
             continue
         fields[canonical] = normalized
         priorities[canonical] = priority
-    return _without_realtime_bounds(fields)
-
-
-def _without_realtime_bounds(fields: dict[str, str]) -> dict[str, str]:
-    bounds = (fields.get("dispatch.earliest_time", ""), fields.get("dispatch.latest_time", ""))
-    if any(_REALTIME_TIME.match(value) for value in bounds):
-        fields.pop("dispatch.earliest_time", None)
-        fields.pop("dispatch.latest_time", None)
-    return fields
+    return without_schedule_metadata(fields)
 
 
 @dataclass(frozen=True)

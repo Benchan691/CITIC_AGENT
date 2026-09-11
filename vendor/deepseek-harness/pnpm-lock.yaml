@@ -135,9 +135,6 @@ importers:
       '@deepseek-ai/dsh-mcp-client':
         specifier: link:../../vendor/deepseek-harness/packages/mcp/mcp-client
         version: link:../../vendor/deepseek-harness/packages/mcp/mcp-client
-      '@deepseek-ai/dsh-soc-agent-scheduler':
-        specifier: workspace:*
-        version: link:../../packages/soc-agent-scheduler
       '@deepseek-ai/schemastery':
         specifier: link:../../vendor/deepseek-harness/vendor/schemastery
         version: link:../../vendor/deepseek-harness/vendor/schemastery
@@ -201,18 +198,6 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
-
-  ../../packages/soc-agent-scheduler:
-    dependencies:
-      '@deepseek-ai/schemastery':
-        specifier: link:../../vendor/deepseek-harness/vendor/schemastery
-        version: link:../../vendor/deepseek-harness/vendor/schemastery
-      croner:
-        specifier: 10.0.1
-        version: 10.0.1
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
 
   apps/cli:
     dependencies:
@@ -12022,10 +12007,6 @@ packages:
   cose-base@2.2.0:
     resolution: {integrity: sha512-AzlgcsCbUMymkADOJtQm3wO9S3ltPfYOFD5033keQn9NJzIbtnZj+UdBJe7DYml/8TdbtHJW3j58SOnKhWY/5g==}
 
-  croner@10.0.1:
-    resolution: {integrity: sha512-ixNtAJndqh173VQ4KodSdJEI6nuioBWI0V1ITNKhZZsO0pEMoDxz539T4FTTbSZ/xIOSuDnzxLVRqBVSvPNE2g==}
-    engines: {node: '>=18.0'}
-
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -17255,8 +17236,6 @@ snapshots:
   cose-base@2.2.0:
     dependencies:
       layout-base: 2.0.1
-
-  croner@10.0.1: {}
 
   cross-spawn@7.0.6:
     dependencies:

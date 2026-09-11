@@ -7,6 +7,7 @@ import math
 from time import monotonic
 from typing import Optional, Dict, Any, List
 from urllib.parse import parse_qs, quote, urlsplit
+from unified_mcp_server.detection import without_schedule_metadata
 from unified_mcp_server.request_context import operation_context, remaining_seconds
 
 
@@ -963,7 +964,7 @@ class SplunkClient:
             entry = response.json().get("entry", [{}])[0]
             return {
                 "name": entry.get("name", search_name),
-                "content": entry.get("content", {}),
+                "content": without_schedule_metadata(entry.get("content", {})),
                 "acl": entry.get("acl", {}),
                 "links": entry.get("links", {}),
             }

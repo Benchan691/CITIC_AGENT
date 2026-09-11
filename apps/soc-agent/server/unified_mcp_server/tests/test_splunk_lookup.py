@@ -213,7 +213,13 @@ async def test_saved_search_client_uses_read_only_name_filter():
             return {"entry": [
                 {
                     "name": "0723 Suspicious Login",
-                    "content": {"search": "index=main error", "disabled": "0"},
+                    "content": {
+                        "search": "index=main error",
+                        "disabled": "0",
+                        "is_scheduled": "1",
+                        "cron_schedule": "*/5 * * * *",
+                        "next_scheduled_time": "1700000300",
+                    },
                     "acl": {"app": "search", "owner": "nobody"},
                 },
             ]}
@@ -234,6 +240,7 @@ async def test_saved_search_client_uses_read_only_name_filter():
     assert result[0]["name"] == "0723 Suspicious Login"
     assert result[0]["app"] == "search"
     assert result[0]["owner"] == "nobody"
+    assert not {"is_scheduled", "cron_schedule", "next_scheduled_time"} & result[0].keys()
     assert client._client.call == (
         "/services/saved/searches",
         {"output_mode": "json", "count": 50, "search": 'name="*0723*" AND app="search"'},
@@ -244,6 +251,39 @@ async def test_saved_search_client_uses_read_only_name_filter():
         "/services/saved/searches",
         {"output_mode": "json", "count": 50, "search": 'app="search"'},
     )
+
+
+@pytest.mark.asyncio
+async def test_saved_search_details_omit_schedule_metadata():
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"entry": [{
+                "name": "Realtime fixture",
+                "content": {
+                    "search": "index=main error",
+                    "is_scheduled": "1",
+                    "cron_schedule": "*/5 * * * *",
+                    "next_scheduled_time": "1700000300",
+                    "dispatch.earliest_time": "rt-5m",
+                    "dispatch.latest_time": "rt",
+                    "dispatch.indexedRealtime": "1",
+                },
+                "acl": {"app": "search", "owner": "nobody"},
+            }]}
+
+    class HttpClient:
+        async def get(self, _path, params=None):
+            return Response()
+
+    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
+    client._client = HttpClient()
+
+    result = await client.get_saved_search("Realtime fixture", "search", "nobody")
+
+    assert result["content"] == {"search": "index=main error"}
 
 
 def test_inputlookup_is_readable_and_outputlookup_is_blocked():

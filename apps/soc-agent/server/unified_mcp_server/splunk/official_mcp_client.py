@@ -21,6 +21,7 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
+from unified_mcp_server.detection import without_schedule_metadata
 from .splunk_client import SplunkAPIError, SplunkClient
 
 
@@ -551,7 +552,7 @@ class OfficialSplunkMCPClient:
                 if str(row.get("name", search_name)) == search_name:
                     return {
                         "name": search_name,
-                        "content": row,
+                        "content": without_schedule_metadata(row),
                         "acl": {"app": row.get("app", app), "owner": row.get("owner", owner)},
                     }
         except SplunkAPIError:

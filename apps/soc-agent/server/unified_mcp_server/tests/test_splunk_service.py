@@ -231,7 +231,7 @@ async def test_saved_search_discovery_filters_partial_name_and_app():
     assert result["count"] == 1
     assert result["saved_searches"][0]["name"] == "0723 Suspicious Login"
     assert "search" not in result["saved_searches"][0]
-    assert result["saved_searches"][0]["is_scheduled"] is True
+    assert not {"is_scheduled", "cron_schedule", "next_scheduled_time"} & result["saved_searches"][0].keys()
     assert result["saved_searches"][0]["disabled"] is False
     assert result["saved_searches"][0]["actions"] == "email"
 
@@ -536,17 +536,25 @@ def test_detection_validation_reports_metadata_findings():
     })
     assert result["valid"] is True
     assert result["detection"]["enabled"] is False
+    assert "cron_schedule" not in result["detection"]
 
 
-def test_detection_validation_supports_realtime_alerts_and_input_aliases():
+def test_detection_validation_ignores_schedule_and_realtime_activation_fields():
     service = SplunkService(settings())
 
     result = service.validate_detection({
         "name": "Realtime error alert",
         "spl": citic_spl(),
         "is_scheduled": True,
+        "cron_schedule": "*/5 * * * *",
+        "next_scheduled_time": "1700000300",
         "dispatch.earliest_time": "rt-5m",
         "dispatch.latest_time": "rt",
+        "dispatch.rt_backfill": True,
+        "dispatch.indexedRealtime": True,
+        "dispatch.indexedRealtimeOffset": "5m",
+        "dispatch.indexedRealtimeMinSpan": "1m",
+        "dispatch.rt_maximum_span": "10m",
         "counttype": "number of events",
         "relation": "greater than",
         "quantity": 0,
@@ -562,10 +570,15 @@ def test_detection_validation_supports_realtime_alerts_and_input_aliases():
     assert result["detection"]["alert_type"] == "number of events"
     assert result["detection"]["alert_comparator"] == "greater than"
     assert result["detection"]["alert_threshold"] == "0"
-    assert result["detection"]["dispatch.earliest_time"] == "rt-5m"
-    assert result["detection"]["dispatch.latest_time"] == "rt"
+    assert result["detection"]["earliest_time"] == "-10m"
+    assert result["detection"]["latest_time"] == "now"
     assert result["detection"]["action.email"] == "1"
-    assert any("real-time" in warning for warning in result["warnings"])
+    assert not {
+        "is_scheduled", "cron_schedule", "next_scheduled_time",
+        "dispatch.earliest_time", "dispatch.latest_time", "dispatch.rt_backfill",
+        "dispatch.indexedRealtime", "dispatch.indexedRealtimeOffset",
+        "dispatch.indexedRealtimeMinSpan", "dispatch.rt_maximum_span",
+    } & result["detection"].keys()
 
 
 def test_detection_validation_allows_outputcsv_only_as_a_saved_search_definition():
@@ -582,6 +595,9 @@ def test_detection_validation_allows_outputcsv_only_as_a_saved_search_definition
     assert result["valid"] is True
     assert result["query_validation"]["decision"] == "allow"
     assert result["query_validation"]["allowed_commands"] == ["outputcsv"]
+    assert result["detection"]["earliest_time"] == "-15m"
+    assert result["detection"]["latest_time"] == "now"
+    assert not {"is_scheduled", "cron_schedule"} & result["detection"].keys()
     assert any("outputcsv" in warning for warning in result["warnings"])
 
 
@@ -650,17 +666,12 @@ def test_detection_validation_supports_custom_condition_per_result_throttle_and_
     assert result["detection"]["alert_condition"] == "severity=critical"
     assert result["detection"]["alert.digest_mode"] == "0"
     assert result["detection"]["alert.suppress.fields"] == "host, user"
-    assert result["detection"]["dispatch.rt_maximum_span"] == "5m"
+    assert "dispatch.rt_maximum_span" not in result["detection"]
 
 
 @pytest.mark.parametrize(
     "alert_fields",
     [
-        {
-            "is_scheduled": True,
-            "dispatch.earliest_time": "rt-5m",
-            "dispatch.latest_time": "now",
-        },
         {
             "alert_type": "number of events",
             "alert_comparator": "rises by perc",
@@ -716,3 +727,31 @@ async def test_backtest_is_read_only_bounded_and_structured():
     assert backtest["search_metadata"]["mcp_context_truncated"] is False
     assert backtest["fields"] == ["card"]
     assert backtest["sample_events"] == [{"card": "****-****-****-1111"}]
+
+
+@pytest.mark.asyncio
+async def test_detection_reads_omit_schedule_and_realtime_metadata():
+    class RealtimeClient(FakeClient):
+        def __init__(self, config):
+            super().__init__(config)
+            self.saved_content.update({
+                "dispatch.earliest_time": "rt-5m",
+                "dispatch.latest_time": "rt",
+                "dispatch.rt_backfill": "1",
+                "dispatch.indexedRealtime": "1",
+                "dispatch.rt_maximum_span": "5m",
+            })
+
+    service = SplunkService(settings(), RealtimeClient)
+
+    result = await service.get_detection("Realtime fixture")
+
+    assert result["earliest_time"] == ""
+    assert result["latest_time"] == ""
+    assert not {
+        "is_scheduled", "cron_schedule", "next_scheduled_time",
+        "dispatch.earliest_time", "dispatch.latest_time", "dispatch.rt_backfill",
+        "dispatch.indexedRealtime", "dispatch.rt_maximum_span",
+    } & result.keys()
+    assert result["actions"] == "email"
+    await service.close()

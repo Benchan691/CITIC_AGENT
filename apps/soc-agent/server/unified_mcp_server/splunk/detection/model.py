@@ -7,6 +7,7 @@ from ...detection import (
     is_secret_alert_field,
     public_alert_fields,
     validate_detection,
+    without_schedule_metadata,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "is_secret_alert_field",
     "public_alert_fields",
     "validate_detection",
+    "without_schedule_metadata",
 ]

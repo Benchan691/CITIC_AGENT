@@ -21,6 +21,7 @@ from .lookup import (
 from .planner import SearchIntent, SearchPlanner
 from .schema_registry import SearchSchemaRegistry
 from .verifier import SearchResultVerifier
+from unified_mcp_server.detection import without_schedule_metadata
 from unified_mcp_server.errors import ServiceError
 
 
@@ -303,6 +304,7 @@ class SplunkSearchService:
         app = app.strip()
         limit = min(max(1, int(limit)), 200)
         searches = await self.core.request(lambda client: client.get_saved_searches(name=name, app=app, count=limit))
+        searches = [without_schedule_metadata(item) for item in searches]
         if name:
             needle = name.casefold()
             searches = [item for item in searches if needle in item.get("name", "").casefold()]

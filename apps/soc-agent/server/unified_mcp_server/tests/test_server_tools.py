@@ -58,6 +58,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     }
     assert len(tools) == 43
     assert not {tool.name for tool in tools if tool.name.startswith("catalog_")}
+    assert not {tool.name for tool in tools if tool.name.startswith("scheduled_task_")}
     for tool in tools:
         assert "ctx" not in tool.parameters.get("properties", {})
         assert "ctx" not in tool.parameters.get("required", [])

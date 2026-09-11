@@ -211,6 +211,10 @@ async def test_detection_reads_use_official_alert_details_and_keep_trigger_field
                     "search": "index=main",
                     "alert_type": "number of events",
                     "alert_threshold": "2",
+                    "is_scheduled": True,
+                    "cron_schedule": "*/5 * * * *",
+                    "next_scheduled_time": "1700000300",
+                    "dispatch.rt_backfill": True,
                 }
             ],
             "truncated": False,
@@ -220,6 +224,9 @@ async def test_detection_reads_use_official_alert_details_and_keep_trigger_field
     result = await adapter.get_saved_search("rule-1", "search", "nobody")
 
     assert result["content"]["alert_threshold"] == "2"
+    assert not {
+        "is_scheduled", "cron_schedule", "next_scheduled_time", "dispatch.rt_backfill",
+    } & result["content"].keys()
     assert calls == ["splunk_get_alert_details"]
 
 
