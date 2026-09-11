@@ -95,7 +95,7 @@ test('configuration controls are mounted only by the standalone admin console', 
 test('does not expose stored Zimbra-account controls in settings', () => {
   const source = readFileSync(new URL('../src/client/ZimbraSettings.ts', import.meta.url), 'utf8')
   assert.doesNotMatch(source, /list-accounts/)
-  assert.match(source, /server-configured mailbox/)
+  assert.match(source, /signed-in user/)
   assert.doesNotMatch(source, /password/i)
   assert.doesNotMatch(source, /Save settings/)
 })

@@ -617,7 +617,7 @@ export function apply(ctx) {
     }
     const policy = savedActionPolicy(ctx)
     const configuredState = policy.actionStates.get(exec.name)
-    if (configuredState === 'disabled') {
+    if (policy.mode !== 'full' && configuredState === 'disabled') {
       return Promise.resolve({ kind: 'deny', reason: 'This SOC action is disabled by the administrator.' })
     }
     const state = policy.mode === 'full' ? 'auto' : (configuredState ?? defaultActionState(exec.name))

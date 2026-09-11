@@ -154,7 +154,7 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.equal((await preExecute({ name: 'bash', agent: lateAgent }, () => ({ kind: 'delegate' }))).kind, 'deny')
 })
 
-test('SOC mode applies deployment ask, auto, and disabled states without authentication or sessions', async () => {
+test('SOC mode applies deployment action states without an action-policy session', async () => {
   const handlers = new Map()
   const agent = { id: 'agent-1', ctx: { tools: { restrict() {} } } }
   let saved = { mode: 'soc', actionStates: {} }
@@ -162,6 +162,10 @@ test('SOC mode applies deployment ask, auto, and disabled states without authent
   apply({
     get(name) {
       if (name === 'settings') return { get: () => saved }
+      if (name === 'socAuth') return {
+        requireSession: () => ({ id: 'auth-session' }),
+        requireAdmin: () => ({ email: 'admin@example.test' }),
+      }
       return undefined
     },
     on(event, handler) { handlers.set(event, handler) },
@@ -202,7 +206,7 @@ test('SOC mode applies deployment ask, auto, and disabled states without authent
   assert.equal((await rpcHandler('reset-session-action-policy', {})).error.code, 'bad-request')
 })
 
-test('full access cannot re-enable a deployment-disabled tool', async () => {
+test('full access bypasses SOC action states for permitted tools', async () => {
   const handlers = new Map()
   const agent = { id: 'agent-disabled', ctx: { tools: { restrict() {} } } }
   const disabled = ACTION_TOOLS[0]
@@ -216,7 +220,7 @@ test('full access cannot re-enable a deployment-disabled tool', async () => {
     connection: { rpc: { handle() {} } },
   })
   const preExecute = handlers.get('tools/pre-execute')
-  assert.equal((await preExecute({ name: disabled, agent }, () => ({ kind: 'delegate' }))).kind, 'deny')
+  assert.deepEqual(await preExecute({ name: disabled, agent }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
 })
 
 test('host RPC failures use the shared result error contract', async () => {
@@ -251,9 +255,9 @@ test('host RPC failures use the shared result error contract', async () => {
   try {
     const result = await rpcHandler('get-settings', {})
     assert.equal(result.ok, false)
-    assert.equal(result.error.code, 'internal')
+    assert.equal(result.error.code, 'admin-authentication-required')
     assert.deepEqual(result.error.details, {})
-    assert.equal(result.error.message, 'The requested operation failed.')
+    assert.equal(result.error.message, 'administrator authentication required')
     assert.equal(result.error.message.includes('Traceback'), false)
   } finally {
     if (previousServer === undefined) delete process.env.DSH_SOC_AGENT_SERVER
