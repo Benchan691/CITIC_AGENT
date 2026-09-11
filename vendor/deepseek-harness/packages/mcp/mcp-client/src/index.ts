@@ -119,7 +119,8 @@ export const Config = z.union([
     env: z.dict(String).default({}),
     cwd: z.string().default(''),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    allowedToolNames: z.array(String),
+    // Omission discovers all tools; an explicit [] intentionally exposes none.
+    allowedToolNames: z.array(String).default(undefined as unknown as string[]),
     failOnStartupError: z.boolean().default(false),
     reconnect: Reconnect,
   }),
@@ -130,7 +131,7 @@ export const Config = z.union([
     headers: z.dict(String).default({}),
     verifyTls: z.boolean().default(true),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    allowedToolNames: z.array(String),
+    allowedToolNames: z.array(String).default(undefined as unknown as string[]),
     failOnStartupError: z.boolean().default(false),
     reconnect: Reconnect,
   }),
