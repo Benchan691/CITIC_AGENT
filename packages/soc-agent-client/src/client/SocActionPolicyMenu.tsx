@@ -1,32 +1,41 @@
-import { useEffect, useId, useState } from 'react'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SocActionApprovalSettings, SocActionMode } from '../action-approval-settings.ts'
+import { useEffect, useId, useRef, useState } from 'react'
+import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import type { SocActionMode } from '../action-approval-settings.ts'
+import { readActionMode } from './actionPolicy.ts'
 import css from './SocActionPolicyMenu.module.css'
 
-type MenuProps = PropsRuntime<'conversation.input.left'> & {
-  scope: SettingsScope<SocActionApprovalSettings>
-}
-
-export function SocActionPolicyMenu({ scope }: MenuProps) {
+export function SocActionPolicyMenu({ connection }: { connection: ConnectionHandle }) {
   const panelId = useId()
-  const [open, setOpen] = useState(false)
-  const [snapshot, setSnapshot] = useState(() => scope.getSnapshot())
+  const generation = useRef(0)
   const [saving, setSaving] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [mode, setMode] = useState<SocActionMode>()
   const [error, setError] = useState<string>()
 
-  useEffect(() => scope.subscribe(() => setSnapshot(scope.getSnapshot())), [scope])
+  useEffect(() => {
+    let active = true
+    const request = ++generation.current
+    setError(undefined)
+    const timeout = window.setTimeout(() => {
+      if (active && request === generation.current) setError('Action settings could not be loaded. Close and reopen this menu to retry.')
+    }, 15_000)
+    void readActionMode(connection).then(next => {
+      if (!active || request !== generation.current) return
+      setMode(next)
+      setError(undefined)
+    }).catch(reason => {
+      if (active && request === generation.current) setError(reason instanceof Error ? reason.message : 'Action settings are unavailable.')
+    }).finally(() => window.clearTimeout(timeout))
+    return () => { active = false; window.clearTimeout(timeout) }
+  }, [connection, open])
 
-  const mode: SocActionMode = snapshot.value?.mode === 'full' ? 'full' : 'soc'
   const selectMode = async (next: SocActionMode) => {
-    if (saving || !snapshot.writable || next === mode) {
-      setOpen(false)
-      return
-    }
+    if (saving || next === mode) return
+    ++generation.current
     setSaving(true)
     setError(undefined)
     try {
-      await scope.set('mode', next)
+      setMode(await readActionMode(connection, next))
       setOpen(false)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The access mode could not be saved.')
@@ -36,24 +45,23 @@ export function SocActionPolicyMenu({ scope }: MenuProps) {
   }
 
   return <div className={css.root}>
-    <button className={css.trigger} type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>
+    <button className={css.trigger} type="button" disabled={saving} aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>
       <span className={css.icon} aria-hidden="true">✓</span>
-      <span>{mode === 'full' ? 'Full access' : 'SOC mode'}</span>
+      <span>{mode === 'full' ? 'Full access' : mode === 'soc' ? 'SOC mode' : 'Access mode'}</span>
     </button>
     {open && <div className={css.panel} id={panelId} role="dialog" aria-label="SOC action modes">
-      {snapshot.status === 'loading' && <p className={css.status}>Loading actions…</p>}
-      {snapshot.status === 'unavailable' && <p className={css.error} role="status">Action settings are unavailable.</p>}
+      {!mode && !error && <p className={css.status}>Loading actions…</p>}
       {error && <p className={css.error} role="status">{error}</p>}
-      {snapshot.status === 'ready' && <fieldset className={css.modes}>
+      {mode && <fieldset className={css.modes} disabled={saving}>
         <legend className={css.modeLegend}>Choose a mode</legend>
-        <label className={css.mode}>
-          <input className={css.modeRadio} type="radio" name={panelId} checked={mode === 'full'} disabled={saving || !snapshot.writable} onChange={() => { void selectMode('full') }} />
-          <span className={css.modeText}><span className={css.modeLabel}>Full access</span><span className={css.modeDescription}>Run every permitted tool directly.</span></span>
-        </label>
-        <label className={css.mode}>
-          <input className={css.modeRadio} type="radio" name={panelId} checked={mode === 'soc'} disabled={saving || !snapshot.writable} onChange={() => { void selectMode('soc') }} />
-          <span className={css.modeText}><span className={css.modeLabel}>SOC mode</span><span className={css.modeDescription}>Apply each tool’s ask, auto-run, or disabled setting.</span></span>
-        </label>
+        {(['full', 'soc'] as const).map(option => <label className={css.mode} key={option}>
+          <input className={css.modeRadio} type="radio" name={panelId} checked={mode === option} onChange={() => { void selectMode(option) }} />
+          <span className={css.modeText}>
+            <span className={css.modeLabel}>{option === 'full' ? 'Full access' : 'SOC mode'}</span>
+            <span className={css.modeDescription}>{option === 'full' ? 'Run every permitted tool directly.' : 'Apply each tool’s ask, auto-run, or disabled setting.'}</span>
+          </span>
+        </label>)}
+        <p className={css.status}>Applies to your current login session.</p>
       </fieldset>}
     </div>}
   </div>

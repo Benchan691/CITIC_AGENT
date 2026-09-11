@@ -3244,6 +3244,15 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
+		//#region src/client/actionPolicy.ts
+		async function readActionMode(connection, mode) {
+			const result = await connection.rpc.call("/soc-agent-config", mode === void 0 ? "get-action-policy" : "set-action-mode", mode === void 0 ? {} : { mode });
+			if (!result?.ok) throw new Error(result?.error?.message || "Action settings are unavailable.");
+			const value = result.value;
+			if (!value || typeof value !== "object" || !("mode" in value) || value.mode !== "soc" && value.mode !== "full") throw new Error("The server returned an invalid access mode.");
+			return value.mode;
+		}
+		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SocActionPolicyMenu.module.css.mjs
 		const css = ".X9dZ8W_root{align-items:center;display:inline-flex;position:relative}.X9dZ8W_trigger{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:30px;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;border-radius:8px;align-items:center;gap:6px;padding:0 10px;font-size:12px;display:inline-flex}.X9dZ8W_trigger:hover,.X9dZ8W_trigger[aria-expanded=true]{border-color:var(--dsw-alias-label-dimmed);color:var(--dsw-alias-label-primary)}.X9dZ8W_trigger:focus-visible,.X9dZ8W_modeRadio:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.X9dZ8W_icon{font-size:15px;line-height:1}.X9dZ8W_panel{z-index:20;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:min(380px,100vw - 24px);max-height:min(70vh,560px);box-shadow:var(--dsw-shadow-lv2);border-radius:12px;padding:14px;position:absolute;bottom:calc(100% + 8px);right:0;overflow-y:auto}.X9dZ8W_error,.X9dZ8W_status{color:var(--dsw-alias-label-tertiary);margin:5px 0 0;font-size:11px;line-height:1.5}.X9dZ8W_error{color:var(--dsw-alias-label-error)}.X9dZ8W_modes{border:0;gap:7px;margin-top:12px;padding:0;display:grid}.X9dZ8W_modeLegend{color:var(--dsw-alias-label-secondary);margin:0 0 4px;font-size:11px;font-weight:600}.X9dZ8W_mode{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary);cursor:pointer;border-radius:8px;align-items:center;gap:8px;padding:8px 9px;font-size:12px;line-height:1.4;display:flex}.X9dZ8W_mode:hover{border-color:var(--dsw-alias-label-dimmed)}.X9dZ8W_modeRadio{width:15px;height:15px;accent-color:var(--dsw-alias-brand-primary);flex:none;margin:0}.X9dZ8W_modeText{gap:2px;display:grid}.X9dZ8W_modeLabel{color:var(--dsw-alias-label-primary);font-weight:600}.X9dZ8W_modeDescription{color:var(--dsw-alias-label-tertiary);font-size:11px}";
 		const tagId = "dsh-soc-agent-client/SocActionPolicyMenu.module.css";
@@ -3271,23 +3280,39 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region src/client/SocActionPolicyMenu.tsx
-		function SocActionPolicyMenu({ scope }) {
+		function SocActionPolicyMenu({ connection }) {
 			const panelId = (0, react.useId)();
-			const [open, setOpen] = (0, react.useState)(false);
-			const [snapshot, setSnapshot] = (0, react.useState)(() => scope.getSnapshot());
+			const generation = (0, react.useRef)(0);
 			const [saving, setSaving] = (0, react.useState)(false);
+			const [open, setOpen] = (0, react.useState)(false);
+			const [mode, setMode] = (0, react.useState)();
 			const [error, setError] = (0, react.useState)();
-			(0, react.useEffect)(() => scope.subscribe(() => setSnapshot(scope.getSnapshot())), [scope]);
-			const mode = snapshot.value?.mode === "full" ? "full" : "soc";
+			(0, react.useEffect)(() => {
+				let active = true;
+				const request = ++generation.current;
+				setError(void 0);
+				const timeout = window.setTimeout(() => {
+					if (active && request === generation.current) setError("Action settings could not be loaded. Close and reopen this menu to retry.");
+				}, 15e3);
+				readActionMode(connection).then((next) => {
+					if (!active || request !== generation.current) return;
+					setMode(next);
+					setError(void 0);
+				}).catch((reason) => {
+					if (active && request === generation.current) setError(reason instanceof Error ? reason.message : "Action settings are unavailable.");
+				}).finally(() => window.clearTimeout(timeout));
+				return () => {
+					active = false;
+					window.clearTimeout(timeout);
+				};
+			}, [connection, open]);
 			const selectMode = async (next) => {
-				if (saving || !snapshot.writable || next === mode) {
-					setOpen(false);
-					return;
-				}
+				if (saving || next === mode) return;
+				++generation.current;
 				setSaving(true);
 				setError(void 0);
 				try {
-					await scope.set("mode", next);
+					setMode(await readActionMode(connection, next));
 					setOpen(false);
 				} catch (reason) {
 					setError(reason instanceof Error ? reason.message : "The access mode could not be saved.");
@@ -3300,6 +3325,7 @@ window.__ModuleLoader__.load({
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
 					className: SocActionPolicyMenu_module_css_default.trigger,
 					type: "button",
+					disabled: saving,
 					"aria-expanded": open,
 					"aria-controls": panelId,
 					onClick: () => setOpen((value) => !value),
@@ -3307,77 +3333,54 @@ window.__ModuleLoader__.load({
 						className: SocActionPolicyMenu_module_css_default.icon,
 						"aria-hidden": "true",
 						children: "✓"
-					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: mode === "full" ? "Full access" : "SOC mode" })]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: mode === "full" ? "Full access" : mode === "soc" ? "SOC mode" : "Access mode" })]
 				}), open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: SocActionPolicyMenu_module_css_default.panel,
 					id: panelId,
 					role: "dialog",
 					"aria-label": "SOC action modes",
 					children: [
-						snapshot.status === "loading" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						!mode && !error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 							className: SocActionPolicyMenu_module_css_default.status,
 							children: "Loading actions…"
-						}),
-						snapshot.status === "unavailable" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: SocActionPolicyMenu_module_css_default.error,
-							role: "status",
-							children: "Action settings are unavailable."
 						}),
 						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 							className: SocActionPolicyMenu_module_css_default.error,
 							role: "status",
 							children: error
 						}),
-						snapshot.status === "ready" && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+						mode && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
 							className: SocActionPolicyMenu_module_css_default.modes,
+							disabled: saving,
 							children: [
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", {
 									className: SocActionPolicyMenu_module_css_default.modeLegend,
 									children: "Choose a mode"
 								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								["full", "soc"].map((option) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
 									className: SocActionPolicyMenu_module_css_default.mode,
 									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
 										className: SocActionPolicyMenu_module_css_default.modeRadio,
 										type: "radio",
 										name: panelId,
-										checked: mode === "full",
-										disabled: saving || !snapshot.writable,
+										checked: mode === option,
 										onChange: () => {
-											selectMode("full");
+											selectMode(option);
 										}
 									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 										className: SocActionPolicyMenu_module_css_default.modeText,
 										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 											className: SocActionPolicyMenu_module_css_default.modeLabel,
-											children: "Full access"
+											children: option === "full" ? "Full access" : "SOC mode"
 										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 											className: SocActionPolicyMenu_module_css_default.modeDescription,
-											children: "Run every permitted tool directly."
+											children: option === "full" ? "Run every permitted tool directly." : "Apply each tool’s ask, auto-run, or disabled setting."
 										})]
 									})]
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-									className: SocActionPolicyMenu_module_css_default.mode,
-									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-										className: SocActionPolicyMenu_module_css_default.modeRadio,
-										type: "radio",
-										name: panelId,
-										checked: mode === "soc",
-										disabled: saving || !snapshot.writable,
-										onChange: () => {
-											selectMode("soc");
-										}
-									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
-										className: SocActionPolicyMenu_module_css_default.modeText,
-										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-											className: SocActionPolicyMenu_module_css_default.modeLabel,
-											children: "SOC mode"
-										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-											className: SocActionPolicyMenu_module_css_default.modeDescription,
-											children: "Apply each tool’s ask, auto-run, or disabled setting."
-										})]
-									})]
+								}, option)),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+									className: SocActionPolicyMenu_module_css_default.status,
+									children: "Applies to your current login session."
 								})
 							]
 						})
@@ -3533,7 +3536,7 @@ window.__ModuleLoader__.load({
 				priority: -10
 			}, (props) => react.default.createElement(SocActionPolicyMenu, {
 				...props,
-				scope: ctx.settingsScope.bind({ namespace: "soc-action-approval" })
+				connection
 			})));
 			ctx.slots.inject("shell.overlay", () => ctx.slots.register({
 				name: "shell.overlay",

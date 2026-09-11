@@ -1273,6 +1273,7 @@ export class SocAuthService {
     }
     this.adminSessions = new Map()
     this.agentSessions = new Map()
+    this.actionModes = new Map()
     this.pendingResponses = new Map()
     this.applicationSessionSignals = new Map()
     this.revokedApplicationSessions = new Map()
@@ -1327,6 +1328,7 @@ export class SocAuthService {
     const controller = this.applicationSessionSignals.get(value)
     if (controller && !controller.signal.aborted) controller.abort(new Error('application session revoked'))
     this.pendingResponses.delete(value)
+    this.actionModes.delete(value)
   }
 
   currentAdmin() {
@@ -1543,6 +1545,17 @@ export class SocAuthService {
     if (!pending) return
     pending.delete(String(rpcId ?? ''))
     if (pending.size === 0) this.pendingResponses.delete(current.id)
+  }
+
+  setActionMode(mode) {
+    const session = this.requireSession()
+    if (mode !== 'soc' && mode !== 'full') throw new Error('Invalid access mode.')
+    this.actionModes.set(session.id, mode)
+  }
+
+  actionMode(exec) {
+    const id = this.mcpRequestMeta(exec)?.soc_session_id
+    return id && !this.isApplicationSessionRevoked(id) ? this.actionModes.get(id) : undefined
   }
 
   mcpRequestMeta(exec) {

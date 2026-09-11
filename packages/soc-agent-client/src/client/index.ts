@@ -84,7 +84,7 @@ export function apply(ctx: ClientContext): void {
     priority: -10,
   }, props => React.createElement(SocActionPolicyMenu, {
     ...props,
-    scope: ctx.settingsScope.bind({ namespace: 'soc-action-approval' }),
+    connection,
   })))
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',

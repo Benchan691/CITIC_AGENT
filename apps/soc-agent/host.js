@@ -315,10 +315,12 @@ function actionStatesObject(actionStates) {
   return Object.fromEntries(actionStates)
 }
 
-function savedActionPolicy(ctx) {
+function savedActionPolicy(ctx, exec) {
   try {
     const value = settingsOf(ctx)?.get?.(ACTION_POLICY_NAMESPACE)
-    return normalizedActionPolicy(value)
+    const policy = normalizedActionPolicy(value)
+    const mode = ctx.get?.('socAuth')?.actionMode?.(exec)
+    return mode === 'soc' || mode === 'full' ? { ...policy, mode } : policy
   } catch {
     // A malformed or unavailable saved setting must never grant an action.
     return normalizedActionPolicy(undefined)
@@ -333,7 +335,7 @@ function policyValue(ctx) {
     tools: TOOL_CATALOG,
     mode: policy.mode,
     actionStates,
-    source: 'deployment',
+    source: ctx.get?.('socAuth')?.actionMode?.() ? 'session' : 'deployment',
   }
 }
 
@@ -526,6 +528,14 @@ async function handleEndpoint(endpoint, payload, signal, ctx) {
       requireUser(ctx)
       return ok(policyValue(ctx))
     }
+    case 'set-action-mode': {
+      requireUser(ctx)
+      if (!payload || !ACTION_MODES.includes(payload.mode) || Object.keys(payload).some(key => key !== 'mode')) {
+        return badRequest('Specify only mode: "soc" or "full".')
+      }
+      ctx.get('socAuth').setActionMode(payload.mode)
+      return ok(policyValue(ctx))
+    }
     case 'get-settings': requireAdmin(ctx); return ok(await runAdmin('get-settings'))
     case 'update-settings': requireAdmin(ctx); return badRequest('Service configuration is managed by the server environment.')
     case 'delete-setting': requireAdmin(ctx); return badRequest('Service configuration is managed by the server environment.')
@@ -583,7 +593,7 @@ export function apply(ctx) {
     if (!DOMAIN_TOOLS.has(exec.name) && !CONTROL_TOOLS.has(exec.name)) {
       return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only approved Splunk, Zimbra, and subscription tools.' })
     }
-    const policy = savedActionPolicy(ctx)
+    const policy = savedActionPolicy(ctx, exec)
     const configuredState = policy.actionStates.get(exec.name)
     if (policy.mode !== 'full' && configuredState === 'disabled') {
       return Promise.resolve({ kind: 'deny', reason: 'This SOC action is disabled by the administrator.' })
