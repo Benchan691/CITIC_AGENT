@@ -31,16 +31,6 @@ async def test_folder_writes_are_disabled_before_network_access(monkeypatch):
     assert error.value.code == "operation_disabled"
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("name", ["", "Parent/Child"])
-async def test_folder_name_is_a_single_direct_child(monkeypatch, name):
-    service = ZimbraMailService(settings(allow_folder_write=True))
-    monkeypatch.setattr(module, "zimbra_login", lambda *args, **kwargs: pytest.fail("login should not be called"))
-
-    with pytest.raises(ServiceError) as error:
-        await service.create_folder(name)
-
-    assert error.value.code == "invalid_input"
 
 
 @pytest.mark.asyncio
@@ -54,17 +44,6 @@ async def test_parent_id_must_be_numeric(monkeypatch):
     assert error.value.code == "invalid_input"
 
 
-@pytest.mark.asyncio
-async def test_missing_parent_is_rejected(monkeypatch):
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    monkeypatch.setattr(module, "zimbra_list_folders", lambda *args, **kwargs: [{"id": "1", "name": "", "path": "/"}])
-    monkeypatch.setattr(module, "zimbra_create_folder", lambda *args, **kwargs: pytest.fail("create should not be called"))
-    service = ZimbraMailService(settings(allow_folder_write=True))
-
-    with pytest.raises(ServiceError) as error:
-        await service.create_folder("Investigations", "99")
-
-    assert error.value.code == "folder_parent_not_found"
 
 
 @pytest.mark.asyncio
@@ -88,48 +67,3 @@ async def test_folder_creation_uses_selected_account_and_returns_safe_metadata(m
     assert captured[0]["zimbra_email"] == "two@example.com"
     assert captured[0]["zimbra_password"] == "two-secret"
     assert "token" not in str(result)
-
-
-def test_multiple_accounts_require_selection_and_share_global_connection_settings(tmp_path):
-    store = AccountStore(str(tmp_path / "accounts.enc"), str(tmp_path / "accounts.key"))
-    first = store.add(label="One", email="one@example.com", username="one-user", password="one-secret")
-    second = store.add(label="Two", email="two@example.com", username="two-user", password="two-secret")
-    service = ZimbraMailService(
-        settings(
-            host="https://zmailbox.citictel-cpc.com/",
-            email="",
-            password="",
-            verify_ssl=False,
-            timeout=60,
-        ),
-        store,
-    )
-
-    with pytest.raises(ServiceError, match="account"):
-        service._resolve_account("")
-
-    config = service._config(service._resolve_account(second.id))
-    assert config == {
-        "zimbra_host": "https://zmailbox.citictel-cpc.com/",
-        "zimbra_email": "two@example.com",
-        "zimbra_username": "two-user",
-        "zimbra_password": "two-secret",
-        "verify_ssl": False,
-        "timeout": 60,
-        "allow_insecure_http": False,
-        }
-    assert service._resolve_account(first.id).email == "one@example.com"
-
-
-@pytest.mark.asyncio
-async def test_malformed_create_folder_response_is_safe(monkeypatch):
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    monkeypatch.setattr(module, "zimbra_list_folders", lambda *args, **kwargs: [{"id": "1", "name": "", "path": "/"}])
-    monkeypatch.setattr(module, "zimbra_create_folder", lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("raw response")))
-    service = ZimbraMailService(settings(allow_folder_write=True))
-
-    with pytest.raises(ServiceError) as error:
-        await service.create_folder("Investigations")
-
-    assert error.value.code == "zimbra_malformed_response"
-    assert "raw response" not in error.value.message

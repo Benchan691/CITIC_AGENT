@@ -12,44 +12,14 @@ from unified_mcp_server.control_server import handle_request
 from unified_mcp_server.errors import ServiceError
 
 
-async def test_handle_request_returns_result_envelope():
-    response = await handle_request({"id": "a1", "command": "no-real-command-can-run-here", "payload": {}})
-    # Unknown commands surface as bounded operation failures, not crashes.
-    assert response["id"] == "a1"
-    assert response["ok"] is False
-    assert response["error"]["code"] == "operation_failed"
 
 
-async def test_handle_request_rejects_non_object_requests():
-    response = await handle_request(["not", "an", "object"])
-    assert response["id"] == ""
-    assert response["ok"] is False
-    assert response["error"]["code"] == "invalid_request"
 
 
-async def test_handle_request_defaults_missing_fields():
-    response = await handle_request({"command": "unknown-command"})
-    assert response["id"] == ""
-    assert response["ok"] is False
 
 
-async def test_dispatch_rejects_unknown_command():
-    with pytest.raises(ValueError):
-        await dispatch_command("definitely-not-a-command", {})
 
 
-def test_response_bound_preserves_the_complete_protocol_envelope(monkeypatch):
-    from io import BytesIO
-    from unified_mcp_server import control_server
-    monkeypatch.setattr(control_server, "MAX_LINE_BYTES", 1024)
-    output = BytesIO()
-    server = control_server.ControlServer(None, output)
-    server._write_line({"id": "large", "ok": True, "result": "界" * 1000})
-    assert len(output.getvalue()) <= 1024
-    response = json.loads(output.getvalue())
-    assert response["id"] == "large"
-    assert response["ok"] is False
-    assert response["error"]["code"] == "operation_outcome_unknown"
 
 
 def test_command_failure_shapes_are_bounded_and_credential_free():

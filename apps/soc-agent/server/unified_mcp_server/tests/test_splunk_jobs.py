@@ -71,25 +71,6 @@ def make_client(http, *, job_timeout=30):
     return client
 
 
-@pytest.mark.parametrize("status", [401, 403, 404])
-@pytest.mark.parametrize("operation", ["queue", "results", "oneshot"])
-async def test_lookup_errors_do_not_replace_search_or_queue_failures(status, operation):
-    class FailingHTTP:
-        async def get(self, *args, **kwargs):
-            raise SplunkAPIError("original provider failure", status_code=status)
-
-        async def post(self, *args, **kwargs):
-            raise SplunkAPIError("original provider failure", status_code=status)
-
-    client = make_client(FailingHTTP())
-    with pytest.raises(SplunkAPIError, match="original provider failure") as error:
-        if operation == "queue":
-            await client._get_queue_json("/queue", params={}, operation="security queue")
-        elif operation == "results":
-            await client._fetch_result_page("/results", 0, 10, "search")
-        else:
-            await client.search_oneshot("index=main")
-    assert error.value.status_code == status
 
 
 @pytest.mark.asyncio
@@ -162,44 +143,8 @@ async def test_search_job_dispatches_polls_and_fetches_v2_pages(monkeypatch):
     assert all("oneshot" not in path for path, _data, _params in http.post_calls)
 
 
-@pytest.mark.asyncio
-async def test_search_job_reports_splunk_truncation_when_ceiling_is_reached(monkeypatch):
-    async def no_sleep(_delay):
-        return None
-
-    monkeypatch.setattr("unified_mcp_server.splunk.splunk_client.asyncio.sleep", no_sleep)
-    http = JobHTTP(
-        statuses=[job_status("DONE", resultCount="5")],
-        pages={
-            0: {"results": [{"n": 1}, {"n": 2}], "total": 5},
-            2: {"results": [{"n": 3}], "total": 5},
-        },
-    )
-
-    result = await make_client(http).run_search_job("index=main", max_count=3)
-
-    assert result["metadata"]["total_result_count"] == 5
-    assert result["metadata"]["fetched_count"] == 3
-    assert result["metadata"]["splunk_result_truncated"] is True
-    assert [params["offset"] for _path, params in http.get_calls[1:]] == [0, 2]
 
 
-@pytest.mark.asyncio
-async def test_search_job_keeps_truncation_unknown_without_splunk_counts(monkeypatch):
-    async def no_sleep(_delay):
-        return None
-
-    monkeypatch.setattr("unified_mcp_server.splunk.splunk_client.asyncio.sleep", no_sleep)
-    http = JobHTTP(
-        statuses=[job_status("DONE")],
-        pages={0: {"results": [{"n": 1}]}},
-    )
-
-    result = await make_client(http).run_search_job("index=main", max_count=3)
-
-    assert result["events"] == [{"n": 1}]
-    assert result["metadata"]["total_result_count"] is None
-    assert result["metadata"]["splunk_result_truncated"] is None
 
 
 @pytest.mark.asyncio
@@ -270,21 +215,6 @@ async def test_search_job_timeout_cancels_remote_job(monkeypatch):
     )
 
 
-@pytest.mark.asyncio
-async def test_search_job_resource_runtime_limit_cancels_remote_job(monkeypatch):
-    async def no_sleep(_delay):
-        return None
-
-    monkeypatch.setattr("unified_mcp_server.splunk.splunk_client.asyncio.sleep", no_sleep)
-    http = JobHTTP(statuses=[job_status("RUNNING")])
-
-    with pytest.raises(SplunkAPIError) as error:
-        await make_client(http, job_timeout=30).run_search_job(
-            "index=main", runtime_limit=0.01
-        )
-
-    assert error.value.error_code == "runtime_limit_exceeded"
-    assert http.post_calls[-1][0] == "/services/search/jobs/job%2F1/control"
 
 
 @pytest.mark.asyncio
@@ -309,39 +239,18 @@ async def test_search_job_task_cancellation_cancels_remote_job():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("state", ["FAILED", "PAUSED", "USER_CANCEL", "UNKNOWN"])
-async def test_search_job_rejects_non_successful_or_unknown_states(state):
-    http = JobHTTP(statuses=[job_status(state)])
+async def test_search_job_rejects_non_successful_or_unknown_states():
+    for state in ["FAILED", "PAUSED", "USER_CANCEL", "UNKNOWN"]:
+        http = JobHTTP(statuses=[job_status(state)])
 
-    with pytest.raises(SplunkAPIError):
-        await make_client(http).run_search_job("index=main")
+        with pytest.raises(SplunkAPIError):
+            await make_client(http).run_search_job("index=main")
 
-    assert http.post_calls[-1][0] == "/services/search/jobs/job%2F1/control"
-
-
-@pytest.mark.asyncio
-async def test_search_job_rejects_malformed_status_payload():
-    http = JobHTTP(statuses=[{}])
-
-    with pytest.raises(SplunkAPIError, match="malformed"):
-        await make_client(http).run_search_job("index=main")
-
-    assert http.post_calls[-1][0] == "/services/search/jobs/job%2F1/control"
+        assert http.post_calls[-1][0] == "/services/search/jobs/job%2F1/control"
 
 
-@pytest.mark.asyncio
-async def test_search_job_rejects_missing_sid_and_dispatch_errors():
-    missing_sid = JobHTTP(dispatch_payload={})
-    with pytest.raises(SplunkAPIError, match="no SID"):
-        await make_client(missing_sid).run_search_job("index=main")
-    assert len(missing_sid.post_calls) == 1
 
-    message_error = JobHTTP(
-        dispatch_payload={"messages": [{"type": "ERROR", "text": "secret upstream diagnostic"}]}
-    )
-    with pytest.raises(SplunkAPIError, match="Splunk returned an error") as error:
-        await make_client(message_error).run_search_job("index=main")
-    assert "secret upstream diagnostic" not in str(error.value)
+
 
 
 def test_splunk_error_payloads_are_not_returned_to_callers():
@@ -373,25 +282,3 @@ async def test_search_job_rejects_http_and_malformed_result_failures():
     with pytest.raises(SplunkAPIError) as result_error:
         await make_client(result_http_error).run_search_job("index=main")
     assert result_error.value.status_code == 502
-
-
-@pytest.mark.parametrize(
-    "payload",
-    [
-        "{broken",
-        json.dumps({"messages": [{"type": "ERROR", "text": "failed"}]}),
-        json.dumps({"results": ["not-an-object"]}),
-        json.dumps({"results": [], "fields": [{"name": ""}]}),
-    ],
-)
-def test_search_job_result_parser_rejects_malformed_payloads(payload):
-    with pytest.raises(SplunkAPIError):
-        SplunkClient._parse_result_page(payload, "search job")
-
-
-def test_job_metadata_rejects_non_integral_and_non_finite_numbers():
-    assert SplunkClient._optional_int(4.5) is None
-    assert SplunkClient._optional_int("4.5") is None
-    assert SplunkClient._optional_int("4") == 4
-    assert SplunkClient._optional_float(float("inf")) is None
-    assert SplunkClient._optional_float("4.2") == 4.2

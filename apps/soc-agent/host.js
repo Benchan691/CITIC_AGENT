@@ -710,7 +710,7 @@ export function apply(ctx) {
   installInvestigationProjection(ctx)
   ctx.on('agent/created', ({ agent }) => {
     if (!ctx.agents.roots().includes(agent)) return
-    agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS, ...CONTROL_TOOLS] })
+    try { agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS, ...CONTROL_TOOLS] }) } catch { /* MCP tools may still be registering; pre-execute enforces */ }
   })
   ctx.on('tools/pre-execute', (exec, next) => {
     if (!DOMAIN_TOOLS.has(exec.name) && !CONTROL_TOOLS.has(exec.name)) {

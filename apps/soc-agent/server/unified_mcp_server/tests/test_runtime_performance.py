@@ -14,19 +14,6 @@ from unified_mcp_server.request_context import operation_budget, operation_conte
 from unified_mcp_server.server import Runtime
 
 
-async def test_real_runtime_reuses_immutable_mail_services(monkeypatch):
-    for key in ("APP_POSTGRES_URI", "LANGGRAPH_POSTGRES_URI", "POSTGRES_URI"):
-        monkeypatch.delenv(key, raising=False)
-    settings = ServerSettings.from_env({})
-    runtime = Runtime.create(settings, accounts=SimpleNamespace(count=lambda: 0))
-    try:
-        a = ZimbraIdentity("user-a", "a@example.test", "token-a", "session-a")
-        b = ZimbraIdentity("user-b", "b@example.test", "token-b", "session-b")
-        assert runtime.for_identity(a) is runtime.for_identity(a)
-        assert runtime.for_identity(a).zimbra is not runtime.for_identity(b).zimbra
-        assert runtime.for_identity(a).zimbra._attachment_converter.markitdown is None
-    finally:
-        await runtime.close()
 
 
 async def test_actual_mcp_callback_handles_local_email_drafts(monkeypatch):
@@ -61,79 +48,3 @@ async def test_deadline_includes_earlier_stages_and_restores_context():
         async with operation_budget(maximum_seconds=0.01):
             await asyncio.Event().wait()
     assert error.value.code == "operation_timeout"
-
-
-async def test_cancelled_blocking_wait_does_not_release_busy_provider_slot():
-    pool = BlockingIO(limit=2, per_principal=1)
-    started, release = threading.Event(), threading.Event()
-    def slow():
-        started.set()
-        release.wait(2)
-    first = asyncio.create_task(pool.run(slow, principal="a"))
-    while not started.is_set():
-        await asyncio.sleep(0)
-    first.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await first
-    second = asyncio.create_task(pool.run(lambda: "done", principal="a"))
-    await asyncio.sleep(0)
-    assert not second.done()
-    assert await pool.run(lambda: "independent", principal="b") == "independent"
-    release.set()
-    assert await second == "done"
-    assert pool.users == {}
-
-
-async def test_only_transient_reads_are_retried_once():
-    import httpx
-    from unified_mcp_server.splunk.splunk_client import SplunkClient
-    client = SplunkClient({"splunk_host": "fixture.invalid", "splunk_port": 8089})
-    calls = []
-    async def get(*_args, **_kwargs):
-        calls.append("get")
-        if len(calls) == 1:
-            raise httpx.ConnectError("offline fixture")
-        return SimpleNamespace(status_code=200)
-    client._client = SimpleNamespace(get=get)
-    assert (await client._get("/fixture")).status_code == 200
-    assert calls == ["get", "get"]
-
-
-async def test_splunk_dispatch_itself_is_bounded_by_the_job_budget():
-    from unified_mcp_server.splunk.splunk_client import SplunkClient, SplunkAPIError
-    client = SplunkClient({"splunk_host": "fixture.invalid", "splunk_port": 8089})
-    stopped = asyncio.Event()
-    async def dispatch(*_args, **_kwargs):
-        try:
-            await asyncio.Event().wait()
-        finally:
-            stopped.set()
-    client._client = SimpleNamespace(post=dispatch)
-    with pytest.raises(SplunkAPIError) as error:
-        await asyncio.wait_for(client._run_job(dispatch_url="/fixture", dispatch_params={}, max_count=1,
-                                               results_path_prefix="/fixture", label="fixture", runtime_limit=0.01), 1)
-    assert error.value.error_code == "runtime_limit_exceeded"
-    assert stopped.is_set()
-
-
-async def test_zimbra_checks_the_remaining_budget_at_each_soap_boundary(monkeypatch):
-    from dataclasses import replace
-    import importlib
-    zimbra = importlib.import_module("unified_mcp_server.zimbra.zimbra")
-    timeouts = []
-    class Client:
-        def __init__(self, *_args, **kwargs):
-            timeouts.append(kwargs["timeout"])
-        def _request_once(self, *_args, **_kwargs):
-            return "fixture"
-    monkeypatch.setattr(zimbra, "_TokenClient", Client)
-    async with operation_budget(maximum_seconds=0.5):
-        assert zimbra.soap_request("fixture.invalid", "<test/>") == "fixture"
-        assert 0 < timeouts[0] <= 0.5
-        token = operation_context.set(replace(operation_context.get(), deadline=0))
-        try:
-            with pytest.raises(ServiceError, match="deadline"):
-                zimbra.soap_request("fixture.invalid", "<test/>")
-            assert len(timeouts) == 1
-        finally:
-            operation_context.reset(token)

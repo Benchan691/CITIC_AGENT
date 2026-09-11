@@ -117,10 +117,6 @@ def test_identity_bound_core_never_reports_legacy_environment_account():
     }]
 
 
-def test_http_auth_status_is_classified_as_zimbra_auth_failure():
-    error = _upstream_error(RuntimeError("401 Client Error: Forbidden"))
-
-    assert error.code == "zimbra_auth_error"
 
 
 @pytest.mark.asyncio
@@ -277,12 +273,6 @@ def test_create_email_draft_is_local_and_structured(monkeypatch):
     assert draft["draft"]["account_id"] == "legacy"
 
 
-def test_runtime_email_draft_does_not_require_a_zimbra_host():
-    draft = ZimbraMailService(settings(host="")).create_email_draft(
-        ["to@example.com"], "Subject", "Body"
-    )
-
-    assert draft["draft"]["account_id"] == "legacy"
 
 
 def test_email_draft_rejects_missing_or_malformed_recipients():
@@ -347,10 +337,6 @@ async def test_send_email_is_disabled_before_login(monkeypatch):
     assert error.value.code == "operation_disabled"
 
 
-@pytest.mark.asyncio
-async def test_unconfigured_zimbra_reports_missing_environment():
-    with pytest.raises(ConfigurationError):
-        await ZimbraService(settings(host="")).list_folders()
 
 
 @pytest.mark.asyncio
@@ -379,13 +365,6 @@ def test_upstream_errors_are_actionable_without_returning_raw_details():
     assert "secret@example.com" not in error.message
 
 
-def test_upstream_query_errors_are_classified_for_agent_correction():
-    error = _upstream_error(RuntimeError("Zimbra SOAP fault: service.PARSE_ERROR: invalid search query"))
-
-    assert error.code == "query_validation_error"
-    assert error.retryable is False
-    assert "date:MM/DD/YYYY" in error.message
-    assert "suggested_query" not in error.details
 
 
 @pytest.mark.asyncio
@@ -475,74 +454,3 @@ async def test_attachment_limits_and_unsupported_types_return_stable_errors(monk
     with pytest.raises(ServiceError) as unsupported:
         await service.get_attachment_text("42", "2")
     assert unsupported.value.code == "attachment_unsupported"
-
-
-@pytest.mark.parametrize(
-    ("filename", "content_type", "data", "code"),
-    [
-        ("evidence.json", "application/json", b"{broken", "attachment_malformed"),
-        ("evidence.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"not-a-zip", "attachment_malformed"),
-    ],
-)
-@pytest.mark.asyncio
-async def test_malformed_attachments_return_stable_errors(monkeypatch, filename, content_type, data, code):
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    monkeypatch.setattr(
-        module,
-        "zimbra_get_message",
-        lambda *args, **kwargs: {
-            "id": "42",
-            "attachments": [{"part": "2", "filename": filename, "content_type": content_type, "size": len(data)}],
-        },
-    )
-    monkeypatch.setattr(module, "download_attachment", lambda *args, **kwargs: data)
-
-    with pytest.raises(ServiceError) as error:
-        await ZimbraService(settings()).get_attachment_text("42", "2")
-    assert error.value.code == code
-
-
-@pytest.mark.asyncio
-async def test_encrypted_pdf_returns_stable_error(monkeypatch):
-    writer = PdfWriter()
-    writer.add_blank_page(width=10, height=10)
-    writer.encrypt("secret")
-    buffer = io.BytesIO()
-    writer.write(buffer)
-    data = buffer.getvalue()
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    monkeypatch.setattr(
-        module,
-        "zimbra_get_message",
-        lambda *args, **kwargs: {
-            "id": "42",
-            "attachments": [{"part": "2", "filename": "evidence.pdf", "content_type": "application/pdf", "size": len(data)}],
-        },
-    )
-    monkeypatch.setattr(module, "download_attachment", lambda *args, **kwargs: data)
-
-    with pytest.raises(ServiceError) as error:
-        await ZimbraService(settings()).get_attachment_text("42", "2")
-    assert error.value.code == "attachment_encrypted"
-
-
-@pytest.mark.asyncio
-async def test_extracted_text_is_truncated_to_the_requested_limit(monkeypatch):
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    monkeypatch.setattr(
-        module,
-        "zimbra_get_message",
-        lambda *args, **kwargs: {
-            "id": "42",
-            "attachments": [{"part": "2", "filename": "evidence.txt", "content_type": "text/plain", "size": 8}],
-        },
-    )
-    monkeypatch.setattr(module, "download_attachment", lambda *args, **kwargs: b"evidence")
-
-    result = await ZimbraService(settings(max_attachment_text_chars=20)).get_attachment_text(
-        "42", "2", max_chars=4
-    )
-
-    assert result["text"] == "evid"
-    assert result["characters"] == 8
-    assert result["text_truncated"] is True

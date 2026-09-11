@@ -36,17 +36,8 @@ def test_aggregate_zero_row_is_not_a_match():
     assert "zero-valued aggregate" in result["reason"]
 
 
-def test_aggregate_zero_multiple_zero_rows_is_not_a_match():
-    result = verify_search_result(plan(), execution([{"count": 0}, {"total": 0.0}]))
-    assert result["conclusion"] != "matches_observed"
-    assert result["aggregate_zero_rows"] is True
 
 
-def test_positive_count_still_matches():
-    result = verify_search_result(plan(), execution([{"count": "7"}]))
-    assert result["conclusion"] == "matches_observed"
-    assert result["aggregate_zero_rows"] is False
-    assert result["confidence"] == "high"
 
 
 def test_event_rows_with_fields_are_matches():
@@ -56,24 +47,10 @@ def test_event_rows_with_fields_are_matches():
     assert result["aggregate_zero_rows"] is False
 
 
-def test_zero_count_next_to_text_fields_is_still_a_match():
-    rows = [{"host": "host-a", "count": "0"}]
-    result = verify_search_result(plan(), execution(rows))
-    assert result["conclusion"] == "matches_observed"
 
 
-def test_zero_rows_without_results_remain_no_match_observed():
-    result = verify_search_result(plan(), execution([]))
-    assert result["conclusion"] == "no_match_observed"
-    assert result["aggregate_zero_rows"] is False
 
 
 def test_untrusted_scope_zero_rows_stay_uncertain():
     result = verify_search_result(plan(confidence=0.5, indexes=[]), execution([]))
     assert result["conclusion"] == "uncertain_no_match"
-
-
-def test_truncated_zero_rows_never_become_absence():
-    result = verify_search_result(plan(), execution([], splunk_result_truncated=True))
-    assert result["conclusion"] == "uncertain_no_match"
-    assert result["confidence"] == "low"

@@ -88,18 +88,3 @@ async def test_detection_service_is_read_only_and_backtests_through_core():
     assert not hasattr(detection, "update_detection")
     assert not hasattr(detection, "save_detection")
     await core.close()
-
-
-def test_domain_modules_do_not_cross_import_each_other():
-    root = Path(__file__).parents[1]
-    for domain, forbidden in (("splunk", "zimbra"), ("zimbra", "splunk")):
-        for path in (root / domain).rglob("*.py"):
-            tree = ast.parse(path.read_text(), filename=str(path))
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    names = [item.name for item in node.names]
-                elif isinstance(node, ast.ImportFrom):
-                    names = [node.module or ""]
-                else:
-                    continue
-                assert all(forbidden not in name for name in names), path

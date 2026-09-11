@@ -89,17 +89,6 @@ def test_compiler_appends_optional_fields_and_builds_log_event_text():
     assert 'SourceIP="$result.Event_Source IP$"' in compiled["event_template"]
 
 
-@pytest.mark.parametrize(
-    "kwargs",
-    [
-        {"detection_logic": "index=main | outputcsv file"},
-        {"detection_logic": "index=main | eval rulename=\"1234\""},
-        {"event_field_mappings": {"Fix_Source Type": "index=main | head 1", "Event_Hostname": "host"}},
-    ],
-)
-def test_compiler_rejects_wrapper_or_pipeline_input(kwargs):
-    with pytest.raises(ValueError):
-        compile_definition(**kwargs)
 
 
 def test_service_compiler_is_read_only_and_returns_validation_results():

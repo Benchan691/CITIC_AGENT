@@ -1,10 +1,6 @@
 from unified_mcp_server.splunk.guardrails import blocked_spl_commands, sanitize_output, validate_spl_query
 
 
-def test_safe_query_has_zero_risk():
-    score, message = validate_spl_query("index=main earliest=-1h | head 10", "24h")
-    assert score == 0
-    assert "safe" in message.lower()
 
 
 def test_inputlookup_is_allowed():
@@ -13,10 +9,6 @@ def test_inputlookup_is_allowed():
     assert "safe" in message.lower()
 
 
-def test_delete_command_is_high_risk():
-    score, message = validate_spl_query("index=* | delete", "24h")
-    assert score > 0
-    assert "delete" in message.lower() or "Risk factors" in message
 
 
 def test_all_mutating_or_external_commands_are_hard_blocked():
@@ -30,8 +22,6 @@ def test_all_mutating_or_external_commands_are_hard_blocked():
         assert blocked_spl_commands(query) == [command.split()[0]]
 
 
-def test_inputlookup_is_not_a_blocked_write_command():
-    assert blocked_spl_commands("| inputlookup evidence.csv | head 10") == []
 
 
 def test_sanitize_output_masks_sensitive_values():

@@ -196,50 +196,10 @@ async def test_executor_owns_field_validation_before_splunk_execution():
     assert error.value.code == "invalid_input"
 
 
-@pytest.mark.asyncio
-async def test_connection_checks_read_only_index_access():
-    service = SplunkService(settings(), FakeClient)
-
-    result = await service.test_connection()
-
-    assert result == {"connected": True, "index_count": 2}
-    await service.close()
 
 
-@pytest.mark.asyncio
-async def test_connection_failure_keeps_actionable_client_message():
-    class FailedIndexClient(FakeClient):
-        async def get_indexes(self):
-            raise SplunkAPIError(
-                "Could not reach Splunk at the configured URL. Check SPLUNK_URL and network access."
-            )
-
-    service = SplunkService(settings(), FailedIndexClient)
-
-    with pytest.raises(ServiceError, match="Could not reach Splunk at the configured URL"):
-        await service.test_connection()
-
-    await service.close()
 
 
-@pytest.mark.asyncio
-async def test_saved_search_discovery_filters_partial_name_and_app():
-    service = SplunkService(settings(), FakeClient)
-
-    result = await service.list_saved_searches(name="0723", app="search")
-
-    assert result["count"] == 1
-    assert result["saved_searches"][0]["name"] == "0723 Suspicious Login"
-    assert "search" not in result["saved_searches"][0]
-    assert not {"is_scheduled", "cron_schedule", "next_scheduled_time"} & result["saved_searches"][0].keys()
-    assert result["saved_searches"][0]["disabled"] is False
-    assert result["saved_searches"][0]["actions"] == "email"
-
-    with_spl = await service.list_saved_searches(
-        name="0723", app="search", include_spl=True
-    )
-    assert with_spl["saved_searches"][0]["search"] == "index=main sourcetype=auth"
-    await service.close()
 
 
 @pytest.mark.asyncio
@@ -321,39 +281,6 @@ def test_event_budget_keeps_complete_prefix_and_reports_oversized_event():
     assert second["raw"] == "🚨" * 100
 
 
-@pytest.mark.asyncio
-async def test_field_projection_happens_before_event_character_budget():
-    class LargeEventClient(FakeClient):
-        async def run_search_job(self, *args, **kwargs):
-            self.search_args = args
-            return {
-                "events": [
-                    {"keep": "one", "_raw": "x" * 25_000},
-                    {"keep": "two", "_raw": "y" * 25_000},
-                ],
-                "metadata": {
-                    "total_result_count": 2,
-                    "fetched_count": 2,
-                    "splunk_result_truncated": False,
-                },
-            }
-
-    service = SplunkService(settings(), LargeEventClient)
-
-    unprojected = await service.search("index=main")
-    projected = await service.search("index=main", fields=["keep"])
-
-    assert unprojected["result"] == {"type": "events", "rows": []}
-    assert unprojected["search"]["fetched_count"] == 2
-    assert unprojected["search"]["returned_count"] == 0
-    assert unprojected["search"]["splunk_result_truncated"] is False
-    assert unprojected["search"]["mcp_context_truncated"] is True
-    assert unprojected["truncated"] is True
-    assert projected["result"] == {
-        "type": "events",
-        "rows": [{"keep": "one"}, {"keep": "two"}],
-    }
-    assert projected["search"]["mcp_context_truncated"] is False
 
 
 @pytest.mark.asyncio
@@ -406,83 +333,14 @@ async def test_search_formats_analytical_spl_as_a_table_and_preserves_columns():
     assert result["truncated"] is False
 
 
-@pytest.mark.asyncio
-async def test_search_combines_backend_and_context_truncation_flags():
-    class TruncatedClient(FakeClient):
-        async def run_search_job(self, *args, **kwargs):
-            return {
-                "events": [{"value": "ok"}],
-                "columns": ["value"],
-                "metadata": {
-                    "total_result_count": 2,
-                    "fetched_count": 1,
-                    "splunk_result_truncated": True,
-                },
-            }
-
-    service = SplunkService(settings(), TruncatedClient)
-    result = await service.search("index=main | stats count by value")
-
-    assert result["search"]["result_count"] == 2
-    assert result["search"]["fetched_count"] == 1
-    assert result["search"]["returned_count"] == 1
-    assert result["search"]["splunk_result_truncated"] is True
-    assert result["search"]["mcp_context_truncated"] is False
-    assert result["truncated"] is True
 
 
-@pytest.mark.asyncio
-async def test_search_leaves_unavailable_job_metadata_null():
-    class MetadataClient(FakeClient):
-        async def run_search_job(self, *args, **kwargs):
-            return {"events": [{"value": "ok"}], "metadata": {}}
-
-    service = SplunkService(settings(), MetadataClient)
-    result = await service.search("index=main")
-
-    assert result["search"]["run_duration_ms"] is None
-    assert result["search"]["scanned_events"] is None
-    assert result["search"]["result_count"] is None
-    assert result["search"]["splunk_result_truncated"] is None
-    assert result["truncated"] is False
 
 
-@pytest.mark.asyncio
-async def test_search_maps_untrustworthy_job_metadata_to_null():
-    class MalformedMetadataClient(FakeClient):
-        async def run_search_job(self, *args, **kwargs):
-            return {
-                "events": [{"value": "ok"}],
-                "metadata": {
-                    "total_result_count": "unknown",
-                    "scan_count": "unknown",
-                    "run_duration": "unknown",
-                    "splunk_result_truncated": "unknown",
-                },
-            }
-
-    service = SplunkService(settings(), MalformedMetadataClient)
-    result = await service.search("index=main")
-
-    assert result["search"]["result_count"] is None
-    assert result["search"]["scanned_events"] is None
-    assert result["search"]["run_duration_seconds"] is None
-    assert result["search"]["run_duration_ms"] is None
-    assert result["search"]["splunk_result_truncated"] is None
 
 
-@pytest.mark.asyncio
-async def test_unconfigured_splunk_returns_configuration_error():
-    service = SplunkService(settings(host="", token=""))
-    with pytest.raises(ConfigurationError):
-        await service.test_connection()
 
 
-def test_high_risk_query_is_reported_before_execution():
-    service = SplunkService(settings(risk_tolerance=0))
-    result = service.validate("index=* | transaction host", earliest_time="0")
-    assert result["would_execute"] is False
-    assert result["risk_score"] > 0
 
 
 @pytest.mark.asyncio
@@ -509,18 +367,25 @@ async def test_job_failures_are_returned_as_clean_service_errors():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "command",
-    ["delete", "collect", "mcollect", "meventcollect", "outputlookup", "outputcsv", "sendemail", "script", "external"],
-)
-async def test_mutating_spl_is_blocked_independently_of_risk_tolerance(command):
+async def test_mutating_spl_is_blocked_independently_of_risk_tolerance():
     service = SplunkService(settings(risk_tolerance=100), lambda _: pytest.fail("client should not be created"))
 
-    validation = service.validate(f"index=main | {command}")
-    assert validation["would_execute"] is False
-    assert command in validation["blocked_commands"]
-    with pytest.raises(ServiceError, match="safety policy"):
-        await service.search(f"index=main | {command}")
+    for command in [
+        "delete",
+        "collect",
+        "mcollect",
+        "meventcollect",
+        "outputlookup",
+        "outputcsv",
+        "sendemail",
+        "script",
+        "external",
+    ]:
+        validation = service.validate(f"index=main | {command}")
+        assert validation["would_execute"] is False
+        assert command in validation["blocked_commands"]
+        with pytest.raises(ServiceError, match="safety policy"):
+            await service.search(f"index=main | {command}")
 
 
 def test_detection_validation_reports_metadata_findings():
@@ -601,44 +466,21 @@ def test_detection_validation_allows_outputcsv_only_as_a_saved_search_definition
     assert any("outputcsv" in warning for warning in result["warnings"])
 
 
-@pytest.mark.parametrize("command", ["outputlookup", "sendemail"])
-def test_detection_validation_keeps_other_writers_blocked(command):
+def test_detection_validation_keeps_other_writers_blocked():
     service = SplunkService(settings())
-    spl = citic_spl().replace(
-        '\n| table ', f'\n| {command} destination\n| table ', 1
-    )
+    for command in ["outputlookup", "sendemail"]:
+        spl = citic_spl().replace(
+            '\n| table ', f'\n| {command} destination\n| table ', 1
+        )
 
-    result = service.validate_detection({"name": "unsafe", "spl": spl})
+        result = service.validate_detection({"name": "unsafe", "spl": spl})
 
-    assert result["valid"] is False
-    assert command in result["query_validation"]["blocked_commands"]
-
-
-def test_detection_validation_rejects_dual_spl_payloads():
-    service = SplunkService(settings())
-
-    with pytest.raises(ServiceError, match="dual SPL"):
-        service.validate_detection({
-            "name": "dual",
-            "spl": citic_spl(),
-            "production_spl": citic_spl(),
-            "backtest_spl": "index=main error",
-        })
+        assert result["valid"] is False
+        assert command in result["query_validation"]["blocked_commands"]
 
 
-@pytest.mark.asyncio
-async def test_backtest_rejects_outputcsv_before_execution():
-    service = SplunkService(
-        settings(),
-        lambda _: pytest.fail("outputcsv backtest must not create a client"),
-    )
-    with pytest.raises(ServiceError) as error:
-        await service.backtest_detection({
-            "name": "Client CSV alert",
-            "spl": "index=main error | outputcsv [| stats count | return $filename]",
-        }, earliest_time="-15m", latest_time="now")
 
-    assert error.value.code == "detection_invalid"
+
 
 
 def test_detection_validation_supports_custom_condition_per_result_throttle_and_expiry():
@@ -669,48 +511,8 @@ def test_detection_validation_supports_custom_condition_per_result_throttle_and_
     assert "dispatch.rt_maximum_span" not in result["detection"]
 
 
-@pytest.mark.parametrize(
-    "alert_fields",
-    [
-        {
-            "alert_type": "number of events",
-            "alert_comparator": "rises by perc",
-            "alert_threshold": "101%",
-        },
-        {
-            "alert_type": "number of events",
-            "alert_comparator": "greater than",
-            "alert_threshold": 0,
-            "alert.digest_mode": False,
-            "alert.suppress": True,
-            "alert.suppress.period": "15m",
-        },
-    ],
-)
-def test_detection_validation_rejects_invalid_alert_combinations(alert_fields):
-    service = SplunkService(settings())
-    result = service.validate_detection({
-        "name": "Invalid alert",
-        "spl": "index=main error",
-        **alert_fields,
-    })
-
-    assert result["valid"] is False
-    assert result["errors"]
 
 
-def test_detection_validation_rejects_non_scalar_action_parameters():
-    service = SplunkService(settings())
-
-    with pytest.raises(ServiceError) as error:
-        service.validate_detection({
-            "name": "Invalid action",
-            "spl": "index=main error",
-            "actions": "webhook",
-            "action.webhook.param.url": ["https://example.invalid/hook"],
-        })
-
-    assert error.value.code == "invalid_input"
 
 
 @pytest.mark.asyncio

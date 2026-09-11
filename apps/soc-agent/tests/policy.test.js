@@ -117,13 +117,17 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   const handlers = new Map()
   const restrictions = []
   const agent = { ctx: { tools: { restrict: value => restrictions.push(value) } } }
+  const roots = [agent]
   apply({
     on(event, handler) { handlers.set(event, handler) },
-    agents: { roots: () => [agent] },
+    agents: { roots: () => roots },
     connection: { rpc: { handle() {} } },
   })
   handlers.get('agent/created')({ agent })
   assert.equal(restrictions[0].allow.includes('ask_user_question'), true)
+  const lateAgent = { ctx: { tools: { restrict: () => { throw new Error('tool registration still pending') } } } }
+  roots.push(lateAgent)
+  assert.doesNotThrow(() => handlers.get('agent/created')({ agent: lateAgent }))
   const preExecute = handlers.get('tools/pre-execute')
   assert.deepEqual(await preExecute({ name: 'skill' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'exit_plan_mode' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
@@ -152,7 +156,7 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.equal((await preExecute({ name: 'mcp__soc_agent__create_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__update_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__delete_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')
-  assert.equal((await preExecute({ name: 'bash' }, () => ({ kind: 'delegate' }))).kind, 'deny')
+  assert.equal((await preExecute({ name: 'bash', agent: lateAgent }, () => ({ kind: 'delegate' }))).kind, 'deny')
 })
 
 test('SOC action approval defaults fail closed and session overrides are live', async () => {
