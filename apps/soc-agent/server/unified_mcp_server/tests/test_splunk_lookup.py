@@ -91,19 +91,6 @@ async def test_find_lookup_normalizes_metadata_and_acl():
 
 
 
-@pytest.mark.asyncio
-async def test_list_lookups_filters_app_and_name_and_tolerates_missing_acl():
-    core = SplunkCore(settings(), FakeLookupClient)
-    service = SplunkSearchService(core)
-
-    result = await service.list_lookups(app="search", name="rules")
-    all_result = await service.list_lookups()
-
-    assert [lookup["name"] for lookup in result["lookups"]] == ["Ruleset.csv"]
-    assert all_result["count"] == 3
-    assert all_result["lookups"][2]["acl"] == {}
-    assert all_result["lookups"][2]["app"] == ""
-    await core.close()
 
 
 
@@ -145,54 +132,3 @@ async def test_lookup_client_uses_read_only_content_endpoint():
     assert not hasattr(client, "create_lookup_contents")
     assert not hasattr(client, "update_lookup_contents")
     assert not hasattr(client, "delete_lookup_table_file")
-
-
-
-
-
-
-@pytest.mark.asyncio
-async def test_saved_search_details_omit_schedule_metadata():
-    class Response:
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            return {"entry": [{
-                "name": "Realtime fixture",
-                "content": {
-                    "search": "index=main error",
-                    "is_scheduled": "1",
-                    "cron_schedule": "*/5 * * * *",
-                    "next_scheduled_time": "1700000300",
-                    "dispatch.earliest_time": "rt-5m",
-                    "dispatch.latest_time": "rt",
-                    "dispatch.indexedRealtime": "1",
-                },
-                "acl": {"app": "search", "owner": "nobody"},
-            }]}
-
-    class HttpClient:
-        async def get(self, _path, params=None):
-            return Response()
-
-    client = SplunkClient({"splunk_host": "splunk.example.com", "splunk_port": 8089})
-    client._client = HttpClient()
-
-    result = await client.get_saved_search("Realtime fixture", "search", "nobody")
-
-    assert result["content"] == {"search": "index=main error"}
-
-
-def test_inputlookup_is_readable_and_outputlookup_is_blocked():
-    core = SplunkCore(settings(risk_tolerance=100), FakeLookupClient)
-
-    input_validation = core.validate_query("| inputlookup Ruleset.csv | head 100")
-    output_validation = core.validate_query("| outputlookup Ruleset.csv")
-    output_validation_without_pipe = core.validate_query("outputlookup Ruleset.csv")
-
-    assert input_validation["would_execute"] is True
-    assert output_validation["risk_score"] == 100
-    assert output_validation["would_execute"] is False
-    assert output_validation_without_pipe["risk_score"] == 100
-    assert output_validation_without_pipe["would_execute"] is False

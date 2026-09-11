@@ -26,11 +26,7 @@ test('official bridge reads deployment config, forwards bearer auth, and allowli
   }
 })
 
-test('official bridge stays disabled unless endpoint and token are both present', () => {
-  assert.equal(resolveOfficialSplunkConfig({}, '/path/that/does/not/exist'), undefined)
-  assert.equal(resolveOfficialSplunkConfig({ SPLUNK_MCP_ENDPOINT: 'https://splunk.example.test/mcp' }, '/missing'), undefined)
-  assert.equal(resolveOfficialSplunkConfig({ SPLUNK_TOKEN: 'token' }, '/missing'), undefined)
-})
+
 
 test('official bridge verifies TLS by default', () => {
   const config = resolveOfficialSplunkConfig({

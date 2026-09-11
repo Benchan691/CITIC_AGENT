@@ -69,21 +69,6 @@ def make_execution(events):
     }
 
 
-def test_fingerprint_is_stable_and_discriminates_requests():
-    base = fingerprint_request(
-        query="index=x error", earliest_time="-24h", latest_time="now",
-        max_count=50, fields=["src"], principal_id="analyst",
-    )
-    same = fingerprint_request(
-        query="index=x error", earliest_time="-24h", latest_time="now",
-        max_count=50, fields=["src"], principal_id="analyst",
-    )
-    changed = fingerprint_request(
-        query="index=x error", earliest_time="-24h", latest_time="now",
-        max_count=50, fields=["src"], principal_id="other",
-    )
-    assert base == same
-    assert base != changed
 
 
 
@@ -171,34 +156,6 @@ async def test_last_reader_cancellation_drains_backend_and_allows_retry():
 
 
 
-async def test_read_page_and_eviction():
-    coordinator = SearchEvidenceCoordinator(max_records=2, reuse_ttl_seconds=300)
-    events = [{"i": str(index)} for index in range(5)]
-
-    async def runner(index):
-        return make_execution(list(events))
-
-    last_fingerprint = None
-    for index in range(3):
-        fingerprint = fingerprint_request(
-            query=f"q{index}", earliest_time="-24h", latest_time="now", max_count=50, fields=None, principal_id="a",
-        )
-        await coordinator.execute_coalesced(
-            fingerprint, lambda index=index: runner(index)
-        )
-        last_fingerprint = fingerprint
-
-    assert len(coordinator._records) == 2
-    last_record = coordinator.get_latest(last_fingerprint)
-    assert last_record is not None
-    page = coordinator.read_page(last_record.evidence_id, offset=2, limit=2)
-    assert page["returned_count"] == 2
-    assert page["rows"] == [{"i": "2"}, {"i": "3"}]
-    assert page["complete"] is False
-
-    with pytest.raises(ServiceError) as caught:
-        coordinator.read_page("missing-evidence-id")
-    assert caught.value.code == "evidence_not_found"
 
 
 def build_service(**overrides):

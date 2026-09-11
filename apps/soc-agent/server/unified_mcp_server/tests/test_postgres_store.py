@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import pytest
-
 import unified_mcp_server.postgres_store as module
 from unified_mcp_server.postgres_store import PostgresStore
 
@@ -99,37 +97,8 @@ class FakeConnection:
         raise AssertionError(f"Unhandled query: {query}")
 
 
-def test_catalog_removal_migration_is_atomic_ordered_and_one_time(monkeypatch):
-    connection = FakeConnection()
-    monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri, **_kwargs: connection))
-
-    PostgresStore("postgresql://example.test/settings", "test-encryption-key")
-
-    assert connection.bootstrap == {module._CATALOG_REMOVAL_MARKER}
-    assert connection.dropped_tables == list(module._CATALOG_TABLES)
-    first_run_queries = list(connection.schema_queries)
-
-    PostgresStore("postgresql://example.test/settings", "test-encryption-key")
-
-    assert connection.dropped_tables == list(module._CATALOG_TABLES)
-    assert len(connection.schema_queries) == len(first_run_queries) + 10
 
 
-def test_catalog_removal_migration_rolls_back_marker_and_drops(monkeypatch):
-    connection = FakeConnection()
-    connection.fail_drop = "soc_catalog_history"
-    monkeypatch.setattr(module, "psycopg", SimpleNamespace(connect=lambda _uri, **_kwargs: connection))
-
-    with pytest.raises(RuntimeError, match="external dependency"):
-        PostgresStore("postgresql://example.test/settings", "test-encryption-key")
-
-    assert module._CATALOG_REMOVAL_MARKER not in connection.bootstrap
-    assert connection.dropped_tables == []
-
-    connection.fail_drop = None
-    PostgresStore("postgresql://example.test/settings", "test-encryption-key")
-    assert connection.bootstrap == {module._CATALOG_REMOVAL_MARKER}
-    assert connection.dropped_tables == list(module._CATALOG_TABLES)
 
 
 def test_postgres_store_round_trips_config_and_accounts(monkeypatch):

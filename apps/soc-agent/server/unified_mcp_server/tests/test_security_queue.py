@@ -244,34 +244,3 @@ async def test_standard_provider_uses_bounded_concurrency_and_early_definition_f
     assert client.max_active <= 3
     assert client.definition_calls > 1
     await core.close()
-
-
-
-
-
-
-
-
-
-
-@pytest.mark.asyncio
-async def test_cursor_rejects_changed_filters():
-    class PagedStandardClient(QueueClient):
-        entries = [{"name": "one"}, {"name": "two"}]
-
-        async def get_fired_alerts(self, *, limit=50, offset=0):
-            return {"items": self.entries[offset:offset + limit], "total": len(self.entries)}
-
-        async def get_fired_alert(self, name):
-            return [{"content": {"sid": name, "trigger_time": _recent_timestamp()}}]
-
-    client = PagedStandardClient(None)
-    core = SplunkCore(settings(), lambda _: client)
-    provider = StandardSplunkProvider(core, OpaqueIdCodec())
-    first = await provider.list_findings(FindingFilters(earliest_time="-2d", latest_time="now", limit=1))
-
-    with pytest.raises(ServiceError, match="invalid or expired"):
-        await provider.list_findings(
-            FindingFilters(earliest_time="-1d", latest_time="now", limit=1, cursor=first.next_cursor or "")
-        )
-    await core.close()

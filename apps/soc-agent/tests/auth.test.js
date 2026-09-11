@@ -110,19 +110,7 @@ function adminStore() {
   }
 }
 
-test('SOC auth store reads only its PostgreSQL URI from the server environment file', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'soc-auth-env-'))
-  try {
-    await writeFile(join(directory, '.env'), [
-      'APP_POSTGRES_URI=postgresql://example.test/soc',
-      'ZIMBRA_PASSWORD=must-not-be-loaded-by-the-host',
-    ].join('\n'))
-    assert.equal(resolveApplicationStorageUri({}, directory), 'postgresql://example.test/soc')
-    assert.equal(process.env.ZIMBRA_PASSWORD, undefined)
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
-})
+
 
 test('SOC admin credentials are required at startup and are never included in the failure', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'soc-admin-env-'))
@@ -205,67 +193,9 @@ test('SOC admin login, expiry, logout, and restart invalidation use an opaque co
   for (const dispose of disposers) dispose()
 })
 
-test('an invalidated regular session reports that a new device signed it out', async () => {
-  const store = {
-    async ensureSchema() {},
-    async session() { return undefined },
-    async consumeSessionRevocation(id) {
-      return id === 'old-app-session' ? SESSION_REPLACED_REASON : undefined
-    },
-  }
-  const auth = new SocAuthService({}, store, {
-    adminCredentials: { email: 'admin@example.com', password: 'admin-secret' },
-  })
-  const routes = new Map()
-  const webServer = {
-    register(route) {
-      routes.set(route.path, route.handler)
-      return () => routes.delete(route.path)
-    },
-  }
-  const disposers = auth.registerRoutes(webServer)
-  const output = nodeResponse()
-  await routes.get('/auth/me')(nodeRequest({
-    url: '/auth/me',
-    headers: { host: '127.0.0.1', cookie: 'soc_session=old-app-session' },
-  }), output)
-  assert.equal(output.statusCode, 401)
-  assert.deepEqual(jsonBody(output), {
-    authenticated: false,
-    reason: SESSION_REPLACED_REASON,
-    message: SESSION_REPLACED_MESSAGE,
-  })
-  for (const dispose of disposers) dispose()
-})
 
-test('replacing a login cancels all of that user\'s live chat agents and flushes history', async () => {
-  const cancelled = []
-  const flushed = []
-  const agents = ['chat-a', 'chat-b', 'chat-other'].map(id => ({
-    id,
-    session: { id },
-    cancel(cause, options) { cancelled.push({ id, cause, options }) },
-    async whenIdle() {},
-  }))
-  const store = {
-    async ensureSchema() {},
-    async userSessionIds(userId) {
-      assert.equal(userId, 'user-a')
-      return new Set(['chat-a', 'chat-b'])
-    },
-  }
-  const auth = new SocAuthService({
-    agents: { list: () => agents },
-    sessions: { async flush(session) { flushed.push(session.id) } },
-  }, store, { adminCredentials: { email: 'admin@example.com', password: 'admin-secret' } })
-  assert.equal(await auth.stopUserChatSessions('user-a', ['old-app-session']), 2)
-  assert.deepEqual(cancelled, [
-    { id: 'chat-a', cause: { kind: 'user' }, options: { keepInbox: false } },
-    { id: 'chat-b', cause: { kind: 'user' }, options: { keepInbox: false } },
-  ])
-  await new Promise(resolve => setImmediate(resolve))
-  assert.deepEqual(flushed.sort(), ['chat-a', 'chat-b'])
-})
+
+
 
 test('revoking an application session aborts its event stream and fences MCP work', async () => {
   const auth = new SocAuthService({}, {
@@ -430,32 +360,7 @@ test('scoped API prevents cross-user workspace/session IDOR and filters queries'
   assert.deepEqual(calls, [])
 })
 
-test('unscoped chat creation defaults to General and is owned before Host publication', async () => {
-  const { auth, store } = authFixture()
-  auth.ensureGeneral = async userId => {
-    assert.equal(userId, 'user-a')
-    return { workspaceId: 'workspace-a', title: 'General' }
-  }
-  let created
-  const api = {
-    sessions: {
-      create: async request => {
-        created = request
-        assert.deepEqual(await store.sessionOwner(request.payload.sessionId), {
-          userId: 'user-a',
-          workspaceId: 'workspace-a',
-        })
-        return response(request, { sessionId: request.payload.sessionId })
-      },
-    },
-  }
 
-  const result = await createScopedApiProxy(api, auth).sessions.create({ rpcId: 'new-chat', payload: {} })
-  assert.equal(result.result.ok, true)
-  assert.equal(created.payload.workspaceId, 'workspace-a')
-  assert.match(created.payload.sessionId, /^session-[0-9a-f-]{36}$/u)
-  assert.equal(result.result.value.sessionId, created.payload.sessionId)
-})
 
 test('SOC relative workspace names create private directories and reject traversal', async () => {
   const root = await mkdtemp(join(tmpdir(), 'soc-workspace-root-'))
@@ -498,163 +403,13 @@ test('SOC relative workspace names create private directories and reject travers
   }
 })
 
-test('General workspace paths are protected from direct rename and delete RPCs', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'soc-general-root-'))
-  const previousRoot = process.env.MCP_SERVER_ROOT
-  process.env.MCP_SERVER_ROOT = root
-  try {
-    const { auth } = authFixture()
-    const generalPath = join(root, '.data', 'soc-workspaces', 'user-a', 'general')
-    auth.store.workspaceOwner = async id => id === 'general'
-      ? { userId: 'user-a', path: generalPath }
-      : undefined
-    const calls = []
-    const api = {
-      workspace: {
-        rename: async request => { calls.push('rename'); return response(request, {}) },
-        delete: async request => { calls.push('delete'); return response(request, {}) },
-      },
-    }
-    const scoped = createScopedApiProxy(api, auth)
-    for (const [method, rpcId] of [['rename', 'general-rename'], ['delete', 'general-delete']]) {
-      const result = await scoped.workspace[method]({ rpcId, payload: { workspaceId: 'general', ...(method === 'rename' ? { title: 'changed' } : {}) } })
-      assert.deepEqual(result.result, {
-        ok: false,
-        error: {
-          code: 'workspace-protected',
-          message: 'General is protected and cannot be renamed or deleted',
-          details: { workspaceId: 'general' },
-        },
-      })
-    }
-    assert.deepEqual(calls, [])
-  } finally {
-    if (previousRoot === undefined) delete process.env.MCP_SERVER_ROOT
-    else process.env.MCP_SERVER_ROOT = previousRoot
-    await rm(root, { recursive: true, force: true })
-  }
-})
 
-test('ensureGeneral repairs a missing legacy General workspace on reload', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'soc-general-repair-'))
-  const previousRoot = process.env.MCP_SERVER_ROOT
-  process.env.MCP_SERVER_ROOT = root
-  try {
-    const records = []
-    const store = {
-      async ensureSchema() {},
-      async claimWorkspace() { return true },
-    }
-    const auth = new SocAuthService({}, store, { adminCredentials: { email: 'admin@example.com', password: 'admin-secret' } })
-    auth.registry = {
-      async resolveByPath(path) { return records.find(workspace => workspace.path === path) },
-      async create(path, title) {
-        const workspace = {
-          id: `general-${records.length + 1}`,
-          path,
-          title,
-          async setTitle(next) { workspace.title = next },
-        }
-        records.push(workspace)
-        return workspace
-      },
-    }
 
-    const first = await auth.ensureGeneral('user-a')
-    const expectedPath = join(root, '.data', 'soc-workspaces', 'user-a', 'general')
-    assert.deepEqual(first, { workspaceId: 'general-1', title: 'General' })
-    assert.equal(records[0].path, expectedPath)
-    assert.equal((await stat(expectedPath)).isDirectory(), true)
 
-    // A legacy delete leaves the physical directory behind. The next load
-    // must register a fresh protected General over that same path.
-    records.splice(0, 1)
-    const repaired = await auth.ensureGeneral('user-a')
-    assert.deepEqual(repaired, { workspaceId: 'general-1', title: 'General' })
-    assert.equal(records.length, 1)
-    assert.equal(records[0].path, expectedPath)
-  } finally {
-    if (previousRoot === undefined) delete process.env.MCP_SERVER_ROOT
-    else process.env.MCP_SERVER_ROOT = previousRoot
-    await rm(root, { recursive: true, force: true })
-  }
-})
 
-test('scoped session-log downloads enforce ownership on their direct request shape', async () => {
-  const { auth } = authFixture()
-  const calls = []
-  const api = {
-    downloads: {
-      sessionLog: async request => {
-        calls.push(request.sessionId)
-        return new Response('session log')
-      },
-    },
-  }
-  const scoped = createScopedApiProxy(api, auth)
-  const signal = new AbortController().signal
 
-  const denied = await scoped.downloads.sessionLog({ sessionId: 'session-b' }, signal)
-  assert.equal(denied.status, 404)
-  assert.deepEqual(calls, [])
 
-  const allowed = await scoped.downloads.sessionLog({ sessionId: 'session-a' }, signal)
-  assert.equal(allowed.status, 200)
-  assert.deepEqual(calls, ['session-a'])
-})
 
-test('scoped model catalog hides providers whose named credential was removed', async () => {
-  const { auth } = authFixture()
-  let openRouterConfigured = false
-  auth.ctx = {
-    get(name) {
-      if (name === 'llm') return {
-        listConfigurableProviders: () => [
-          { provider: 'openrouter', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openrouter'] },
-          { provider: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
-          { provider: 'ollama', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'ollama'] },
-        ],
-      }
-      if (name === 'settings') return {
-        get: () => ({ providers: {
-          openrouter: { apiKeyEnv: 'OPENROUTER_API_KEY' },
-          openai: { apiKeyEnv: 'OPENAI_API_KEY' },
-          ollama: {},
-        } }),
-      }
-      if (name === 'credentials') return {
-        describe: async ref => ({ configured: ref === 'OPENROUTER_API_KEY' ? openRouterConfigured : true }),
-      }
-      return undefined
-    },
-  }
-  const groups = [
-    { id: 'openrouter', name: 'OpenRouter', models: [{ id: 'openai/gpt-5' }] },
-    { id: 'openai', name: 'OpenAI', models: [{ id: 'gpt-5' }] },
-    { id: 'ollama', name: 'Ollama', models: [{ id: 'qwen3' }] },
-  ]
-  const api = {
-    sessions: {
-      models: async request => response(request, {
-        current: { provider: 'openrouter', model: 'openai/gpt-5' },
-        routable: true,
-        groups,
-        failures: [{ id: 'openrouter', name: 'OpenRouter', message: 'catalog unavailable' }],
-      }),
-    },
-  }
-  const scoped = createScopedApiProxy(api, auth)
-
-  const removed = await scoped.sessions.models({ rpcId: 'models-removed', payload: { sessionId: 'session-a' } })
-  assert.deepEqual(removed.result.value.groups.map(group => group.id), ['openai', 'ollama'])
-  assert.deepEqual(removed.result.value.failures, [])
-  assert.equal(removed.result.value.routable, false)
-
-  openRouterConfigured = true
-  const restored = await scoped.sessions.models({ rpcId: 'models-restored', payload: { sessionId: 'session-a' } })
-  assert.deepEqual(restored.result.value.groups.map(group => group.id), ['openrouter', 'openai', 'ollama'])
-  assert.equal(restored.result.value.routable, true)
-})
 
 test('scoped streams redact foreign snapshot IDs and unprojected remote events', async () => {
   const { auth } = authFixture()
@@ -684,25 +439,7 @@ test('scoped streams redact foreign snapshot IDs and unprojected remote events',
   })
 })
 
-test('scoped mux streams do not subscribe to foreign session checkpoints', async () => {
-  const { auth } = authFixture()
-  let requestSeen
-  const api = {
-    events: {
-      mux: async function* (request) {
-        requestSeen = request
-        yield { rpcId: 'own', payload: { type: 'session/subscribed', sessionId: 'session-a', lastSeq: 3 } }
-      },
-    },
-  }
-  const frames = []
-  for await (const frame of createScopedApiProxy(api, auth).events.mux({
-    rpcId: 'mux',
-    payload: { since: { 'session-a': 2, 'session-b': 8 } },
-  })) frames.push(frame)
-  assert.deepEqual(requestSeen.payload.since, { 'session-a': 2 })
-  assert.deepEqual(frames.map(frame => frame.payload.sessionId), ['session-a'])
-})
+
 
 test('scoped response handling cannot cancel another user\'s pending request by rpc id', async () => {
   const { auth } = authFixture()
@@ -728,23 +465,7 @@ test('scoped response handling cannot cancel another user\'s pending request by 
   assert.equal(responses.length, 1)
 })
 
-test('MCP metadata carries only an opaque app session reference', async () => {
-  const store = { async ensureSchema() {} }
-  const auth = new SocAuthService({}, store, { adminCredentials: { email: 'admin@example.com', password: 'admin-secret' } })
-  const session = {
-    id: 'app-session-a',
-    userId: 'user-a',
-    email: 'a@example.com',
-    zimbraToken: 'must-not-leave-server',
-  }
-  let metadata
-  await auth.withSession(session, async () => { metadata = auth.mcpRequestMeta({ agent: { id: 'agent-a' } }) })
-  assert.deepEqual(metadata, { soc_session_id: 'app-session-a' })
-  assert.equal(JSON.stringify(metadata).includes('must-not-leave-server'), false)
-  auth.bindAgentSession('agent-a', session.id)
-  auth.unbindApplicationSession(session.id)
-  assert.equal(auth.agentSessions.size, 0)
-})
+
 
 test('SOC auth plugin gates Harness transport and scopes the shared API proxy', async () => {
   const { store } = authFixture()

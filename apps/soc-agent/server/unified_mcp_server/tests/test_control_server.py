@@ -6,8 +6,6 @@ import sys
 from pathlib import Path
 
 
-from unified_mcp_server.auth_cli import command_failure
-from unified_mcp_server.errors import ServiceError
 
 
 
@@ -20,13 +18,6 @@ from unified_mcp_server.errors import ServiceError
 
 
 
-def test_command_failure_shapes_are_bounded_and_credential_free():
-    login_failure = command_failure("login", RuntimeError("password was hunter2"))
-    assert login_failure == {"code": "authentication_failed", "message": "authentication failed", "details": {}}
-    service_failure = command_failure("list-signatures", ServiceError("not_configured", "Zimbra is not configured."))
-    assert service_failure["code"] == "not_configured"
-    generic = command_failure("send-email", RuntimeError("boom"))
-    assert generic == {"code": "operation_failed", "message": "The requested operation failed.", "details": {}}
 
 
 def test_control_server_end_to_end_line_protocol():

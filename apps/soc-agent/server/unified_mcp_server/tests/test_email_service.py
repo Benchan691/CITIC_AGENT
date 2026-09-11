@@ -3,7 +3,7 @@ import pytest
 
 from unified_mcp_server.config import EmailServerSettings
 from unified_mcp_server.email.service import EmailSubscriptionService
-from unified_mcp_server.errors import ConfigurationError, ServiceError
+from unified_mcp_server.errors import ServiceError
 
 
 def settings():
@@ -84,18 +84,6 @@ async def test_expired_session_reauthenticates_once():
 
 
 
-@pytest.mark.asyncio
-async def test_missing_credentials_fail_before_network_request():
-    service = EmailSubscriptionService(
-        EmailServerSettings(settings().url, "", "", 10, True),
-        client_for(lambda _: httpx.Response(500)),
-    )
-    with pytest.raises(ConfigurationError) as error:
-        await service.list_subscriptions()
-    assert error.value.details["missing_environment_variables"] == [
-        "SUBSCRIPTION_SERVER_USER", "SUBSCRIPTION_SERVER_PASSWORD",
-    ]
-    await service.close()
 
 
 

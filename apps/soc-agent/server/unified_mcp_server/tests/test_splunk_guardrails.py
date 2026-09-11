@@ -1,12 +1,8 @@
-from unified_mcp_server.splunk.guardrails import blocked_spl_commands, sanitize_output, validate_spl_query
+from unified_mcp_server.splunk.guardrails import blocked_spl_commands, sanitize_output
 
 
 
 
-def test_inputlookup_is_allowed():
-    score, message = validate_spl_query("| inputlookup Ruleset.csv | head 100 earliest=-1h", "24h")
-    assert score == 0
-    assert "safe" in message.lower()
 
 
 

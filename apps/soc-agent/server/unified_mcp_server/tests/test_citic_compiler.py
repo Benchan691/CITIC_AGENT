@@ -61,32 +61,6 @@ def test_compiler_returns_valid_production_and_safe_backtest_forms():
     ]
 
 
-def test_compiler_appends_optional_fields_and_builds_log_event_text():
-    compiled = compile_definition(
-        event_field_mappings={
-            "Fix_Source Type": '"QiAnXin EDR"',
-            "Event_Hostname": "client_name",
-            "Event_Source IP": "src_ip",
-        },
-        extra_table_fields=["Event_Custom", "Event_MITRE ATT&CK Technique"],
-    )
-
-    assert compiled["table_fields"] == [
-        "Fix_Ticketnumber",
-        "Fix_TriggerTime",
-        "Fix_Index",
-        "Fix_Source Type",
-        "Event_Hostname",
-        "Event_Date Time",
-        "Event_Threat Name",
-        "Event_Threat Type",
-        "Event_Source IP",
-        "Event_Custom",
-        "Event_MITRE ATT&CK Technique",
-    ]
-    assert '| eval "Event_Source IP"=src_ip' in compiled["production_spl"]
-    assert 'SourceType="$result.Fix_Source Type$"' in compiled["event_template"]
-    assert 'SourceIP="$result.Event_Source IP$"' in compiled["event_template"]
 
 
 

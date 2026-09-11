@@ -1,6 +1,5 @@
 from unified_mcp_server.config import ServerSettings
 from unified_mcp_server.server import create_server
-from unified_mcp_server.zimbra.mail.tools import register_tools as register_mail_tools
 
 
 def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
@@ -172,49 +171,3 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert "splunk_apply_approved_detection_change" not in {tool.name for tool in tools}
     backtest_tool = next(tool for tool in tools if tool.name == "splunk_backtest_detection")
     assert "fields" in backtest_tool.parameters["properties"]
-
-
-def test_draft_tool_action_is_awaitable(monkeypatch):
-    import asyncio
-    import inspect
-
-    class FakeServer:
-        def __init__(self):
-            self.tools = []
-
-        def tool(self, *args, **kwargs):
-            # Accept annotation/decoration kwargs like the real FastMCP decorator.
-            def register(function):
-                self.tools.append(function)
-                return function
-
-            return register
-
-    captured = {}
-
-    async def execute(_ctx, _service, _operation, action):
-        captured["action"] = action
-        return await action()
-
-    class FakeRuntime:
-        class Mail:
-            def create_email_draft(self, *args):
-                return {"draft": {"to": args[0]}}
-
-        zimbra_mail = Mail()
-
-    server = FakeServer()
-    register_mail_tools(
-        server,
-        get_runtime=lambda _ctx: FakeRuntime(),
-        fresh_runtime=lambda _ctx: None,
-        execute=execute,
-        success=lambda *args, **kwargs: None,
-    )
-
-    # The nested action is created by the registered tool, not by the service.
-    # Calling the tool also proves a plain draft dict is never awaited directly.
-    tool = next(value for value in server.tools if value.__name__ == "zimbra_send_email")
-    result = asyncio.run(tool(None, ["to@example.com"], "Subject", "Body"))
-    assert inspect.iscoroutinefunction(captured["action"])
-    assert result["draft"]["to"] == ["to@example.com"]

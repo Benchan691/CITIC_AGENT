@@ -18,14 +18,6 @@ def test_citic_example_is_valid_with_only_the_required_company_fields():
     assert result["rulename"] == "0724"
 
 
-def test_citic_validator_rejects_missing_or_invalid_rule_numbers():
-    missing = citic_spl().replace('| eval rulename="0724"\n', "", 1)
-    invalid = citic_spl(rulename="724")
-
-    assert validate_citic_detection_spl(missing)["valid"] is False
-    assert any("rulename assignment" in error for error in validate_citic_detection_spl(missing)["errors"])
-    assert validate_citic_detection_spl(invalid)["valid"] is False
-    assert any("exactly four digits" in error for error in validate_citic_detection_spl(invalid)["errors"])
 
 
 

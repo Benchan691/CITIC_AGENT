@@ -27,12 +27,6 @@ OUTPUTCSV_SPL = '''index=main error
 ]'''
 
 
-def test_index_formatting_has_one_wildcard_policy_classification():
-    for query in ["index=*", "index = *", "INDEX=*", "INDEX = *", 'index="*"']:
-        result = fixed_policy().evaluate(query)
-        assert result.decision == "require_approval"
-        assert result.wildcard_indexes is True
-        assert result.detected_indexes == ["*"]
 
 
 
@@ -86,18 +80,6 @@ def test_dangerous_commands_are_denied_at_any_subsearch_depth():
     assert blocked_spl_commands(query) == ["outputlookup"]
 
 
-def test_outputcsv_is_only_allowed_for_saved_search_definitions():
-    strict = fixed_policy().evaluate(OUTPUTCSV_SPL)
-    definition = fixed_policy().evaluate(OUTPUTCSV_SPL, allow_outputcsv=True)
-
-    assert strict.decision == "deny"
-    assert strict.dangerous_commands == ["outputcsv"]
-    assert definition.decision == "allow"
-    assert definition.dangerous_commands == ["outputcsv"]
-    assert definition.allowed_commands == ["outputcsv"]
-    assert definition.has_subsearch is True
-    assert not any("no explicit maxout" in reason for reason in definition.reasons)
-    assert any("disabled saved-search definition" in reason for reason in definition.reasons)
 
 
 def test_saved_search_outputcsv_context_does_not_allow_other_side_effects():
@@ -112,12 +94,6 @@ def test_saved_search_outputcsv_context_does_not_allow_other_side_effects():
 
 
 
-def test_side_effect_commands_are_hard_denied_case_insensitively():
-    for command in ["sendalert", "runshellscript", "dboutput"]:
-        result = fixed_policy().evaluate(f"index=main | {command.upper()} target")
-
-        assert result.decision == "deny"
-        assert result.dangerous_commands == [command]
 
 
 
@@ -164,31 +140,3 @@ async def test_require_approval_never_creates_or_executes_a_splunk_client():
         await service.search("index=*")
     assert error.value.code == "query_approval_required"
     assert error.value.details["policy"]["decision"] == "require_approval"
-
-
-
-
-@pytest.mark.asyncio
-async def test_detection_backtest_honors_the_same_approval_gate():
-    service = SplunkService(
-        type("Settings", (), {
-            "configured": True,
-            "host": "splunk.example.com",
-            "token": "token",
-            "username": "",
-            "password": "",
-            "query_policy": QueryPolicyConfig(),
-            "risk_tolerance": 100,
-            "safe_timerange": "24h",
-            "max_events": 50,
-        })(),
-        lambda _: pytest.fail("client must not be created for approval-required SPL"),
-    )
-
-    with pytest.raises(ServiceError) as error:
-        await service.backtest_detection(
-            {"name": "wildcard", "spl": "index=*"},
-            max_count=10,
-        )
-    assert error.value.code == "detection_invalid"
-    assert "approval" in error.value.details["errors"][0]

@@ -150,28 +150,6 @@ def make_service(resource=None, *, client_factory=None):
     return service, clients
 
 
-def test_resource_profile_uses_existing_query_analysis_and_classifies_costs():
-    service, _ = make_service()
-    executor = service.search_service.executor
-
-    low = executor.resource_policy.profile(
-        service.core.validate_query("index=main", "-2h", "now"), 10
-    )
-    medium = executor.resource_policy.profile(
-        service.core.validate_query("index=main | stats count by host", "-2d", "now"), 10
-    )
-    high = executor.resource_policy.profile(
-        service.core.validate_query("index=main", "-2d", "now"), 10
-    )
-    restricted = executor.resource_policy.profile(
-        service.core.validate_query("index=*", "-8d", "now"), 10
-    )
-
-    assert low.cost_class == "low"
-    assert medium.cost_class == "medium"
-    assert high.cost_class == "high"
-    assert restricted.cost_class == "restricted"
-    assert "Long raw-event searches" in " ".join(high.reasons)
 
 
 

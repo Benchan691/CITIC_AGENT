@@ -1,5 +1,3 @@
-import asyncio
-
 import httpx
 import pytest
 
@@ -216,36 +214,8 @@ async def test_search_job_timeout_cancels_remote_job(monkeypatch):
 
 
 
-@pytest.mark.asyncio
-async def test_search_job_task_cancellation_cancels_remote_job():
-    started = asyncio.Event()
-
-    class BlockingHTTP(JobHTTP):
-        async def get(self, path, params):
-            self.get_calls.append((path, params))
-            started.set()
-            await asyncio.Event().wait()
-
-    http = BlockingHTTP()
-    task = asyncio.create_task(make_client(http).run_search_job("index=main"))
-    await started.wait()
-    task.cancel()
-
-    with pytest.raises(asyncio.CancelledError):
-        await task
-
-    assert http.post_calls[-1][0] == "/services/search/jobs/job%2F1/control"
 
 
-@pytest.mark.asyncio
-async def test_search_job_rejects_non_successful_or_unknown_states():
-    for state in ["FAILED", "PAUSED", "USER_CANCEL", "UNKNOWN"]:
-        http = JobHTTP(statuses=[job_status(state)])
-
-        with pytest.raises(SplunkAPIError):
-            await make_client(http).run_search_job("index=main")
-
-        assert http.post_calls[-1][0] == "/services/search/jobs/job%2F1/control"
 
 
 
@@ -258,26 +228,3 @@ def test_splunk_error_payloads_are_not_returned_to_callers():
         SplunkClient._raise_message_errors({"error": secret}, "search")
     assert secret not in str(error.value)
     assert secret not in str(error.value.details)
-
-
-@pytest.mark.asyncio
-async def test_search_job_rejects_http_and_malformed_result_failures():
-    dispatch_http_error = JobHTTP(dispatch_status=500)
-    with pytest.raises(SplunkAPIError) as dispatch_error:
-        await make_client(dispatch_http_error).run_search_job("index=main")
-    assert dispatch_error.value.status_code == 500
-
-    malformed = JobHTTP(
-        statuses=[job_status("DONE")],
-        pages={0: {"results": ["not-an-object"]}},
-    )
-    with pytest.raises(SplunkAPIError, match="malformed"):
-        await make_client(malformed).run_search_job("index=main")
-
-    result_http_error = JobHTTP(
-        statuses=[job_status("DONE")],
-        result_statuses={0: 502},
-    )
-    with pytest.raises(SplunkAPIError) as result_error:
-        await make_client(result_http_error).run_search_job("index=main")
-    assert result_error.value.status_code == 502

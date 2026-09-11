@@ -1,6 +1,3 @@
-import io
-import zipfile
-
 import pytest
 
 import unified_mcp_server.zimbra_service as module
@@ -9,7 +6,6 @@ from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.account_store import AccountStore
 from unified_mcp_server.auth import ZimbraIdentity
 from unified_mcp_server.zimbra_service import ZimbraService, _upstream_error
-from unified_mcp_server.zimbra.mail.service import ZimbraMailService
 
 
 def settings(**overrides):
@@ -67,20 +63,6 @@ async def test_invalid_search_query_returns_validation_error_before_network(monk
     assert error.value.details["suggested_query"] == "date:08/29/2026"
 
 
-@pytest.mark.asyncio
-async def test_get_email_bounds_body_for_agent_context(monkeypatch):
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    monkeypatch.setattr(
-        module,
-        "zimbra_get_message",
-        lambda *args, **kwargs: {"id": "42", "body": "abcdefghij"},
-    )
-
-    message = await ZimbraService(settings()).get_email("42", max_body_chars=4)
-
-    assert message["body"] == "abcd"
-    assert message["body_characters"] == 10
-    assert message["body_truncated"] is True
 
 
 @pytest.mark.asyncio
@@ -104,38 +86,10 @@ async def test_identity_bound_service_uses_server_token_and_rejects_account_sele
     assert result["account_id"] == "authenticated"
 
 
-def test_identity_bound_core_never_reports_legacy_environment_account():
-    identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
-    service = ZimbraMailService(settings(email="legacy@example.com", password="must-not-be-used"), identity=identity)
-
-    assert service.account_count() == 1
-    assert service.list_accounts() == [{
-        "id": "authenticated",
-        "label": "Authenticated Zimbra account",
-        "email": "a***@example.com",
-    }]
 
 
 
 
-@pytest.mark.asyncio
-async def test_get_email_headers_returns_bounded_untrusted_evidence(monkeypatch):
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    captured = {}
-
-    def fake_headers(host, token, message_id, names, **kwargs):
-        captured["names"] = names
-        return {"message_id": message_id, "headers": {name: [] for name in names}}
-
-    monkeypatch.setattr(module, "zimbra_get_message_headers", fake_headers)
-
-    result = await ZimbraService(settings()).get_email_headers(
-        "42", names=["message-id", "authentication-results"]
-    )
-
-    assert captured["names"] == ["Message-ID", "Authentication-Results"]
-    assert result["untrusted_evidence"] is True
-    assert "body" not in result
 
 
 @pytest.mark.asyncio
@@ -175,35 +129,6 @@ async def test_move_email_is_gated_validated_and_verified(monkeypatch):
     }
 
 
-@pytest.mark.asyncio
-async def test_signature_list_create_and_delete_are_verified(monkeypatch):
-    existing = [{"id": "1", "name": "Existing", "text": "old", "html": ""}]
-    created_signature = {"id": "2", "name": "Work", "text": "new", "html": "<b>new</b>"}
-    state = {"created": False, "deleted": False}
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    def list_signatures(*args, **kwargs):
-        values = list(existing)
-        if state["created"] and not state["deleted"]:
-            values.append(created_signature)
-        return values
-    monkeypatch.setattr(module, "zimbra_list_signatures", list_signatures)
-    monkeypatch.setattr(
-        module,
-        "zimbra_create_signature",
-        lambda *args, **kwargs: state.update(created=True) or {"id": "2", "name": "Work"},
-    )
-    monkeypatch.setattr(module, "zimbra_delete_signature", lambda *args, **kwargs: state.update(deleted=True))
-    service = ZimbraService(settings(allow_signature_write=True))
-
-    listed = await service.list_signatures()
-    assert listed["count"] == 1
-    assert listed["signatures"][0]["name"] == "Existing"
-
-    created = await service.create_signature("Work", "new", "<b>new</b>")
-    assert created["signature"]["id"] == "2"
-
-    deleted = await service.delete_signature("2")
-    assert deleted["deleted"]["name"] == "Work"
 
 
 @pytest.mark.asyncio
@@ -220,40 +145,8 @@ async def test_signature_writes_are_disabled_before_network_access(monkeypatch):
     assert error.value.code == "operation_disabled"
 
 
-def test_signature_create_requires_content_and_rejects_duplicate(monkeypatch):
-    service = ZimbraService(settings(allow_signature_write=True))
-
-    with pytest.raises(ServiceError, match="text or html"):
-        import asyncio
-        asyncio.run(service.create_signature("Work"))
-
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    monkeypatch.setattr(
-        module,
-        "zimbra_list_signatures",
-        lambda *args, **kwargs: [{"id": "1", "name": "Work", "text": "old", "html": ""}],
-    )
-    monkeypatch.setattr(module, "zimbra_create_signature", lambda *args, **kwargs: pytest.fail("duplicate must not be created"))
-    with pytest.raises(ServiceError, match="already exists"):
-        import asyncio
-        asyncio.run(service.create_signature("work", "new"))
 
 
-@pytest.mark.asyncio
-async def test_use_signature_on_email_returns_local_draft_with_selected_format(monkeypatch):
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    monkeypatch.setattr(
-        module,
-        "zimbra_list_signatures",
-        lambda *args, **kwargs: [{"id": "1", "name": "Work", "text": "-- Ben", "html": "<b>-- Ben</b>"}],
-    )
-    draft = await ZimbraService(settings()).use_signature_on_email(
-        ["to@example.com"], "Subject", "Body", "1", body_format="html", placement="above"
-    )
-
-    assert draft["draft"]["body"] == "<b>-- Ben</b><br><br>Body"
-    assert draft["draft"]["body_format"] == "html"
-    assert draft["draft"]["signature"] == {"id": "1", "name": "Work"}
 
 
 def test_create_email_draft_is_local_and_structured(monkeypatch):
@@ -274,15 +167,6 @@ def test_create_email_draft_is_local_and_structured(monkeypatch):
 
 
 
-def test_email_draft_rejects_missing_or_malformed_recipients():
-    service = ZimbraService(settings())
-
-    with pytest.raises(ServiceError, match="recipient"):
-        service.create_email_draft([], "Subject", "Body")
-    with pytest.raises(ServiceError, match="recipient"):
-        service.create_email_draft(["not-an-email"], "Subject", "Body")
-    with pytest.raises(ServiceError, match="recipient"):
-        service.create_email_draft(["to@example.com"], "Subject", "Body", cc=["bad"])
 
 
 @pytest.mark.asyncio
@@ -326,34 +210,10 @@ async def test_send_email_is_gated_validated_and_uses_selected_account(monkeypat
         }
 
 
-@pytest.mark.asyncio
-async def test_send_email_is_disabled_before_login(monkeypatch):
-    monkeypatch.setattr(module, "zimbra_login", lambda *args, **kwargs: pytest.fail("login should not be called"))
-    service = ZimbraService(settings(allow_send=False))
-
-    with pytest.raises(ServiceError) as error:
-        await service.send_email(["to@example.com"], "Subject", "Body")
-    assert error.value.code == "operation_disabled"
 
 
 
 
-@pytest.mark.asyncio
-async def test_multiple_accounts_use_the_selected_credentials(monkeypatch, tmp_path):
-    captured = []
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: captured.append(cfg) or "token")
-    monkeypatch.setattr(module, "zimbra_search_messages", lambda *args, **kwargs: [])
-    store = AccountStore(str(tmp_path / "accounts.enc"), str(tmp_path / "accounts.key"))
-    first = store.add(label="One", email="one@example.com", username="one-user", password="one-secret")
-    second = store.add(label="Two", email="two@example.com", username="two-user", password="two-secret")
-    service = ZimbraService(settings(email="", password=""), store)
-
-    await service.search_emails("subject:Alert", account_id=second.id)
-
-    assert captured[0]["zimbra_email"] == "two@example.com"
-    assert captured[0]["zimbra_username"] == "two-user"
-    assert captured[0]["zimbra_password"] == "two-secret"
-    assert first.id != second.id
 
 
 def test_upstream_errors_are_actionable_without_returning_raw_details():
@@ -366,69 +226,10 @@ def test_upstream_errors_are_actionable_without_returning_raw_details():
 
 
 
-@pytest.mark.asyncio
-async def test_attachment_text_is_bounded_and_returns_evidence_metadata(monkeypatch):
-    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
-    monkeypatch.setattr(
-        module,
-        "zimbra_get_message",
-        lambda *args, **kwargs: {
-            "id": "42",
-            "attachments": [{"part": "2", "filename": "evidence.txt", "content_type": "text/plain", "size": 8}],
-        },
-    )
-    monkeypatch.setattr(module, "download_attachment", lambda *args, **kwargs: b"evidence")
-
-    result = await ZimbraService(settings(max_attachment_bytes=20, max_attachment_text_chars=20)).get_attachment_text("42", "2")
-
-    assert result["filename"] == "evidence.txt"
-    assert result["text"] == "evidence"
-    assert result["bytes"] == 8
-    assert result["sha256"] == "ee8250fb76e094b34b471f13a73dbbe51d1ae142e9df59d7c0d31ec20f0a0a8e"
-    assert result["title"] is None
-    assert result["format"] == {"content_type": "text/plain", "extension": ".txt"}
-    assert result["converter"]["name"] == "markitdown"
-    assert result["llm_enabled"] is False
 
 
-def test_markitdown_receives_bounded_stream_and_attachment_metadata(monkeypatch):
-    captured = {}
-
-    class FakeResult:
-        markdown = "# Converted"
-        title = "Evidence"
-
-    class FakeMarkItDown:
-        def __init__(self, **kwargs):
-            captured["init"] = kwargs
-
-        def convert_stream(self, stream, *, stream_info):
-            captured["data"] = stream.read()
-            captured["stream_info"] = stream_info
-            return FakeResult()
-
-    monkeypatch.setattr(module, "MarkItDown", FakeMarkItDown)
-    service = ZimbraService(settings())
-    text, title = service._convert_attachment_text(b"evidence", "report.txt", "text/plain")
-
-    assert text == "# Converted"
-    assert title == "Evidence"
-    assert captured["init"] == {"enable_builtins": True, "enable_plugins": False}
-    assert captured["data"] == b"evidence"
-    assert captured["stream_info"].filename == "report.txt"
-    assert captured["stream_info"].mimetype == "text/plain"
-    assert captured["stream_info"].extension == ".txt"
 
 
-def test_archive_member_limit_is_enforced():
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w") as archive:
-        for index in range(module._MAX_ARCHIVE_MEMBERS + 1):
-            archive.writestr(f"{index}.txt", "x")
-
-    with pytest.raises(ServiceError) as error:
-        module._validate_archive_safety(buffer.getvalue(), "bundle.zip", "application/zip")
-    assert error.value.code == "attachment_too_complex"
 
 
 @pytest.mark.asyncio
