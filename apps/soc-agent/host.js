@@ -278,27 +278,6 @@ function installBackgroundRefresh(ctx) {
   }, { prepend: true })
 }
 
-function actionSet(value, { strict = false } = {}) {
-  if (!Array.isArray(value) || value.length > ACTION_TOOLS.length) {
-    throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action approval list is invalid.')
-  }
-  const result = new Set()
-  for (const name of value) {
-    if (typeof name !== 'string' || name.length === 0 || name.length > 200) {
-      throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action approval list is invalid.')
-    }
-    if (result.has(name)) {
-      throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action approval list contains duplicate actions.')
-    }
-    if (!ACTION_NAMES.has(name)) {
-      if (strict) throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action approval list contains an unknown action.')
-      continue
-    }
-    result.add(name)
-  }
-  return result
-}
-
 function parseMode(value, { strict = false } = {}) {
   if (value === undefined) return 'soc'
   if (value === null) {
@@ -345,13 +324,10 @@ function normalizedActionPolicy(value, { strict = false } = {}) {
   const candidate = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
   const mode = parseMode(candidate.mode, { strict })
   const configured = parseActionStates(candidate.actionStates, { strict })
-  const legacy = candidate.autoApproveActions === undefined
-    ? new Set()
-    : actionSet(candidate.autoApproveActions, { strict })
   const actionStates = new Map()
   for (const name of MANAGED_TOOL_NAMES) {
     let state = configured.get(name)
-    if (state === undefined) state = legacy.has(name) ? 'auto' : defaultActionState(name)
+    if (state === undefined) state = defaultActionState(name)
     actionStates.set(name, state)
   }
   return { mode, actionStates }
@@ -371,52 +347,15 @@ function savedActionPolicy(ctx) {
   }
 }
 
-function effectiveActionPolicy(ctx, sessionPolicies, sessionId) {
-  const deployment = savedActionPolicy(ctx)
-  const session = sessionId === undefined ? undefined : sessionPolicies.get(sessionId)
-  if (session === undefined) return deployment
-  const actionStates = new Map(deployment.actionStates)
-  for (const [name, state] of session.actionStates) {
-    // Deployment-disabled tools cannot be re-enabled by a conversation mode.
-    if (deployment.actionStates.get(name) === 'disabled') continue
-    actionStates.set(name, state)
-  }
-  return {
-    mode: session.mode,
-    actionStates,
-  }
-}
-
-function resolveOwnedSession(ctx, sessionId) {
-  if (typeof sessionId !== 'string' || sessionId.length === 0 || sessionId.length > 200) {
-    throw new ActionPolicyError('soc-action-policy-invalid', 'A valid session is required.')
-  }
-  const roots = rootsOf(ctx)
-  const root = roots.find(agent => sessionIdOf(agent) === sessionId)
-  if (root?.session !== undefined) return { agent: root, session: root.session }
-  const sessions = sessionStoreOf(ctx)
-  const session = sessions?.get?.(sessionId)
-  if (session === undefined) throw new ActionPolicyError('soc-action-session-not-found', 'The session is no longer available.')
-  const agent = ctx.agents?.get?.(sessionId)
-  if (agent !== undefined && !roots.includes(agent)) {
-    throw new ActionPolicyError('soc-action-session-not-owned', 'The session is not owned by the interactive SOC agent.')
-  }
-  return { agent, session }
-}
-
-function policyValue(ctx, sessionPolicies, sessionId) {
-  const session = sessionPolicies.get(sessionId)
-  const policy = effectiveActionPolicy(ctx, sessionPolicies, sessionId)
+function policyValue(ctx) {
+  const policy = savedActionPolicy(ctx)
   const actionStates = actionStatesObject(policy.actionStates)
-  const autoApproveActions = ACTION_TOOLS.filter(name => actionStates[name] === 'auto')
   return {
     actions: ACTION_CATALOG,
     tools: TOOL_CATALOG,
     mode: policy.mode,
     actionStates,
-    // Keep this field for clients from the original checklist version.
-    autoApproveActions: autoApproveActions.filter(name => !ALWAYS_ASK_ACTION_TOOLS.includes(name)),
-    source: session === undefined ? 'defaults' : 'session',
+    source: 'deployment',
   }
 }
 
@@ -611,52 +550,13 @@ function validateAttachmentPayload(payload) {
   return { filename, content_type: contentType, data, limits: { max_bytes: maxBytes, max_chars: maxChars } }
 }
 
-async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
+async function handleEndpoint(endpoint, payload, signal, ctx) {
   switch (endpoint) {
     case 'get-action-catalog': requireUser(ctx); return ok({ actions: ACTION_CATALOG, tools: TOOL_CATALOG })
     case 'get-admin-action-catalog': requireAdmin(ctx); return ok({ actions: ACTION_CATALOG, tools: TOOL_CATALOG })
     case 'get-action-policy': {
       requireUser(ctx)
-      const sessionId = payload?.session_id ?? payload?.sessionId
-      resolveOwnedSession(ctx, sessionId)
-      return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
-    }
-    case 'set-session-action-policy': {
-      requireUser(ctx)
-      const sessionId = payload?.session_id ?? payload?.sessionId
-      resolveOwnedSession(ctx, sessionId)
-      const hasMode = payload?.mode !== undefined
-      const hasStates = payload?.action_states !== undefined || payload?.actionStates !== undefined
-      const hasLegacy = payload?.auto_approve_actions !== undefined || payload?.autoApproveActions !== undefined
-      const mode = parseMode(payload?.mode, { strict: hasMode })
-      const rawStates = payload?.action_states !== undefined ? payload.action_states : payload?.actionStates
-      let actionStates = parseActionStates(
-        rawStates,
-        { strict: hasStates },
-      )
-      if (hasLegacy) {
-        const rawLegacy = payload?.auto_approve_actions !== undefined ? payload.auto_approve_actions : payload?.autoApproveActions
-        const actions = actionSet(rawLegacy, { strict: true })
-        if (hasStates) {
-          for (const name of actions) {
-            if (actionStates.has(name) && actionStates.get(name) !== 'auto') {
-              throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action state map conflicts with auto-approved actions.')
-            }
-            actionStates.set(name, 'auto')
-          }
-        } else {
-          actionStates = new Map(MANAGED_TOOL_NAMES.map(name => [name, actions.has(name) ? 'auto' : defaultActionState(name)]))
-        }
-      }
-      sessionPolicies.set(String(sessionId), { mode, actionStates })
-      return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
-    }
-    case 'reset-session-action-policy': {
-      requireUser(ctx)
-      const sessionId = payload?.session_id ?? payload?.sessionId
-      resolveOwnedSession(ctx, sessionId)
-      sessionPolicies.delete(String(sessionId))
-      return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
+      return ok(policyValue(ctx))
     }
     case 'get-settings': requireAdmin(ctx); return ok(await runAdmin('get-settings'))
     case 'update-settings': requireAdmin(ctx); return badRequest('Service configuration is managed by the server environment.')
@@ -687,7 +587,6 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
 }
 
 export function apply(ctx) {
-  const sessionPolicies = new Map()
   installBackgroundRefresh(ctx)
   if (typeof ctx.effect === 'function' && typeof ctx.webServer?.register === 'function') {
     ctx.effect(() => {
@@ -716,17 +615,13 @@ export function apply(ctx) {
     if (!DOMAIN_TOOLS.has(exec.name) && !CONTROL_TOOLS.has(exec.name)) {
       return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only approved Splunk, Zimbra, and subscription tools.' })
     }
-    const agent = exec?.agent
-    const sessionId = sessionIdOf(agent)
-    const interactive = agent !== undefined && rootsOf(ctx).includes(agent)
-    const policy = effectiveActionPolicy(ctx, sessionPolicies, sessionId)
+    const policy = savedActionPolicy(ctx)
     const configuredState = policy.actionStates.get(exec.name)
     if (configuredState === 'disabled') {
       return Promise.resolve({ kind: 'deny', reason: 'This SOC action is disabled by the administrator.' })
     }
-    const alwaysAsk = ALWAYS_ASK_ACTION_TOOLS.includes(exec.name)
     const state = policy.mode === 'full' ? 'auto' : (configuredState ?? defaultActionState(exec.name))
-    if (alwaysAsk || state === 'ask' || (state === 'auto' && APPROVAL_TOOLS.has(exec.name) && !interactive)) {
+    if (state === 'ask') {
       return Promise.resolve({
         kind: 'ask',
         reason: 'This action changes a SOC system or sends email.',
@@ -734,12 +629,11 @@ export function apply(ctx) {
     }
     return next()
   }, { global: true })
-  ctx.on('session/disposed', (session) => sessionPolicies.delete(String(session.id)))
   ctx.connection.rpc.handle(
     CHANNEL,
     async (endpoint, payload, signal) => {
       try {
-        return await handleEndpoint(endpoint, payload ?? {}, signal, ctx, sessionPolicies)
+        return await handleEndpoint(endpoint, payload ?? {}, signal, ctx)
       } catch (error) {
         if (error instanceof Error && error.message === 'admin authentication required') {
           return {
@@ -784,9 +678,8 @@ export function apply(ctx) {
           if (message.startsWith(prefix)) return internalError(message)
           return internalError(`${prefix} ${message || 'The test process did not return a diagnostic. Check the server .env configuration and server logs.'}`)
         }
-        if (endpoint === 'get-action-policy' || endpoint === 'set-session-action-policy' || endpoint === 'reset-session-action-policy') {
-          const sessionId = payload?.session_id ?? payload?.sessionId
-          return policyError(error, sessionId)
+        if (endpoint === 'get-action-policy') {
+          return policyError(error)
         }
         return internalError('The requested operation failed.')
       }

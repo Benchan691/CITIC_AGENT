@@ -9,9 +9,8 @@ from mcp.server.fastmcp import Context
 from .planner import SearchIntent
 
 def _principal_id(get_runtime, ctx: Context) -> str:
-    identity = getattr(get_runtime(ctx), "identity", None)
-    principal = getattr(identity, "user_id", "") or getattr(identity, "zimbra_email", "")
-    return principal.strip() if isinstance(principal, str) and principal.strip() else "anonymous"
+    del get_runtime, ctx
+    return "soc-agent"
 
 
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success, failure, service_error) -> None:

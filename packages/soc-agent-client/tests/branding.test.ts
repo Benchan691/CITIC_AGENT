@@ -15,9 +15,8 @@ test('uses the Sentinel wordmark and prevents sidebar wrapping', () => {
   assert.match(styles, /white-space:\s*nowrap/)
 })
 
-test('uses Sentinel in the login surface and model persona', () => {
-  assert.match(source('AuthGate.tsx'), /aria-label="Sentinel login"/)
-  assert.match(source('AuthGate.tsx'), /<h1 className=\{css\.title\}>Sentinel<\/h1>/)
+test('uses Sentinel in the model persona without a login overlay', () => {
+  assert.doesNotMatch(source('index.ts'), /AuthGate|soc-agent-auth-gate/)
   const persona = readFileSync(new URL('../../../vendor/deepseek-harness/apps/cli/config/agent-presets/citic-soc/agent.cordis.yml', import.meta.url), 'utf8')
   assert.match(persona, /You are Sentinel, the CITIC SOC Agent powered by \{\{model\}\}/)
 })

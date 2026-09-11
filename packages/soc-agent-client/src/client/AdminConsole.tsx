@@ -642,14 +642,11 @@ function AccessApprovalsSettings({ connection }: { connection: any }) {
 
       const saved = objectValue(actionApproval.value)
       const savedStates = objectValue(saved.actionStates)
-      const legacy = new Set(Array.isArray(saved.autoApproveActions)
-        ? saved.autoApproveActions.filter((name): name is string => typeof name === 'string')
-        : [])
       const normalizedStates = Object.fromEntries(tools
         .filter((tool) => tool.kind !== 'ui-confirmed')
         .map((tool) => {
           const configured = savedStates[tool.name]
-          const state = isActionState(configured) ? configured : legacy.has(tool.name) ? 'auto' : defaultToolState(tool)
+          const state = isActionState(configured) ? configured : defaultToolState(tool)
           return [tool.name, state]
         })) as Record<string, SocActionState>
       setData({ actionApproval, tools, writable: view.writable })
@@ -718,14 +715,14 @@ function AccessApprovalsSettings({ connection }: { connection: any }) {
               <legend className={styles.srOnly}>Deployment access mode</legend>
               <label className={styles.modeChoice}>
                 <input type="radio" name="deployment-mode" value="full" checked={mode === 'full'} onChange={() => setMode('full')} disabled={!data.writable || busy || loading} />
-                <span><strong>Full access</strong><small>Run permitted actions directly; protected operations still require confirmation.</small></span>
+                <span><strong>Full access</strong><small>Run every permitted, non-disabled tool directly.</small></span>
               </label>
               <label className={styles.modeChoice}>
                 <input type="radio" name="deployment-mode" value="soc" checked={mode === 'soc'} onChange={() => setMode('soc')} disabled={!data.writable || busy || loading} />
                 <span><strong>SOC mode</strong><small>Ask or run actions according to the checklist for this deployment.</small></span>
               </label>
             </fieldset>
-            <p className={styles.fieldHint}>Catalog and detection changes retain their approval and authenticated editor gates. Email delivery always requires the explicit Send confirmation in the draft view.</p>
+            <p className={styles.fieldHint}>SOC mode controls only the per-tool ask, auto-run, and disabled states. Email delivery still requires the explicit Send confirmation in the draft view.</p>
           </article>
 
           <div className={styles.accessGroups}>

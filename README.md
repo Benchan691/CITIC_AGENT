@@ -71,11 +71,12 @@ and enable or throttle current-time context from the **Agent context** section o
 `AGENTS.md`, authentication, or approval controls.
 
 The deployment-wide access mode and per-action checklist are available in the
-**Access & approvals** section of the admin dashboard. Individual sessions can
-choose **Full access** or **SOC mode** from the conversation controls. Full
-access runs permitted non-disabled actions directly. Detection deployment stays
-outside the application, and sending email always requires the authenticated
-draft-view Send confirmation.
+**Access & approvals** section of the admin dashboard. **Full access** runs
+permitted non-disabled tools directly. **SOC mode** applies each tool's
+ask, auto-run, or disabled setting. The action policy is deployment-wide and
+does not provide mailbox identity; Zimbra calls still require the authenticated
+user's Zimbra session. Detection deployment stays outside the application, and
+sending email always requires the draft-view Send confirmation.
 
 To start the web app:
 

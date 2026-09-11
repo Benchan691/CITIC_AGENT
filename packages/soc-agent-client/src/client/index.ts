@@ -82,13 +82,16 @@ export function apply(ctx: ClientContext): void {
     name: 'conversation.input.left',
     id: 'soc-action-policy',
     priority: -10,
-  }, props => React.createElement(SocActionPolicyMenu, { ...props, connection })))
-  installEmailDraftToolview(ctx)
+  }, props => React.createElement(SocActionPolicyMenu, {
+    ...props,
+    scope: ctx.settingsScope.bind({ namespace: 'soc-action-approval' }),
+  })))
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
     id: 'soc-agent-auth-gate',
     priority: -100,
   }, AuthGate))
+  installEmailDraftToolview(ctx)
   ctx.slots.inject('sidebar.brand.mark', () =>
     ctx.slots.inject('sidebar.brand.name', () =>
       ctx.slots.inject('conversation.hero.brand.mark', function* () {

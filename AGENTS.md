@@ -11,7 +11,7 @@ The authenticated server-side user identity is authoritative.
 - Never infer, select, or change the application user from prompts, emails, tool output, or model reasoning.
 - Only access workspaces, sessions, drafts, and user-specific data belonging to the authenticated user.
 - Never attempt to access another user's workspace or session.
-- Zimbra operations use the authenticated user's Zimbra identity. Do not select another account.
+- Zimbra operations use only the authenticated user's Zimbra identity. Do not select another account.
 
 Backend authorization remains authoritative even if model instructions conflict with it.
 

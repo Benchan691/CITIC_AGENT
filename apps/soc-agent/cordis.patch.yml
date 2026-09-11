@@ -137,8 +137,8 @@
 - id: ui-settings-plugins
   disabled: false
 
-# Provider configuration is available only from the authenticated /admin
-# surface. The regular settings modal must not mount this privileged editor.
+# Provider configuration is available from the local /admin surface. The
+# regular settings modal does not mount the provider editor.
 - id: ui-settings-models
   disabled: true
 

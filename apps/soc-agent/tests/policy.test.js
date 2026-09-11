@@ -8,11 +8,6 @@ import { fileURLToPath } from 'node:url'
 import { ACTION_CATALOG, apply, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, TOOL_CATALOG } from '../host.js'
 import { ACTION_TOOLS, READ_ONLY_TOOLS, ZIMBRA_READ_TOOLS } from '../policy.js'
 
-const policyAuth = {
-  requireSession: () => ({ id: 'policy-user' }),
-  requireAdmin: () => ({ email: 'admin@example.com' }),
-}
-
 test('interactive analyst policy exposes the exact product tool set', () => {
   assert.equal(DOMAIN_TOOLS.size, 57)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
@@ -159,21 +154,18 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.equal((await preExecute({ name: 'bash', agent: lateAgent }, () => ({ kind: 'delegate' }))).kind, 'deny')
 })
 
-test('SOC action approval defaults fail closed and session overrides are live', async () => {
+test('SOC mode applies deployment ask, auto, and disabled states without authentication or sessions', async () => {
   const handlers = new Map()
-  const session = { id: 'soc-session-1' }
-  const agent = { id: session.id, session, ctx: { tools: { restrict() {} } } }
-  let saved = { autoApproveActions: [] }
+  const agent = { id: 'agent-1', ctx: { tools: { restrict() {} } } }
+  let saved = { mode: 'soc', actionStates: {} }
   let rpcHandler
   apply({
     get(name) {
       if (name === 'settings') return { get: () => saved }
-      if (name === 'socAuth') return policyAuth
       return undefined
     },
     on(event, handler) { handlers.set(event, handler) },
-    agents: { roots: () => [agent], get: id => id === agent.id ? agent : undefined },
-    sessions: { get: id => id === session.id ? session : undefined },
+    agents: { roots: () => [agent] },
     connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
   })
   const preExecute = handlers.get('tools/pre-execute')
@@ -186,110 +178,51 @@ test('SOC action approval defaults fail closed and session overrides are live', 
   const adminCatalog = await rpcHandler('get-admin-action-catalog', {})
   assert.deepEqual(adminCatalog.value.actions, ACTION_CATALOG)
   assert.deepEqual(adminCatalog.value.tools, TOOL_CATALOG)
-  const defaultPolicy = (await rpcHandler('get-action-policy', { session_id: session.id })).value
+  const defaultPolicy = (await rpcHandler('get-action-policy', {})).value
   assert.deepEqual(defaultPolicy.actions, ACTION_CATALOG)
   assert.deepEqual(defaultPolicy.tools, TOOL_CATALOG)
   assert.equal(defaultPolicy.mode, 'soc')
-  assert.equal(defaultPolicy.source, 'defaults')
-  assert.deepEqual(defaultPolicy.autoApproveActions, [])
+  assert.equal(defaultPolicy.source, 'deployment')
   assert.equal(defaultPolicy.actionStates[ACTION_TOOLS[0]], 'ask')
   assert.equal(defaultPolicy.actionStates['mcp__soc_agent__zimbra_search_emails'], 'auto')
 
-  saved = { autoApproveActions: [action.name] }
+  saved = { mode: 'soc', actionStates: { [action.name]: 'auto' } }
   assert.deepEqual(await preExecute(action, () => ({ kind: 'delegate' })), { kind: 'delegate' })
 
-  const sessionPolicy = await rpcHandler('set-session-action-policy', {
-    session_id: session.id,
-    auto_approve_actions: [],
-  })
-  assert.equal(sessionPolicy.value.source, 'session')
-  assert.deepEqual(sessionPolicy.value.autoApproveActions, [])
+  saved = { mode: 'soc', actionStates: { [action.name]: 'ask' } }
   assert.equal((await preExecute(action, () => ({ kind: 'delegate' }))).kind, 'ask')
 
-  saved = { autoApproveActions: [action.name] }
-  assert.equal((await preExecute(action, () => ({ kind: 'delegate' }))).kind, 'ask')
-  assert.equal((await rpcHandler('reset-session-action-policy', { session_id: session.id })).value.source, 'defaults')
-  assert.deepEqual((await preExecute(action, () => ({ kind: 'delegate' }))), { kind: 'delegate' })
-
-  assert.equal((await rpcHandler('set-session-action-policy', {
-    session_id: session.id,
-    auto_approve_actions: [action.name, action.name],
-  })).error.code, 'bad-request')
-  assert.equal((await rpcHandler('set-session-action-policy', {
-    session_id: session.id,
-    auto_approve_actions: ['not-a-soc-action'],
-  })).error.code, 'bad-request')
-  assert.equal((await rpcHandler('set-session-action-policy', {
-    session_id: session.id,
-    mode: null,
-  })).error.code, 'bad-request')
-  assert.equal((await rpcHandler('set-session-action-policy', {
-    session_id: session.id,
-    action_states: null,
-  })).error.code, 'bad-request')
-  const fullPolicy = await rpcHandler('set-session-action-policy', {
-    session_id: session.id,
-    mode: 'full',
-    actionStates: {
-      [action.name]: 'disabled',
-      mcp__soc_agent__zimbra_search_emails: 'ask',
-    },
-  })
-  assert.equal(fullPolicy.value.mode, 'full')
+  saved = { mode: 'soc', actionStates: { [action.name]: 'disabled' } }
   assert.equal((await preExecute(action, () => ({ kind: 'delegate' }))).kind, 'deny')
+
+  saved = { mode: 'full', actionStates: {} }
   assert.deepEqual(await preExecute({ name: ACTION_TOOLS[1], agent }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
-  assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_search_emails', agent }, () => ({ kind: 'delegate' }))).kind, 'delegate')
-  assert.equal((await rpcHandler('set-session-action-policy', {
-    session_id: session.id,
-    mode: 'soc',
-    action_states: { [action.name]: 'auto' },
-  })).value.actionStates[action.name], 'auto')
   assert.deepEqual(await preExecute(action, () => ({ kind: 'delegate' })), { kind: 'delegate' })
-  const disabledPolicy = await rpcHandler('set-session-action-policy', {
-    session_id: session.id,
-    action_states: { [action.name]: 'disabled' },
-  })
-  assert.equal(disabledPolicy.value.actionStates[action.name], 'disabled')
-  assert.equal((await preExecute(action, () => ({ kind: 'delegate' }))).kind, 'deny')
-  const missingPolicy = await rpcHandler('get-action-policy', { session_id: 'missing-session' })
-  assert.equal(missingPolicy.error.code, 'session-not-found')
-  assert.deepEqual(missingPolicy.error.details, { sessionId: 'missing-session' })
-  handlers.get('session/disposed')(session)
-  assert.equal((await rpcHandler('get-action-policy', { session_id: session.id })).value.source, 'defaults')
+  assert.equal((await rpcHandler('set-session-action-policy', {})).error.code, 'bad-request')
+  assert.equal((await rpcHandler('reset-session-action-policy', {})).error.code, 'bad-request')
 })
 
-test('session modes cannot re-enable a deployment-disabled tool', async () => {
+test('full access cannot re-enable a deployment-disabled tool', async () => {
   const handlers = new Map()
-  const session = { id: 'soc-disabled-policy-1' }
-  const agent = { id: session.id, session, ctx: { tools: { restrict() {} } } }
-  let rpcHandler
+  const agent = { id: 'agent-disabled', ctx: { tools: { restrict() {} } } }
   const disabled = ACTION_TOOLS[0]
   apply({
     get(name) {
       if (name === 'settings') return { get: () => ({ mode: 'full', actionStates: { [disabled]: 'disabled' } }) }
-      if (name === 'socAuth') return policyAuth
       return undefined
     },
     on(event, handler) { handlers.set(event, handler) },
     agents: { roots: () => [agent] },
-    sessions: { get: id => id === session.id ? session : undefined },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
+    connection: { rpc: { handle() {} } },
   })
   const preExecute = handlers.get('tools/pre-execute')
-  await rpcHandler('set-session-action-policy', {
-    session_id: session.id,
-    mode: 'full',
-    actionStates: { [disabled]: 'auto' },
-  })
   assert.equal((await preExecute({ name: disabled, agent }, () => ({ kind: 'delegate' }))).kind, 'deny')
 })
 
 test('host RPC failures use the shared result error contract', async () => {
   let rpcHandler
   apply({
-    get(name) {
-      return name === 'socAuth' ? policyAuth : undefined
-    },
+    get() {},
     on() {},
     agents: { roots: () => [] },
     connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
