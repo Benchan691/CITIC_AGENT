@@ -23,13 +23,14 @@ function backgroundBaseline() {
 
 function fixture(initialFrequency = 5) {
   const handlers = new Map()
+  let enabled = true
   let repeatEveryUserPrompts = initialFrequency
   let namespace
   apply({
     settings: {
       register(ns) {
         namespace = ns
-        return { get: () => ({ repeatEveryUserPrompts }) }
+        return { get: () => ({ enabled, repeatEveryUserPrompts }) }
       },
     },
     logger: { warn() {} },
@@ -40,6 +41,7 @@ function fixture(initialFrequency = 5) {
   assert.equal(namespace, 'soc-background')
   return {
     preStep: handlers.get('agent/pre-step'),
+    setEnabled(value) { enabled = value },
     setFrequency(value) { repeatEveryUserPrompts = value },
   }
 }
@@ -109,4 +111,43 @@ test('a failed BACKGROUND read does not reset the durable prompt cadence', async
     else process.env.MCP_SERVER_ROOT = previousRoot
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+test('BACKGROUND can be disabled for startup and re-enabled without losing the next injection', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'soc-background-toggle-'))
+  const previousRoot = process.env.MCP_SERVER_ROOT
+  process.env.MCP_SERVER_ROOT = root
+  try {
+    writeFileSync(join(root, 'BACKGROUND.md'), 'toggle background')
+    const bench = fixture(5)
+    bench.setEnabled(false)
+    const session = { events: [] }
+    const disabled = await enter(bench.preStep, session, [user('disabled startup'), backgroundBaseline()])
+    assert.equal(refreshes(disabled).length, 0)
+    assert.equal(disabled.messages.some(message => message.content?.some(block => block.text === 'toggle background')), false)
+
+    bench.setEnabled(true)
+    const enabled = await enter(bench.preStep, session, [user('enabled again')])
+    assert.equal(refreshes(enabled).length, 1)
+    assert.match(enabled.messages.at(-1).content[0].text, /toggle background/)
+  } finally {
+    if (previousRoot === undefined) delete process.env.MCP_SERVER_ROOT
+    else process.env.MCP_SERVER_ROOT = previousRoot
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('disabling BACKGROUND preserves other startup instructions in a combined baseline', async () => {
+  const bench = fixture()
+  bench.setEnabled(false)
+  const baseline = backgroundBaseline()
+  baseline.content[0].text = '<system-reminder>\nThe following workspace instructions may be relevant.\n\nInstructions from: AGENTS.md\n\nagent policy\n\nInstructions from: BACKGROUND.md\n\nbackground policy\n</system-reminder>'
+  baseline.source.changes.unshift({ action: 'set', path: 'AGENTS.md' })
+  const session = { events: [] }
+  const decision = await enter(bench.preStep, session, [user('combined baseline'), baseline])
+  const text = decision.messages.flatMap(message => message.content ?? []).map(block => block.text ?? '').join('\n')
+  assert.match(text, /Instructions from: AGENTS\.md/)
+  assert.match(text, /agent policy/)
+  assert.doesNotMatch(text, /Instructions from: BACKGROUND\.md/)
+  assert.doesNotMatch(text, /background policy/)
 })

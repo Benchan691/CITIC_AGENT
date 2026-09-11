@@ -61,6 +61,25 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'scheduled_task_list',
 ])
 
+// All Zimbra capabilities are kept in one inventory for the administrative
+// access console. Read/preview tools are intentionally separate from
+// ACTION_CATALOG so their default state can remain automatic while an
+// administrator can still ask or disable them.
+export const ZIMBRA_READ_TOOLS = Object.freeze([
+  'mcp__soc_agent__zimbra_list_folders',
+  'mcp__soc_agent__zimbra_search_emails',
+  'mcp__soc_agent__zimbra_get_email',
+  'mcp__soc_agent__zimbra_get_email_headers',
+  'mcp__soc_agent__zimbra_get_attachment_text',
+  'mcp__soc_agent__zimbra_send_email',
+  'mcp__soc_agent__zimbra_list_signatures',
+  'mcp__soc_agent__zimbra_use_signature_on_email',
+  'mcp__soc_agent__zimbra_list_email_filters',
+  'mcp__soc_agent__zimbra_get_email_filter',
+  'mcp__soc_agent__zimbra_validate_email_filter',
+  'mcp__soc_agent__zimbra_preview_email_filter_update',
+])
+
 /**
  * The one user-facing catalog of actions. Keep the tool name here in sync
  * with the MCP server and derive ACTION_TOOLS below so policy and UI cannot
@@ -94,6 +113,43 @@ export const ACTION_CATALOG = Object.freeze([
 ])
 
 export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
+
+const zimbraReadLabels = Object.freeze({
+  'mcp__soc_agent__zimbra_list_folders': 'List mail folders',
+  'mcp__soc_agent__zimbra_search_emails': 'Search email',
+  'mcp__soc_agent__zimbra_get_email': 'Read email',
+  'mcp__soc_agent__zimbra_get_email_headers': 'Read email headers',
+  'mcp__soc_agent__zimbra_get_attachment_text': 'Read attachment text',
+  'mcp__soc_agent__zimbra_send_email': 'Create email draft',
+  'mcp__soc_agent__zimbra_list_signatures': 'List signatures',
+  'mcp__soc_agent__zimbra_use_signature_on_email': 'Create signed email draft',
+  'mcp__soc_agent__zimbra_list_email_filters': 'List email filters',
+  'mcp__soc_agent__zimbra_get_email_filter': 'Read email filter',
+  'mcp__soc_agent__zimbra_validate_email_filter': 'Validate email filter',
+  'mcp__soc_agent__zimbra_preview_email_filter_update': 'Preview email filter update',
+})
+
+export const TOOL_CATALOG = Object.freeze([
+  ...ZIMBRA_READ_TOOLS.map(name => ({
+    name,
+    group: 'Zimbra',
+    label: zimbraReadLabels[name],
+    kind: 'read',
+  })),
+  ...ACTION_CATALOG.map(action => ({ ...action, kind: 'mutation' })),
+  {
+    name: 'ui__soc_agent__send_email',
+    group: 'Zimbra',
+    label: 'Send email (UI-confirmed)',
+    kind: 'ui-confirmed',
+  },
+])
+
+export const MANAGED_TOOL_NAMES = Object.freeze(
+  TOOL_CATALOG
+    .filter(tool => tool.kind !== 'ui-confirmed')
+    .map(tool => tool.name),
+)
 
 export const CATALOG_ACTION_TOOLS = Object.freeze([
   'mcp__soc_agent__catalog_write_rule',

@@ -94,7 +94,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AdminConsole.module.css.mjs
-		const css$9 = ".IhE_MG_page,.IhE_MG_loginPage{--ink:#202c35;--muted:#65747d;--line:#dfe5e5;--accent:#216b5c;--paper:#fff;color-scheme:light;color:var(--ink);background:#f4f6f5;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;line-height:1.5}.IhE_MG_page *,.IhE_MG_loginPage *{box-sizing:border-box}.IhE_MG_page [hidden]{display:none!important}.IhE_MG_page button,.IhE_MG_loginPage button,.IhE_MG_page input,.IhE_MG_page select,.IhE_MG_page textarea{font:inherit}.IhE_MG_page a{color:inherit}.IhE_MG_page :focus-visible,.IhE_MG_loginPage :focus-visible{outline-offset:3px;outline:3px solid #49a68d}.IhE_MG_page{grid-template-columns:232px minmax(0,1fr);display:grid}.IhE_MG_sidebar{color:#d3dfdc;background:#142c2c;flex-direction:column;height:100vh;padding:32px 18px 22px;display:flex;position:sticky;top:0}.IhE_MG_brand{letter-spacing:-.5px;align-items:center;gap:12px;padding:0 10px 42px;font-size:22px;font-weight:700;text-decoration:none;display:flex}.IhE_MG_brand small{letter-spacing:.3px;color:#a9bfba;font-size:11px;font-weight:400;display:block}.IhE_MG_brandMark{color:#194e40;background:#d9eee1;border-radius:12px;place-items:center;width:38px;height:42px;font-family:Georgia,serif;font-size:24px;display:grid}.IhE_MG_navLabel{letter-spacing:1.8px;color:#8da9a2;margin:0 0 12px;padding:0 14px;font-size:10px;font-weight:600}.IhE_MG_navigation{gap:5px;display:grid}.IhE_MG_navigation a{color:#b4c8c2;border-radius:7px;align-items:center;gap:12px;padding:12px 14px;font-size:13px;text-decoration:none;display:flex}.IhE_MG_navigation a:hover{color:#fff;background:#203d3b}.IhE_MG_navigation .IhE_MG_navActive{color:#f0f8f3;background:#2c4944;font-weight:600;box-shadow:inset 3px 0 #a9d3b7}.IhE_MG_sidebarFoot{margin-top:auto;padding:32px 10px 0}.IhE_MG_backLink{padding-bottom:24px;font-size:12px;text-decoration:none;display:block;color:#b8c9c4!important}.IhE_MG_identity{border-top:1px solid #37504a;gap:10px;min-width:0;padding:19px 0 10px;display:flex}.IhE_MG_identity>div{min-width:0}.IhE_MG_identity strong{color:#e0e9e5;font-size:12px;font-weight:500;display:block}.IhE_MG_avatar{color:#d4e9db;background:#36574b;border-radius:50%;flex:0 0 33px;place-items:center;height:33px;display:grid}.IhE_MG_account{text-overflow:ellipsis;white-space:nowrap;color:#9eb6ae;max-width:155px;font-size:11px;display:block;overflow:hidden}.IhE_MG_signOut{color:#b9cdc5;cursor:pointer;background:0 0;border:0;padding:8px 0;font-size:12px!important}.IhE_MG_shell{width:100%;min-width:0;max-width:1550px;margin:0 auto;padding:0 clamp(24px,4vw,64px)}.IhE_MG_topbar{border-bottom:1px solid var(--line);min-height:74px;color:var(--muted);justify-content:space-between;align-items:center;font-size:12px;display:flex}.IhE_MG_topbar strong{color:var(--ink);font-weight:500}.IhE_MG_adminBadge{color:#4c6259;background:#e8eeeb;border-radius:4px;padding:4px 10px;font-size:11px}.IhE_MG_header{justify-content:space-between;align-items:center;gap:24px;padding:34px 0 26px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#677f75;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 9px;font-size:10px;font-weight:700}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:var(--ink);letter-spacing:-.6px;margin:0;font-weight:600}.IhE_MG_title{font-size:34px;line-height:1.2}.IhE_MG_subtitle{color:var(--muted);margin:10px 0 0;font-size:14px}.IhE_MG_headerMark{color:#4c7161;background:#ecf1ec;border:1px solid #d3dfd8;border-radius:13px;place-items:center;width:48px;height:48px;display:grid}.IhE_MG_headerMark svg{width:24px;height:24px}.IhE_MG_section{margin:8px 0 32px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;display:flex}.IhE_MG_sectionTitle{font-size:20px}.IhE_MG_sectionHint{color:var(--muted);text-align:right;max-width:290px;font-size:12px}.IhE_MG_headerActions,.IhE_MG_toolbar{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0 0 28px;display:grid}.IhE_MG_metric{border:1px solid var(--line);background:#fff;border-radius:10px;flex-direction:column;padding:22px;text-decoration:none;display:flex;box-shadow:0 2px 3px #182e2610}.IhE_MG_metric:hover{border-color:#a8c4b8}.IhE_MG_metricLabel{color:#54675f;justify-content:space-between;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_metricLabel svg{color:#7a9689}.IhE_MG_metric>strong{letter-spacing:-1px;margin:18px 0;font-size:32px;font-weight:600;line-height:1.3}.IhE_MG_metric>small{color:var(--muted);justify-content:space-between;gap:12px;font-size:11px;display:flex}.IhE_MG_metricAttention{background:#fffaf2;border-color:#ebd6b7}.IhE_MG_metricAttention>strong{color:#976322}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.9fr) minmax(230px,1fr);align-items:start;gap:22px;display:grid}.IhE_MG_card{background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:0;margin-bottom:22px;padding:26px}.IhE_MG_helpCard{color:#455c4e;background:#eaf0e9;border:1px solid #dce5d9;border-radius:10px;padding:28px}.IhE_MG_helpCard h3{color:#294938;margin:0 0 12px;font-family:Georgia,serif;font-size:26px;font-weight:400;line-height:1.2}.IhE_MG_helpCard p{font-size:13px;line-height:1.75}.IhE_MG_steps{margin:22px 0;padding-left:20px;font-size:12px}.IhE_MG_steps li{padding:5px 0 5px 5px}.IhE_MG_quickLinks{margin-top:18px;display:grid}.IhE_MG_quickLinks a{border-bottom:1px solid #e9eeeb;align-items:center;gap:15px;padding:20px 0;text-decoration:none;display:flex}.IhE_MG_quickLinks a:last-child{border-bottom:0;padding-bottom:4px}.IhE_MG_quickLinks a>span:nth-child(2){flex:1}.IhE_MG_quickLinks strong{font-size:14px;font-weight:600;display:block}.IhE_MG_quickLinks small{color:var(--muted);margin-top:5px;font-size:12px;line-height:1.5;display:block}.IhE_MG_quickLinks a:hover strong{color:var(--accent)}.IhE_MG_quickIcon{color:#50725e;background:#f0f4f1;border:1px solid #e2eae4;border-radius:9px;flex:0 0 38px;place-items:center;width:38px;height:38px;display:grid}.IhE_MG_pageFoot{border-top:1px solid var(--line);color:#77867e;margin-top:30px;padding:24px 0;font-size:11px}.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_statusCard{border:1px solid var(--line);background:#fff;border-radius:10px;gap:15px;min-width:0;padding:22px;display:flex}.IhE_MG_statusIcon{color:#346e55;background:#edf4ef;border:1px solid #d6e4dc;border-radius:9px;flex:0 0 36px;place-items:center;height:36px;font-weight:600;display:grid}.IhE_MG_statusBody{flex:1;min-width:0}.IhE_MG_statusTopline{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;display:flex}.IhE_MG_statusTopline h3{margin:0;font-size:14px;font-weight:600}.IhE_MG_statusBody p{color:var(--muted);margin:9px 0 0;font-size:12px}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;border-radius:5px;align-items:center;gap:6px;padding:4px 9px;font-size:11px;font-weight:500;display:inline-flex}.IhE_MG_statusReady{color:#286043;background:#e5f2e9}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#385e73;background:#e8f0f4}.IhE_MG_statusError{color:#9d3e32;background:#fceee7}.IhE_MG_statusMuted{color:#65726e;background:#eff1ef}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#97a59e;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#378657}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#507c94}.IhE_MG_statusError .IhE_MG_statusDot{background:#bb5f4c}.IhE_MG_textButton{cursor:pointer;background:0 0;border:0;margin-top:14px;padding:0;font-weight:600;text-decoration:none;display:inline-block;color:var(--accent)!important;font-size:12px!important}.IhE_MG_textButton:hover{text-decoration:underline}.IhE_MG_envManaged{color:#76827c;margin-top:14px;font-size:11px;display:block}.IhE_MG_button,.IhE_MG_dangerButton{color:#3e5349;cursor:pointer;background:#fff;border:1px solid #d5deda;border-radius:6px;justify-content:center;align-items:center;gap:7px;min-height:38px;padding:9px 14px;line-height:1.3;text-decoration:none;display:inline-flex;font-size:12px!important;font-weight:600!important}.IhE_MG_button:hover:not(:disabled){background:#f2f6f3;border-color:#91b3a3}.IhE_MG_primary{color:#fff;background:#246b55;border-color:#246b55}.IhE_MG_primary:hover:not(:disabled){background:#19533f;border-color:#19533f}.IhE_MG_dangerButton{color:#a14235;background:#fff9f6;border-color:#eccdc3}.IhE_MG_dangerButton:hover{background:#fceee8}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled,.IhE_MG_textButton:disabled{cursor:not-allowed;opacity:.55}.IhE_MG_error,.IhE_MG_message{overflow-wrap:anywhere;border-radius:6px;margin:12px 0;padding:12px 15px;font-size:13px}.IhE_MG_error{color:#9b3c32;background:#fff0eb}.IhE_MG_success{color:#2b6748;background:#eaf5ed}.IhE_MG_info{color:#365e73;background:#edf3f7}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success{color:#2b6748;padding:5px}.IhE_MG_loading,.IhE_MG_loadingInline{color:#5d7167;background:#f4f6f5;padding:28px;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_providerLayout{border:1px solid var(--line);background:#fff;border-radius:10px;grid-template-columns:250px minmax(0,1fr);display:grid;overflow:hidden}.IhE_MG_providerPicker{border-right:1px solid var(--line);background:#fafbf9;min-width:0;padding:18px 12px}.IhE_MG_pickerHeader{justify-content:space-between;align-items:center;padding:0 8px 12px;font-size:12px;font-weight:600;display:flex}.IhE_MG_countBadge{color:#4a6c59;background:#e9efeb}.IhE_MG_providerList{flex-direction:column;gap:4px;max-height:430px;display:flex;overflow:auto}.IhE_MG_providerOption,.IhE_MG_customOption{text-align:left;width:100%;color:var(--ink);cursor:pointer;background:0 0;border:1px solid #0000;border-radius:6px;align-items:center;gap:10px;padding:12px 10px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_customOption:hover{background:#eef3ef}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{background:#e7f0e9;border-color:#c6d9cc}.IhE_MG_providerDot{flex:0 0 6px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{overflow-wrap:anywhere;font-size:12px;font-weight:600}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:var(--muted);font-size:10px}.IhE_MG_customTag,.IhE_MG_customBadge{color:#806239;background:#f4eee0;font-size:9px}.IhE_MG_customOption{border-top:1px solid var(--line);border-radius:0;margin-top:14px}.IhE_MG_addIcon{color:var(--accent);font-size:20px}.IhE_MG_providerEditor{min-width:0;padding:28px}.IhE_MG_editorHeading{border-bottom:1px solid var(--line);justify-content:space-between;align-items:flex-start;gap:15px;padding-bottom:22px;display:flex}.IhE_MG_editorTitle{font-size:20px}.IhE_MG_editorCopy{color:var(--muted);margin:10px 0 0;font-size:13px;line-height:1.6}.IhE_MG_editorForm,.IhE_MG_form,.IhE_MG_formFields{border:0;flex-direction:column;gap:20px;min-width:0;margin:22px 0 0;padding:0;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_field{color:#3f5449;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:600;display:flex}.IhE_MG_field em{color:var(--muted);font-size:11px;font-style:normal;font-weight:400}.IhE_MG_input{width:100%;min-width:0;color:var(--ink);background:#fff;border:1px solid #cedbd3;border-radius:6px;padding:10px 12px;font-weight:400;line-height:1.5;display:block;font-size:13px!important}.IhE_MG_input::placeholder{color:#7c8c82}.IhE_MG_input:focus{border-color:#559779}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.7;background:#f3f5f2}textarea.IhE_MG_input{resize:vertical}.IhE_MG_textarea{min-height:100px}.IhE_MG_fieldHint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.IhE_MG_advanced{border:1px solid var(--line);background:#fafbf9;border-radius:7px;margin-top:8px}.IhE_MG_advanced summary{cursor:pointer;color:#425e4e;padding:13px 16px;font-size:12px;font-weight:600}.IhE_MG_advancedBody{flex-direction:column;gap:16px;padding:0 16px 18px;display:flex}.IhE_MG_discoveryRow,.IhE_MG_discovered{flex-wrap:wrap;align-items:center;gap:10px;display:flex}.IhE_MG_modelChip{color:#3e6d50;cursor:pointer;background:#edf5ef;border:1px solid #cadecf;border-radius:5px;padding:7px 10px;font-size:12px}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;display:flex}.IhE_MG_confirmGroup{color:#8e4e42;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_confirmGroup .IhE_MG_error{width:100%}.IhE_MG_loginPage{background:#eaf0ea;place-items:center;padding:24px;display:grid}.IhE_MG_loginPanel{background:#fff;border:1px solid #d4dfd5;border-radius:14px;width:min(100%,430px);padding:40px;box-shadow:0 20px 80px #26443515}.IhE_MG_loginMark{color:#fff;background:#246b55;border-radius:11px;place-items:center;width:44px;height:44px;margin-bottom:26px;font-family:Georgia,serif;font-size:22px;display:grid}.IhE_MG_loginTitle{font-size:30px;line-height:1.2}.IhE_MG_loginCopy{color:var(--muted);margin:14px 0 25px;font-size:13px}.IhE_MG_fullButton{width:100%}.IhE_MG_loginFootnote{color:var(--muted);margin:24px 0 0;font-size:11px}.IhE_MG_notice{color:#526b5d;background:#edf2ef;border:1px solid #dce5df;border-radius:7px;align-items:center;gap:12px;padding:14px 18px;font-size:12px;display:flex}.IhE_MG_tabs{border-bottom:1px solid var(--line);flex-wrap:wrap;gap:4px;margin:22px 0;display:flex}.IhE_MG_tabs button{color:var(--muted);cursor:pointer;background:0 0;border:0;border-bottom:2px solid #0000;padding:12px 14px;font-size:12px}.IhE_MG_tabs .IhE_MG_activeTab{color:#256849;border-bottom-color:#256849;font-weight:600}.IhE_MG_toolbar{margin:0 0 18px}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{max-width:320px}.IhE_MG_toolbar>.IhE_MG_button:last-child{margin-left:auto}.IhE_MG_tableWrap{border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:22px;overflow:auto}.IhE_MG_table{border-collapse:collapse;text-align:left;width:100%;font-size:12px}.IhE_MG_table th{color:#67786d;border-bottom:1px solid var(--line);white-space:nowrap;background:#f9fbf8;padding:13px 18px;font-size:11px;font-weight:500}.IhE_MG_table td{vertical-align:top;border-bottom:1px solid #edf0ec;padding:17px 18px}.IhE_MG_table tr:last-child td{border-bottom:0}.IhE_MG_table td strong{font-weight:600}.IhE_MG_table td small{color:var(--muted);margin-top:5px;display:block}.IhE_MG_table td summary{cursor:pointer;min-width:150px}.IhE_MG_empty{color:var(--muted);text-align:center;padding:35px 22px;font-size:13px}.IhE_MG_checkboxGroup{border:1px solid var(--line);border-radius:7px;flex-wrap:wrap;gap:12px;max-height:230px;padding:14px;display:flex;overflow:auto}.IhE_MG_checkboxGroup legend{color:#4b6555;padding:0 5px;font-size:12px}.IhE_MG_checkboxGroup label,.IhE_MG_checkLabel{color:#3c5546;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_checkboxGroup input,.IhE_MG_checkLabel input{accent-color:#276e53;width:16px;height:16px}.IhE_MG_previewEnvelope{border:1px solid var(--line);overflow-wrap:anywhere;background:#f4f7f3;border-bottom:0;margin-top:24px;padding:20px;font-size:12px}.IhE_MG_previewFrame{border:1px solid var(--line);background:#fff;width:100%;height:560px}.IhE_MG_plainText{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;font-size:12px}.IhE_MG_deliveryDetails{overflow-wrap:anywhere;min-width:220px;max-width:360px;font-size:11px}.IhE_MG_mono{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,monospace!important}.IhE_MG_importRow{border-top:1px solid var(--line);overflow-wrap:anywhere;justify-content:space-between;align-items:center;gap:20px;padding:18px 0;font-size:12px;display:flex}.IhE_MG_importRow p{color:var(--muted)}.IhE_MG_srOnly{clip:rect(0,0,0,0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.IhE_MG_skipLink{z-index:10;background:#fff;padding:12px;position:fixed;top:0;left:240px;transform:translateY(-150%)}.IhE_MG_skipLink:focus{transform:translateY(0)}@media (width<=1150px){.IhE_MG_page{grid-template-columns:200px minmax(0,1fr)}.IhE_MG_sidebar{padding-inline:12px}.IhE_MG_shell{padding-inline:28px}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr)}.IhE_MG_metric{padding:18px}.IhE_MG_metric>strong{font-size:28px}.IhE_MG_providerLayout{grid-template-columns:210px minmax(0,1fr)}}@media (width<=900px){.IhE_MG_contentGrid{grid-template-columns:1fr}.IhE_MG_metrics{gap:10px}.IhE_MG_metric{padding:14px}.IhE_MG_metricLabel{font-size:11px}.IhE_MG_metricLabel svg{display:none}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-right:0;border-bottom:1px solid var(--line)}.IhE_MG_providerList{max-height:180px}.IhE_MG_notice{flex-direction:column;align-items:flex-start}}@media (width<=680px){.IhE_MG_page{display:block}.IhE_MG_sidebar{height:auto;padding:18px 16px 0;position:static}.IhE_MG_brand{padding:0 0 18px;font-size:19px}.IhE_MG_brandMark{width:30px;height:34px;font-size:20px}.IhE_MG_navLabel{display:none}.IhE_MG_navigation{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;display:grid}.IhE_MG_navigation a{border-radius:5px 5px 0 0;flex-direction:column;flex-shrink:0;justify-content:center;gap:6px;padding:10px 3px;font-size:10px}.IhE_MG_navigation svg{width:15px}.IhE_MG_navigation .IhE_MG_navActive{box-shadow:inset 0 -3px #a9d3b7}.IhE_MG_sidebarFoot{flex-wrap:wrap;align-items:center;gap:15px;padding:8px 0;display:flex}.IhE_MG_backLink{padding:0;font-size:11px}.IhE_MG_identity{display:none}.IhE_MG_signOut{margin-left:auto}.IhE_MG_shell{padding:0 18px}.IhE_MG_topbar{min-height:54px}.IhE_MG_header{padding:24px 0 20px}.IhE_MG_title{font-size:28px}.IhE_MG_headerMark{display:none}.IhE_MG_sectionHeading{flex-wrap:wrap;align-items:flex-start;gap:12px}.IhE_MG_metrics{grid-template-columns:1fr;gap:10px}.IhE_MG_metric{grid-template-columns:1fr auto;align-items:center;gap:8px;padding:16px 18px;display:grid}.IhE_MG_metric>strong{grid-area:1/2/3;margin:0;font-size:24px}.IhE_MG_metric>small{grid-column:1}.IhE_MG_metric small span{display:none}.IhE_MG_card,.IhE_MG_helpCard,.IhE_MG_providerEditor{padding:20px}.IhE_MG_fieldGrid{grid-template-columns:1fr}.IhE_MG_editorHeading{flex-wrap:wrap}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{width:100%;max-width:none}.IhE_MG_tabs{gap:0}.IhE_MG_tabs button{padding:11px 9px;font-size:11px}.IhE_MG_sectionHint{text-align:left}.IhE_MG_table td,.IhE_MG_table th{padding:12px}.IhE_MG_table{min-width:560px}.IhE_MG_importRow{flex-direction:column;align-items:flex-start}.IhE_MG_skipLink{left:16px}}.IhE_MG_contextGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_contextCard{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;padding:26px;box-shadow:0 2px 3px #182e2610}.IhE_MG_contextCard h3{color:var(--ink);margin:0;font-size:16px;font-weight:600}.IhE_MG_contextCard p:not(.IhE_MG_sectionKicker){color:var(--muted);margin:8px 0 0;font-size:12px;line-height:1.55}.IhE_MG_toggleField{color:#3f5449;cursor:pointer;align-items:flex-start;gap:11px;display:flex}.IhE_MG_toggleField input{accent-color:#276e53;width:17px;height:17px;margin:1px 0 0}.IhE_MG_toggleField span{flex-direction:column;gap:4px;display:flex}.IhE_MG_toggleField strong{font-size:12px}.IhE_MG_toggleField small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}@media (width<=900px){.IhE_MG_contextGrid{grid-template-columns:1fr}}@media (width<=680px){.IhE_MG_contextCard{padding:20px}.IhE_MG_navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}";
+		const css$9 = ".IhE_MG_page,.IhE_MG_loginPage{--ink:#202c35;--muted:#65747d;--line:#dfe5e5;--accent:#216b5c;--paper:#fff;color-scheme:light;color:var(--ink);background:#f4f6f5;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;line-height:1.5}.IhE_MG_page *,.IhE_MG_loginPage *{box-sizing:border-box}.IhE_MG_page [hidden]{display:none!important}.IhE_MG_page button,.IhE_MG_loginPage button,.IhE_MG_page input,.IhE_MG_page select,.IhE_MG_page textarea{font:inherit}.IhE_MG_page a{color:inherit}.IhE_MG_page :focus-visible,.IhE_MG_loginPage :focus-visible{outline-offset:3px;outline:3px solid #49a68d}.IhE_MG_page{grid-template-columns:232px minmax(0,1fr);display:grid}.IhE_MG_sidebar{color:#d3dfdc;background:#142c2c;flex-direction:column;height:100vh;padding:32px 18px 22px;display:flex;position:sticky;top:0}.IhE_MG_brand{letter-spacing:-.5px;align-items:center;gap:12px;padding:0 10px 42px;font-size:22px;font-weight:700;text-decoration:none;display:flex}.IhE_MG_brand small{letter-spacing:.3px;color:#a9bfba;font-size:11px;font-weight:400;display:block}.IhE_MG_brandMark{color:#194e40;background:#d9eee1;border-radius:12px;place-items:center;width:38px;height:42px;font-family:Georgia,serif;font-size:24px;display:grid}.IhE_MG_navLabel{letter-spacing:1.8px;color:#8da9a2;margin:0 0 12px;padding:0 14px;font-size:10px;font-weight:600}.IhE_MG_navigation{gap:5px;display:grid}.IhE_MG_navigation a{color:#b4c8c2;border-radius:7px;align-items:center;gap:12px;padding:12px 14px;font-size:13px;text-decoration:none;display:flex}.IhE_MG_navigation a:hover{color:#fff;background:#203d3b}.IhE_MG_navigation .IhE_MG_navActive{color:#f0f8f3;background:#2c4944;font-weight:600;box-shadow:inset 3px 0 #a9d3b7}.IhE_MG_sidebarFoot{margin-top:auto;padding:32px 10px 0}.IhE_MG_backLink{padding-bottom:24px;font-size:12px;text-decoration:none;display:block;color:#b8c9c4!important}.IhE_MG_identity{border-top:1px solid #37504a;gap:10px;min-width:0;padding:19px 0 10px;display:flex}.IhE_MG_identity>div{min-width:0}.IhE_MG_identity strong{color:#e0e9e5;font-size:12px;font-weight:500;display:block}.IhE_MG_avatar{color:#d4e9db;background:#36574b;border-radius:50%;flex:0 0 33px;place-items:center;height:33px;display:grid}.IhE_MG_account{text-overflow:ellipsis;white-space:nowrap;color:#9eb6ae;max-width:155px;font-size:11px;display:block;overflow:hidden}.IhE_MG_signOut{color:#b9cdc5;cursor:pointer;background:0 0;border:0;padding:8px 0;font-size:12px!important}.IhE_MG_shell{width:100%;min-width:0;max-width:1550px;margin:0 auto;padding:0 clamp(24px,4vw,64px)}.IhE_MG_topbar{border-bottom:1px solid var(--line);min-height:74px;color:var(--muted);justify-content:space-between;align-items:center;font-size:12px;display:flex}.IhE_MG_topbar strong{color:var(--ink);font-weight:500}.IhE_MG_adminBadge{color:#4c6259;background:#e8eeeb;border-radius:4px;padding:4px 10px;font-size:11px}.IhE_MG_header{justify-content:space-between;align-items:center;gap:24px;padding:34px 0 26px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#677f75;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 9px;font-size:10px;font-weight:700}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:var(--ink);letter-spacing:-.6px;margin:0;font-weight:600}.IhE_MG_title{font-size:34px;line-height:1.2}.IhE_MG_subtitle{color:var(--muted);margin:10px 0 0;font-size:14px}.IhE_MG_headerMark{color:#4c7161;background:#ecf1ec;border:1px solid #d3dfd8;border-radius:13px;place-items:center;width:48px;height:48px;display:grid}.IhE_MG_headerMark svg{width:24px;height:24px}.IhE_MG_section{margin:8px 0 32px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;display:flex}.IhE_MG_sectionTitle{font-size:20px}.IhE_MG_sectionHint{color:var(--muted);text-align:right;max-width:290px;font-size:12px}.IhE_MG_headerActions,.IhE_MG_toolbar{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0 0 28px;display:grid}.IhE_MG_metric{border:1px solid var(--line);background:#fff;border-radius:10px;flex-direction:column;padding:22px;text-decoration:none;display:flex;box-shadow:0 2px 3px #182e2610}.IhE_MG_metric:hover{border-color:#a8c4b8}.IhE_MG_metricLabel{color:#54675f;justify-content:space-between;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_metricLabel svg{color:#7a9689}.IhE_MG_metric>strong{letter-spacing:-1px;margin:18px 0;font-size:32px;font-weight:600;line-height:1.3}.IhE_MG_metric>small{color:var(--muted);justify-content:space-between;gap:12px;font-size:11px;display:flex}.IhE_MG_metricAttention{background:#fffaf2;border-color:#ebd6b7}.IhE_MG_metricAttention>strong{color:#976322}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.9fr) minmax(230px,1fr);align-items:start;gap:22px;display:grid}.IhE_MG_card{background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:0;margin-bottom:22px;padding:26px}.IhE_MG_helpCard{color:#455c4e;background:#eaf0e9;border:1px solid #dce5d9;border-radius:10px;padding:28px}.IhE_MG_helpCard h3{color:#294938;margin:0 0 12px;font-family:Georgia,serif;font-size:26px;font-weight:400;line-height:1.2}.IhE_MG_helpCard p{font-size:13px;line-height:1.75}.IhE_MG_steps{margin:22px 0;padding-left:20px;font-size:12px}.IhE_MG_steps li{padding:5px 0 5px 5px}.IhE_MG_quickLinks{margin-top:18px;display:grid}.IhE_MG_quickLinks a{border-bottom:1px solid #e9eeeb;align-items:center;gap:15px;padding:20px 0;text-decoration:none;display:flex}.IhE_MG_quickLinks a:last-child{border-bottom:0;padding-bottom:4px}.IhE_MG_quickLinks a>span:nth-child(2){flex:1}.IhE_MG_quickLinks strong{font-size:14px;font-weight:600;display:block}.IhE_MG_quickLinks small{color:var(--muted);margin-top:5px;font-size:12px;line-height:1.5;display:block}.IhE_MG_quickLinks a:hover strong{color:var(--accent)}.IhE_MG_quickIcon{color:#50725e;background:#f0f4f1;border:1px solid #e2eae4;border-radius:9px;flex:0 0 38px;place-items:center;width:38px;height:38px;display:grid}.IhE_MG_pageFoot{border-top:1px solid var(--line);color:#77867e;margin-top:30px;padding:24px 0;font-size:11px}.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_statusCard{border:1px solid var(--line);background:#fff;border-radius:10px;gap:15px;min-width:0;padding:22px;display:flex}.IhE_MG_statusIcon{color:#346e55;background:#edf4ef;border:1px solid #d6e4dc;border-radius:9px;flex:0 0 36px;place-items:center;height:36px;font-weight:600;display:grid}.IhE_MG_statusBody{flex:1;min-width:0}.IhE_MG_statusTopline{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;display:flex}.IhE_MG_statusTopline h3{margin:0;font-size:14px;font-weight:600}.IhE_MG_statusBody p{color:var(--muted);margin:9px 0 0;font-size:12px}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;border-radius:5px;align-items:center;gap:6px;padding:4px 9px;font-size:11px;font-weight:500;display:inline-flex}.IhE_MG_statusReady{color:#286043;background:#e5f2e9}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#385e73;background:#e8f0f4}.IhE_MG_statusError{color:#9d3e32;background:#fceee7}.IhE_MG_statusMuted{color:#65726e;background:#eff1ef}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#97a59e;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#378657}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#507c94}.IhE_MG_statusError .IhE_MG_statusDot{background:#bb5f4c}.IhE_MG_textButton{cursor:pointer;background:0 0;border:0;margin-top:14px;padding:0;font-weight:600;text-decoration:none;display:inline-block;color:var(--accent)!important;font-size:12px!important}.IhE_MG_textButton:hover{text-decoration:underline}.IhE_MG_envManaged{color:#76827c;margin-top:14px;font-size:11px;display:block}.IhE_MG_button,.IhE_MG_dangerButton{color:#3e5349;cursor:pointer;background:#fff;border:1px solid #d5deda;border-radius:6px;justify-content:center;align-items:center;gap:7px;min-height:38px;padding:9px 14px;line-height:1.3;text-decoration:none;display:inline-flex;font-size:12px!important;font-weight:600!important}.IhE_MG_button:hover:not(:disabled){background:#f2f6f3;border-color:#91b3a3}.IhE_MG_primary{color:#fff;background:#246b55;border-color:#246b55}.IhE_MG_primary:hover:not(:disabled){background:#19533f;border-color:#19533f}.IhE_MG_dangerButton{color:#a14235;background:#fff9f6;border-color:#eccdc3}.IhE_MG_dangerButton:hover{background:#fceee8}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled,.IhE_MG_textButton:disabled{cursor:not-allowed;opacity:.55}.IhE_MG_error,.IhE_MG_message{overflow-wrap:anywhere;border-radius:6px;margin:12px 0;padding:12px 15px;font-size:13px}.IhE_MG_error{color:#9b3c32;background:#fff0eb}.IhE_MG_success{color:#2b6748;background:#eaf5ed}.IhE_MG_info{color:#365e73;background:#edf3f7}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success{color:#2b6748;padding:5px}.IhE_MG_loading,.IhE_MG_loadingInline{color:#5d7167;background:#f4f6f5;padding:28px;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_providerLayout{border:1px solid var(--line);background:#fff;border-radius:10px;grid-template-columns:250px minmax(0,1fr);display:grid;overflow:hidden}.IhE_MG_providerPicker{border-right:1px solid var(--line);background:#fafbf9;min-width:0;padding:18px 12px}.IhE_MG_pickerHeader{justify-content:space-between;align-items:center;padding:0 8px 12px;font-size:12px;font-weight:600;display:flex}.IhE_MG_countBadge{color:#4a6c59;background:#e9efeb}.IhE_MG_providerList{flex-direction:column;gap:4px;max-height:430px;display:flex;overflow:auto}.IhE_MG_providerOption,.IhE_MG_customOption{text-align:left;width:100%;color:var(--ink);cursor:pointer;background:0 0;border:1px solid #0000;border-radius:6px;align-items:center;gap:10px;padding:12px 10px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_customOption:hover{background:#eef3ef}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{background:#e7f0e9;border-color:#c6d9cc}.IhE_MG_providerDot{flex:0 0 6px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{overflow-wrap:anywhere;font-size:12px;font-weight:600}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:var(--muted);font-size:10px}.IhE_MG_customTag,.IhE_MG_customBadge{color:#806239;background:#f4eee0;font-size:9px}.IhE_MG_customOption{border-top:1px solid var(--line);border-radius:0;margin-top:14px}.IhE_MG_addIcon{color:var(--accent);font-size:20px}.IhE_MG_providerEditor{min-width:0;padding:28px}.IhE_MG_editorHeading{border-bottom:1px solid var(--line);justify-content:space-between;align-items:flex-start;gap:15px;padding-bottom:22px;display:flex}.IhE_MG_editorTitle{font-size:20px}.IhE_MG_editorCopy{color:var(--muted);margin:10px 0 0;font-size:13px;line-height:1.6}.IhE_MG_editorForm,.IhE_MG_form,.IhE_MG_formFields{border:0;flex-direction:column;gap:20px;min-width:0;margin:22px 0 0;padding:0;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_field{color:#3f5449;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:600;display:flex}.IhE_MG_field em{color:var(--muted);font-size:11px;font-style:normal;font-weight:400}.IhE_MG_input{width:100%;min-width:0;color:var(--ink);background:#fff;border:1px solid #cedbd3;border-radius:6px;padding:10px 12px;font-weight:400;line-height:1.5;display:block;font-size:13px!important}.IhE_MG_input::placeholder{color:#7c8c82}.IhE_MG_input:focus{border-color:#559779}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.7;background:#f3f5f2}textarea.IhE_MG_input{resize:vertical}.IhE_MG_textarea{min-height:100px}.IhE_MG_fieldHint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.IhE_MG_advanced{border:1px solid var(--line);background:#fafbf9;border-radius:7px;margin-top:8px}.IhE_MG_advanced summary{cursor:pointer;color:#425e4e;padding:13px 16px;font-size:12px;font-weight:600}.IhE_MG_advancedBody{flex-direction:column;gap:16px;padding:0 16px 18px;display:flex}.IhE_MG_discoveryRow,.IhE_MG_discovered{flex-wrap:wrap;align-items:center;gap:10px;display:flex}.IhE_MG_modelChip{color:#3e6d50;cursor:pointer;background:#edf5ef;border:1px solid #cadecf;border-radius:5px;padding:7px 10px;font-size:12px}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;display:flex}.IhE_MG_confirmGroup{color:#8e4e42;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_confirmGroup .IhE_MG_error{width:100%}.IhE_MG_loginPage{background:#eaf0ea;place-items:center;padding:24px;display:grid}.IhE_MG_loginPanel{background:#fff;border:1px solid #d4dfd5;border-radius:14px;width:min(100%,430px);padding:40px;box-shadow:0 20px 80px #26443515}.IhE_MG_loginMark{color:#fff;background:#246b55;border-radius:11px;place-items:center;width:44px;height:44px;margin-bottom:26px;font-family:Georgia,serif;font-size:22px;display:grid}.IhE_MG_loginTitle{font-size:30px;line-height:1.2}.IhE_MG_loginCopy{color:var(--muted);margin:14px 0 25px;font-size:13px}.IhE_MG_fullButton{width:100%}.IhE_MG_loginFootnote{color:var(--muted);margin:24px 0 0;font-size:11px}.IhE_MG_notice{color:#526b5d;background:#edf2ef;border:1px solid #dce5df;border-radius:7px;align-items:center;gap:12px;padding:14px 18px;font-size:12px;display:flex}.IhE_MG_tabs{border-bottom:1px solid var(--line);flex-wrap:wrap;gap:4px;margin:22px 0;display:flex}.IhE_MG_tabs button{color:var(--muted);cursor:pointer;background:0 0;border:0;border-bottom:2px solid #0000;padding:12px 14px;font-size:12px}.IhE_MG_tabs .IhE_MG_activeTab{color:#256849;border-bottom-color:#256849;font-weight:600}.IhE_MG_toolbar{margin:0 0 18px}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{max-width:320px}.IhE_MG_toolbar>.IhE_MG_button:last-child{margin-left:auto}.IhE_MG_tableWrap{border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:22px;overflow:auto}.IhE_MG_table{border-collapse:collapse;text-align:left;width:100%;font-size:12px}.IhE_MG_table th{color:#67786d;border-bottom:1px solid var(--line);white-space:nowrap;background:#f9fbf8;padding:13px 18px;font-size:11px;font-weight:500}.IhE_MG_table td{vertical-align:top;border-bottom:1px solid #edf0ec;padding:17px 18px}.IhE_MG_table tr:last-child td{border-bottom:0}.IhE_MG_table td strong{font-weight:600}.IhE_MG_table td small{color:var(--muted);margin-top:5px;display:block}.IhE_MG_table td summary{cursor:pointer;min-width:150px}.IhE_MG_empty{color:var(--muted);text-align:center;padding:35px 22px;font-size:13px}.IhE_MG_checkboxGroup{border:1px solid var(--line);border-radius:7px;flex-wrap:wrap;gap:12px;max-height:230px;padding:14px;display:flex;overflow:auto}.IhE_MG_checkboxGroup legend{color:#4b6555;padding:0 5px;font-size:12px}.IhE_MG_checkboxGroup label,.IhE_MG_checkLabel{color:#3c5546;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_checkboxGroup input,.IhE_MG_checkLabel input{accent-color:#276e53;width:16px;height:16px}.IhE_MG_previewEnvelope{border:1px solid var(--line);overflow-wrap:anywhere;background:#f4f7f3;border-bottom:0;margin-top:24px;padding:20px;font-size:12px}.IhE_MG_previewFrame{border:1px solid var(--line);background:#fff;width:100%;height:560px}.IhE_MG_plainText{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;font-size:12px}.IhE_MG_deliveryDetails{overflow-wrap:anywhere;min-width:220px;max-width:360px;font-size:11px}.IhE_MG_mono{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,monospace!important}.IhE_MG_importRow{border-top:1px solid var(--line);overflow-wrap:anywhere;justify-content:space-between;align-items:center;gap:20px;padding:18px 0;font-size:12px;display:flex}.IhE_MG_importRow p{color:var(--muted)}.IhE_MG_srOnly{clip:rect(0,0,0,0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.IhE_MG_skipLink{z-index:10;background:#fff;padding:12px;position:fixed;top:0;left:240px;transform:translateY(-150%)}.IhE_MG_skipLink:focus{transform:translateY(0)}@media (width<=1150px){.IhE_MG_page{grid-template-columns:200px minmax(0,1fr)}.IhE_MG_sidebar{padding-inline:12px}.IhE_MG_shell{padding-inline:28px}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr)}.IhE_MG_metric{padding:18px}.IhE_MG_metric>strong{font-size:28px}.IhE_MG_providerLayout{grid-template-columns:210px minmax(0,1fr)}}@media (width<=900px){.IhE_MG_contentGrid{grid-template-columns:1fr}.IhE_MG_metrics{gap:10px}.IhE_MG_metric{padding:14px}.IhE_MG_metricLabel{font-size:11px}.IhE_MG_metricLabel svg{display:none}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-right:0;border-bottom:1px solid var(--line)}.IhE_MG_providerList{max-height:180px}.IhE_MG_notice{flex-direction:column;align-items:flex-start}}@media (width<=680px){.IhE_MG_page{display:block}.IhE_MG_sidebar{height:auto;padding:18px 16px 0;position:static}.IhE_MG_brand{padding:0 0 18px;font-size:19px}.IhE_MG_brandMark{width:30px;height:34px;font-size:20px}.IhE_MG_navLabel{display:none}.IhE_MG_navigation{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;display:grid}.IhE_MG_navigation a{border-radius:5px 5px 0 0;flex-direction:column;flex-shrink:0;justify-content:center;gap:6px;padding:10px 3px;font-size:10px}.IhE_MG_navigation svg{width:15px}.IhE_MG_navigation .IhE_MG_navActive{box-shadow:inset 0 -3px #a9d3b7}.IhE_MG_sidebarFoot{flex-wrap:wrap;align-items:center;gap:15px;padding:8px 0;display:flex}.IhE_MG_backLink{padding:0;font-size:11px}.IhE_MG_identity{display:none}.IhE_MG_signOut{margin-left:auto}.IhE_MG_shell{padding:0 18px}.IhE_MG_topbar{min-height:54px}.IhE_MG_header{padding:24px 0 20px}.IhE_MG_title{font-size:28px}.IhE_MG_headerMark{display:none}.IhE_MG_sectionHeading{flex-wrap:wrap;align-items:flex-start;gap:12px}.IhE_MG_metrics{grid-template-columns:1fr;gap:10px}.IhE_MG_metric{grid-template-columns:1fr auto;align-items:center;gap:8px;padding:16px 18px;display:grid}.IhE_MG_metric>strong{grid-area:1/2/3;margin:0;font-size:24px}.IhE_MG_metric>small{grid-column:1}.IhE_MG_metric small span{display:none}.IhE_MG_card,.IhE_MG_helpCard,.IhE_MG_providerEditor{padding:20px}.IhE_MG_fieldGrid{grid-template-columns:1fr}.IhE_MG_editorHeading{flex-wrap:wrap}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{width:100%;max-width:none}.IhE_MG_tabs{gap:0}.IhE_MG_tabs button{padding:11px 9px;font-size:11px}.IhE_MG_sectionHint{text-align:left}.IhE_MG_table td,.IhE_MG_table th{padding:12px}.IhE_MG_table{min-width:560px}.IhE_MG_importRow{flex-direction:column;align-items:flex-start}.IhE_MG_skipLink{left:16px}}.IhE_MG_contextGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_contextCard{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;padding:26px;box-shadow:0 2px 3px #182e2610}.IhE_MG_contextCard h3{color:var(--ink);margin:0;font-size:16px;font-weight:600}.IhE_MG_contextCard p:not(.IhE_MG_sectionKicker){color:var(--muted);margin:8px 0 0;font-size:12px;line-height:1.55}.IhE_MG_fieldError{color:#9b3c32;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_input[aria-invalid=true]{background:#fffaf8;border-color:#bb5f4c}.IhE_MG_toggleField{color:#3f5449;cursor:pointer;align-items:flex-start;gap:11px;display:flex}.IhE_MG_toggleField input{accent-color:#276e53;width:17px;height:17px;margin:1px 0 0}.IhE_MG_toggleField span{flex-direction:column;gap:4px;display:flex}.IhE_MG_toggleField strong{font-size:12px}.IhE_MG_toggleField small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.IhE_MG_contextCardWide{grid-column:1/-1}.IhE_MG_actionGroups{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px;display:grid}.IhE_MG_actionGroups .IhE_MG_checkboxGroup{max-height:none;margin:0}.IhE_MG_actionGroups .IhE_MG_checkLabel{align-items:flex-start}.IhE_MG_modeChoices{border:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0 0;padding:0;display:grid}.IhE_MG_modeChoice{border:1px solid var(--line);cursor:pointer;background:#fafcf9;border-radius:7px;align-items:flex-start;gap:10px;min-width:0;padding:14px;display:flex}.IhE_MG_modeChoice:has(input:checked){background:#eef6ef;border-color:#9fc5ae}.IhE_MG_modeChoice input{accent-color:#276e53;width:16px;height:16px;margin:1px 0 0}.IhE_MG_modeChoice span{flex-direction:column;gap:4px;min-width:0;display:flex}.IhE_MG_modeChoice strong{color:#314d40;font-size:12px}.IhE_MG_modeChoice small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.IhE_MG_accessGroups{gap:16px;margin-top:18px;display:grid}.IhE_MG_actionGroup{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;margin:0;padding:0;overflow:hidden}.IhE_MG_actionGroup>legend{border-bottom:1px solid var(--line);color:#4b6555;background:#f9fbf8;width:100%;padding:14px 18px;font-size:12px;font-weight:600}.IhE_MG_actionRow{border-bottom:1px solid #edf0ec;justify-content:space-between;align-items:center;gap:18px;min-width:0;padding:15px 18px;display:flex}.IhE_MG_actionGroup .IhE_MG_actionRow:last-child{border-bottom:0}.IhE_MG_actionInfo{flex-direction:column;flex:1;gap:5px;min-width:0;display:flex}.IhE_MG_actionInfo strong{color:#314b3e;font-size:12px;font-weight:600}.IhE_MG_actionInfo small{color:var(--muted);font-size:10px}.IhE_MG_stateChoices{flex-wrap:wrap;flex:none;justify-content:flex-end;gap:6px;display:flex}.IhE_MG_actionControls{flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;display:flex}.IhE_MG_stateChoice{color:#52685d;cursor:pointer;white-space:nowrap;background:#fff;border:1px solid #d8e2dc;border-radius:5px;align-items:center;gap:5px;padding:6px 8px;font-size:10px;font-weight:500;display:inline-flex}.IhE_MG_stateChoice:has(input:checked){color:#286047;background:#eaf5ed;border-color:#8fb8a0}.IhE_MG_stateChoice input{accent-color:#276e53;width:13px;height:13px;margin:0}.IhE_MG_protectedBadge{color:#8b5f2d;white-space:nowrap;background:#fbf1df;border-radius:5px;flex:none;padding:6px 9px;font-size:10px;font-weight:600}.IhE_MG_unavailableBadge{color:#8b4b42;white-space:nowrap;background:#fceee8;border-radius:5px;padding:5px 8px;font-size:10px;font-weight:600}@media (width<=900px){.IhE_MG_contextGrid,.IhE_MG_actionGroups,.IhE_MG_modeChoices{grid-template-columns:1fr}.IhE_MG_actionRow{flex-direction:column;align-items:flex-start}.IhE_MG_stateChoices,.IhE_MG_actionControls{justify-content:flex-start}}@media (width<=680px){.IhE_MG_contextCard{padding:20px}.IhE_MG_navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}";
 		const tagId$9 = "dsh-soc-agent-client/AdminConsole.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$9) + "]") === null) {
 			const tag = document.createElement("style");
@@ -104,7 +104,13 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AdminConsole_module_css_default = {
+			"accessGroups": "IhE_MG_accessGroups",
 			"account": "IhE_MG_account",
+			"actionControls": "IhE_MG_actionControls",
+			"actionGroup": "IhE_MG_actionGroup",
+			"actionGroups": "IhE_MG_actionGroups",
+			"actionInfo": "IhE_MG_actionInfo",
+			"actionRow": "IhE_MG_actionRow",
 			"actions": "IhE_MG_actions",
 			"activeTab": "IhE_MG_activeTab",
 			"addIcon": "IhE_MG_addIcon",
@@ -123,6 +129,7 @@ window.__ModuleLoader__.load({
 			"confirmGroup": "IhE_MG_confirmGroup",
 			"contentGrid": "IhE_MG_contentGrid",
 			"contextCard": "IhE_MG_contextCard",
+			"contextCardWide": "IhE_MG_contextCardWide",
 			"contextGrid": "IhE_MG_contextGrid",
 			"countBadge": "IhE_MG_countBadge",
 			"customBadge": "IhE_MG_customBadge",
@@ -142,6 +149,7 @@ window.__ModuleLoader__.load({
 			"error": "IhE_MG_error",
 			"eyebrow": "IhE_MG_eyebrow",
 			"field": "IhE_MG_field",
+			"fieldError": "IhE_MG_fieldError",
 			"fieldGrid": "IhE_MG_fieldGrid",
 			"fieldHint": "IhE_MG_fieldHint",
 			"form": "IhE_MG_form",
@@ -168,6 +176,8 @@ window.__ModuleLoader__.load({
 			"metricAttention": "IhE_MG_metricAttention",
 			"metricLabel": "IhE_MG_metricLabel",
 			"metrics": "IhE_MG_metrics",
+			"modeChoice": "IhE_MG_modeChoice",
+			"modeChoices": "IhE_MG_modeChoices",
 			"modelChip": "IhE_MG_modelChip",
 			"mono": "IhE_MG_mono",
 			"navActive": "IhE_MG_navActive",
@@ -181,6 +191,7 @@ window.__ModuleLoader__.load({
 			"previewEnvelope": "IhE_MG_previewEnvelope",
 			"previewFrame": "IhE_MG_previewFrame",
 			"primary": "IhE_MG_primary",
+			"protectedBadge": "IhE_MG_protectedBadge",
 			"providerDot": "IhE_MG_providerDot",
 			"providerDotReady": "IhE_MG_providerDotReady",
 			"providerEditor": "IhE_MG_providerEditor",
@@ -204,6 +215,8 @@ window.__ModuleLoader__.load({
 			"signOut": "IhE_MG_signOut",
 			"skipLink": "IhE_MG_skipLink",
 			"srOnly": "IhE_MG_srOnly",
+			"stateChoice": "IhE_MG_stateChoice",
+			"stateChoices": "IhE_MG_stateChoices",
 			"statusBody": "IhE_MG_statusBody",
 			"statusCard": "IhE_MG_statusCard",
 			"statusConfigured": "IhE_MG_statusConfigured",
@@ -227,17 +240,49 @@ window.__ModuleLoader__.load({
 			"title": "IhE_MG_title",
 			"toggleField": "IhE_MG_toggleField",
 			"toolbar": "IhE_MG_toolbar",
-			"topbar": "IhE_MG_topbar"
+			"topbar": "IhE_MG_topbar",
+			"unavailableBadge": "IhE_MG_unavailableBadge"
 		};
 		//#endregion
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
-		const css$8 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
-		const tagId$8 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SocActionApprovalSettings.module.css.mjs
+		const css$8 = ".T0RV3q_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none}.T0RV3q_cardOpen{border-color:var(--dsw-alias-label-dimmed);background:var(--dsw-alias-bg-layer-2)}.T0RV3q_header{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.T0RV3q_header:focus-visible,.T0RV3q_checkbox:focus-visible,.T0RV3q_shortcut:focus-visible,.T0RV3q_reset:focus-visible,.T0RV3q_discard:focus-visible,.T0RV3q_save:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.T0RV3q_headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.T0RV3q_name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.T0RV3q_description,.T0RV3q_hint,.T0RV3q_status{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.5}.T0RV3q_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s}.T0RV3q_chevronOpen{transform:rotate(180deg)}.T0RV3q_body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding:12px 0 8px}.T0RV3q_explanation,.T0RV3q_status,.T0RV3q_failed{margin:0 0 12px}.T0RV3q_groups{gap:14px;display:grid}.T0RV3q_group{border:0;min-width:0;margin:0;padding:0}.T0RV3q_groupTitle{color:var(--dsw-alias-label-secondary);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px;font-size:12px;font-weight:600;line-height:1.5}.T0RV3q_action{color:var(--dsw-alias-label-primary);cursor:pointer;align-items:flex-start;gap:9px;padding:5px 0;font-size:13px;line-height:1.4;display:flex}.T0RV3q_checkbox{width:16px;height:16px;accent-color:var(--dsw-alias-brand-primary);flex:none;margin:1px 0 0}.T0RV3q_actionText{flex-direction:column;min-width:0;display:flex}.T0RV3q_actionName{font-weight:500}.T0RV3q_actionTool{overflow-wrap:anywhere;color:var(--dsw-alias-label-tertiary);font-family:var(--ds-font-family-code);font-size:11px}.T0RV3q_shortcuts{border-top:1px solid var(--dsw-alias-border-l2);flex-wrap:wrap;gap:8px;margin-top:16px;padding-top:12px;display:flex}.T0RV3q_shortcut,.T0RV3q_reset,.T0RV3q_discard,.T0RV3q_save{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border-radius:8px;padding:5px 12px;font-size:12px;line-height:1.5}.T0RV3q_shortcut:hover:not(:disabled),.T0RV3q_reset:hover:not(:disabled),.T0RV3q_discard:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed)}.T0RV3q_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;margin-top:12px;padding-top:12px;display:flex}.T0RV3q_failed{min-width:0;color:var(--dsw-alias-label-error);flex:1;font-size:12px;line-height:1.5}.T0RV3q_save{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3);border-color:#0000}.T0RV3q_shortcut:disabled,.T0RV3q_reset:disabled,.T0RV3q_discard:disabled,.T0RV3q_save:disabled{opacity:.4;cursor:default}";
+		const tagId$8 = "dsh-soc-agent-client/SocActionApprovalSettings.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$8) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
 			tag.dataset.pluginCss = tagId$8;
 			tag.textContent = css$8;
+			document.head.appendChild(tag);
+		}
+		//#endregion
+		//#region src/client/SocActionApprovalSettings.tsx
+		function validCatalog(value) {
+			if (!Array.isArray(value)) return [];
+			const seen = /* @__PURE__ */ new Set();
+			return value.flatMap((item) => {
+				if (!item || typeof item !== "object") return [];
+				const candidate = item;
+				if (typeof candidate.name !== "string" || typeof candidate.group !== "string" || typeof candidate.label !== "string") return [];
+				if (candidate.name.length === 0 || seen.has(candidate.name)) return [];
+				seen.add(candidate.name);
+				const kind = candidate.kind === "read" || candidate.kind === "mutation" || candidate.kind === "ui-confirmed" ? candidate.kind : void 0;
+				return [{
+					name: candidate.name,
+					group: candidate.group,
+					label: candidate.label,
+					...kind === void 0 ? {} : { kind }
+				}];
+			});
+		}
+		//#endregion
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
+		const css$7 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
+		const tagId$7 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$7) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "dsh-soc-agent-client";
+			tag.dataset.pluginCss = tagId$7;
+			tag.textContent = css$7;
 			document.head.appendChild(tag);
 		}
 		var SplunkZimbraOverlay_module_css_default = {
@@ -267,9 +312,9 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region src/client/settings-common.ts
-		const CHANNEL$3 = "/soc-agent-config";
+		const CHANNEL$2 = "/soc-agent-config";
 		async function rpc(connection, name, payload = {}) {
-			const result = await connection.rpc.call(CHANNEL$3, name, payload);
+			const result = await connection.rpc.call(CHANNEL$2, name, payload);
 			if (!result?.ok) throw new Error(result?.error?.message || `Request failed: ${name}`);
 			return result.value;
 		}
@@ -286,6 +331,7 @@ window.__ModuleLoader__.load({
 		const CUSTOM_PROVIDER = "__custom__";
 		const BACKGROUND_SETTINGS_NAMESPACE = "soc-background";
 		const TIME_SETTINGS_NAMESPACE = "time-context";
+		const ACTION_APPROVAL_SETTINGS_NAMESPACE = "soc-action-approval";
 		const MAX_INTERVAL_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / 1e3);
 		const PROVIDER_ROUTE_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 		const SUPPORTED_PROTOCOLS = [
@@ -492,6 +538,12 @@ window.__ModuleLoader__.load({
 				copy: "Control workspace context and current-time injection."
 			},
 			{
+				id: "access-approvals",
+				name: "Access & approvals",
+				icon: "access",
+				copy: "Choose the deployment access mode and action controls."
+			},
+			{
 				id: "providers",
 				name: "AI providers",
 				icon: "providers",
@@ -502,6 +554,7 @@ window.__ModuleLoader__.load({
 			const paths = {
 				connections: "M8 3v5 M16 3v5 M6 8h12v3a6 6 0 0 1-12 0z M12 17v4",
 				context: "M12 3a9 9 0 1 0 9 9 M12 7v5l3 2",
+				access: "M12 3l8 3v5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z M9 12l2 2 4-4",
 				providers: "M12 3l9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5"
 			};
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
@@ -662,6 +715,10 @@ window.__ModuleLoader__.load({
 							visited.has("agent-context") ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 								hidden: page !== "agent-context",
 								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AgentContextSettings, { connection })
+							}) : null,
+							visited.has("access-approvals") ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								hidden: page !== "access-approvals",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AccessApprovalsSettings, { connection })
 							}) : null,
 							visited.has("providers") ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 								hidden: page !== "providers",
@@ -825,15 +882,18 @@ window.__ModuleLoader__.load({
 		}
 		function AgentContextSettings({ connection }) {
 			const [data, setData] = (0, react.useState)(null);
+			const [backgroundEnabled, setBackgroundEnabled] = (0, react.useState)(true);
 			const [backgroundPrompts, setBackgroundPrompts] = (0, react.useState)("5");
 			const [timeEnabled, setTimeEnabled] = (0, react.useState)(true);
 			const [timeSeconds, setTimeSeconds] = (0, react.useState)("0");
+			const [validation, setValidation] = (0, react.useState)({});
 			const [message, setMessage] = (0, react.useState)(null);
 			const [loading, setLoading] = (0, react.useState)(true);
 			const [busy, setBusy] = (0, react.useState)(false);
 			const load = (0, react.useCallback)(async () => {
 				setLoading(true);
 				setMessage(null);
+				setValidation({});
 				try {
 					const view = apiValue(await connection.api.settings.describe({}));
 					const namespaces = new Map(view.namespaces.map((namespace) => [namespace.ns, namespace]));
@@ -847,6 +907,7 @@ window.__ModuleLoader__.load({
 						time,
 						writable: view.writable
 					});
+					setBackgroundEnabled(backgroundValue.enabled !== false);
 					setBackgroundPrompts(String(backgroundValue.repeatEveryUserPrompts ?? 5));
 					setTimeEnabled(timeValue.enabled !== false);
 					setTimeSeconds(String(Number(timeValue.refreshIntervalMs ?? 0) / 1e3));
@@ -864,21 +925,46 @@ window.__ModuleLoader__.load({
 			}, [load]);
 			async function save(event) {
 				event.preventDefault();
-				if (!data?.writable) return;
+				if (!data?.writable || loading) return;
 				setBusy(true);
 				setMessage(null);
+				setValidation({});
 				try {
-					const repeatEveryUserPrompts = nonNegativeInteger(backgroundPrompts, "BACKGROUND prompt frequency");
-					const seconds = nonNegativeInteger(timeSeconds, "Time interval", MAX_INTERVAL_SECONDS);
-					const [backgroundResponse, timeResponse] = await Promise.all([connection.api.settings.mutate({
+					let repeatEveryUserPrompts;
+					let seconds;
+					const nextValidation = {};
+					try {
+						repeatEveryUserPrompts = nonNegativeInteger(backgroundPrompts, "BACKGROUND prompt frequency");
+					} catch (validationError) {
+						nextValidation.background = errorText(validationError);
+					}
+					try {
+						seconds = nonNegativeInteger(timeSeconds, "Time interval", MAX_INTERVAL_SECONDS);
+					} catch (validationError) {
+						nextValidation.time = errorText(validationError);
+					}
+					if (nextValidation.background || nextValidation.time || repeatEveryUserPrompts === void 0 || seconds === void 0) {
+						setValidation(nextValidation);
+						setMessage({
+							kind: "error",
+							text: "Check the highlighted agent context fields."
+						});
+						return;
+					}
+					const backgroundResponse = await connection.api.settings.mutate({
 						ns: data.background.ns,
 						ops: [{
+							op: "set",
+							path: ["enabled"],
+							value: backgroundEnabled
+						}, {
 							op: "set",
 							path: ["repeatEveryUserPrompts"],
 							value: repeatEveryUserPrompts
 						}],
 						expectedRevision: data.background.revision
-					}), connection.api.settings.mutate({
+					});
+					const timeResponse = await connection.api.settings.mutate({
 						ns: data.time.ns,
 						ops: [{
 							op: "set",
@@ -890,7 +976,7 @@ window.__ModuleLoader__.load({
 							value: seconds * 1e3
 						}],
 						expectedRevision: data.time.revision
-					})]);
+					});
 					const background = apiValue(backgroundResponse);
 					const time = apiValue(timeResponse);
 					setData({
@@ -933,6 +1019,10 @@ window.__ModuleLoader__.load({
 						className: AdminConsole_module_css_default.loadingInline,
 						children: "Loading agent context…"
 					}) : null,
+					loading && data ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.loadingInline,
+						children: "Refreshing agent context…"
+					}) : null,
 					data ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
 						onSubmit: save,
 						children: [
@@ -940,35 +1030,53 @@ window.__ModuleLoader__.load({
 								className: AdminConsole_module_css_default.contextGrid,
 								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("article", {
 									className: AdminConsole_module_css_default.contextCard,
-									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
-										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-											className: AdminConsole_module_css_default.sectionKicker,
-											children: "Workspace reference"
-										}),
-										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", { children: "BACKGROUND.md" }),
-										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "The file is always loaded when a session starts." })
-									] }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-										className: AdminConsole_module_css_default.field,
-										children: [
-											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Repeat every user prompts" }),
-											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-												className: AdminConsole_module_css_default.input,
-												type: "number",
-												min: "0",
-												step: "1",
-												inputMode: "numeric",
-												value: backgroundPrompts,
-												onChange: (event) => setBackgroundPrompts(event.target.value),
-												"aria-describedby": "background-frequency-help",
-												disabled: !data.writable || busy
+									children: [
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+												className: AdminConsole_module_css_default.sectionKicker,
+												children: "Workspace reference"
 											}),
-											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
-												id: "background-frequency-help",
-												className: AdminConsole_module_css_default.fieldHint,
-												children: "Use 0 for startup only. The default is every 5 additional user prompts."
-											})
-										]
-									})]
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", { children: "BACKGROUND.md" }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Load this file at session startup and on configured refreshes." })
+										] }),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+											className: AdminConsole_module_css_default.toggleField,
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+												type: "checkbox",
+												checked: backgroundEnabled,
+												onChange: (event) => setBackgroundEnabled(event.target.checked),
+												disabled: !data.writable || busy || loading
+											}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Inject BACKGROUND.md" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: "Disable to stop startup and periodic injections." })] })]
+										}),
+										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+											className: AdminConsole_module_css_default.field,
+											children: [
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Repeat every user prompts" }),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													className: AdminConsole_module_css_default.input,
+													type: "number",
+													min: "0",
+													step: "1",
+													inputMode: "numeric",
+													value: backgroundPrompts,
+													onChange: (event) => setBackgroundPrompts(event.target.value),
+													"aria-describedby": "background-frequency-help",
+													"aria-invalid": validation.background ? "true" : void 0,
+													disabled: !data.writable || busy || loading
+												}),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+													id: "background-frequency-help",
+													className: AdminConsole_module_css_default.fieldHint,
+													children: "Use 0 for startup only. The default is every 5 additional user prompts."
+												}),
+												validation.background ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+													className: AdminConsole_module_css_default.fieldError,
+													role: "alert",
+													children: validation.background
+												}) : null
+											]
+										})
+									]
 								}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("article", {
 									className: AdminConsole_module_css_default.contextCard,
 									children: [
@@ -986,7 +1094,7 @@ window.__ModuleLoader__.load({
 												type: "checkbox",
 												checked: timeEnabled,
 												onChange: (event) => setTimeEnabled(event.target.checked),
-												disabled: !data.writable || busy
+												disabled: !data.writable || busy || loading
 											}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Inject current time" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: "Applies on the next eligible model step." })] })]
 										}),
 										/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
@@ -1003,38 +1111,314 @@ window.__ModuleLoader__.load({
 													value: timeSeconds,
 													onChange: (event) => setTimeSeconds(event.target.value),
 													"aria-describedby": "time-frequency-help",
-													disabled: !data.writable || busy || !timeEnabled
+													"aria-invalid": validation.time ? "true" : void 0,
+													disabled: !data.writable || busy || loading || !timeEnabled
 												}),
 												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
 													id: "time-frequency-help",
 													className: AdminConsole_module_css_default.fieldHint,
 													children: "Use 0 to inject on every eligible model step."
-												})
+												}),
+												validation.time ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+													className: AdminConsole_module_css_default.fieldError,
+													role: "alert",
+													children: validation.time
+												}) : null
 											]
 										})
 									]
 								})]
 							}),
-							message ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							message ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 								className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
 								role: message.kind === "error" ? "alert" : "status",
 								children: message.text
-							}) : null,
+							}), message.kind === "error" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: AdminConsole_module_css_default.button,
+								type: "button",
+								onClick: () => void load(),
+								children: "Retry"
+							}) : null] }) : null,
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 								className: AdminConsole_module_css_default.actions,
 								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 									className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
 									type: "submit",
-									disabled: !data.writable || busy,
+									disabled: !data.writable || busy || loading,
 									children: busy ? "Saving…" : "Save agent context"
 								})
 							})
 						]
-					}) : message ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					}) : message ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 						className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
 						role: "alert",
 						children: message.text
-					}) : null
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						className: AdminConsole_module_css_default.button,
+						type: "button",
+						onClick: () => void load(),
+						children: "Retry"
+					})] }) : null
+				]
+			});
+		}
+		function defaultToolState(tool) {
+			return tool.kind === "read" ? "auto" : "ask";
+		}
+		function isActionState(value) {
+			return value === "ask" || value === "auto" || value === "disabled";
+		}
+		function AccessApprovalsSettings({ connection }) {
+			const [data, setData] = (0, react.useState)(null);
+			const [mode, setMode] = (0, react.useState)("soc");
+			const [actionStates, setActionStates] = (0, react.useState)({});
+			const [message, setMessage] = (0, react.useState)(null);
+			const [loading, setLoading] = (0, react.useState)(true);
+			const [busy, setBusy] = (0, react.useState)(false);
+			const load = (0, react.useCallback)(async () => {
+				setLoading(true);
+				setMessage(null);
+				try {
+					const [described, catalogValue] = await Promise.all([connection.api.settings.describe({}), rpc(connection, "get-admin-action-catalog")]);
+					const view = apiValue(described);
+					const actionApproval = new Map(view.namespaces.map((namespace) => [namespace.ns, namespace])).get(ACTION_APPROVAL_SETTINGS_NAMESPACE);
+					const catalog = objectValue(catalogValue);
+					const tools = validCatalog(Array.isArray(catalog.tools) ? catalog.tools : catalog.actions);
+					if (!actionApproval || tools.length === 0) throw new Error("Access & approvals settings are unavailable.");
+					const saved = objectValue(actionApproval.value);
+					const savedStates = objectValue(saved.actionStates);
+					const legacy = new Set(Array.isArray(saved.autoApproveActions) ? saved.autoApproveActions.filter((name) => typeof name === "string") : []);
+					const normalizedStates = Object.fromEntries(tools.filter((tool) => tool.kind !== "ui-confirmed").map((tool) => {
+						const configured = savedStates[tool.name];
+						const state = isActionState(configured) ? configured : legacy.has(tool.name) ? "auto" : defaultToolState(tool);
+						return [tool.name, state];
+					}));
+					setData({
+						actionApproval,
+						tools,
+						writable: view.writable
+					});
+					setMode(saved.mode === "full" ? "full" : "soc");
+					setActionStates(normalizedStates);
+				} catch (loadError) {
+					setMessage({
+						kind: "error",
+						text: errorText(loadError)
+					});
+				} finally {
+					setLoading(false);
+				}
+			}, [connection]);
+			(0, react.useEffect)(() => {
+				load();
+			}, [load]);
+			async function save(event) {
+				event.preventDefault();
+				if (!data?.writable || loading) return;
+				setBusy(true);
+				setMessage(null);
+				try {
+					const actionApproval = apiValue(await connection.api.settings.mutate({
+						ns: data.actionApproval.ns,
+						ops: [{
+							op: "set",
+							path: ["mode"],
+							value: mode
+						}, {
+							op: "set",
+							path: ["actionStates"],
+							value: actionStates
+						}],
+						expectedRevision: data.actionApproval.revision
+					}));
+					setData({
+						...data,
+						actionApproval
+					});
+					setMessage({
+						kind: "success",
+						text: "Access & approvals settings saved."
+					});
+				} catch (saveError) {
+					setMessage({
+						kind: "error",
+						text: errorText(saveError)
+					});
+				} finally {
+					setBusy(false);
+				}
+			}
+			const groups = data ? [...new Set(data.tools.map((tool) => tool.group))] : [];
+			const stateLabel = {
+				ask: "Ask",
+				auto: "Run automatically",
+				disabled: "Disabled"
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+				className: AdminConsole_module_css_default.section,
+				"aria-labelledby": "access-approvals-title",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: AdminConsole_module_css_default.sectionHeading,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: AdminConsole_module_css_default.sectionKicker,
+							children: "Deployment policy"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
+							id: "access-approvals-title",
+							className: AdminConsole_module_css_default.sectionTitle,
+							children: "Access & approvals"
+						})] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: AdminConsole_module_css_default.sectionHint,
+							children: "Changes apply live to existing and new sessions."
+						})]
+					}),
+					loading && !data ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.loadingInline,
+						children: "Loading access controls…"
+					}) : null,
+					loading && data ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: AdminConsole_module_css_default.loadingInline,
+						children: "Refreshing access controls…"
+					}) : null,
+					data ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+						onSubmit: save,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("article", {
+								className: AdminConsole_module_css_default.contextCard,
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+										className: AdminConsole_module_css_default.sectionKicker,
+										children: "Deployment mode"
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", { children: "How permitted actions run" }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Full access runs non-disabled permitted actions directly. SOC mode follows the action checklist below." }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+										className: AdminConsole_module_css_default.modeChoices,
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", {
+												className: AdminConsole_module_css_default.srOnly,
+												children: "Deployment access mode"
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+												className: AdminConsole_module_css_default.modeChoice,
+												children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													type: "radio",
+													name: "deployment-mode",
+													value: "full",
+													checked: mode === "full",
+													onChange: () => setMode("full"),
+													disabled: !data.writable || busy || loading
+												}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Full access" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: "Run permitted actions directly; protected operations still require confirmation." })] })]
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+												className: AdminConsole_module_css_default.modeChoice,
+												children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													type: "radio",
+													name: "deployment-mode",
+													value: "soc",
+													checked: mode === "soc",
+													onChange: () => setMode("soc"),
+													disabled: !data.writable || busy || loading
+												}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "SOC mode" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: "Ask or run actions according to the checklist for this deployment." })] })]
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+										className: AdminConsole_module_css_default.fieldHint,
+										children: "Catalog and detection changes retain their approval and authenticated editor gates. Email delivery always requires the explicit Send confirmation in the draft view."
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: AdminConsole_module_css_default.accessGroups,
+								children: groups.map((group) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+									className: AdminConsole_module_css_default.actionGroup,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", { children: group }), data.tools.filter((tool) => tool.group === group).map((tool) => {
+										if (tool.kind === "ui-confirmed") return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+											className: AdminConsole_module_css_default.actionRow,
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+												className: AdminConsole_module_css_default.actionInfo,
+												children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: tool.label }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+													className: AdminConsole_module_css_default.mono,
+													children: tool.name
+												})]
+											}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+												className: AdminConsole_module_css_default.protectedBadge,
+												children: "Explicit confirmation"
+											})]
+										}, tool.name);
+										const selected = actionStates[tool.name] ?? defaultToolState(tool);
+										return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+											className: AdminConsole_module_css_default.actionRow,
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+												className: AdminConsole_module_css_default.actionInfo,
+												children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: tool.label }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+													className: AdminConsole_module_css_default.mono,
+													children: tool.name
+												})]
+											}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+												className: AdminConsole_module_css_default.actionControls,
+												children: [selected === "disabled" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+													className: AdminConsole_module_css_default.unavailableBadge,
+													children: "Unavailable"
+												}) : null, /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+													className: AdminConsole_module_css_default.stateChoices,
+													role: "group",
+													"aria-label": `Access for ${tool.label}`,
+													children: [
+														"ask",
+														"auto",
+														"disabled"
+													].map((state) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+														className: AdminConsole_module_css_default.stateChoice,
+														children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+															type: "radio",
+															name: `action-state-${tool.name}`,
+															value: state,
+															checked: selected === state,
+															onChange: () => setActionStates((current) => ({
+																...current,
+																[tool.name]: state
+															})),
+															disabled: !data.writable || busy || loading
+														}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: stateLabel[state] })]
+													}, state))
+												})]
+											})]
+										}, tool.name);
+									})]
+								}, group))
+							}),
+							message ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
+								role: message.kind === "error" ? "alert" : "status",
+								children: message.text
+							}), message.kind === "error" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: AdminConsole_module_css_default.button,
+								type: "button",
+								onClick: () => void load(),
+								children: "Retry"
+							}) : null] }) : null,
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: AdminConsole_module_css_default.actions,
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+									type: "submit",
+									disabled: !data.writable || busy || loading,
+									children: busy ? "Saving…" : "Save access settings"
+								})
+							})
+						]
+					}) : message ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
+						role: "alert",
+						children: message.text
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						className: AdminConsole_module_css_default.button,
+						type: "button",
+						onClick: () => void load(),
+						children: "Retry"
+					})] }) : null
 				]
 			});
 		}
@@ -1734,13 +2118,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AuthGate.module.css.mjs
-		const css$7 = ".e9h_7W_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.e9h_7W_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.e9h_7W_title{margin:0 0 20px;font-size:20px;font-weight:600}.e9h_7W_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.e9h_7W_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.e9h_7W_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.e9h_7W_button:disabled{cursor:wait;opacity:.65}.e9h_7W_error{color:#ffb7b7;margin:10px 0;font-size:13px}.e9h_7W_notice{color:#ffe0a6;margin:10px 0;font-size:13px}.e9h_7W_loading{color:#cbd6e2;font-size:14px}.e9h_7W_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.e9h_7W_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
-		const tagId$7 = "dsh-soc-agent-client/AuthGate.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$7) + "]") === null) {
+		const css$6 = ".e9h_7W_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.e9h_7W_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.e9h_7W_title{margin:0 0 20px;font-size:20px;font-weight:600}.e9h_7W_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.e9h_7W_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.e9h_7W_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.e9h_7W_button:disabled{cursor:wait;opacity:.65}.e9h_7W_error{color:#ffb7b7;margin:10px 0;font-size:13px}.e9h_7W_notice{color:#ffe0a6;margin:10px 0;font-size:13px}.e9h_7W_loading{color:#cbd6e2;font-size:14px}.e9h_7W_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.e9h_7W_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
+		const tagId$6 = "dsh-soc-agent-client/AuthGate.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$6) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$7;
-			tag.textContent = css$7;
+			tag.dataset.pluginCss = tagId$6;
+			tag.textContent = css$6;
 			document.head.appendChild(tag);
 		}
 		var AuthGate_module_css_default = {
@@ -1922,13 +2306,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/CatalogManager.module.css.mjs
-		const css$6 = ".eeDxBq_page{max-width:1200px;color:var(--dsw-alias-text-primary,#1c2024);flex-direction:column;gap:14px;margin:0 auto;padding:24px 20px 48px;font-size:13px;display:flex}.eeDxBq_header{flex-direction:column;gap:10px;display:flex}.eeDxBq_title{margin:0;font-size:20px;font-weight:600}.eeDxBq_tabs{gap:6px;display:flex}.eeDxBq_tab{border:1px solid var(--dsw-alias-border-l2,#d5d9de);color:inherit;font:inherit;cursor:pointer;background:0 0;border-radius:999px;padding:6px 14px}.eeDxBq_tabActive{background:var(--dsw-alias-primary,#2563eb);border-color:var(--dsw-alias-primary,#2563eb);color:#fff}.eeDxBq_layout{grid-template-columns:300px minmax(0,1fr);align-items:start;gap:16px;display:grid}.eeDxBq_listPane,.eeDxBq_editorPane,.eeDxBq_card{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-primary,#fff);border-radius:10px;flex-direction:column;gap:10px;padding:14px;display:flex}.eeDxBq_listToolbar{gap:8px;display:flex}.eeDxBq_listMeta{color:var(--dsw-alias-text-secondary,#5c6470);font-size:12px}.eeDxBq_recordList{flex-direction:column;gap:4px;max-height:60vh;margin:0;padding:0;list-style:none;display:flex;overflow-y:auto}.eeDxBq_recordItem{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:1px solid #0000;border-radius:8px;flex-direction:column;gap:2px;padding:8px 10px;display:flex}.eeDxBq_recordItem:hover{background:var(--dsw-alias-surface-secondary,#f2f4f7)}.eeDxBq_recordActive,.eeDxBq_recordActive:hover{border-color:var(--dsw-alias-primary,#2563eb);background:color-mix(in srgb, var(--dsw-alias-primary,#2563eb) 8%, transparent)}.eeDxBq_recordTitle{text-overflow:ellipsis;white-space:nowrap;font-weight:600;overflow:hidden}.eeDxBq_recordMeta{color:var(--dsw-alias-text-secondary,#5c6470);font-size:11px}.eeDxBq_editorHeader{justify-content:space-between;align-items:flex-start;gap:10px;display:flex}.eeDxBq_editorTitle{font-size:15px;font-weight:600}.eeDxBq_editorMeta{color:var(--dsw-alias-text-secondary,#5c6470);margin-left:8px;font-size:12px;font-weight:400}.eeDxBq_editorActions{flex-shrink:0;gap:8px;display:flex}.eeDxBq_fieldGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px 14px;display:grid}.eeDxBq_field{flex-direction:column;gap:4px;min-width:0;display:flex}.eeDxBq_fieldInvalid .eeDxBq_control{border-color:var(--dsw-alias-danger,#d33)}.eeDxBq_label{color:var(--dsw-alias-text-secondary,#5c6470);text-transform:capitalize;font-size:11px}.eeDxBq_fieldError{color:var(--dsw-alias-danger,#a00);font-size:11px}.eeDxBq_control{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-secondary,#fafbfc);width:100%;color:inherit;font:inherit;box-sizing:border-box;border-radius:6px;padding:6px 8px}.eeDxBq_control:disabled{opacity:.75}.eeDxBq_section{border-top:1px solid var(--dsw-alias-border-l2,#d5d9de);padding-top:10px}.eeDxBq_section summary{cursor:pointer;margin-bottom:8px;font-weight:600}.eeDxBq_publishBar{gap:8px;margin-bottom:8px;display:flex}.eeDxBq_preview{flex-direction:column;gap:6px;font-size:12px;display:flex}.eeDxBq_hint{color:var(--dsw-alias-text-secondary,#5c6470);font-size:12px}.eeDxBq_history{flex-direction:column;gap:6px;font-size:12px;display:flex}.eeDxBq_historyItem summary{cursor:pointer}.eeDxBq_historyAction{text-transform:capitalize;font-weight:600}.eeDxBq_historyReason{color:var(--dsw-alias-text-secondary,#5c6470)}.eeDxBq_diffBlock{margin:6px 0}.eeDxBq_diffTitle{color:var(--dsw-alias-text-secondary,#5c6470);font-size:11px}.eeDxBq_diffBlock pre{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-secondary,#fafbfc);border-radius:6px;max-height:220px;margin:2px 0 0;padding:8px;font-size:11px;overflow-x:auto}.eeDxBq_publicationTable{border-collapse:collapse;width:100%;font-size:12px}.eeDxBq_publicationTable th,.eeDxBq_publicationTable td{border-bottom:1px solid var(--dsw-alias-border-l2,#d5d9de);text-align:left;padding:6px 8px}.eeDxBq_pill{background:var(--dsw-alias-surface-secondary,#eef1f4);border-radius:999px;padding:2px 8px;font-size:11px;display:inline-block}.eeDxBq_pillOk{background:color-mix(in srgb, var(--dsw-alias-success,#2a8b43) 14%, transparent);color:var(--dsw-alias-success,#23692f)}.eeDxBq_pillFail{background:color-mix(in srgb, var(--dsw-alias-danger,#d33) 12%, transparent);color:var(--dsw-alias-danger,#a00)}.eeDxBq_pillNeutral{color:var(--dsw-alias-text-secondary,#5c6470)}.eeDxBq_message{border-radius:6px;padding:8px 10px;font-size:12px}.eeDxBq_error{background:color-mix(in srgb, var(--dsw-alias-danger,#d33) 10%, transparent);color:var(--dsw-alias-danger,#a00)}.eeDxBq_success{background:color-mix(in srgb, var(--dsw-alias-success,#2a8b43) 10%, transparent);color:var(--dsw-alias-success,#23692f)}.eeDxBq_button{border:1px solid var(--dsw-alias-border-l2,#d5d9de);color:inherit;font:inherit;cursor:pointer;white-space:nowrap;background:0 0;border-radius:6px;padding:6px 14px}.eeDxBq_button:disabled{opacity:.6;cursor:default}.eeDxBq_primary{background:var(--dsw-alias-primary,#2563eb);border-color:var(--dsw-alias-primary,#2563eb);color:#fff}@media (width<=900px){.eeDxBq_layout{grid-template-columns:1fr}}";
-		const tagId$6 = "dsh-soc-agent-client/CatalogManager.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$6) + "]") === null) {
+		const css$5 = ".eeDxBq_page{max-width:1200px;color:var(--dsw-alias-text-primary,#1c2024);flex-direction:column;gap:14px;margin:0 auto;padding:24px 20px 48px;font-size:13px;display:flex}.eeDxBq_header{flex-direction:column;gap:10px;display:flex}.eeDxBq_title{margin:0;font-size:20px;font-weight:600}.eeDxBq_tabs{gap:6px;display:flex}.eeDxBq_tab{border:1px solid var(--dsw-alias-border-l2,#d5d9de);color:inherit;font:inherit;cursor:pointer;background:0 0;border-radius:999px;padding:6px 14px}.eeDxBq_tabActive{background:var(--dsw-alias-primary,#2563eb);border-color:var(--dsw-alias-primary,#2563eb);color:#fff}.eeDxBq_layout{grid-template-columns:300px minmax(0,1fr);align-items:start;gap:16px;display:grid}.eeDxBq_listPane,.eeDxBq_editorPane,.eeDxBq_card{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-primary,#fff);border-radius:10px;flex-direction:column;gap:10px;padding:14px;display:flex}.eeDxBq_listToolbar{gap:8px;display:flex}.eeDxBq_listMeta{color:var(--dsw-alias-text-secondary,#5c6470);font-size:12px}.eeDxBq_recordList{flex-direction:column;gap:4px;max-height:60vh;margin:0;padding:0;list-style:none;display:flex;overflow-y:auto}.eeDxBq_recordItem{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:1px solid #0000;border-radius:8px;flex-direction:column;gap:2px;padding:8px 10px;display:flex}.eeDxBq_recordItem:hover{background:var(--dsw-alias-surface-secondary,#f2f4f7)}.eeDxBq_recordActive,.eeDxBq_recordActive:hover{border-color:var(--dsw-alias-primary,#2563eb);background:color-mix(in srgb, var(--dsw-alias-primary,#2563eb) 8%, transparent)}.eeDxBq_recordTitle{text-overflow:ellipsis;white-space:nowrap;font-weight:600;overflow:hidden}.eeDxBq_recordMeta{color:var(--dsw-alias-text-secondary,#5c6470);font-size:11px}.eeDxBq_editorHeader{justify-content:space-between;align-items:flex-start;gap:10px;display:flex}.eeDxBq_editorTitle{font-size:15px;font-weight:600}.eeDxBq_editorMeta{color:var(--dsw-alias-text-secondary,#5c6470);margin-left:8px;font-size:12px;font-weight:400}.eeDxBq_editorActions{flex-shrink:0;gap:8px;display:flex}.eeDxBq_fieldGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px 14px;display:grid}.eeDxBq_field{flex-direction:column;gap:4px;min-width:0;display:flex}.eeDxBq_fieldInvalid .eeDxBq_control{border-color:var(--dsw-alias-danger,#d33)}.eeDxBq_label{color:var(--dsw-alias-text-secondary,#5c6470);text-transform:capitalize;font-size:11px}.eeDxBq_fieldError{color:var(--dsw-alias-danger,#a00);font-size:11px}.eeDxBq_control{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-secondary,#fafbfc);width:100%;color:inherit;font:inherit;box-sizing:border-box;border-radius:6px;padding:6px 8px}.eeDxBq_control:disabled{opacity:.75}.eeDxBq_section{border-top:1px solid var(--dsw-alias-border-l2,#d5d9de);padding-top:10px}.eeDxBq_section summary{cursor:pointer;margin-bottom:8px;font-weight:600}.eeDxBq_publishBar{gap:8px;margin-bottom:8px;display:flex}.eeDxBq_preview{flex-direction:column;gap:6px;font-size:12px;display:flex}.eeDxBq_hint{color:var(--dsw-alias-text-secondary,#5c6470);font-size:12px}.eeDxBq_history{flex-direction:column;gap:6px;font-size:12px;display:flex}.eeDxBq_historyItem summary{cursor:pointer}.eeDxBq_historyAction{text-transform:capitalize;font-weight:600}.eeDxBq_historyReason{color:var(--dsw-alias-text-secondary,#5c6470)}.eeDxBq_diffBlock{margin:6px 0}.eeDxBq_diffTitle{color:var(--dsw-alias-text-secondary,#5c6470);font-size:11px}.eeDxBq_diffBlock pre{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-secondary,#fafbfc);border-radius:6px;max-height:220px;margin:2px 0 0;padding:8px;font-size:11px;overflow-x:auto}.eeDxBq_publicationTable{border-collapse:collapse;width:100%;font-size:12px}.eeDxBq_publicationTable th,.eeDxBq_publicationTable td{border-bottom:1px solid var(--dsw-alias-border-l2,#d5d9de);text-align:left;padding:6px 8px}.eeDxBq_pill{background:var(--dsw-alias-surface-secondary,#eef1f4);border-radius:999px;padding:2px 8px;font-size:11px;display:inline-block}.eeDxBq_pillOk{background:color-mix(in srgb, var(--dsw-alias-success,#2a8b43) 14%, transparent);color:var(--dsw-alias-success,#23692f)}.eeDxBq_pillFail{background:color-mix(in srgb, var(--dsw-alias-danger,#d33) 12%, transparent);color:var(--dsw-alias-danger,#a00)}.eeDxBq_pillNeutral{color:var(--dsw-alias-text-secondary,#5c6470)}.eeDxBq_message{border-radius:6px;padding:8px 10px;font-size:12px}.eeDxBq_error{background:color-mix(in srgb, var(--dsw-alias-danger,#d33) 10%, transparent);color:var(--dsw-alias-danger,#a00)}.eeDxBq_success{background:color-mix(in srgb, var(--dsw-alias-success,#2a8b43) 10%, transparent);color:var(--dsw-alias-success,#23692f)}.eeDxBq_button{border:1px solid var(--dsw-alias-border-l2,#d5d9de);color:inherit;font:inherit;cursor:pointer;white-space:nowrap;background:0 0;border-radius:6px;padding:6px 14px}.eeDxBq_button:disabled{opacity:.6;cursor:default}.eeDxBq_primary{background:var(--dsw-alias-primary,#2563eb);border-color:var(--dsw-alias-primary,#2563eb);color:#fff}@media (width<=900px){.eeDxBq_layout{grid-template-columns:1fr}}";
+		const tagId$5 = "dsh-soc-agent-client/CatalogManager.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$5) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$6;
-			tag.textContent = css$6;
+			tag.dataset.pluginCss = tagId$5;
+			tag.textContent = css$5;
 			document.head.appendChild(tag);
 		}
 		var CatalogManager_module_css_default = {
@@ -2736,13 +3120,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/CatalogToolview.module.css.mjs
-		const css$5 = ".o5Ki4a_card{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-primary,#fff);color:var(--dsw-alias-text-primary,#1c2024);border-radius:10px;flex-direction:column;gap:12px;margin:8px 0;padding:16px;font-size:13px;display:flex}.o5Ki4a_header{justify-content:space-between;gap:12px;display:flex}.o5Ki4a_title{font-size:15px;font-weight:600}.o5Ki4a_subtitle{color:var(--dsw-alias-text-secondary,#5c6470);margin-top:2px;font-size:12px}.o5Ki4a_content{flex-direction:column;gap:12px;display:flex}.o5Ki4a_grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px 14px;display:grid}.o5Ki4a_field{flex-direction:column;gap:4px;min-width:0;display:flex}.o5Ki4a_fieldInvalid .o5Ki4a_input,.o5Ki4a_fieldInvalid .o5Ki4a_textarea,.o5Ki4a_fieldInvalid .o5Ki4a_select{border-color:var(--dsw-alias-danger,#d33)}.o5Ki4a_label{color:var(--dsw-alias-text-secondary,#5c6470);text-transform:capitalize;font-size:11px}.o5Ki4a_fieldError{color:var(--dsw-alias-danger,#d33);font-size:11px}.o5Ki4a_input,.o5Ki4a_textarea,.o5Ki4a_select{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-secondary,#fafbfc);width:100%;color:inherit;font:inherit;box-sizing:border-box;border-radius:6px;padding:6px 8px}.o5Ki4a_textarea{resize:vertical;min-height:64px}.o5Ki4a_message{border-radius:6px;padding:8px 10px;font-size:12px}.o5Ki4a_error{background:color-mix(in srgb, var(--dsw-alias-danger,#d33) 10%, transparent);color:var(--dsw-alias-danger,#a00)}.o5Ki4a_success{background:color-mix(in srgb, var(--dsw-alias-success,#2a8b43) 10%, transparent);color:var(--dsw-alias-success,#23692f)}.o5Ki4a_actions{justify-content:flex-end;gap:8px;display:flex}.o5Ki4a_button{border:1px solid var(--dsw-alias-border-l2,#d5d9de);color:inherit;font:inherit;cursor:pointer;background:0 0;border-radius:6px;padding:6px 14px}.o5Ki4a_button:disabled{opacity:.6;cursor:default}.o5Ki4a_primary{background:var(--dsw-alias-primary,#2563eb);border-color:var(--dsw-alias-primary,#2563eb);color:#fff}.o5Ki4a_secondary{background:0 0}@media (width<=700px){.o5Ki4a_grid{grid-template-columns:1fr}}";
-		const tagId$5 = "dsh-soc-agent-client/CatalogToolview.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$5) + "]") === null) {
+		const css$4 = ".o5Ki4a_card{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-primary,#fff);color:var(--dsw-alias-text-primary,#1c2024);border-radius:10px;flex-direction:column;gap:12px;margin:8px 0;padding:16px;font-size:13px;display:flex}.o5Ki4a_header{justify-content:space-between;gap:12px;display:flex}.o5Ki4a_title{font-size:15px;font-weight:600}.o5Ki4a_subtitle{color:var(--dsw-alias-text-secondary,#5c6470);margin-top:2px;font-size:12px}.o5Ki4a_content{flex-direction:column;gap:12px;display:flex}.o5Ki4a_grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px 14px;display:grid}.o5Ki4a_field{flex-direction:column;gap:4px;min-width:0;display:flex}.o5Ki4a_fieldInvalid .o5Ki4a_input,.o5Ki4a_fieldInvalid .o5Ki4a_textarea,.o5Ki4a_fieldInvalid .o5Ki4a_select{border-color:var(--dsw-alias-danger,#d33)}.o5Ki4a_label{color:var(--dsw-alias-text-secondary,#5c6470);text-transform:capitalize;font-size:11px}.o5Ki4a_fieldError{color:var(--dsw-alias-danger,#d33);font-size:11px}.o5Ki4a_input,.o5Ki4a_textarea,.o5Ki4a_select{border:1px solid var(--dsw-alias-border-l2,#d5d9de);background:var(--dsw-alias-surface-secondary,#fafbfc);width:100%;color:inherit;font:inherit;box-sizing:border-box;border-radius:6px;padding:6px 8px}.o5Ki4a_textarea{resize:vertical;min-height:64px}.o5Ki4a_message{border-radius:6px;padding:8px 10px;font-size:12px}.o5Ki4a_error{background:color-mix(in srgb, var(--dsw-alias-danger,#d33) 10%, transparent);color:var(--dsw-alias-danger,#a00)}.o5Ki4a_success{background:color-mix(in srgb, var(--dsw-alias-success,#2a8b43) 10%, transparent);color:var(--dsw-alias-success,#23692f)}.o5Ki4a_actions{justify-content:flex-end;gap:8px;display:flex}.o5Ki4a_button{border:1px solid var(--dsw-alias-border-l2,#d5d9de);color:inherit;font:inherit;cursor:pointer;background:0 0;border-radius:6px;padding:6px 14px}.o5Ki4a_button:disabled{opacity:.6;cursor:default}.o5Ki4a_primary{background:var(--dsw-alias-primary,#2563eb);border-color:var(--dsw-alias-primary,#2563eb);color:#fff}.o5Ki4a_secondary{background:0 0}@media (width<=700px){.o5Ki4a_grid{grid-template-columns:1fr}}";
+		const tagId$4 = "dsh-soc-agent-client/CatalogToolview.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$4) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$5;
-			tag.textContent = css$5;
+			tag.dataset.pluginCss = tagId$4;
+			tag.textContent = css$4;
 			document.head.appendChild(tag);
 		}
 		var CatalogToolview_module_css_default = {
@@ -3022,13 +3406,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/EmailDraftToolview.module.css.mjs
-		const css$4 = "._2F_7Mq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}._2F_7Mq_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}._2F_7Mq_title{font-weight:600}._2F_7Mq_account{color:var(--dsw-alias-text-l2);font-size:12px}._2F_7Mq_content{gap:9px;padding:12px;display:grid}._2F_7Mq_field{gap:4px;display:grid}._2F_7Mq_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}._2F_7Mq_input,._2F_7Mq_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}._2F_7Mq_textarea{resize:vertical;min-height:180px;line-height:1.45}._2F_7Mq_input:focus,._2F_7Mq_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}._2F_7Mq_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}._2F_7Mq_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}._2F_7Mq_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}._2F_7Mq_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}._2F_7Mq_primary:hover{background:#1d4ed8;border-color:#1d4ed8}._2F_7Mq_danger{color:#fff;background:#dc2626;border-color:#dc2626}._2F_7Mq_danger:hover{background:#b91c1c;border-color:#b91c1c}._2F_7Mq_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}._2F_7Mq_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}._2F_7Mq_button:disabled{cursor:wait;opacity:.6}._2F_7Mq_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}._2F_7Mq_error{color:var(--dsw-alias-danger,#b42318)}";
-		const tagId$4 = "dsh-soc-agent-client/EmailDraftToolview.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$4) + "]") === null) {
+		const css$3 = "._2F_7Mq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}._2F_7Mq_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}._2F_7Mq_title{font-weight:600}._2F_7Mq_account{color:var(--dsw-alias-text-l2);font-size:12px}._2F_7Mq_content{gap:9px;padding:12px;display:grid}._2F_7Mq_field{gap:4px;display:grid}._2F_7Mq_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}._2F_7Mq_input,._2F_7Mq_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}._2F_7Mq_textarea{resize:vertical;min-height:180px;line-height:1.45}._2F_7Mq_input:focus,._2F_7Mq_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}._2F_7Mq_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}._2F_7Mq_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}._2F_7Mq_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}._2F_7Mq_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}._2F_7Mq_primary:hover{background:#1d4ed8;border-color:#1d4ed8}._2F_7Mq_danger{color:#fff;background:#dc2626;border-color:#dc2626}._2F_7Mq_danger:hover{background:#b91c1c;border-color:#b91c1c}._2F_7Mq_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}._2F_7Mq_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}._2F_7Mq_button:disabled{cursor:wait;opacity:.6}._2F_7Mq_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}._2F_7Mq_error{color:var(--dsw-alias-danger,#b42318)}";
+		const tagId$3 = "dsh-soc-agent-client/EmailDraftToolview.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$3) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$4;
-			tag.textContent = css$4;
+			tag.dataset.pluginCss = tagId$3;
+			tag.textContent = css$3;
 			document.head.appendChild(tag);
 		}
 		var EmailDraftToolview_module_css_default = {
@@ -3450,7 +3834,7 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region src/client/markitdownAttachments.ts
-		const CHANNEL$2 = "/soc-agent-config";
+		const CHANNEL$1 = "/soc-agent-config";
 		function bytesToBase64(bytes) {
 			let binary = "";
 			const chunk = 32768;
@@ -3541,7 +3925,7 @@ window.__ModuleLoader__.load({
 					this.aborts.set(id, localAbort);
 					try {
 						const bytes = new Uint8Array(await document.file.arrayBuffer());
-						const response = await this.connection.rpc.call(CHANNEL$2, "convert-attachment", {
+						const response = await this.connection.rpc.call(CHANNEL$1, "convert-attachment", {
 							filename: document.file.name,
 							content_type: document.file.type,
 							data: bytesToBase64(bytes),
@@ -3613,13 +3997,13 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/MarkItDownDocuments.module.css.mjs
-		const css$3 = ".Lt34_a_rail{flex-wrap:wrap;gap:8px;padding:10px 12px 0;display:flex}.Lt34_a_item{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);min-width:0;max-width:min(100%,360px);color:var(--dsw-alias-label-primary);border-radius:8px;align-items:center;gap:7px;padding:6px 8px;font-size:13px;line-height:20px;display:inline-flex}.Lt34_a_icon{flex:none;font-size:14px;line-height:1}.Lt34_a_name{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}.Lt34_a_status{color:var(--dsw-alias-label-tertiary);white-space:nowrap;flex:none;font-size:12px}.Lt34_a_remove{width:20px;height:20px;color:var(--dsw-alias-label-tertiary);font:inherit;cursor:pointer;background:0 0;border:0;border-radius:50%;flex:none;padding:0;font-size:18px;line-height:18px}.Lt34_a_remove:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.Lt34_a_remove:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
-		const tagId$3 = "dsh-soc-agent-client/MarkItDownDocuments.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$3) + "]") === null) {
+		const css$2 = ".Lt34_a_rail{flex-wrap:wrap;gap:8px;padding:10px 12px 0;display:flex}.Lt34_a_item{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);min-width:0;max-width:min(100%,360px);color:var(--dsw-alias-label-primary);border-radius:8px;align-items:center;gap:7px;padding:6px 8px;font-size:13px;line-height:20px;display:inline-flex}.Lt34_a_icon{flex:none;font-size:14px;line-height:1}.Lt34_a_name{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}.Lt34_a_status{color:var(--dsw-alias-label-tertiary);white-space:nowrap;flex:none;font-size:12px}.Lt34_a_remove{width:20px;height:20px;color:var(--dsw-alias-label-tertiary);font:inherit;cursor:pointer;background:0 0;border:0;border-radius:50%;flex:none;padding:0;font-size:18px;line-height:18px}.Lt34_a_remove:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.Lt34_a_remove:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
+		const tagId$2 = "dsh-soc-agent-client/MarkItDownDocuments.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$2) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$3;
-			tag.textContent = css$3;
+			tag.dataset.pluginCss = tagId$2;
+			tag.textContent = css$2;
 			document.head.appendChild(tag);
 		}
 		var MarkItDownDocuments_module_css_default = {
@@ -3691,13 +4075,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/MarkItDownAttachmentSettings.module.css.mjs
-		const css$2 = ".TdgZiW_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.TdgZiW_card:hover,.TdgZiW_cardOpen{border-color:var(--dsw-alias-label-dimmed)}.TdgZiW_cardOpen{background:var(--dsw-alias-bg-layer-2)}.TdgZiW_header{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.TdgZiW_header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.TdgZiW_headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.TdgZiW_name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.TdgZiW_description,.TdgZiW_hint,.TdgZiW_invalid{font-size:12px;line-height:1.5}.TdgZiW_description,.TdgZiW_hint{color:var(--dsw-alias-label-tertiary)}.TdgZiW_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s}.TdgZiW_chevronOpen{transform:rotate(180deg)}.TdgZiW_body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding-bottom:8px}.TdgZiW_field{flex-direction:column;gap:6px;padding:12px 0;display:flex}.TdgZiW_field+.TdgZiW_field{border-top:1px solid var(--dsw-alias-border-l2)}.TdgZiW_fieldHead{align-items:center;gap:8px;display:flex}.TdgZiW_fieldLabel{min-width:0;color:var(--dsw-alias-label-primary);flex:1;font-size:13px;font-weight:500;line-height:1.5}.TdgZiW_badges{align-items:center;gap:8px;display:inline-flex}.TdgZiW_badge{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);white-space:nowrap;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}.TdgZiW_reset{color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border:0;padding:0;font-size:12px;line-height:1.5}.TdgZiW_reset:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.TdgZiW_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);width:100%;height:34px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 12px;font-size:13px;line-height:1.5}.TdgZiW_input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}.TdgZiW_input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}.TdgZiW_inputInvalid{border-color:var(--dsw-alias-label-error)}.TdgZiW_hint,.TdgZiW_invalid,.TdgZiW_failed{margin:0}.TdgZiW_invalid,.TdgZiW_failed{color:var(--dsw-alias-label-error)}.TdgZiW_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px;display:flex}.TdgZiW_failed{flex:1;min-width:0;font-size:12px;line-height:1.5}.TdgZiW_discard,.TdgZiW_save{font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}.TdgZiW_discard{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:0 0}.TdgZiW_save{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.TdgZiW_discard:disabled,.TdgZiW_save:disabled{opacity:.4;cursor:default}.TdgZiW_discard:focus-visible,.TdgZiW_save:focus-visible,.TdgZiW_reset:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
-		const tagId$2 = "dsh-soc-agent-client/MarkItDownAttachmentSettings.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$2) + "]") === null) {
+		const css$1 = ".TdgZiW_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.TdgZiW_card:hover,.TdgZiW_cardOpen{border-color:var(--dsw-alias-label-dimmed)}.TdgZiW_cardOpen{background:var(--dsw-alias-bg-layer-2)}.TdgZiW_header{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.TdgZiW_header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.TdgZiW_headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.TdgZiW_name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.TdgZiW_description,.TdgZiW_hint,.TdgZiW_invalid{font-size:12px;line-height:1.5}.TdgZiW_description,.TdgZiW_hint{color:var(--dsw-alias-label-tertiary)}.TdgZiW_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s}.TdgZiW_chevronOpen{transform:rotate(180deg)}.TdgZiW_body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding-bottom:8px}.TdgZiW_field{flex-direction:column;gap:6px;padding:12px 0;display:flex}.TdgZiW_field+.TdgZiW_field{border-top:1px solid var(--dsw-alias-border-l2)}.TdgZiW_fieldHead{align-items:center;gap:8px;display:flex}.TdgZiW_fieldLabel{min-width:0;color:var(--dsw-alias-label-primary);flex:1;font-size:13px;font-weight:500;line-height:1.5}.TdgZiW_badges{align-items:center;gap:8px;display:inline-flex}.TdgZiW_badge{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);white-space:nowrap;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}.TdgZiW_reset{color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border:0;padding:0;font-size:12px;line-height:1.5}.TdgZiW_reset:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.TdgZiW_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);width:100%;height:34px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 12px;font-size:13px;line-height:1.5}.TdgZiW_input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}.TdgZiW_input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}.TdgZiW_inputInvalid{border-color:var(--dsw-alias-label-error)}.TdgZiW_hint,.TdgZiW_invalid,.TdgZiW_failed{margin:0}.TdgZiW_invalid,.TdgZiW_failed{color:var(--dsw-alias-label-error)}.TdgZiW_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px;display:flex}.TdgZiW_failed{flex:1;min-width:0;font-size:12px;line-height:1.5}.TdgZiW_discard,.TdgZiW_save{font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}.TdgZiW_discard{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:0 0}.TdgZiW_save{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.TdgZiW_discard:disabled,.TdgZiW_save:disabled{opacity:.4;cursor:default}.TdgZiW_discard:focus-visible,.TdgZiW_save:focus-visible,.TdgZiW_reset:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
+		const tagId$1 = "dsh-soc-agent-client/MarkItDownAttachmentSettings.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$2;
-			tag.textContent = css$2;
+			tag.dataset.pluginCss = tagId$1;
+			tag.textContent = css$1;
 			document.head.appendChild(tag);
 		}
 		var MarkItDownAttachmentSettings_module_css_default = {
@@ -3863,7 +4247,7 @@ window.__ModuleLoader__.load({
 				]
 			});
 		}
-		function Chevron$1({ open }) {
+		function Chevron({ open }) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
 				className: open ? `${MarkItDownAttachmentSettings_module_css_default.chevron} ${MarkItDownAttachmentSettings_module_css_default.chevronOpen}` : MarkItDownAttachmentSettings_module_css_default.chevron,
 				width: "14",
@@ -3899,7 +4283,7 @@ window.__ModuleLoader__.load({
 							className: MarkItDownAttachmentSettings_module_css_default.description,
 							children: "Upload files and send their readable text to the AI."
 						})]
-					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Chevron$1, { open })]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Chevron, { open })]
 				}), open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: MarkItDownAttachmentSettings_module_css_default.body,
 					children: [
@@ -3977,314 +4361,6 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SocActionApprovalSettings.module.css.mjs
-		const css$1 = ".T0RV3q_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none}.T0RV3q_cardOpen{border-color:var(--dsw-alias-label-dimmed);background:var(--dsw-alias-bg-layer-2)}.T0RV3q_header{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.T0RV3q_header:focus-visible,.T0RV3q_checkbox:focus-visible,.T0RV3q_shortcut:focus-visible,.T0RV3q_reset:focus-visible,.T0RV3q_discard:focus-visible,.T0RV3q_save:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.T0RV3q_headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.T0RV3q_name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.T0RV3q_description,.T0RV3q_hint,.T0RV3q_status{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.5}.T0RV3q_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s}.T0RV3q_chevronOpen{transform:rotate(180deg)}.T0RV3q_body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding:12px 0 8px}.T0RV3q_explanation,.T0RV3q_status,.T0RV3q_failed{margin:0 0 12px}.T0RV3q_groups{gap:14px;display:grid}.T0RV3q_group{border:0;min-width:0;margin:0;padding:0}.T0RV3q_groupTitle{color:var(--dsw-alias-label-secondary);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px;font-size:12px;font-weight:600;line-height:1.5}.T0RV3q_action{color:var(--dsw-alias-label-primary);cursor:pointer;align-items:flex-start;gap:9px;padding:5px 0;font-size:13px;line-height:1.4;display:flex}.T0RV3q_checkbox{width:16px;height:16px;accent-color:var(--dsw-alias-brand-primary);flex:none;margin:1px 0 0}.T0RV3q_actionText{flex-direction:column;min-width:0;display:flex}.T0RV3q_actionName{font-weight:500}.T0RV3q_actionTool{overflow-wrap:anywhere;color:var(--dsw-alias-label-tertiary);font-family:var(--ds-font-family-code);font-size:11px}.T0RV3q_shortcuts{border-top:1px solid var(--dsw-alias-border-l2);flex-wrap:wrap;gap:8px;margin-top:16px;padding-top:12px;display:flex}.T0RV3q_shortcut,.T0RV3q_reset,.T0RV3q_discard,.T0RV3q_save{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border-radius:8px;padding:5px 12px;font-size:12px;line-height:1.5}.T0RV3q_shortcut:hover:not(:disabled),.T0RV3q_reset:hover:not(:disabled),.T0RV3q_discard:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed)}.T0RV3q_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;margin-top:12px;padding-top:12px;display:flex}.T0RV3q_failed{min-width:0;color:var(--dsw-alias-label-error);flex:1;font-size:12px;line-height:1.5}.T0RV3q_save{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3);border-color:#0000}.T0RV3q_shortcut:disabled,.T0RV3q_reset:disabled,.T0RV3q_discard:disabled,.T0RV3q_save:disabled{opacity:.4;cursor:default}";
-		const tagId$1 = "dsh-soc-agent-client/SocActionApprovalSettings.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
-			const tag = document.createElement("style");
-			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$1;
-			tag.textContent = css$1;
-			document.head.appendChild(tag);
-		}
-		var SocActionApprovalSettings_module_css_default = {
-			"action": "T0RV3q_action",
-			"actionName": "T0RV3q_actionName",
-			"actionText": "T0RV3q_actionText",
-			"actionTool": "T0RV3q_actionTool",
-			"body": "T0RV3q_body",
-			"card": "T0RV3q_card",
-			"cardOpen": "T0RV3q_cardOpen",
-			"checkbox": "T0RV3q_checkbox",
-			"chevron": "T0RV3q_chevron",
-			"chevronOpen": "T0RV3q_chevronOpen",
-			"description": "T0RV3q_description",
-			"discard": "T0RV3q_discard",
-			"explanation": "T0RV3q_explanation",
-			"failed": "T0RV3q_failed",
-			"footer": "T0RV3q_footer",
-			"group": "T0RV3q_group",
-			"groupTitle": "T0RV3q_groupTitle",
-			"groups": "T0RV3q_groups",
-			"headText": "T0RV3q_headText",
-			"header": "T0RV3q_header",
-			"hint": "T0RV3q_hint",
-			"name": "T0RV3q_name",
-			"reset": "T0RV3q_reset",
-			"save": "T0RV3q_save",
-			"shortcut": "T0RV3q_shortcut",
-			"shortcuts": "T0RV3q_shortcuts",
-			"status": "T0RV3q_status"
-		};
-		//#endregion
-		//#region src/client/SocActionApprovalSettings.tsx
-		const CHANNEL$1 = "/soc-agent-config";
-		function validCatalog(value) {
-			if (!Array.isArray(value)) return [];
-			const seen = /* @__PURE__ */ new Set();
-			return value.flatMap((item) => {
-				if (!item || typeof item !== "object") return [];
-				const candidate = item;
-				if (typeof candidate.name !== "string" || typeof candidate.group !== "string" || typeof candidate.label !== "string") return [];
-				if (candidate.name.length === 0 || seen.has(candidate.name)) return [];
-				seen.add(candidate.name);
-				return [{
-					name: candidate.name,
-					group: candidate.group,
-					label: candidate.label
-				}];
-			});
-		}
-		function namesOf(value) {
-			return new Set(Array.isArray(value) ? value.filter((name) => typeof name === "string") : []);
-		}
-		var SocActionApprovalController = class {
-			connection;
-			scope;
-			actions = [];
-			catalogLoaded = false;
-			catalogFailed = false;
-			draft;
-			resetOnSave = false;
-			saving = false;
-			failed = false;
-			store;
-			constructor(connection, scope) {
-				this.connection = connection;
-				this.scope = scope;
-				this.store = (0, _deepseek_ai_dsh_client_runtime_client.createSnapshotStore)(this.state());
-				scope.subscribe(() => this.publish());
-				this.loadCatalog();
-			}
-			inject() {
-				return {
-					hooks: { socActionApproval: this.store },
-					toggle: (name, ask) => this.toggle(name, ask),
-					requireApprovalForAll: () => this.stage(/* @__PURE__ */ new Set(), true),
-					allowAllKnownActions: () => this.stage(new Set(this.actions.map((action) => action.name)), false),
-					reset: () => this.stage(/* @__PURE__ */ new Set(), true),
-					save: () => {
-						this.save();
-					},
-					discard: () => {
-						this.draft = void 0;
-						this.resetOnSave = false;
-						this.failed = false;
-						this.publish();
-					}
-				};
-			}
-			async loadCatalog() {
-				try {
-					const response = await this.connection.rpc.call(CHANNEL$1, "get-action-catalog", {});
-					if (!response?.ok) throw new Error("catalog");
-					const actions = validCatalog(response.value?.actions);
-					if (actions.length === 0) throw new Error("catalog");
-					this.actions = actions;
-					this.catalogLoaded = true;
-				} catch {
-					this.catalogFailed = true;
-				}
-				this.publish();
-			}
-			toggle(name, ask) {
-				if (!this.actions.some((action) => action.name === name)) return;
-				const next = this.draft === void 0 ? namesOf(this.scope.getSnapshot().value?.autoApproveActions) : new Set(this.draft);
-				if (ask) next.delete(name);
-				else next.add(name);
-				this.stage(next, false);
-			}
-			stage(actions, resetOnSave) {
-				this.draft = actions;
-				this.resetOnSave = resetOnSave;
-				this.failed = false;
-				this.publish();
-			}
-			async save() {
-				const state = this.state();
-				if (this.saving || !state.writable || !state.dirty || state.invalid) return;
-				this.saving = true;
-				this.publish();
-				try {
-					if (this.resetOnSave) await this.scope.unset("autoApproveActions");
-					else await this.scope.set("autoApproveActions", [...this.draft ?? /* @__PURE__ */ new Set()]);
-					this.draft = void 0;
-					this.resetOnSave = false;
-					this.failed = false;
-				} catch {
-					this.failed = true;
-				} finally {
-					this.saving = false;
-					this.publish();
-				}
-			}
-			state() {
-				const snapshot = this.scope.getSnapshot();
-				const saved = namesOf(snapshot.value?.autoApproveActions);
-				const autoApproveActions = this.draft === void 0 ? saved : this.draft;
-				return {
-					available: snapshot.status !== "unavailable",
-					writable: snapshot.writable,
-					dirty: this.draft !== void 0,
-					invalid: this.catalogFailed,
-					saving: this.saving,
-					failed: this.failed,
-					catalogLoaded: this.catalogLoaded,
-					catalogFailed: this.catalogFailed,
-					actions: this.actions,
-					autoApproveActions: [...autoApproveActions]
-				};
-			}
-			publish() {
-				this.store.set(this.state());
-			}
-		};
-		function Chevron({ open }) {
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
-				className: open ? `${SocActionApprovalSettings_module_css_default.chevron} ${SocActionApprovalSettings_module_css_default.chevronOpen}` : SocActionApprovalSettings_module_css_default.chevron,
-				width: "14",
-				height: "14",
-				viewBox: "0 0 14 14",
-				fill: "none",
-				"aria-hidden": "true",
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
-					d: "M11.8486 5.5L11.4238 5.92383L8.69727 8.65137C8.44157 8.90706 8.21562 9.13382 8.01172 9.29785C7.79912 9.46883 7.55595 9.61756 7.25 9.66602C7.08435 9.69222 6.91565 9.69222 6.75 9.66602C6.44405 9.61756 6.20088 9.46883 5.98828 9.29785C5.78438 9.13382 5.55843 8.90706 5.30273 8.65137L2.57617 5.92383L2.15137 5.5L3 4.65137L3.42383 5.07617L6.15137 7.80273C6.42595 8.07732 6.59876 8.24849 6.74023 8.3623C6.87291 8.46904 6.92272 8.47813 6.9375 8.48047C6.97895 8.48703 7.02105 8.48703 7.0625 8.48047C7.07728 8.47813 7.12709 8.46904 7.25977 8.3623C7.40124 8.24849 7.57405 8.07732 7.84863 7.80273L10.5762 5.07617L11 4.65137L11.8486 5.5Z",
-					fill: "currentColor"
-				})
-			});
-		}
-		function SocActionApprovalSettingsCard(props) {
-			const state = props.useSocActionApproval((value) => value);
-			const [open, setOpen] = (0, react.useState)(false);
-			if (!state.available) return null;
-			const disabled = !state.writable || state.saving || !state.catalogLoaded;
-			const auto = new Set(state.autoApproveActions);
-			const groups = [...new Set(state.actions.map((action) => action.group))];
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", {
-				className: open ? `${SocActionApprovalSettings_module_css_default.card} ${SocActionApprovalSettings_module_css_default.cardOpen}` : SocActionApprovalSettings_module_css_default.card,
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
-					className: SocActionApprovalSettings_module_css_default.header,
-					type: "button",
-					"aria-expanded": open,
-					"aria-label": `${open ? "Collapse" : "Expand"} settings: SOC action approvals`,
-					onClick: () => setOpen((value) => !value),
-					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
-						className: SocActionApprovalSettings_module_css_default.headText,
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: SocActionApprovalSettings_module_css_default.name,
-							children: "SOC action approvals"
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: SocActionApprovalSettings_module_css_default.description,
-							children: "Choose which SOC actions must ask before they run."
-						})]
-					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Chevron, { open })]
-				}), open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					className: SocActionApprovalSettings_module_css_default.body,
-					children: [
-						!state.writable && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: SocActionApprovalSettings_module_css_default.status,
-							role: "status",
-							children: "This deployment stores settings read-only."
-						}),
-						state.catalogFailed && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: SocActionApprovalSettings_module_css_default.failed,
-							role: "status",
-							children: "Could not load the SOC action catalog."
-						}),
-						!state.catalogLoaded && !state.catalogFailed && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: SocActionApprovalSettings_module_css_default.status,
-							role: "status",
-							children: "Loading actions…"
-						}),
-						state.catalogLoaded && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-								className: SocActionApprovalSettings_module_css_default.explanation,
-								children: "Checked actions ask for approval. Unchecked actions run automatically, while all server-side safety checks still apply."
-							}),
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-								className: SocActionApprovalSettings_module_css_default.groups,
-								children: groups.map((group) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
-									className: SocActionApprovalSettings_module_css_default.group,
-									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", {
-										className: SocActionApprovalSettings_module_css_default.groupTitle,
-										children: group
-									}), state.actions.filter((action) => action.group === group).map((action) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-										className: SocActionApprovalSettings_module_css_default.action,
-										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-											className: SocActionApprovalSettings_module_css_default.checkbox,
-											type: "checkbox",
-											checked: !auto.has(action.name),
-											disabled,
-											onChange: (event) => props.toggle(action.name, event.currentTarget.checked)
-										}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
-											className: SocActionApprovalSettings_module_css_default.actionText,
-											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-												className: SocActionApprovalSettings_module_css_default.actionName,
-												children: action.label
-											}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-												className: SocActionApprovalSettings_module_css_default.actionTool,
-												children: action.name
-											})]
-										})]
-									}, action.name))]
-								}, group))
-							}),
-							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-								className: SocActionApprovalSettings_module_css_default.shortcuts,
-								children: [
-									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-										className: SocActionApprovalSettings_module_css_default.shortcut,
-										type: "button",
-										disabled,
-										onClick: props.requireApprovalForAll,
-										children: "Require approval for all"
-									}),
-									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-										className: SocActionApprovalSettings_module_css_default.shortcut,
-										type: "button",
-										disabled,
-										onClick: props.allowAllKnownActions,
-										children: "Allow all known actions"
-									}),
-									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-										className: SocActionApprovalSettings_module_css_default.reset,
-										type: "button",
-										disabled,
-										onClick: props.reset,
-										children: "Reset to default"
-									})
-								]
-							})
-						] }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							className: SocActionApprovalSettings_module_css_default.footer,
-							children: [
-								state.failed && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-									className: SocActionApprovalSettings_module_css_default.failed,
-									role: "status",
-									children: "Could not save these approval settings."
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									className: SocActionApprovalSettings_module_css_default.discard,
-									type: "button",
-									disabled: !state.dirty || state.saving,
-									onClick: props.discard,
-									children: "Discard"
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									className: SocActionApprovalSettings_module_css_default.save,
-									type: "button",
-									disabled: !state.dirty || state.invalid || state.saving || !state.catalogLoaded,
-									onClick: props.save,
-									children: state.saving ? "Saving…" : "Save"
-								})
-							]
-						})
-					]
-				})]
-			});
-		}
-		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SocActionPolicyMenu.module.css.mjs
 		const css = ".X9dZ8W_root{align-items:center;display:inline-flex;position:relative}.X9dZ8W_trigger{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:30px;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;border-radius:8px;align-items:center;gap:6px;padding:0 10px;font-size:12px;display:inline-flex}.X9dZ8W_trigger:hover,.X9dZ8W_trigger[aria-expanded=true]{border-color:var(--dsw-alias-label-dimmed);color:var(--dsw-alias-label-primary)}.X9dZ8W_trigger:focus-visible,.X9dZ8W_modeRadio:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.X9dZ8W_icon{font-size:15px;line-height:1}.X9dZ8W_panel{z-index:20;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:min(380px,100vw - 24px);max-height:min(70vh,560px);box-shadow:var(--dsw-shadow-lv2);border-radius:12px;padding:14px;position:absolute;bottom:calc(100% + 8px);right:0;overflow-y:auto}.X9dZ8W_error,.X9dZ8W_status{color:var(--dsw-alias-label-tertiary);margin:5px 0 0;font-size:11px;line-height:1.5}.X9dZ8W_error{color:var(--dsw-alias-label-error)}.X9dZ8W_modes{border:0;gap:7px;margin-top:12px;padding:0;display:grid}.X9dZ8W_modeLegend{color:var(--dsw-alias-label-secondary);margin:0 0 4px;font-size:11px;font-weight:600}.X9dZ8W_mode{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary);cursor:pointer;border-radius:8px;align-items:center;gap:8px;padding:8px 9px;font-size:12px;line-height:1.4;display:flex}.X9dZ8W_mode:hover{border-color:var(--dsw-alias-label-dimmed)}.X9dZ8W_modeRadio{width:15px;height:15px;accent-color:var(--dsw-alias-brand-primary);flex:none;margin:0}.X9dZ8W_modeText{gap:2px;display:grid}.X9dZ8W_modeLabel{color:var(--dsw-alias-label-primary);font-weight:600}.X9dZ8W_modeDescription{color:var(--dsw-alias-label-tertiary);font-size:11px}";
 		const tagId = "dsh-soc-agent-client/SocActionPolicyMenu.module.css";
@@ -4317,17 +4393,20 @@ window.__ModuleLoader__.load({
 			if (!value || typeof value !== "object") return void 0;
 			const candidate = value;
 			const actions = validCatalog(candidate.actions);
-			const autoApproveActions = Array.isArray(candidate.autoApproveActions) ? candidate.autoApproveActions.filter((name) => typeof name === "string" && actions.some((action) => action.name === name)) : [];
 			const source = candidate.source === "session" ? "session" : "defaults";
+			const autoApproveActions = Array.isArray(candidate.autoApproveActions) ? candidate.autoApproveActions.filter((name) => typeof name === "string" && actions.some((action) => action.name === name)) : [];
+			const actionStates = candidate.actionStates && typeof candidate.actionStates === "object" && !Array.isArray(candidate.actionStates) ? Object.fromEntries(Object.entries(candidate.actionStates).filter((entry) => entry[1] === "ask" || entry[1] === "auto" || entry[1] === "disabled")) : {};
+			const mode = candidate.mode === "full" || candidate.mode === "soc" ? candidate.mode : source === "session" && autoApproveActions.length === 0 ? "full" : "soc";
 			return actions.length === 0 ? void 0 : {
 				actions,
+				mode,
+				actionStates,
 				autoApproveActions,
 				source
 			};
 		}
 		function modeOf(policy) {
-			if (policy.source === "defaults") return "soc";
-			return policy.autoApproveActions.length === 0 ? "ask" : "soc";
+			return policy.mode;
 		}
 		function SocActionPolicyMenu({ connection, sessionId }) {
 			const [open, setOpen] = (0, react.useState)(false);
@@ -4360,7 +4439,7 @@ window.__ModuleLoader__.load({
 			const selectedMode = draftMode ?? currentMode;
 			const selectMode = async (mode) => {
 				if (policy === void 0 || saving) return;
-				if (mode === currentMode && !(mode === "soc" && policy.source === "session")) {
+				if (mode === currentMode && policy.source === "session") {
 					setOpen(false);
 					return;
 				}
@@ -4368,9 +4447,9 @@ window.__ModuleLoader__.load({
 				setSaving(true);
 				setError(void 0);
 				try {
-					const response = mode === "soc" ? await connection.rpc.call(CHANNEL, "reset-session-action-policy", { session_id: String(sessionId) }) : await connection.rpc.call(CHANNEL, "set-session-action-policy", {
+					const response = await connection.rpc.call(CHANNEL, "set-session-action-policy", {
 						session_id: String(sessionId),
-						auto_approve_actions: []
+						mode
 					});
 					if (!response?.ok) throw new Error(response?.error?.message || "The session action policy could not be saved.");
 					const next = parsePolicy(response.value);
@@ -4384,7 +4463,7 @@ window.__ModuleLoader__.load({
 					setSaving(false);
 				}
 			};
-			const modeLabel = selectedMode === "ask" ? "Ask for approval" : "SOC mode";
+			const modeLabel = selectedMode === "full" ? "Full access" : "SOC mode";
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: SocActionPolicyMenu_module_css_default.root,
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
@@ -4426,20 +4505,19 @@ window.__ModuleLoader__.load({
 										className: SocActionPolicyMenu_module_css_default.modeRadio,
 										type: "radio",
 										name: `soc-action-mode-${String(sessionId)}`,
-										checked: selectedMode === "ask",
-										readOnly: true,
+										checked: selectedMode === "full",
 										disabled: saving,
-										onClick: () => {
-											selectMode("ask");
+										onChange: () => {
+											selectMode("full");
 										}
 									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 										className: SocActionPolicyMenu_module_css_default.modeText,
 										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 											className: SocActionPolicyMenu_module_css_default.modeLabel,
-											children: "Ask for approval"
+											children: "Full access"
 										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 											className: SocActionPolicyMenu_module_css_default.modeDescription,
-											children: "Ask before every known SOC action."
+											children: "Run permitted actions directly; protected operations still require confirmation."
 										})]
 									})]
 								}),
@@ -4450,9 +4528,8 @@ window.__ModuleLoader__.load({
 										type: "radio",
 										name: `soc-action-mode-${String(sessionId)}`,
 										checked: selectedMode === "soc",
-										readOnly: true,
 										disabled: saving,
-										onClick: () => {
+										onChange: () => {
 											selectMode("soc");
 										}
 									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
@@ -4462,7 +4539,7 @@ window.__ModuleLoader__.load({
 											children: "SOC mode"
 										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 											className: SocActionPolicyMenu_module_css_default.modeDescription,
-											children: "Use the approval checklist from Settings → Plugins."
+											children: "Use the deployment checklist from Admin → Access & approvals."
 										})]
 									})]
 								})
@@ -4472,800 +4549,6 @@ window.__ModuleLoader__.load({
 				})]
 			});
 		}
-		//#endregion
-		//#region ../../vendor/deepseek-harness/vendor/cosmokit/lib/index.js
-		/** Return true when a value is `null` or `undefined`. */
-		function isNullable(value) {
-			return value === null || value === void 0;
-		}
-		/** Return true for non-array object values. */
-		function isPlainObject(data) {
-			return data && typeof data === "object" && !Array.isArray(data);
-		}
-		/** Filter object entries and return a new object. */
-		function filterKeys(object, filter) {
-			return Object.fromEntries(Object.entries(object).filter(([key, value]) => filter(key, value)));
-		}
-		/** Map object values while preserving the original key set. */
-		function mapValues(object, transform) {
-			return Object.fromEntries(Object.entries(object).map(([key, value]) => [key, transform(value, key)]));
-		}
-		/** Pick selected keys from an object, optionally including `undefined` values. */
-		function pick(source, keys, forced) {
-			if (!keys) return { ...source };
-			const result = {};
-			for (const key of keys) if (forced || source[key] !== void 0) result[key] = source[key];
-			return result;
-		}
-		/** Test values using `instanceof` with a `toStringTag` fallback. */
-		function is(type, value) {
-			if (arguments.length === 1) return (value) => is(type, value);
-			return type in globalThis && value instanceof globalThis[type] || Object.prototype.toString.call(value).slice(8, -1) === type;
-		}
-		function isArrayBufferLike(value) {
-			return is("ArrayBuffer", value) || is("SharedArrayBuffer", value);
-		}
-		function isArrayBufferSource(value) {
-			return isArrayBufferLike(value) || ArrayBuffer.isView(value);
-		}
-		/** Binary source detection and base64/hex conversion helpers. */
-		var Binary;
-		(function(Binary) {
-			Binary.is = isArrayBufferLike;
-			Binary.isSource = isArrayBufferSource;
-			function fromSource(source) {
-				if (ArrayBuffer.isView(source)) return source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength);
-				else return source;
-			}
-			Binary.fromSource = fromSource;
-			function toBase64(source) {
-				source = fromSource(source);
-				if (typeof Buffer !== "undefined") return Buffer.from(source).toString("base64");
-				let binary = "";
-				const bytes = new Uint8Array(source);
-				for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-				return btoa(binary);
-			}
-			Binary.toBase64 = toBase64;
-			function fromBase64(source) {
-				if (typeof Buffer !== "undefined") return fromSource(Buffer.from(source, "base64"));
-				return Uint8Array.from(atob(source), (c) => c.charCodeAt(0));
-			}
-			Binary.fromBase64 = fromBase64;
-			function toHex(source) {
-				source = fromSource(source);
-				if (typeof Buffer !== "undefined") return Buffer.from(source).toString("hex");
-				return Array.from(new Uint8Array(source), (byte) => byte.toString(16).padStart(2, "0")).join("");
-			}
-			Binary.toHex = toHex;
-			function fromHex(source) {
-				if (typeof Buffer !== "undefined") return fromSource(Buffer.from(source, "hex"));
-				const hex = source.length % 2 === 0 ? source : source.slice(0, source.length - 1);
-				const buffer = [];
-				for (let i = 0; i < hex.length; i += 2) buffer.push(parseInt(`${hex[i]}${hex[i + 1]}`, 16));
-				return Uint8Array.from(buffer).buffer;
-			}
-			Binary.fromHex = fromHex;
-		})(Binary || (Binary = {}));
-		Binary.fromBase64;
-		Binary.toBase64;
-		Binary.fromHex;
-		Binary.toHex;
-		/** Deep-clone common JavaScript values while preserving prototypes and cycles. */
-		function clone(source, refs = /* @__PURE__ */ new Map()) {
-			if (!source || typeof source !== "object") return source;
-			if (is("Date", source)) return new Date(source.valueOf());
-			if (is("RegExp", source)) return new RegExp(source.source, source.flags);
-			if (isArrayBufferLike(source)) return source.slice(0);
-			if (ArrayBuffer.isView(source)) return source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength);
-			const cached = refs.get(source);
-			if (cached) return cached;
-			if (Array.isArray(source)) {
-				const result = [];
-				refs.set(source, result);
-				source.forEach((value, index) => {
-					result[index] = Reflect.apply(clone, null, [value, refs]);
-				});
-				return result;
-			}
-			const result = Object.create(Object.getPrototypeOf(source));
-			refs.set(source, result);
-			for (const key of Reflect.ownKeys(source)) {
-				const descriptor = { ...Reflect.getOwnPropertyDescriptor(source, key) };
-				if ("value" in descriptor) descriptor.value = Reflect.apply(clone, null, [descriptor.value, refs]);
-				Reflect.defineProperty(result, key, descriptor);
-			}
-			return result;
-		}
-		/** Deeply compare arrays, dates, regexps, buffers, and plain object fields. */
-		function deepEqual(a, b, strict) {
-			if (a === b) return true;
-			if (!strict && isNullable(a) && isNullable(b)) return true;
-			if (typeof a !== typeof b) return false;
-			if (typeof a !== "object") return false;
-			if (!a || !b) return false;
-			function check(test, then) {
-				return test(a) ? test(b) ? then(a, b) : false : test(b) ? false : void 0;
-			}
-			return check(Array.isArray, (a, b) => a.length === b.length && a.every((item, index) => deepEqual(item, b[index]))) ?? check(is("Date"), (a, b) => a.valueOf() === b.valueOf()) ?? check(is("RegExp"), (a, b) => a.source === b.source && a.flags === b.flags) ?? check(isArrayBufferLike, (a, b) => {
-				if (a.byteLength !== b.byteLength) return false;
-				const viewA = new Uint8Array(a);
-				const viewB = new Uint8Array(b);
-				for (let i = 0; i < viewA.length; i++) if (viewA[i] !== viewB[i]) return false;
-				return true;
-			}) ?? Object.keys({
-				...a,
-				...b
-			}).every((key) => deepEqual(a[key], b[key], strict));
-		}
-		/** Time constants plus parsing and formatting helpers. */
-		var Time;
-		(function(Time) {
-			Time.millisecond = 1;
-			Time.second = 1e3;
-			Time.minute = Time.second * 60;
-			Time.hour = Time.minute * 60;
-			Time.day = Time.hour * 24;
-			Time.week = Time.day * 7;
-			let timezoneOffset = (/* @__PURE__ */ new Date()).getTimezoneOffset();
-			function setTimezoneOffset(offset) {
-				timezoneOffset = offset;
-			}
-			Time.setTimezoneOffset = setTimezoneOffset;
-			function getTimezoneOffset() {
-				return timezoneOffset;
-			}
-			Time.getTimezoneOffset = getTimezoneOffset;
-			function getDateNumber(date = /* @__PURE__ */ new Date(), offset) {
-				if (typeof date === "number") date = new Date(date);
-				if (offset === void 0) offset = timezoneOffset;
-				return Math.floor((date.valueOf() / Time.minute - offset) / 1440);
-			}
-			Time.getDateNumber = getDateNumber;
-			function fromDateNumber(value, offset) {
-				const date = new Date(value * Time.day);
-				if (offset === void 0) offset = timezoneOffset;
-				return new Date(+date + offset * Time.minute);
-			}
-			Time.fromDateNumber = fromDateNumber;
-			const numeric = /\d+(?:\.\d+)?/.source;
-			const timeRegExp = new RegExp(`^${[
-				"w(?:eek(?:s)?)?",
-				"d(?:ay(?:s)?)?",
-				"h(?:our(?:s)?)?",
-				"m(?:in(?:ute)?(?:s)?)?",
-				"s(?:ec(?:ond)?(?:s)?)?"
-			].map((unit) => `(${numeric}${unit})?`).join("")}$`);
-			function parseTime(source) {
-				const capture = timeRegExp.exec(source);
-				if (!capture) return 0;
-				return (parseFloat(capture[1]) * Time.week || 0) + (parseFloat(capture[2]) * Time.day || 0) + (parseFloat(capture[3]) * Time.hour || 0) + (parseFloat(capture[4]) * Time.minute || 0) + (parseFloat(capture[5]) * Time.second || 0);
-			}
-			Time.parseTime = parseTime;
-			function parseDate(date) {
-				const parsed = parseTime(date);
-				if (parsed) date = Date.now() + parsed;
-				else if (/^\d{1,2}(:\d{1,2}){1,2}$/.test(date)) date = `${(/* @__PURE__ */ new Date()).toLocaleDateString()}-${date}`;
-				else if (/^\d{1,2}-\d{1,2}-\d{1,2}(:\d{1,2}){1,2}$/.test(date)) date = `${(/* @__PURE__ */ new Date()).getFullYear()}-${date}`;
-				return date ? new Date(date) : /* @__PURE__ */ new Date();
-			}
-			Time.parseDate = parseDate;
-			function format(ms) {
-				const abs = Math.abs(ms);
-				if (abs >= Time.day - Time.hour / 2) return Math.round(ms / Time.day) + "d";
-				else if (abs >= Time.hour - Time.minute / 2) return Math.round(ms / Time.hour) + "h";
-				else if (abs >= Time.minute - Time.second / 2) return Math.round(ms / Time.minute) + "m";
-				else if (abs >= Time.second) return Math.round(ms / Time.second) + "s";
-				return ms + "ms";
-			}
-			Time.format = format;
-			function toDigits(source, length = 2) {
-				return source.toString().padStart(length, "0");
-			}
-			Time.toDigits = toDigits;
-			function template(template, time = /* @__PURE__ */ new Date()) {
-				return template.replace("yyyy", time.getFullYear().toString()).replace("yy", time.getFullYear().toString().slice(2)).replace("MM", toDigits(time.getMonth() + 1)).replace("dd", toDigits(time.getDate())).replace("hh", toDigits(time.getHours())).replace("mm", toDigits(time.getMinutes())).replace("ss", toDigits(time.getSeconds())).replace("SSS", toDigits(time.getMilliseconds(), 3));
-			}
-			Time.template = template;
-		})(Time || (Time = {}));
-		//#endregion
-		//#region ../../vendor/deepseek-harness/vendor/schemastery/lib/index.mjs
-		const kSchema = Symbol.for("schemastery");
-		const kValidationError = Symbol.for("ValidationError");
-		globalThis.__schemastery_index__ ??= 0;
-		globalThis.__schemastery_refs__ = void 0;
-		var ValidationError = class extends TypeError {
-			options;
-			name = "ValidationError";
-			constructor(message, options) {
-				let prefix = "$";
-				for (const segment of options.path || []) if (typeof segment === "string") prefix += "." + segment;
-				else if (typeof segment === "number") prefix += "[" + segment + "]";
-				else if (typeof segment === "symbol") prefix += `[Symbol(${segment.toString()})]`;
-				if (prefix.startsWith(".")) prefix = prefix.slice(1);
-				super((prefix === "$" ? "" : `${prefix} `) + message);
-				this.options = options;
-			}
-			static is(error) {
-				return !!error?.[kValidationError];
-			}
-		};
-		Object.defineProperty(ValidationError.prototype, kValidationError, { value: true });
-		const Schema = function(options) {
-			const schema = function(data, options = {}) {
-				return Schema.resolve(data, schema, options)[0];
-			};
-			if (options.refs) {
-				const refs = mapValues(options.refs, (options) => new Schema(options));
-				const getRef = (uid) => refs[uid];
-				for (const key in refs) {
-					const options = refs[key];
-					options.sKey = getRef(options.sKey);
-					options.inner = getRef(options.inner);
-					options.list = options.list && options.list.map(getRef);
-					options.dict = options.dict && mapValues(options.dict, getRef);
-				}
-				return refs[options.uid];
-			}
-			Object.assign(schema, options);
-			if (typeof schema.callback === "string") try {
-				schema.callback = new Function("return " + schema.callback)();
-			} catch {}
-			Object.defineProperty(schema, "uid", { value: globalThis.__schemastery_index__++ });
-			Object.setPrototypeOf(schema, Schema.prototype);
-			schema.meta ||= {};
-			schema.toString = schema.toString.bind(schema);
-			return schema;
-		};
-		Schema.prototype = Object.create(Function.prototype);
-		Schema.prototype[kSchema] = true;
-		Object.defineProperty(Schema.prototype, "~standard", { get() {
-			return {
-				version: 1,
-				vendor: "schemastery",
-				validate: (value) => {
-					try {
-						return { value: Schema.resolve(value, this, {})[0] };
-					} catch (error) {
-						if (ValidationError.is(error)) return { issues: [{
-							message: error.message,
-							path: error.options.path
-						}] };
-						throw error;
-					}
-				}
-			};
-		} });
-		Schema.ValidationError = ValidationError;
-		Schema.prototype.toJSON = function toJSON() {
-			if (globalThis.__schemastery_refs__) {
-				globalThis.__schemastery_refs__[this.uid] ??= JSON.parse(JSON.stringify({ ...this }));
-				return this.uid;
-			}
-			globalThis.__schemastery_refs__ = { [this.uid]: { ...this } };
-			globalThis.__schemastery_refs__[this.uid] = JSON.parse(JSON.stringify({ ...this }));
-			const result = {
-				uid: this.uid,
-				refs: globalThis.__schemastery_refs__
-			};
-			globalThis.__schemastery_refs__ = void 0;
-			return result;
-		};
-		Schema.prototype.set = function set(key, value) {
-			this.dict[key] = value;
-			return this;
-		};
-		Schema.prototype.push = function push(value) {
-			this.list.push(value);
-			return this;
-		};
-		function mergeDesc(original, messages) {
-			const result = typeof original === "string" ? { "": original } : { ...original };
-			for (const locale in messages) {
-				const value = messages[locale];
-				if (value?.$description || value?.$desc) result[locale] = value.$description || value.$desc;
-				else if (typeof value === "string") result[locale] = value;
-			}
-			return result;
-		}
-		function getInner(value) {
-			return value?.$value ?? value?.$inner;
-		}
-		function extractKeys(data) {
-			return filterKeys(data ?? {}, (key) => !key.startsWith("$"));
-		}
-		Schema.prototype.i18n = function i18n(messages) {
-			const schema = Schema(this);
-			const desc = mergeDesc(schema.meta.description, messages);
-			if (Object.keys(desc).length) schema.meta.description = desc;
-			if (schema.dict) schema.dict = mapValues(schema.dict, (inner, key) => {
-				return inner.i18n(mapValues(messages, (data) => getInner(data)?.[key] ?? data?.[key]));
-			});
-			if (schema.list) schema.list = schema.list.map((inner, index) => {
-				return inner.i18n(mapValues(messages, (data = {}) => {
-					if (Array.isArray(getInner(data))) return getInner(data)[index];
-					if (Array.isArray(data)) return data[index];
-					return extractKeys(data);
-				}));
-			});
-			if (schema.inner) schema.inner = schema.inner.i18n(mapValues(messages, (data) => {
-				if (getInner(data)) return getInner(data);
-				return extractKeys(data);
-			}));
-			if (schema.sKey) schema.sKey = schema.sKey.i18n(mapValues(messages, (data) => data?.$key));
-			return schema;
-		};
-		Schema.prototype.extra = function extra(key, value) {
-			const schema = Schema(this);
-			schema.meta = {
-				...schema.meta,
-				[key]: value
-			};
-			return schema;
-		};
-		for (const key of [
-			"required",
-			"disabled",
-			"collapse",
-			"hidden",
-			"loose"
-		]) Object.assign(Schema.prototype, { [key](value = true) {
-			const schema = Schema(this);
-			schema.meta = {
-				...schema.meta,
-				[key]: value
-			};
-			return schema;
-		} });
-		Schema.prototype.deprecated = function deprecated() {
-			const schema = Schema(this);
-			schema.meta.badges ||= [];
-			schema.meta.badges.push({
-				text: "deprecated",
-				type: "danger"
-			});
-			return schema;
-		};
-		Schema.prototype.experimental = function experimental() {
-			const schema = Schema(this);
-			schema.meta.badges ||= [];
-			schema.meta.badges.push({
-				text: "experimental",
-				type: "warning"
-			});
-			return schema;
-		};
-		Schema.prototype.pattern = function pattern(regexp) {
-			const schema = Schema(this);
-			const pattern = pick(regexp, ["source", "flags"]);
-			schema.meta = {
-				...schema.meta,
-				pattern
-			};
-			return schema;
-		};
-		Schema.prototype.simplify = function simplify(value) {
-			if (deepEqual(value, this.meta.default, this.type === "dict")) return null;
-			if (isNullable(value)) return value;
-			if (this.type === "object" || this.type === "dict") {
-				const result = {};
-				for (const key in value) {
-					const item = (this.type === "object" ? this.dict[key] : this.inner)?.simplify(value[key]);
-					if (this.type === "dict" || !isNullable(item)) result[key] = item;
-				}
-				if (deepEqual(result, this.meta.default, this.type === "dict")) return null;
-				return result;
-			} else if (this.type === "array" || this.type === "tuple") {
-				const result = [];
-				value.forEach((value, index) => {
-					const schema = this.type === "array" ? this.inner : this.list[index];
-					const item = schema ? schema.simplify(value) : value;
-					result.push(item);
-				});
-				return result;
-			} else if (this.type === "intersect") {
-				const result = {};
-				for (const item of this.list) Object.assign(result, item.simplify(value));
-				return result;
-			} else if (this.type === "union") for (const schema of this.list) try {
-				Schema.resolve(value, schema, {});
-				return schema.simplify(value);
-			} catch {}
-			return value;
-		};
-		Schema.prototype.toString = function toString(inline) {
-			return formatters[this.type]?.(this, inline) ?? `Schema<${this.type}>`;
-		};
-		Schema.prototype.role = function role(role, extra) {
-			const schema = Schema(this);
-			schema.meta = {
-				...schema.meta,
-				role,
-				extra
-			};
-			return schema;
-		};
-		for (const key of [
-			"default",
-			"link",
-			"comment",
-			"description",
-			"max",
-			"min",
-			"step"
-		]) Object.assign(Schema.prototype, { [key](value) {
-			const schema = Schema(this);
-			schema.meta = {
-				...schema.meta,
-				[key]: value
-			};
-			return schema;
-		} });
-		const resolvers = {};
-		Schema.extend = function extend(type, resolve) {
-			resolvers[type] = resolve;
-		};
-		Schema.resolve = function resolve(data, schema, options = {}, strict = false) {
-			if (!schema) return [data];
-			if (options.ignore?.(data, schema)) return [data];
-			if (isNullable(data) && schema.type !== "lazy") {
-				if (schema.meta.required) throw new ValidationError(`missing required value`, options);
-				let current = schema;
-				let fallback = schema.meta.default;
-				while (current?.type === "intersect" && isNullable(fallback)) {
-					current = current.list[0];
-					fallback = current?.meta.default;
-				}
-				if (isNullable(fallback)) return [data];
-				data = clone(fallback);
-			}
-			const callback = resolvers[schema.type];
-			if (!callback) throw new ValidationError(`unsupported type "${schema.type}"`, options);
-			try {
-				return callback(data, schema, options, strict);
-			} catch (error) {
-				if (!schema.meta.loose) throw error;
-				return [schema.meta.default];
-			}
-		};
-		Schema.from = function from(source) {
-			if (isNullable(source)) return Schema.any();
-			else if ([
-				"string",
-				"number",
-				"boolean"
-			].includes(typeof source)) return Schema.const(source).required();
-			else if (source[kSchema]) return source;
-			else if (typeof source === "function") switch (source) {
-				case String: return Schema.string().required();
-				case Number: return Schema.number().required();
-				case Boolean: return Schema.boolean().required();
-				case Function: return Schema.function().required();
-				default: return Schema.is(source).required();
-			}
-			else throw new TypeError(`cannot infer schema from ${source}`);
-		};
-		Schema.lazy = function lazy(builder) {
-			const toJSON = () => {
-				if (!schema.inner[kSchema]) {
-					schema.inner = schema.builder();
-					schema.inner.meta = {
-						...schema.meta,
-						...schema.inner.meta
-					};
-				}
-				return schema.inner.toJSON();
-			};
-			const schema = new Schema({
-				type: "lazy",
-				builder,
-				inner: { toJSON }
-			});
-			return schema;
-		};
-		Schema.natural = function natural() {
-			return Schema.number().step(1).min(0);
-		};
-		Schema.percent = function percent() {
-			return Schema.number().step(.01).min(0).max(1).role("slider");
-		};
-		Schema.date = function date() {
-			return Schema.union([Schema.is(Date), Schema.transform(Schema.string().role("datetime"), (value, options) => {
-				const date = new Date(value);
-				if (isNaN(+date)) throw new ValidationError(`invalid date "${value}"`, options);
-				return date;
-			}, true)]);
-		};
-		Schema.regExp = function regExp(flag = "") {
-			return Schema.union([Schema.is(RegExp), Schema.transform(Schema.string().role("regexp", { flag }), (value, options) => {
-				try {
-					return new RegExp(value, flag);
-				} catch (e) {
-					throw new ValidationError(e.message, options);
-				}
-			}, true)]);
-		};
-		Schema.arrayBuffer = function arrayBuffer(encoding) {
-			return Schema.union([
-				Schema.is(ArrayBuffer),
-				Schema.is(SharedArrayBuffer),
-				Schema.transform(Schema.any(), (value, options) => {
-					if (Binary.isSource(value)) return Binary.fromSource(value);
-					throw new ValidationError(`expected ArrayBufferSource but got ${value}`, options);
-				}, true),
-				...encoding ? [Schema.transform(Schema.string(), (value, options) => {
-					try {
-						return encoding === "base64" ? Binary.fromBase64(value) : Binary.fromHex(value);
-					} catch (e) {
-						throw new ValidationError(e.message, options);
-					}
-				}, true)] : []
-			]);
-		};
-		Schema.extend("lazy", (data, schema, options, strict) => {
-			if (!schema.inner[kSchema]) {
-				schema.inner = schema.builder();
-				schema.inner.meta = {
-					...schema.meta,
-					...schema.inner.meta
-				};
-			}
-			return Schema.resolve(data, schema.inner, options, strict);
-		});
-		Schema.extend("any", (data) => {
-			return [data];
-		});
-		Schema.extend("never", (data, _, options) => {
-			throw new ValidationError(`expected nullable but got ${data}`, options);
-		});
-		Schema.extend("const", (data, { value }, options) => {
-			if (deepEqual(data, value)) return [value];
-			throw new ValidationError(`expected ${value} but got ${data}`, options);
-		});
-		function checkWithinRange(data, meta, description, options, skipMin = false) {
-			const { max = Infinity, min = -Infinity } = meta;
-			if (data > max) throw new ValidationError(`expected ${description} <= ${max} but got ${data}`, options);
-			if (data < min && !skipMin) throw new ValidationError(`expected ${description} >= ${min} but got ${data}`, options);
-		}
-		Schema.extend("string", (data, { meta }, options) => {
-			if (typeof data !== "string") throw new ValidationError(`expected string but got ${data}`, options);
-			if (meta.pattern) {
-				const regexp = new RegExp(meta.pattern.source, meta.pattern.flags);
-				if (!regexp.test(data)) throw new ValidationError(`expect string to match regexp ${regexp}`, options);
-			}
-			checkWithinRange(data.length, meta, "string length", options);
-			return [data];
-		});
-		function decimalShift(data, digits) {
-			const str = data.toString();
-			if (str.includes("e")) return data * Math.pow(10, digits);
-			const index = str.indexOf(".");
-			if (index === -1) return data * Math.pow(10, digits);
-			const frac = str.slice(index + 1);
-			const integer = str.slice(0, index);
-			if (frac.length <= digits) return +(integer + frac.padEnd(digits, "0"));
-			return +(integer + frac.slice(0, digits) + "." + frac.slice(digits));
-		}
-		function isMultipleOf(data, min, step) {
-			step = Math.abs(step);
-			if (!/^\d+\.\d+$/.test(step.toString())) return (data - min) % step === 0;
-			const index = step.toString().indexOf(".");
-			const digits = step.toString().slice(index + 1).length;
-			return Math.abs(decimalShift(data, digits) - decimalShift(min, digits)) % decimalShift(step, digits) === 0;
-		}
-		Schema.extend("number", (data, { meta }, options) => {
-			if (typeof data !== "number") throw new ValidationError(`expected number but got ${data}`, options);
-			checkWithinRange(data, meta, "number", options);
-			const { step } = meta;
-			if (step && !isMultipleOf(data, meta.min ?? 0, step)) throw new ValidationError(`expected number multiple of ${step} but got ${data}`, options);
-			return [data];
-		});
-		Schema.extend("boolean", (data, _, options) => {
-			if (typeof data === "boolean") return [data];
-			throw new ValidationError(`expected boolean but got ${data}`, options);
-		});
-		Schema.extend("bitset", (data, { bits, meta }, options) => {
-			let value = 0, keys = [];
-			if (typeof data === "number") {
-				value = data;
-				for (const key in bits) if (data & bits[key]) keys.push(key);
-			} else if (Array.isArray(data)) {
-				keys = data;
-				for (const key of keys) {
-					if (typeof key !== "string") throw new ValidationError(`expected string but got ${key}`, options);
-					if (key in bits) value |= bits[key];
-				}
-			} else throw new ValidationError(`expected number or array but got ${data}`, options);
-			if (value === meta.default) return [value];
-			return [value, keys];
-		});
-		Schema.extend("function", (data, _, options) => {
-			if (typeof data === "function") return [data];
-			throw new ValidationError(`expected function but got ${data}`, options);
-		});
-		Schema.extend("is", (data, { constructor }, options) => {
-			if (typeof constructor === "function") {
-				if (data instanceof constructor) return [data];
-				throw new ValidationError(`expected ${constructor.name} but got ${data}`, options);
-			} else {
-				if (isNullable(data)) throw new ValidationError(`expected ${constructor} but got ${data}`, options);
-				let prototype = Object.getPrototypeOf(data);
-				while (prototype) {
-					if (prototype.constructor?.name === constructor) return [data];
-					prototype = Object.getPrototypeOf(prototype);
-				}
-				throw new ValidationError(`expected ${constructor} but got ${data}`, options);
-			}
-		});
-		function property(data, key, schema, options) {
-			try {
-				const [value, adapted] = Schema.resolve(data[key], schema, {
-					...options,
-					path: [...options.path || [], key]
-				});
-				if (adapted !== void 0) data[key] = adapted;
-				return value;
-			} catch (e) {
-				if (!options?.autofix) throw e;
-				delete data[key];
-				return schema.meta.default;
-			}
-		}
-		Schema.extend("array", (data, { inner, meta }, options) => {
-			if (!Array.isArray(data)) throw new ValidationError(`expected array but got ${data}`, options);
-			checkWithinRange(data.length, meta, "array length", options, !isNullable(inner.meta.default));
-			return [data.map((_, index) => property(data, index, inner, options))];
-		});
-		Schema.extend("dict", (data, { inner, sKey }, options, strict) => {
-			if (!isPlainObject(data)) throw new ValidationError(`expected object but got ${data}`, options);
-			const result = {};
-			for (const key in data) {
-				let rKey;
-				try {
-					rKey = Schema.resolve(key, sKey, options)[0];
-				} catch (error) {
-					if (strict) continue;
-					throw error;
-				}
-				result[rKey] = property(data, key, inner, options);
-				data[rKey] = data[key];
-				if (key !== rKey) delete data[key];
-			}
-			return [result];
-		});
-		Schema.extend("tuple", (data, { list }, options, strict) => {
-			if (!Array.isArray(data)) throw new ValidationError(`expected array but got ${data}`, options);
-			const result = list.map((inner, index) => property(data, index, inner, options));
-			if (strict) return [result];
-			result.push(...data.slice(list.length));
-			return [result];
-		});
-		function merge(result, data) {
-			for (const key in data) {
-				if (key in result) continue;
-				result[key] = data[key];
-			}
-		}
-		Schema.extend("object", (data, { dict }, options, strict) => {
-			if (!isPlainObject(data)) throw new ValidationError(`expected object but got ${data}`, options);
-			const result = {};
-			for (const key in dict) {
-				const value = property(data, key, dict[key], options);
-				if (!isNullable(value) || key in data) result[key] = value;
-			}
-			if (!strict) merge(result, data);
-			return [result];
-		});
-		Schema.extend("union", (data, { list, toString }, options, strict) => {
-			const messages = [];
-			for (const inner of list) try {
-				return Schema.resolve(data, inner, options, strict);
-			} catch (error) {
-				messages.push(error);
-			}
-			throw new ValidationError(`expected ${toString()} but got ${JSON.stringify(data)}`, options);
-		});
-		Schema.extend("intersect", (data, { list, toString }, options, strict) => {
-			if (!list.length) return [data];
-			let result;
-			for (const inner of list) {
-				const value = Schema.resolve(data, inner, options, true)[0];
-				if (isNullable(value)) continue;
-				if (isNullable(result)) result = value;
-				else if (typeof result !== typeof value) throw new ValidationError(`expected ${toString()} but got ${JSON.stringify(data)}`, options);
-				else if (typeof value === "object") merge(result ??= {}, value);
-				else if (result !== value) throw new ValidationError(`expected ${toString()} but got ${JSON.stringify(data)}`, options);
-			}
-			if (!strict && isPlainObject(data)) merge(result, data);
-			return [result];
-		});
-		Schema.extend("transform", (data, { inner, callback, preserve }, options) => {
-			const [result, adapted = data] = Schema.resolve(data, inner, options, true);
-			if (preserve) return [callback(result)];
-			else return [callback(result), callback(adapted)];
-		});
-		const formatters = {};
-		function defineMethod(name, keys, format) {
-			formatters[name] = format;
-			Object.assign(Schema, { [name](...args) {
-				const schema = new Schema({ type: name });
-				keys.forEach((key, index) => {
-					switch (key) {
-						case "sKey":
-							schema.sKey = args[index] ?? Schema.string();
-							break;
-						case "inner":
-							schema.inner = Schema.from(args[index]);
-							break;
-						case "list":
-							schema.list = args[index].map(Schema.from);
-							break;
-						case "dict":
-							schema.dict = mapValues(args[index], Schema.from);
-							break;
-						case "bits":
-							schema.bits = {};
-							for (const key in args[index]) {
-								if (typeof args[index][key] !== "number") continue;
-								schema.bits[key] = args[index][key];
-							}
-							break;
-						case "callback": {
-							const callback = schema.callback = args[index];
-							callback["toJSON"] ||= () => callback.toString();
-							break;
-						}
-						case "constructor": {
-							const constructor = schema.constructor = args[index];
-							if (typeof constructor === "function") constructor["toJSON"] ||= () => constructor["name"];
-							break;
-						}
-						default: schema[key] = args[index];
-					}
-				});
-				if (name === "object" || name === "dict") schema.meta.default = {};
-				else if (name === "array" || name === "tuple") schema.meta.default = [];
-				else if (name === "bitset") schema.meta.default = 0;
-				return schema;
-			} });
-		}
-		defineMethod("is", ["constructor"], ({ constructor }) => {
-			if (typeof constructor === "function") return constructor.name;
-			else return constructor;
-		});
-		defineMethod("any", [], () => "any");
-		defineMethod("never", [], () => "never");
-		defineMethod("const", ["value"], ({ value }) => typeof value === "string" ? JSON.stringify(value) : value);
-		defineMethod("string", [], () => "string");
-		defineMethod("number", [], () => "number");
-		defineMethod("boolean", [], () => "boolean");
-		defineMethod("bitset", ["bits"], () => "bitset");
-		defineMethod("function", [], () => "function");
-		defineMethod("array", ["inner"], ({ inner }) => `${inner.toString(true)}[]`);
-		defineMethod("dict", ["inner", "sKey"], ({ inner, sKey }) => `{ [key: ${sKey.toString()}]: ${inner.toString()} }`);
-		defineMethod("tuple", ["list"], ({ list }) => `[${list.map((inner) => inner.toString()).join(", ")}]`);
-		defineMethod("object", ["dict"], ({ dict }) => {
-			if (Object.keys(dict).length === 0) return "{}";
-			return `{ ${Object.entries(dict).map(([key, inner]) => {
-				return `${key}${inner.meta.required ? "" : "?"}: ${inner.toString()}`;
-			}).join(", ")} }`;
-		});
-		defineMethod("union", ["list"], ({ list }, inline) => {
-			const result = list.map(({ toString: format }) => format()).join(" | ");
-			return inline ? `(${result})` : result;
-		});
-		defineMethod("intersect", ["list"], ({ list }) => {
-			return `${list.map((inner) => inner.toString(true)).join(" & ")}`;
-		});
-		defineMethod("transform", [
-			"inner",
-			"callback",
-			"preserve"
-		], ({ inner }, isInner) => inner.toString(isInner));
-		//#endregion
-		//#region src/action-approval-settings.ts
-		const SOC_ACTION_APPROVAL_NAMESPACE = "soc-action-approval";
-		Schema.object({ autoApproveActions: Schema.array(Schema.string()).default([]) });
 		//#endregion
 		//#region src/client/SplunkSettings.ts
 		function SplunkSettings({ connection }) {
@@ -5390,7 +4673,6 @@ window.__ModuleLoader__.load({
 			api.folders = void 0;
 			const documents = new MarkItDownDocumentController(connection, ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
 			const settings = new AttachmentSettingsController(ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
-			const actionApproval = new SocActionApprovalController(connection, ctx.settingsScope.bind({ namespace: SOC_ACTION_APPROVAL_NAMESPACE }));
 			ctx.effect(() => ctx.conversation.registerDocumentProvider(documents), "soc-agent: MarkItDown document provider");
 			ctx.slots.inject("conversation.input.documents", () => ctx.slots.register({
 				name: "conversation.input.documents",
@@ -5416,11 +4698,6 @@ window.__ModuleLoader__.load({
 				key: MARKITDOWN_ATTACHMENTS_NAMESPACE,
 				inject: () => settings.inject()
 			}, MarkItDownAttachmentSettingsCard));
-			ctx.slots.inject("settings.plugin.item", () => ctx.slots.register({
-				name: "settings.plugin.item",
-				key: SOC_ACTION_APPROVAL_NAMESPACE,
-				inject: () => actionApproval.inject()
-			}, SocActionApprovalSettingsCard));
 			ctx.slots.inject("conversation.input.left", () => ctx.slots.register({
 				name: "conversation.input.left",
 				id: "soc-action-policy",

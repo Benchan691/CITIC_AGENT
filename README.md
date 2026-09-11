@@ -35,6 +35,12 @@ The setup process collects missing configuration, installs dependencies, builds
 the harness, and wires the SOC product into the web profile. Use
 `./setup.sh --check` to audit the installation without changing it.
 
+When bootstrapping from a downloaded script, the setup prompts for the
+repository branch. Running `./setup.sh` in an existing checkout also prompts;
+press Enter to keep the current branch or type another branch. Switching is
+allowed only when the working tree is clean; local changes are never stashed or
+discarded.
+
 ## Update from GitHub
 
 Keep the checkout clean, then run:
@@ -46,7 +52,9 @@ Keep the checkout clean, then run:
 The update script fast-forwards the current branch from its configured
 upstream and runs `setup.sh --plugins` to refresh dependencies, builds, and
 profile wiring. It never stashes or discards local changes. If the web app is
-already running, restart it manually after the update.
+already running, restart it manually after the update. It follows whichever
+branch is currently checked out. To change branches, run `./setup.sh` and make
+the selection when prompted before running the update.
 
 ## Official Splunk MCP (read-only)
 
@@ -67,12 +75,19 @@ publication path.
 ## Splunk background context
 
 The CITIC SOC agent loads the repository-root `BACKGROUND.md` with `AGENTS.md`
-when a session starts. It then reloads the file after the configured number of
-additional user prompts, so edits can reach long-running sessions. Administrators
-can change or disable that repeat cadence, and can enable or throttle current-time
-context, from the **Agent context** section of `/admin`. The file is reference
-context only and does not grant access or override `AGENTS.md`, authentication,
-or approval controls.
+when a session starts, when enabled. It then reloads the file after the configured
+number of additional user prompts, so edits can reach long-running sessions.
+Administrators can enable or disable the file, change or disable its repeat cadence,
+and enable or throttle current-time context from the **Agent context** section of
+`/admin`. The file is reference context only and does not grant access or override
+`AGENTS.md`, authentication, or approval controls.
+
+The deployment-wide access mode and per-action checklist are available in the
+**Access & approvals** section of the admin dashboard. Individual sessions can
+choose **Full access** or **SOC mode** from the conversation controls. Full
+access runs permitted non-disabled actions directly; catalog and detection
+changes still require their approval/editor flow, and sending email always
+requires the authenticated draft-view Send confirmation.
 
 To start the web app:
 

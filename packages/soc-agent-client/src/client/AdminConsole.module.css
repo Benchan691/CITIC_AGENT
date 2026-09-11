@@ -205,6 +205,18 @@ textarea.input { resize:vertical; }
   line-height: 1.55;
 }
 
+.fieldError {
+  color: #9b3c32;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.input[aria-invalid="true"] {
+  border-color: #bb5f4c;
+  background: #fffaf8;
+}
+
 .toggleField {
   display: flex;
   align-items: flex-start;
@@ -237,9 +249,226 @@ textarea.input { resize:vertical; }
   line-height: 1.5;
 }
 
+.contextCardWide {
+  grid-column: 1 / -1;
+}
+
+.actionGroups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.actionGroups .checkboxGroup {
+  max-height: none;
+  margin: 0;
+}
+
+.actionGroups .checkLabel {
+  align-items: flex-start;
+}
+
+.modeChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  border: 0;
+  padding: 0;
+  margin: 20px 0 0;
+}
+
+.modeChoice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fafcf9;
+  cursor: pointer;
+}
+
+.modeChoice:has(input:checked) {
+  border-color: #9fc5ae;
+  background: #eef6ef;
+}
+
+.modeChoice input {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: #276e53;
+}
+
+.modeChoice span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.modeChoice strong {
+  color: #314d40;
+  font-size: 12px;
+}
+
+.modeChoice small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.accessGroups {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.actionGroup {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.actionGroup > legend {
+  width: 100%;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: #f9fbf8;
+  color: #4b6555;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  padding: 15px 18px;
+  border-bottom: 1px solid #edf0ec;
+}
+
+.actionGroup .actionRow:last-child {
+  border-bottom: 0;
+}
+
+.actionInfo {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.actionInfo strong {
+  color: #314b3e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.actionInfo small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.stateChoices {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.actionControls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stateChoice {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid #d8e2dc;
+  border-radius: 5px;
+  color: #52685d;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.stateChoice:has(input:checked) {
+  border-color: #8fb8a0;
+  color: #286047;
+  background: #eaf5ed;
+}
+
+.stateChoice input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: #276e53;
+}
+
+.protectedBadge {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 5px;
+  color: #8b5f2d;
+  background: #fbf1df;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.unavailableBadge {
+  padding: 5px 8px;
+  border-radius: 5px;
+  color: #8b4b42;
+  background: #fceee8;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 @media (max-width: 900px) {
   .contextGrid {
     grid-template-columns: 1fr;
+  }
+
+  .actionGroups {
+    grid-template-columns: 1fr;
+  }
+
+  .modeChoices {
+    grid-template-columns: 1fr;
+  }
+
+  .actionRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .stateChoices {
+    justify-content: flex-start;
+  }
+
+  .actionControls {
+    justify-content: flex-start;
   }
 }
 

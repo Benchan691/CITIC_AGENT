@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import z from '@deepseek-ai/schemastery'
 import { renderWorkspaceContext } from '@deepseek-ai/dsh-agent-instructions'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, DOMAIN_TOOLS, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS } from './policy.js'
+import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG } from './policy.js'
 import { runAuthCommand } from './ownership.js'
 import { installInvestigationProjection } from './investigation.js'
 
@@ -15,12 +15,15 @@ export const inject = ['agents', 'connection', 'tools', 'socAuth', 'sessions', '
 
 const CHANNEL = '/soc-agent-config'
 const ACTION_POLICY_NAMESPACE = 'soc-action-approval'
+const ACTION_MODES = Object.freeze(['soc', 'full'])
+const ACTION_STATES = Object.freeze(['ask', 'auto', 'disabled'])
 const BACKGROUND_NAMESPACE = 'soc-background'
 const BACKGROUND_FILE = 'BACKGROUND.md'
 const BACKGROUND_MAX_BYTES = 65_536
 const BACKGROUND_MAX_SOURCE_BYTES = 1024 * 1024
 const DEFAULT_BACKGROUND_PROMPTS = 5
 const BackgroundSettings = z.object({
+  enabled: z.boolean().default(true),
   repeatEveryUserPrompts: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_BACKGROUND_PROMPTS),
 })
 const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
@@ -36,7 +39,7 @@ const CATALOG_ENDPOINTS = new Set([
 const HARD_ATTACHMENT_BYTES = 100_000_000
 const HARD_MARKDOWN_CHARS = 2_000_000
 
-export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS }
+export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG }
 
 const ACTION_NAMES = new Set(ACTION_TOOLS)
 const nodeRequire = createRequire(import.meta.url)
@@ -137,7 +140,7 @@ function isBackgroundPath(path) {
   return path === BACKGROUND_FILE || path?.endsWith(`/${BACKGROUND_FILE}`)
 }
 
-function isBackgroundMarker(message) {
+function hasBackgroundMarker(message) {
   const source = message?.source
   if (source?.kind === 'plugin' && source.plugin === BACKGROUND_NAMESPACE) return true
   return source?.kind === 'agent-instructions'
@@ -145,16 +148,85 @@ function isBackgroundMarker(message) {
     && source.changes.some(change => change?.action !== 'remove' && isBackgroundPath(change?.path))
 }
 
+function isBackgroundMarker(message) {
+  return hasBackgroundMarker(message) && message?.source?.backgroundDisabled !== true
+}
+
 function latestBackgroundMarker(events) {
   return events.findLastIndex(event => event?.type === 'user/message' && isBackgroundMarker(event.data))
+}
+
+function latestDisabledBackgroundMarker(events) {
+  return events.findLastIndex(event => event?.type === 'user/message'
+    && hasBackgroundMarker(event.data)
+    && event.data?.source?.backgroundDisabled === true)
 }
 
 function userPromptCount(messages) {
   return messages.reduce((count, message) => count + (message?.source?.kind === 'user' ? 1 : 0), 0)
 }
 
+function stripBackgroundSections(text) {
+  let result = text
+  const backgroundHeading = /(?:Instructions from:|Additional instructions from:|Updated instructions from:|Instructions removed:) BACKGROUND\.md\n\n?/u
+  const nextHeading = /\n(?:Instructions from:|Additional instructions from:|Updated instructions from:|Instructions removed:) [^\n]+\n\n?/u
+  for (;;) {
+    const match = backgroundHeading.exec(result)
+    if (match === null) return result
+    const headingEnd = match.index + match[0].length
+    const remainder = result.slice(headingEnd)
+    const next = remainder.search(nextHeading)
+    const closing = remainder.indexOf('\n</system-reminder>')
+    const end = next >= 0 && (closing < 0 || next < closing)
+      ? next
+      : closing >= 0
+        ? closing
+        : remainder.length
+    result = result.slice(0, match.index) + remainder.slice(end)
+  }
+}
+
+function suppressBackgroundMessage(message) {
+  const source = message?.source
+  if (source?.kind === 'plugin' && source.plugin === BACKGROUND_NAMESPACE) return undefined
+  if (source?.kind !== 'agent-instructions' || !hasBackgroundMarker(message)) return message
+
+  const content = Array.isArray(message.content) ? message.content : []
+  let changed = false
+  const nextContent = content.map(block => {
+    if (block?.type !== 'text' || typeof block.text !== 'string') return block
+    const text = stripBackgroundSections(block.text)
+    if (text === block.text) return block
+    changed = true
+    return { ...block, text }
+  })
+  const nextSource = { ...source, backgroundDisabled: true }
+  if (changed) return { ...message, content: nextContent, source: nextSource }
+  const hasOtherInstruction = source.changes.some(change => !isBackgroundPath(change?.path))
+  return hasOtherInstruction
+    ? { ...message, source: nextSource }
+    : { ...message, content: [{ type: 'text', text: '' }], source: nextSource }
+}
+
+async function readBackgroundMessage(signal) {
+  const absolutePath = join(workspaceRoot(), BACKGROUND_FILE)
+  const content = await readFile(absolutePath, { encoding: 'utf8', signal })
+  if (Buffer.byteLength(content, 'utf8') > BACKGROUND_MAX_SOURCE_BYTES) {
+    throw new Error(`${BACKGROUND_FILE} exceeds the ${String(BACKGROUND_MAX_SOURCE_BYTES)} byte source limit`)
+  }
+  const rendered = renderWorkspaceContext(
+    [{ absolutePath, displayPath: BACKGROUND_FILE, content }],
+    { maxBytes: BACKGROUND_MAX_BYTES },
+  )
+  if (!rendered.text) return undefined
+  return createUserMessage({
+    content: [{ type: 'text', text: rendered.text }],
+    source: { kind: 'plugin', plugin: BACKGROUND_NAMESPACE, form: 'instructions' },
+  })
+}
+
 function installBackgroundRefresh(ctx) {
-  let currentSettings = () => ({ repeatEveryUserPrompts: DEFAULT_BACKGROUND_PROMPTS })
+  let currentSettings = () => ({ enabled: true, repeatEveryUserPrompts: DEFAULT_BACKGROUND_PROMPTS })
   const provider = settingsOf(ctx)
   if (typeof provider?.register === 'function') {
     const scope = provider.register(BACKGROUND_NAMESPACE, BackgroundSettings, { applies: 'live' })
@@ -164,34 +236,45 @@ function installBackgroundRefresh(ctx) {
   ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
     const decision = await next()
     if (decision.kind === 'reject' || signal?.aborted) return decision
+
+    const settings = currentSettings()
+    if (settings.enabled === false) {
+      const messages = decision.messages.map(suppressBackgroundMessage).filter(message => message !== undefined)
+      return messages.length === decision.messages.length && messages.every((message, index) => message === decision.messages[index])
+        ? decision
+        : { ...decision, messages }
+    }
     if (decision.messages.some(isBackgroundMarker)) return decision
 
     const currentPrompts = userPromptCount(decision.messages)
-    const interval = currentSettings().repeatEveryUserPrompts
-    if (currentPrompts === 0 || interval === 0) return decision
+    const interval = settings.repeatEveryUserPrompts
+    if (currentPrompts === 0) return decision
 
     const events = agent?.session?.events ?? []
     const marker = latestBackgroundMarker(events)
-    if (marker < 0) return decision
+    const disabledMarker = latestDisabledBackgroundMarker(events)
+    if (marker < 0 || disabledMarker > marker) {
+      try {
+        const message = await readBackgroundMessage(signal)
+        if (message === undefined) return decision
+        const promptIndex = decision.messages.findLastIndex(item => item?.source?.kind === 'user')
+        return {
+          kind: 'enter',
+          messages: decision.messages.toSpliced(promptIndex + 1, 0, message),
+        }
+      } catch (error) {
+        if (!signal?.aborted) ctx.logger?.warn?.('soc-background: startup read failed: %o', error)
+        return decision
+      }
+    }
+    if (interval === 0) return decision
     const previousPrompts = userPromptCount(events.slice(marker + 1)
       .flatMap(event => event?.type === 'user/message' ? [event.data] : []))
     if (previousPrompts + currentPrompts < interval) return decision
 
     try {
-      const absolutePath = join(workspaceRoot(), BACKGROUND_FILE)
-      const content = await readFile(absolutePath, { encoding: 'utf8', signal })
-      if (Buffer.byteLength(content, 'utf8') > BACKGROUND_MAX_SOURCE_BYTES) {
-        throw new Error(`${BACKGROUND_FILE} exceeds the ${String(BACKGROUND_MAX_SOURCE_BYTES)} byte source limit`)
-      }
-      const rendered = renderWorkspaceContext(
-        [{ absolutePath, displayPath: BACKGROUND_FILE, content }],
-        { maxBytes: BACKGROUND_MAX_BYTES },
-      )
-      if (!rendered.text) return decision
-      const message = createUserMessage({
-        content: [{ type: 'text', text: rendered.text }],
-        source: { kind: 'plugin', plugin: BACKGROUND_NAMESPACE, form: 'instructions' },
-      })
+      const message = await readBackgroundMessage(signal)
+      if (message === undefined) return decision
       const promptIndex = decision.messages.findLastIndex(item => item?.source?.kind === 'user')
       return {
         kind: 'enter',
@@ -225,13 +308,91 @@ function actionSet(value, { strict = false } = {}) {
   return result
 }
 
-function savedAutoApproveActions(ctx) {
+function parseMode(value, { strict = false } = {}) {
+  if (value === undefined) return 'soc'
+  if (value === null) {
+    if (strict) throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC access mode must be "soc" or "full".')
+    return 'soc'
+  }
+  if (typeof value === 'string' && ACTION_MODES.includes(value)) return value
+  if (strict) throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC access mode must be "soc" or "full".')
+  return 'soc'
+}
+
+function parseActionStates(value, { strict = false } = {}) {
+  if (value === undefined) return new Map()
+  if (value === null) {
+    if (strict) throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action state map is invalid.')
+    return new Map()
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action state map is invalid.')
+  }
+  const entries = Object.entries(value)
+  if (entries.length > MANAGED_TOOL_NAMES.length) {
+    throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action state map is invalid.')
+  }
+  const result = new Map()
+  for (const [name, state] of entries) {
+    if (!MANAGED_TOOL_NAMES.includes(name) || typeof state !== 'string' || !ACTION_STATES.includes(state)) {
+      if (strict) throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action state map contains an unknown action or state.')
+      continue
+    }
+    if (result.has(name)) {
+      throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action state map contains duplicate actions.')
+    }
+    result.set(name, state)
+  }
+  return result
+}
+
+function defaultActionState(name) {
+  return ACTION_NAMES.has(name) ? 'ask' : 'auto'
+}
+
+function normalizedActionPolicy(value, { strict = false } = {}) {
+  const candidate = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  const mode = parseMode(candidate.mode, { strict })
+  const configured = parseActionStates(candidate.actionStates, { strict })
+  const legacy = candidate.autoApproveActions === undefined
+    ? new Set()
+    : actionSet(candidate.autoApproveActions, { strict })
+  const actionStates = new Map()
+  for (const name of MANAGED_TOOL_NAMES) {
+    let state = configured.get(name)
+    if (state === undefined) state = legacy.has(name) ? 'auto' : defaultActionState(name)
+    actionStates.set(name, state)
+  }
+  return { mode, actionStates }
+}
+
+function actionStatesObject(actionStates) {
+  return Object.fromEntries(actionStates)
+}
+
+function savedActionPolicy(ctx) {
   try {
     const value = settingsOf(ctx)?.get?.(ACTION_POLICY_NAMESPACE)
-    return actionSet(value?.autoApproveActions ?? [])
+    return normalizedActionPolicy(value)
   } catch {
     // A malformed or unavailable saved setting must never grant an action.
-    return new Set()
+    return normalizedActionPolicy(undefined)
+  }
+}
+
+function effectiveActionPolicy(ctx, sessionPolicies, sessionId) {
+  const deployment = savedActionPolicy(ctx)
+  const session = sessionId === undefined ? undefined : sessionPolicies.get(sessionId)
+  if (session === undefined) return deployment
+  const actionStates = new Map(deployment.actionStates)
+  for (const [name, state] of session.actionStates) {
+    // Deployment-disabled tools cannot be re-enabled by a conversation mode.
+    if (deployment.actionStates.get(name) === 'disabled') continue
+    actionStates.set(name, state)
+  }
+  return {
+    mode: session.mode,
+    actionStates,
   }
 }
 
@@ -254,12 +415,16 @@ function resolveOwnedSession(ctx, sessionId) {
 
 function policyValue(ctx, sessionPolicies, sessionId) {
   const session = sessionPolicies.get(sessionId)
-  const actions = session ?? savedAutoApproveActions(ctx)
+  const policy = effectiveActionPolicy(ctx, sessionPolicies, sessionId)
+  const actionStates = actionStatesObject(policy.actionStates)
+  const autoApproveActions = ACTION_TOOLS.filter(name => actionStates[name] === 'auto')
   return {
     actions: ACTION_CATALOG,
-    // Draft families always require the harness approval flow; never
-    // advertise a session-wide bypass for them to the UI.
-    autoApproveActions: [...actions].filter(name => !ALWAYS_ASK_ACTION_TOOLS.includes(name)),
+    tools: TOOL_CATALOG,
+    mode: policy.mode,
+    actionStates,
+    // Keep this field for clients from the original checklist version.
+    autoApproveActions: autoApproveActions.filter(name => !ALWAYS_ASK_ACTION_TOOLS.includes(name)),
     source: session === undefined ? 'defaults' : 'session',
   }
 }
@@ -540,7 +705,8 @@ function validateCatalogNamePayload(payload) {
 
 async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
   switch (endpoint) {
-    case 'get-action-catalog': requireUser(ctx); return ok({ actions: ACTION_CATALOG })
+    case 'get-action-catalog': requireUser(ctx); return ok({ actions: ACTION_CATALOG, tools: TOOL_CATALOG })
+    case 'get-admin-action-catalog': requireAdmin(ctx); return ok({ actions: ACTION_CATALOG, tools: TOOL_CATALOG })
     case 'get-action-policy': {
       requireUser(ctx)
       const sessionId = payload?.session_id ?? payload?.sessionId
@@ -551,8 +717,30 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       requireUser(ctx)
       const sessionId = payload?.session_id ?? payload?.sessionId
       resolveOwnedSession(ctx, sessionId)
-      const actions = actionSet(payload?.auto_approve_actions ?? payload?.autoApproveActions, { strict: true })
-      sessionPolicies.set(String(sessionId), actions)
+      const hasMode = payload?.mode !== undefined
+      const hasStates = payload?.action_states !== undefined || payload?.actionStates !== undefined
+      const hasLegacy = payload?.auto_approve_actions !== undefined || payload?.autoApproveActions !== undefined
+      const mode = parseMode(payload?.mode, { strict: hasMode })
+      const rawStates = payload?.action_states !== undefined ? payload.action_states : payload?.actionStates
+      let actionStates = parseActionStates(
+        rawStates,
+        { strict: hasStates },
+      )
+      if (hasLegacy) {
+        const rawLegacy = payload?.auto_approve_actions !== undefined ? payload.auto_approve_actions : payload?.autoApproveActions
+        const actions = actionSet(rawLegacy, { strict: true })
+        if (hasStates) {
+          for (const name of actions) {
+            if (actionStates.has(name) && actionStates.get(name) !== 'auto') {
+              throw new ActionPolicyError('soc-action-policy-invalid', 'The SOC action state map conflicts with auto-approved actions.')
+            }
+            actionStates.set(name, 'auto')
+          }
+        } else {
+          actionStates = new Map(MANAGED_TOOL_NAMES.map(name => [name, actions.has(name) ? 'auto' : defaultActionState(name)]))
+        }
+      }
+      sessionPolicies.set(String(sessionId), { mode, actionStates })
       return ok(policyValue(ctx, sessionPolicies, String(sessionId)))
     }
     case 'reset-session-action-policy': {
@@ -679,15 +867,17 @@ export function apply(ctx) {
     if (!DOMAIN_TOOLS.has(exec.name) && !CONTROL_TOOLS.has(exec.name)) {
       return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only approved Splunk, Zimbra, subscription, scheduling, and catalog tools.' })
     }
-    if (APPROVAL_TOOLS.has(exec.name)) {
-      const alwaysAsk = ALWAYS_ASK_ACTION_TOOLS.includes(exec.name)
-      const agent = exec?.agent
-      const sessionId = sessionIdOf(agent)
-      const interactive = agent !== undefined && rootsOf(ctx).includes(agent)
-      if (!alwaysAsk && interactive && sessionId !== undefined) {
-        const autoApproved = sessionPolicies.get(sessionId) ?? savedAutoApproveActions(ctx)
-        if (autoApproved.has(exec.name)) return next()
-      }
+    const agent = exec?.agent
+    const sessionId = sessionIdOf(agent)
+    const interactive = agent !== undefined && rootsOf(ctx).includes(agent)
+    const policy = effectiveActionPolicy(ctx, sessionPolicies, sessionId)
+    const configuredState = policy.actionStates.get(exec.name)
+    if (configuredState === 'disabled') {
+      return Promise.resolve({ kind: 'deny', reason: 'This SOC action is disabled by the administrator.' })
+    }
+    const alwaysAsk = ALWAYS_ASK_ACTION_TOOLS.includes(exec.name)
+    const state = policy.mode === 'full' ? 'auto' : (configuredState ?? defaultActionState(exec.name))
+    if (alwaysAsk || state === 'ask' || (state === 'auto' && APPROVAL_TOOLS.has(exec.name) && !interactive)) {
       return Promise.resolve({
         kind: 'ask',
         reason: alwaysAsk

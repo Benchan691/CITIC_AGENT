@@ -12,6 +12,7 @@ export interface SocAction {
   name: string
   group: string
   label: string
+  kind?: 'read' | 'mutation' | 'ui-confirmed'
 }
 
 export interface SocActionApprovalState {
@@ -46,7 +47,10 @@ export function validCatalog(value: unknown): SocAction[] {
     if (typeof candidate.name !== 'string' || typeof candidate.group !== 'string' || typeof candidate.label !== 'string') return []
     if (candidate.name.length === 0 || seen.has(candidate.name)) return []
     seen.add(candidate.name)
-    return [{ name: candidate.name, group: candidate.group, label: candidate.label }]
+    const kind = candidate.kind === 'read' || candidate.kind === 'mutation' || candidate.kind === 'ui-confirmed'
+      ? candidate.kind
+      : undefined
+    return [{ name: candidate.name, group: candidate.group, label: candidate.label, ...(kind === undefined ? {} : { kind }) }]
   })
 }
 

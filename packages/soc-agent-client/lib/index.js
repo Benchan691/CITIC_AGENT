@@ -956,7 +956,15 @@ const MarkItDownAttachmentSettingsSchema = Schema.object({
 //#endregion
 //#region src/action-approval-settings.ts
 const SOC_ACTION_APPROVAL_NAMESPACE = "soc-action-approval";
-const SocActionApprovalSettingsSchema = Schema.object({ autoApproveActions: Schema.array(Schema.string()).default([]) });
+const SocActionApprovalSettingsSchema = Schema.object({
+	mode: Schema.union(["soc", "full"]).default("soc"),
+	actionStates: Schema.dict(Schema.union([
+		"ask",
+		"auto",
+		"disabled"
+	])).default({}),
+	autoApproveActions: Schema.array(Schema.string()).default([])
+});
 //#endregion
 //#region src/index.ts
 function apply(ctx) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SocActionMode, SocActionState } from '../action-approval-settings.ts'
 import { validCatalog, type SocAction } from './SocActionApprovalSettings.tsx'
 import css from './SocActionPolicyMenu.module.css'
 
@@ -8,28 +9,35 @@ const CHANNEL = '/soc-agent-config'
 
 type Policy = {
   actions: SocAction[]
+  mode: SocActionMode
+  actionStates: Record<string, SocActionState>
   autoApproveActions: string[]
   source: 'defaults' | 'session'
 }
 
-type ActionMode = 'ask' | 'soc'
+type ActionMode = SocActionMode
 
 function parsePolicy(value: unknown): Policy | undefined {
   if (!value || typeof value !== 'object') return undefined
   const candidate = value as Record<string, unknown>
   const actions = validCatalog(candidate.actions)
+  const source = candidate.source === 'session' ? 'session' : 'defaults'
   const autoApproveActions = Array.isArray(candidate.autoApproveActions)
     ? candidate.autoApproveActions.filter((name): name is string => typeof name === 'string' && actions.some(action => action.name === name))
     : []
-  const source = candidate.source === 'session' ? 'session' : 'defaults'
-  return actions.length === 0 ? undefined : { actions, autoApproveActions, source }
+  const actionStates = candidate.actionStates && typeof candidate.actionStates === 'object' && !Array.isArray(candidate.actionStates)
+    ? Object.fromEntries(Object.entries(candidate.actionStates).filter((entry): entry is [string, SocActionState] => entry[1] === 'ask' || entry[1] === 'auto' || entry[1] === 'disabled'))
+    : {}
+  const mode = candidate.mode === 'full' || candidate.mode === 'soc'
+    ? candidate.mode
+    : source === 'session' && autoApproveActions.length === 0
+      ? 'full'
+      : 'soc'
+  return actions.length === 0 ? undefined : { actions, mode, actionStates, autoApproveActions, source }
 }
 
 function modeOf(policy: Policy): ActionMode {
-  // The saved checklist is the SOC mode even when its current selection happens
-  // to be all checked or all unchecked. Session overrides select the shortcuts.
-  if (policy.source === 'defaults') return 'soc'
-  return policy.autoApproveActions.length === 0 ? 'ask' : 'soc'
+  return policy.mode
 }
 
 type MenuProps = PropsRuntime<'conversation.input.left'> & { connection: ConnectionHandle }
@@ -65,7 +73,7 @@ export function SocActionPolicyMenu({ connection, sessionId }: MenuProps) {
   const selectedMode = draftMode ?? currentMode
   const selectMode = async (mode: ActionMode) => {
     if (policy === undefined || saving) return
-    if (mode === currentMode && !(mode === 'soc' && policy.source === 'session')) {
+    if (mode === currentMode && policy.source === 'session') {
       setOpen(false)
       return
     }
@@ -73,12 +81,10 @@ export function SocActionPolicyMenu({ connection, sessionId }: MenuProps) {
     setSaving(true)
     setError(undefined)
     try {
-      const response = mode === 'soc'
-        ? await connection.rpc.call(CHANNEL, 'reset-session-action-policy', { session_id: String(sessionId) })
-        : await connection.rpc.call(CHANNEL, 'set-session-action-policy', {
-          session_id: String(sessionId),
-          auto_approve_actions: [],
-        })
+      const response = await connection.rpc.call(CHANNEL, 'set-session-action-policy', {
+        session_id: String(sessionId),
+        mode,
+      })
       if (!response?.ok) throw new Error(response?.error?.message || 'The session action policy could not be saved.')
       const next = parsePolicy(response.value)
       if (next === undefined) throw new Error('The session action policy could not be saved.')
@@ -91,7 +97,7 @@ export function SocActionPolicyMenu({ connection, sessionId }: MenuProps) {
       setSaving(false)
     }
   }
-  const modeLabel = selectedMode === 'ask' ? 'Ask for approval' : 'SOC mode'
+  const modeLabel = selectedMode === 'full' ? 'Full access' : 'SOC mode'
 
   return <div className={css.root}>
     <button className={css.trigger} type="button" aria-expanded={open} aria-controls={`soc-action-policy-${String(sessionId)}`} onClick={() => setOpen(value => !value)}>
@@ -104,12 +110,12 @@ export function SocActionPolicyMenu({ connection, sessionId }: MenuProps) {
       {policy !== undefined && !loading && <fieldset className={css.modes}>
         <legend className={css.modeLegend}>Choose a mode</legend>
         <label className={css.mode}>
-          <input className={css.modeRadio} type="radio" name={`soc-action-mode-${String(sessionId)}`} checked={selectedMode === 'ask'} readOnly disabled={saving} onClick={() => { void selectMode('ask') }} />
-          <span className={css.modeText}><span className={css.modeLabel}>Ask for approval</span><span className={css.modeDescription}>Ask before every known SOC action.</span></span>
+          <input className={css.modeRadio} type="radio" name={`soc-action-mode-${String(sessionId)}`} checked={selectedMode === 'full'} disabled={saving} onChange={() => { void selectMode('full') }} />
+          <span className={css.modeText}><span className={css.modeLabel}>Full access</span><span className={css.modeDescription}>Run permitted actions directly; protected operations still require confirmation.</span></span>
         </label>
         <label className={css.mode}>
-          <input className={css.modeRadio} type="radio" name={`soc-action-mode-${String(sessionId)}`} checked={selectedMode === 'soc'} readOnly disabled={saving} onClick={() => { void selectMode('soc') }} />
-          <span className={css.modeText}><span className={css.modeLabel}>SOC mode</span><span className={css.modeDescription}>Use the approval checklist from Settings → Plugins.</span></span>
+          <input className={css.modeRadio} type="radio" name={`soc-action-mode-${String(sessionId)}`} checked={selectedMode === 'soc'} disabled={saving} onChange={() => { void selectMode('soc') }} />
+          <span className={css.modeText}><span className={css.modeLabel}>SOC mode</span><span className={css.modeDescription}>Use the deployment checklist from Admin → Access &amp; approvals.</span></span>
         </label>
       </fieldset>}
     </div>}

@@ -16,10 +16,8 @@ import { installEmailDraftToolview } from './EmailDraftToolview.tsx'
 import { MarkItDownDocumentController } from './markitdownAttachments.ts'
 import { MarkItDownDocuments, openMarkItDownPicker } from './MarkItDownDocuments.tsx'
 import { AttachmentSettingsController, MarkItDownAttachmentSettingsCard } from './MarkItDownAttachmentSettings.tsx'
-import { SocActionApprovalController, SocActionApprovalSettingsCard } from './SocActionApprovalSettings.tsx'
 import { SocActionPolicyMenu } from './SocActionPolicyMenu.tsx'
 import { MARKITDOWN_ATTACHMENTS_NAMESPACE } from '../attachment-constants.ts'
-import { SOC_ACTION_APPROVAL_NAMESPACE } from '../action-approval-settings.ts'
 
 export const inject = ['slots', 'connection', 'conversation', 'commandUi', 'settingsScope'] as const
 
@@ -65,10 +63,6 @@ export function apply(ctx: ClientContext): void {
   const settings = new AttachmentSettingsController(
     ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }),
   )
-  const actionApproval = new SocActionApprovalController(
-    connection,
-    ctx.settingsScope.bind({ namespace: SOC_ACTION_APPROVAL_NAMESPACE }),
-  )
   ctx.effect(
     () => ctx.conversation.registerDocumentProvider(documents),
     'soc-agent: MarkItDown document provider',
@@ -97,11 +91,6 @@ export function apply(ctx: ClientContext): void {
     key: MARKITDOWN_ATTACHMENTS_NAMESPACE,
     inject: () => settings.inject(),
   }, MarkItDownAttachmentSettingsCard))
-  ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
-    name: 'settings.plugin.item',
-    key: SOC_ACTION_APPROVAL_NAMESPACE,
-    inject: () => actionApproval.inject(),
-  }, SocActionApprovalSettingsCard))
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left',
     id: 'soc-action-policy',

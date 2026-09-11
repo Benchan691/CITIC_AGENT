@@ -21,7 +21,8 @@
 #     bash setup.sh
 #   ./setup.sh            interactive: check, re-ask until valid, write files,
 #                         install/build the harness, repair drifted artifacts,
-#                         wire the profile
+#                         wire the profile, and choose the repository branch
+#                         interactively
 #   ./setup.sh --check    report only; exits 1 when something is missing
 #   ./setup.sh --plugins  non-interactive: install, build, repair, wire profile
 
@@ -43,6 +44,66 @@ info() { printf '%s[info]%s %s\n' "$D" "$N" "$1"; }
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_REPO_URL="https://github.com/Benchan691/CITIC_AGENT.git"
+DEFAULT_REPO_BRANCH="main"
+
+# Branch selection is interactive for a normal setup. Bootstrap passes the
+# selected value through this private environment variable so the checked-out
+# copy does not ask the same question a second time.
+REPO_BRANCH="${CITIC_SETUP_SELECTED_BRANCH:-}"
+BRANCH_SELECTED=0
+if [ -n "$REPO_BRANCH" ]; then BRANCH_SELECTED=1; fi
+unset CITIC_SETUP_SELECTED_BRANCH
+
+validate_branch() {
+  local branch="$1"
+  if [ -n "$branch" ] && git check-ref-format --branch "$branch" >/dev/null 2>&1; then
+    return 0
+  fi
+  bad "invalid Git branch name: ${branch:-<empty>}"
+  return 1
+}
+
+ensure_branch() {
+  local repo_dir="$1" branch="$2" current remote remote_ref status
+  validate_branch "$branch" || return 1
+  current="$(git -C "$repo_dir" branch --show-current 2>/dev/null || true)"
+  [ "$current" = "$branch" ] && return 0
+
+  status="$(git -C "$repo_dir" status --porcelain --untracked-files=all 2>/dev/null || true)"
+  if [ -n "$status" ]; then
+    bad "cannot switch $repo_dir to '$branch' because the checkout has local changes"
+    return 1
+  fi
+
+  if git -C "$repo_dir" show-ref --verify --quiet "refs/heads/$branch"; then
+    git -C "$repo_dir" switch "$branch"
+    return $?
+  fi
+
+  remote="$(git -C "$repo_dir" remote | sed -n '1p')"
+  if [ -z "$remote" ]; then
+    bad "cannot find a Git remote from which to fetch '$branch'"
+    return 1
+  fi
+  remote_ref="refs/remotes/$remote/$branch"
+  if ! git -C "$repo_dir" show-ref --verify --quiet "$remote_ref"; then
+    if ! git -C "$repo_dir" fetch "$remote" "refs/heads/$branch:$remote_ref"; then
+      bad "could not fetch branch '$branch' from remote '$remote'"
+      return 1
+    fi
+  fi
+  git -C "$repo_dir" switch --track -c "$branch" "$remote/$branch"
+}
+
+select_branch() {
+  local default_branch="$1" input
+  while :; do
+    printf 'Repository branch [%s]: ' "$default_branch"
+    IFS= read -r input || exit 1
+    REPO_BRANCH="${input:-$default_branch}"
+    if validate_branch "$REPO_BRANCH"; then return 0; fi
+  done
+}
 
 # Standalone bootstrap: run this script from anywhere that is not already a
 # CITIC_AGENT checkout and it takes responsibility for the whole setup — the
@@ -91,19 +152,27 @@ if [ ! -d "$SCRIPT_DIR/vendor/deepseek-harness" ]; then
     fi
   done
 
+  default_branch="$DEFAULT_REPO_BRANCH"
   if [ -d "$target_dir/.git" ]; then
-    warn "reusing existing checkout at $target_dir — fast-forwarding it"
+    existing_branch="$(git -C "$target_dir" branch --show-current 2>/dev/null || true)"
+    if [ -n "$existing_branch" ]; then default_branch="$existing_branch"; fi
+  fi
+  select_branch "$default_branch"
+
+  if [ -d "$target_dir/.git" ]; then
+    if ! ensure_branch "$target_dir" "$REPO_BRANCH"; then exit 1; fi
+    warn "reusing existing checkout at $target_dir on '$REPO_BRANCH' — fast-forwarding it"
     if ! git -C "$target_dir" pull --ff-only; then
       warn "could not fast-forward the existing checkout — continuing with its current state"
     fi
   else
-    echo "Cloning $repo_url into $target_dir …"
+    echo "Cloning branch '$REPO_BRANCH' from $repo_url into $target_dir …"
     if ! mkdir -p -- "$(dirname -- "$target_dir")"; then
       bad "cannot create the parent directory of $target_dir"
       exit 1
     fi
-    if ! git clone "$repo_url" "$target_dir"; then
-      bad "git clone failed — if the repository is private, authenticate first (gh auth login) or use your SSH URL"
+    if ! git clone --branch "$REPO_BRANCH" "$repo_url" "$target_dir"; then
+      bad "git clone failed for branch '$REPO_BRANCH' — check the branch name and repository access"
       exit 1
     fi
   fi
@@ -113,10 +182,26 @@ if [ ! -d "$SCRIPT_DIR/vendor/deepseek-harness" ]; then
   fi
   echo "Continuing with the full setup inside $target_dir …"
   echo
-  exec bash "$target_dir/setup.sh" "$@"
+  CITIC_SETUP_SELECTED_BRANCH="$REPO_BRANCH" exec bash "$target_dir/setup.sh" "$@"
 fi
 
 REPO_ROOT="$SCRIPT_DIR"
+
+if [ "$BRANCH_SELECTED" -eq 0 ] && [ "${1:-}" = "" ]; then
+  current_branch="$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || true)"
+  default_branch="${current_branch:-$DEFAULT_REPO_BRANCH}"
+  select_branch "$default_branch"
+  BRANCH_SELECTED=1
+fi
+
+if [ "$BRANCH_SELECTED" -eq 1 ]; then
+  current_branch="$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || true)"
+  if [ "$current_branch" != "$REPO_BRANCH" ]; then
+    ensure_branch "$REPO_ROOT" "$REPO_BRANCH" || exit 1
+    CITIC_SETUP_SELECTED_BRANCH="$REPO_BRANCH" exec bash "$REPO_ROOT/setup.sh" "$@"
+  fi
+fi
+
 HARNESS_DIR="$REPO_ROOT/vendor/deepseek-harness"
 SERVER_DIR="$REPO_ROOT/apps/soc-agent/server"
 HARNESS_ENV="$HARNESS_DIR/.env"

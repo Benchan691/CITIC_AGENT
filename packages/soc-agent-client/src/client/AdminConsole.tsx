@@ -6,7 +6,9 @@ import type {
   SettingsPathOpView,
 } from '@deepseek-ai/dsh-client-connection/client'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import type { SocActionMode, SocActionState } from '../action-approval-settings.ts'
 import styles from './AdminConsole.module.css'
+import { validCatalog, type SocAction } from './SocActionApprovalSettings.tsx'
 import { errorText, rpc } from './settings-common'
 
 type AdminAuth = {
@@ -51,6 +53,12 @@ type AgentContextData = {
   writable: boolean
 }
 
+type AccessApprovalData = {
+  actionApproval: SettingsNamespaceView
+  tools: SocAction[]
+  writable: boolean
+}
+
 type StatusMessage = {
   kind: 'success' | 'error' | 'info'
   text: string
@@ -59,6 +67,7 @@ type StatusMessage = {
 const CUSTOM_PROVIDER = '__custom__'
 const BACKGROUND_SETTINGS_NAMESPACE = 'soc-background'
 const TIME_SETTINGS_NAMESPACE = 'time-context'
+const ACTION_APPROVAL_SETTINGS_NAMESPACE = 'soc-action-approval'
 const MAX_INTERVAL_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / 1000)
 const PROVIDER_ROUTE_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
 const SUPPORTED_PROTOCOLS = [
@@ -224,6 +233,7 @@ function AdminLogin({ onAuthenticated, error: initialError }: { onAuthenticated:
 const ADMIN_PAGES = [
   { id: 'connections', name: 'Connections', icon: 'connections', copy: 'Review service setup and verify connections when needed.' },
   { id: 'agent-context', name: 'Agent context', icon: 'context', copy: 'Control workspace context and current-time injection.' },
+  { id: 'access-approvals', name: 'Access & approvals', icon: 'access', copy: 'Choose the deployment access mode and action controls.' },
   { id: 'providers', name: 'AI providers', icon: 'providers', copy: 'Manage model access and credentials in one place.' },
 ] as const
 
@@ -231,6 +241,7 @@ function AdminIcon({ name }: { name: string }) {
   const paths: Record<string, string> = {
     connections: 'M8 3v5 M16 3v5 M6 8h12v3a6 6 0 0 1-12 0z M12 17v4',
     context: 'M12 3a9 9 0 1 0 9 9 M12 7v5l3 2',
+    access: 'M12 3l8 3v5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z M9 12l2 2 4-4',
     providers: 'M12 3l9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5',
   }
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.connections} /></svg>
@@ -305,6 +316,7 @@ function AdminWorkspace({ connection, email, onSignedOut }: { connection: any; e
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
         {visited.has('connections') ? <div hidden={page !== 'connections'}><ServiceStatusPanel connection={connection} /></div> : null}
         {visited.has('agent-context') ? <div hidden={page !== 'agent-context'}><AgentContextSettings connection={connection} /></div> : null}
+        {visited.has('access-approvals') ? <div hidden={page !== 'access-approvals'}><AccessApprovalsSettings connection={connection} /></div> : null}
         {visited.has('providers') ? <div hidden={page !== 'providers'}><ProviderSettings connection={connection} /></div> : null}
         <footer className={styles.pageFoot}>Sentinel administration · CITICTEL-CPC</footer>
       </main>
@@ -415,9 +427,11 @@ function ServiceStatusPanel({ connection }: { connection: any }) {
 
 function AgentContextSettings({ connection }: { connection: any }) {
   const [data, setData] = useState<AgentContextData | null>(null)
+  const [backgroundEnabled, setBackgroundEnabled] = useState(true)
   const [backgroundPrompts, setBackgroundPrompts] = useState('5')
   const [timeEnabled, setTimeEnabled] = useState(true)
   const [timeSeconds, setTimeSeconds] = useState('0')
+  const [validation, setValidation] = useState<{ background?: string; time?: string }>({})
   const [message, setMessage] = useState<StatusMessage | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -425,6 +439,7 @@ function AgentContextSettings({ connection }: { connection: any }) {
   const load = useCallback(async () => {
     setLoading(true)
     setMessage(null)
+    setValidation({})
     try {
       const view = apiValue<{ namespaces: SettingsNamespaceView[]; writable: boolean }>(
         await connection.api.settings.describe({}),
@@ -436,6 +451,7 @@ function AgentContextSettings({ connection }: { connection: any }) {
       const backgroundValue = objectValue(background.value)
       const timeValue = objectValue(time.value)
       setData({ background, time, writable: view.writable })
+      setBackgroundEnabled(backgroundValue.enabled !== false)
       setBackgroundPrompts(String(backgroundValue.repeatEveryUserPrompts ?? 5))
       setTimeEnabled(timeValue.enabled !== false)
       setTimeSeconds(String(Number(timeValue.refreshIntervalMs ?? 0) / 1000))
@@ -452,27 +468,45 @@ function AgentContextSettings({ connection }: { connection: any }) {
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!data?.writable) return
+    if (!data?.writable || loading) return
     setBusy(true)
     setMessage(null)
+    setValidation({})
     try {
-      const repeatEveryUserPrompts = nonNegativeInteger(backgroundPrompts, 'BACKGROUND prompt frequency')
-      const seconds = nonNegativeInteger(timeSeconds, 'Time interval', MAX_INTERVAL_SECONDS)
-      const [backgroundResponse, timeResponse] = await Promise.all([
-        connection.api.settings.mutate({
-          ns: data.background.ns,
-          ops: [{ op: 'set', path: ['repeatEveryUserPrompts'], value: repeatEveryUserPrompts }],
-          expectedRevision: data.background.revision,
-        }),
-        connection.api.settings.mutate({
-          ns: data.time.ns,
-          ops: [
-            { op: 'set', path: ['enabled'], value: timeEnabled },
-            { op: 'set', path: ['refreshIntervalMs'], value: seconds * 1000 },
-          ],
-          expectedRevision: data.time.revision,
-        }),
-      ])
+      let repeatEveryUserPrompts: number | undefined
+      let seconds: number | undefined
+      const nextValidation: { background?: string; time?: string } = {}
+      try {
+        repeatEveryUserPrompts = nonNegativeInteger(backgroundPrompts, 'BACKGROUND prompt frequency')
+      } catch (validationError) {
+        nextValidation.background = errorText(validationError)
+      }
+      try {
+        seconds = nonNegativeInteger(timeSeconds, 'Time interval', MAX_INTERVAL_SECONDS)
+      } catch (validationError) {
+        nextValidation.time = errorText(validationError)
+      }
+      if (nextValidation.background || nextValidation.time || repeatEveryUserPrompts === undefined || seconds === undefined) {
+        setValidation(nextValidation)
+        setMessage({ kind: 'error', text: 'Check the highlighted agent context fields.' })
+        return
+      }
+      const backgroundResponse = await connection.api.settings.mutate({
+        ns: data.background.ns,
+        ops: [
+          { op: 'set', path: ['enabled'], value: backgroundEnabled },
+          { op: 'set', path: ['repeatEveryUserPrompts'], value: repeatEveryUserPrompts },
+        ],
+        expectedRevision: data.background.revision,
+      })
+      const timeResponse = await connection.api.settings.mutate({
+        ns: data.time.ns,
+        ops: [
+          { op: 'set', path: ['enabled'], value: timeEnabled },
+          { op: 'set', path: ['refreshIntervalMs'], value: seconds * 1000 },
+        ],
+        expectedRevision: data.time.revision,
+      })
       const background = apiValue<SettingsNamespaceView>(backgroundResponse)
       const time = apiValue<SettingsNamespaceView>(timeResponse)
       setData({ ...data, background, time })
@@ -494,6 +528,7 @@ function AgentContextSettings({ connection }: { connection: any }) {
         <span className={styles.sectionHint}>Changes apply live to existing and new sessions.</span>
       </div>
       {loading && !data ? <p className={styles.loadingInline}>Loading agent context…</p> : null}
+      {loading && data ? <p className={styles.loadingInline}>Refreshing agent context…</p> : null}
       {data ? (
         <form onSubmit={save}>
           <div className={styles.contextGrid}>
@@ -501,8 +536,12 @@ function AgentContextSettings({ connection }: { connection: any }) {
               <div>
                 <p className={styles.sectionKicker}>Workspace reference</p>
                 <h3>BACKGROUND.md</h3>
-                <p>The file is always loaded when a session starts.</p>
+                <p>Load this file at session startup and on configured refreshes.</p>
               </div>
+              <label className={styles.toggleField}>
+                <input type="checkbox" checked={backgroundEnabled} onChange={(event) => setBackgroundEnabled(event.target.checked)} disabled={!data.writable || busy || loading} />
+                <span><strong>Inject BACKGROUND.md</strong><small>Disable to stop startup and periodic injections.</small></span>
+              </label>
               <label className={styles.field}>
                 <span>Repeat every user prompts</span>
                 <input
@@ -514,9 +553,11 @@ function AgentContextSettings({ connection }: { connection: any }) {
                   value={backgroundPrompts}
                   onChange={(event) => setBackgroundPrompts(event.target.value)}
                   aria-describedby="background-frequency-help"
-                  disabled={!data.writable || busy}
+                  aria-invalid={validation.background ? 'true' : undefined}
+                  disabled={!data.writable || busy || loading}
                 />
                 <small id="background-frequency-help" className={styles.fieldHint}>Use 0 for startup only. The default is every 5 additional user prompts.</small>
+                {validation.background ? <small className={styles.fieldError} role="alert">{validation.background}</small> : null}
               </label>
             </article>
 
@@ -527,7 +568,7 @@ function AgentContextSettings({ connection }: { connection: any }) {
                 <p>Supply the model with the current time and elapsed time.</p>
               </div>
               <label className={styles.toggleField}>
-                <input type="checkbox" checked={timeEnabled} onChange={(event) => setTimeEnabled(event.target.checked)} disabled={!data.writable || busy} />
+                <input type="checkbox" checked={timeEnabled} onChange={(event) => setTimeEnabled(event.target.checked)} disabled={!data.writable || busy || loading} />
                 <span><strong>Inject current time</strong><small>Applies on the next eligible model step.</small></span>
               </label>
               <label className={styles.field}>
@@ -542,18 +583,192 @@ function AgentContextSettings({ connection }: { connection: any }) {
                   value={timeSeconds}
                   onChange={(event) => setTimeSeconds(event.target.value)}
                   aria-describedby="time-frequency-help"
-                  disabled={!data.writable || busy || !timeEnabled}
+                  aria-invalid={validation.time ? 'true' : undefined}
+                  disabled={!data.writable || busy || loading || !timeEnabled}
                 />
                 <small id="time-frequency-help" className={styles.fieldHint}>Use 0 to inject on every eligible model step.</small>
+                {validation.time ? <small className={styles.fieldError} role="alert">{validation.time}</small> : null}
               </label>
             </article>
+
           </div>
-          {message ? <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p> : null}
+          {message ? <>
+            <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p>
+            {message.kind === 'error' ? <button className={styles.button} type="button" onClick={() => void load()}>Retry</button> : null}
+          </> : null}
           <div className={styles.actions}>
-            <button className={`${styles.button} ${styles.primary}`} type="submit" disabled={!data.writable || busy}>{busy ? 'Saving…' : 'Save agent context'}</button>
+            <button className={`${styles.button} ${styles.primary}`} type="submit" disabled={!data.writable || busy || loading}>{busy ? 'Saving…' : 'Save agent context'}</button>
           </div>
         </form>
-      ) : message ? <p className={`${styles.message} ${styles[message.kind]}`} role="alert">{message.text}</p> : null}
+      ) : message ? <>
+        <p className={`${styles.message} ${styles[message.kind]}`} role="alert">{message.text}</p>
+        <button className={styles.button} type="button" onClick={() => void load()}>Retry</button>
+      </> : null}
+    </section>
+  )
+}
+
+function defaultToolState(tool: SocAction): SocActionState {
+  return tool.kind === 'read' ? 'auto' : 'ask'
+}
+
+function isActionState(value: unknown): value is SocActionState {
+  return value === 'ask' || value === 'auto' || value === 'disabled'
+}
+
+function AccessApprovalsSettings({ connection }: { connection: any }) {
+  const [data, setData] = useState<AccessApprovalData | null>(null)
+  const [mode, setMode] = useState<SocActionMode>('soc')
+  const [actionStates, setActionStates] = useState<Record<string, SocActionState>>({})
+  const [message, setMessage] = useState<StatusMessage | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setMessage(null)
+    try {
+      const [described, catalogValue] = await Promise.all([
+        connection.api.settings.describe({}),
+        rpc(connection, 'get-admin-action-catalog'),
+      ])
+      const view = apiValue<{ namespaces: SettingsNamespaceView[]; writable: boolean }>(described)
+      const namespaces = new Map(view.namespaces.map((namespace) => [namespace.ns, namespace]))
+      const actionApproval = namespaces.get(ACTION_APPROVAL_SETTINGS_NAMESPACE)
+      const catalog = objectValue(catalogValue)
+      const entries = Array.isArray(catalog.tools) ? catalog.tools : catalog.actions
+      const tools = validCatalog(entries)
+      if (!actionApproval || tools.length === 0) throw new Error('Access & approvals settings are unavailable.')
+
+      const saved = objectValue(actionApproval.value)
+      const savedStates = objectValue(saved.actionStates)
+      const legacy = new Set(Array.isArray(saved.autoApproveActions)
+        ? saved.autoApproveActions.filter((name): name is string => typeof name === 'string')
+        : [])
+      const normalizedStates = Object.fromEntries(tools
+        .filter((tool) => tool.kind !== 'ui-confirmed')
+        .map((tool) => {
+          const configured = savedStates[tool.name]
+          const state = isActionState(configured) ? configured : legacy.has(tool.name) ? 'auto' : defaultToolState(tool)
+          return [tool.name, state]
+        })) as Record<string, SocActionState>
+      setData({ actionApproval, tools, writable: view.writable })
+      setMode(saved.mode === 'full' ? 'full' : 'soc')
+      setActionStates(normalizedStates)
+    } catch (loadError) {
+      setMessage({ kind: 'error', text: errorText(loadError) })
+    } finally {
+      setLoading(false)
+    }
+  }, [connection])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!data?.writable || loading) return
+    setBusy(true)
+    setMessage(null)
+    try {
+      const response = await connection.api.settings.mutate({
+        ns: data.actionApproval.ns,
+        ops: [
+          { op: 'set', path: ['mode'], value: mode },
+          { op: 'set', path: ['actionStates'], value: actionStates },
+        ],
+        expectedRevision: data.actionApproval.revision,
+      })
+      const actionApproval = apiValue<SettingsNamespaceView>(response)
+      setData({ ...data, actionApproval })
+      setMessage({ kind: 'success', text: 'Access & approvals settings saved.' })
+    } catch (saveError) {
+      setMessage({ kind: 'error', text: errorText(saveError) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const groups = data ? [...new Set(data.tools.map((tool) => tool.group))] : []
+  const stateLabel: Record<SocActionState, string> = {
+    ask: 'Ask',
+    auto: 'Run automatically',
+    disabled: 'Disabled',
+  }
+
+  return (
+    <section className={styles.section} aria-labelledby="access-approvals-title">
+      <div className={styles.sectionHeading}>
+        <div>
+          <p className={styles.sectionKicker}>Deployment policy</p>
+          <h2 id="access-approvals-title" className={styles.sectionTitle}>Access &amp; approvals</h2>
+        </div>
+        <span className={styles.sectionHint}>Changes apply live to existing and new sessions.</span>
+      </div>
+      {loading && !data ? <p className={styles.loadingInline}>Loading access controls…</p> : null}
+      {loading && data ? <p className={styles.loadingInline}>Refreshing access controls…</p> : null}
+      {data ? (
+        <form onSubmit={save}>
+          <article className={styles.contextCard}>
+            <p className={styles.sectionKicker}>Deployment mode</p>
+            <h3>How permitted actions run</h3>
+            <p>Full access runs non-disabled permitted actions directly. SOC mode follows the action checklist below.</p>
+            <fieldset className={styles.modeChoices}>
+              <legend className={styles.srOnly}>Deployment access mode</legend>
+              <label className={styles.modeChoice}>
+                <input type="radio" name="deployment-mode" value="full" checked={mode === 'full'} onChange={() => setMode('full')} disabled={!data.writable || busy || loading} />
+                <span><strong>Full access</strong><small>Run permitted actions directly; protected operations still require confirmation.</small></span>
+              </label>
+              <label className={styles.modeChoice}>
+                <input type="radio" name="deployment-mode" value="soc" checked={mode === 'soc'} onChange={() => setMode('soc')} disabled={!data.writable || busy || loading} />
+                <span><strong>SOC mode</strong><small>Ask or run actions according to the checklist for this deployment.</small></span>
+              </label>
+            </fieldset>
+            <p className={styles.fieldHint}>Catalog and detection changes retain their approval and authenticated editor gates. Email delivery always requires the explicit Send confirmation in the draft view.</p>
+          </article>
+
+          <div className={styles.accessGroups}>
+            {groups.map((group) => (
+              <fieldset className={styles.actionGroup} key={group}>
+                <legend>{group}</legend>
+                {data.tools.filter((tool) => tool.group === group).map((tool) => {
+                  if (tool.kind === 'ui-confirmed') {
+                    return <div className={styles.actionRow} key={tool.name}>
+                      <div className={styles.actionInfo}><strong>{tool.label}</strong><small className={styles.mono}>{tool.name}</small></div>
+                      <span className={styles.protectedBadge}>Explicit confirmation</span>
+                    </div>
+                  }
+                  const selected = actionStates[tool.name] ?? defaultToolState(tool)
+                  return <div className={styles.actionRow} key={tool.name}>
+                    <div className={styles.actionInfo}><strong>{tool.label}</strong><small className={styles.mono}>{tool.name}</small></div>
+                    <div className={styles.actionControls}>
+                      {selected === 'disabled' ? <span className={styles.unavailableBadge}>Unavailable</span> : null}
+                      <div className={styles.stateChoices} role="group" aria-label={`Access for ${tool.label}`}>
+                        {(['ask', 'auto', 'disabled'] as const).map((state) => <label className={styles.stateChoice} key={state}>
+                          <input type="radio" name={`action-state-${tool.name}`} value={state} checked={selected === state} onChange={() => setActionStates((current) => ({ ...current, [tool.name]: state }))} disabled={!data.writable || busy || loading} />
+                          <span>{stateLabel[state]}</span>
+                        </label>)}
+                      </div>
+                    </div>
+                  </div>
+                })}
+              </fieldset>
+            ))}
+          </div>
+
+          {message ? <>
+            <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p>
+            {message.kind === 'error' ? <button className={styles.button} type="button" onClick={() => void load()}>Retry</button> : null}
+          </> : null}
+          <div className={styles.actions}>
+            <button className={`${styles.button} ${styles.primary}`} type="submit" disabled={!data.writable || busy || loading}>{busy ? 'Saving…' : 'Save access settings'}</button>
+          </div>
+        </form>
+      ) : message ? <>
+        <p className={`${styles.message} ${styles[message.kind]}`} role="alert">{message.text}</p>
+        <button className={styles.button} type="button" onClick={() => void load()}>Retry</button>
+      </> : null}
     </section>
   )
 }
