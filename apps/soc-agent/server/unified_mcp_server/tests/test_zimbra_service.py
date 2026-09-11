@@ -2,11 +2,10 @@ import io
 import zipfile
 
 import pytest
-from pypdf import PdfWriter
 
 import unified_mcp_server.zimbra_service as module
 from unified_mcp_server.config import ZimbraSettings
-from unified_mcp_server.errors import ConfigurationError, ServiceError
+from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.account_store import AccountStore
 from unified_mcp_server.auth import ZimbraIdentity
 from unified_mcp_server.zimbra_service import ZimbraService, _upstream_error

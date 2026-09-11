@@ -1,10 +1,10 @@
 import pytest
 
 from unified_mcp_server.config import SplunkSettings
-from unified_mcp_server.splunk.core.service import SplunkCore, _default_client_factory
+from unified_mcp_server.splunk.core.service import SplunkCore
 from unified_mcp_server.splunk.official_mcp_client import OfficialSplunkMCPClient
 from unified_mcp_server.splunk.search.executor import SearchExecutor
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError, SplunkClient
+from unified_mcp_server.splunk.splunk_client import SplunkClient
 
 
 def client() -> OfficialSplunkMCPClient:

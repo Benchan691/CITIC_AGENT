@@ -5,10 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 
-from unified_mcp_server.auth_cli import command_failure, dispatch_command
-from unified_mcp_server.control_server import handle_request
+from unified_mcp_server.auth_cli import command_failure
 from unified_mcp_server.errors import ServiceError
 
 

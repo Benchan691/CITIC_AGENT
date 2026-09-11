@@ -2,9 +2,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-import unified_mcp_server.zimbra.zimbra as zimbra
 import unified_mcp_server.zimbra.filters.service as filter_module
-from unified_mcp_server.account_store import AccountStore
 from unified_mcp_server.config import ZimbraSettings
 from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.zimbra.filters.model import EmailFilter, FilterAction, FilterTest, serialize_filter_rules

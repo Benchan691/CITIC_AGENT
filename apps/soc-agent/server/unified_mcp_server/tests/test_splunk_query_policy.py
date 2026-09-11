@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pytest
 
 from unified_mcp_server.errors import ServiceError
-from unified_mcp_server.splunk.guardrails import blocked_spl_commands, validate_spl_query
+from unified_mcp_server.splunk.guardrails import blocked_spl_commands
 from unified_mcp_server.splunk.query_policy import QueryPolicyConfig, SplunkQueryPolicy
 from unified_mcp_server.splunk_service import SplunkService
 

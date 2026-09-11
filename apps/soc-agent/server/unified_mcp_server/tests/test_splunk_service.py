@@ -4,7 +4,7 @@ import pytest
 
 import unified_mcp_server.splunk.splunk_client as splunk_client_module
 from unified_mcp_server.config import SplunkSettings
-from unified_mcp_server.errors import ConfigurationError, ServiceError
+from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.splunk.splunk_client import SplunkClient
 from unified_mcp_server.splunk.splunk_client import SplunkAPIError
 from unified_mcp_server.splunk.search.executor import SearchExecutor

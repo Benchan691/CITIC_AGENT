@@ -11,7 +11,6 @@ from unified_mcp_server.splunk.search.evidence import (
     SearchEvidenceCoordinator,
     fingerprint_request,
 )
-from unified_mcp_server.splunk.search.planner import SearchIntent
 from unified_mcp_server.splunk_service import SplunkService
 from unified_mcp_server.request_context import OperationContext, operation_context
 

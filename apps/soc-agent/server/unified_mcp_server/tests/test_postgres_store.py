@@ -5,8 +5,6 @@ from types import SimpleNamespace
 import pytest
 
 import unified_mcp_server.postgres_store as module
-from unified_mcp_server.account_store import AccountStore
-from unified_mcp_server.config import ServerSettings
 from unified_mcp_server.postgres_store import PostgresStore
 
 

@@ -12,13 +12,9 @@ from unified_mcp_server.splunk.security_queue.model import (
     FindingFilters,
     OpaqueIdCodec,
     SecurityQueueConfig,
-    normalize_disposition,
-    normalize_status,
 )
-from unified_mcp_server.splunk.security_queue.provider import normalize_timestamp
 from unified_mcp_server.splunk.security_queue.service import SplunkSecurityQueueService
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError, SplunkClient
-from unified_mcp_server.splunk_service import SplunkService
+from unified_mcp_server.splunk.splunk_client import SplunkClient
 
 
 _TEST_NOW = datetime.now(timezone.utc).replace(microsecond=0)

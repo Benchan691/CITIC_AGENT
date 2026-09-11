@@ -1,15 +1,9 @@
 import pytest
-import httpx
 
 from unified_mcp_server.config import SplunkSettings
-from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.splunk.core.service import SplunkCore
 from unified_mcp_server.splunk.search.service import SplunkSearchService
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError, SplunkClient
-from unified_mcp_server.splunk.search.lookup import (
-    canonical_csv_text,
-    parse_csv_text,
-)
+from unified_mcp_server.splunk.splunk_client import SplunkClient
 
 
 def settings(**overrides):

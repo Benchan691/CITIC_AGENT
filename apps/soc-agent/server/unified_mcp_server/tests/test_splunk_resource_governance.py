@@ -8,10 +8,8 @@ from unified_mcp_server.splunk.query_policy import QueryPolicyConfig
 from unified_mcp_server.splunk.search.resource_manager import SearchResourceManager
 from unified_mcp_server.splunk.search.resource_policy import (
     SearchResourceConfig,
-    SearchResourcePolicy,
 )
 from unified_mcp_server.splunk_service import SplunkService
-from unified_mcp_server.splunk.splunk_client import SplunkAPIError
 
 
 def relaxed_policy() -> QueryPolicyConfig:

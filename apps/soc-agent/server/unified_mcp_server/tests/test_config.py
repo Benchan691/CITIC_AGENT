@@ -3,7 +3,6 @@ import json
 import pytest
 
 from unified_mcp_server.config import ServerSettings
-from unified_mcp_server.env_loader import server_root, workspace_root
 
 
 

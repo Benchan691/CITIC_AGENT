@@ -1,13 +1,10 @@
 """Offline lifecycle and deadline checks with the real service composition."""
 
 import asyncio
-import threading
 from types import SimpleNamespace
 
 import pytest
 
-from unified_mcp_server.auth import ZimbraIdentity
-from unified_mcp_server.blocking_io import BlockingIO
 from unified_mcp_server.config import ServerSettings
 from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.request_context import operation_budget, operation_context, remaining_seconds

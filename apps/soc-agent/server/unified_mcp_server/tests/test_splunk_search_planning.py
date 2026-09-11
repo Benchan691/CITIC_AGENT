@@ -4,8 +4,7 @@ from unified_mcp_server.config import SplunkSettings
 from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.splunk.search.executor import SearchExecutor
 from unified_mcp_server.splunk.search.planner import SearchIntent, SearchPlanner
-from unified_mcp_server.splunk.search.schema_registry import SearchSchema, SearchSchemaRegistry
-from unified_mcp_server.splunk_service import SplunkService
+from unified_mcp_server.splunk.search.schema_registry import SearchSchemaRegistry
 
 
 def settings(**overrides):

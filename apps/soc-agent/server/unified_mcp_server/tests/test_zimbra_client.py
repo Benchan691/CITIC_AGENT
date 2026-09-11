@@ -1,8 +1,6 @@
 import xml.etree.ElementTree as ET
 
 import pytest
-from zimbra_client import SendResult, Signature
-from zimbra_client.errors import ZimbraLimitError
 
 import unified_mcp_server.zimbra.zimbra as zimbra
 

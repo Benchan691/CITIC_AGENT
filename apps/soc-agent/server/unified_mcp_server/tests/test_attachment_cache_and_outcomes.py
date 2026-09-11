@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from markitdown import UnsupportedFormatException
 
-from unified_mcp_server.attachment_converter import AttachmentConverter, AttachmentConversionLimits
+from unified_mcp_server.attachment_converter import AttachmentConverter
 from unified_mcp_server.config import MarkItDownSettings
 
 

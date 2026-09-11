@@ -1,11 +1,7 @@
-import asyncio
-import json
-from types import SimpleNamespace
 
 import pytest
 
 import unified_mcp_server.admin_cli as module
-from unified_mcp_server.errors import ServiceError
 
 
 
