@@ -948,7 +948,7 @@ ensure_harness_ready() {
 
 # --- profile wiring ---------------------------------------------------------
 #
-# The SOC product (login, admin host, MCP bridge, scheduler, settings UI) only
+# The SOC product (login, admin host, MCP bridge, settings UI) only
 # exists when `apps/soc-agent/cordis.patch.yml` is part of the boot
 # composition. The supported wiring registers the product bundle in the
 # harness `web` profile so a plain `pnpm dsh web` boots it:
@@ -1199,7 +1199,6 @@ verify_profile_resolution() { # $1 = profile dir; prints one line per plugin nam
   for spec in \
     dsh-soc-agent/auth-host \
     dsh-soc-agent/host \
-    dsh-soc-agent/scheduler \
     dsh-soc-agent-client \
     @deepseek-ai/dsh-time-context \
     @linxin666/dsh-client-ui-skin-center \

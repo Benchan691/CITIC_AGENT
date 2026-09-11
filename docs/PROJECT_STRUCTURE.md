@@ -9,8 +9,7 @@ apps/
 └── soc-agent/                 Host, policy, MCP server, and product tests
 
 packages/
-├── soc-agent-client/          Browser settings and tool-view plugin
-└── soc-agent-scheduler/       Durable read-only investigation scheduler
+└── soc-agent-client/          Browser settings and tool-view plugin
 
 vendor/
 └── deepseek-harness/          In-repository harness source and build runtime
@@ -21,8 +20,8 @@ docs/                          Architecture and operating notes
 
 ## Dependency direction
 
-`apps/soc-agent` consumes the scheduler and client packages. All
-JavaScript packages are members of the `vendor/deepseek-harness` pnpm
+`apps/soc-agent` consumes the client package. All JavaScript packages are
+members of the `vendor/deepseek-harness` pnpm
 workspace and share its lockfile and virtual store; the vendor tree does not
 depend on SOC product code.
 
@@ -45,7 +44,6 @@ pnpm install --frozen-lockfile
 pnpm --filter dsh-soc-agent test
 pnpm --filter dsh-soc-agent-client run build
 pnpm --filter dsh-soc-agent-client test
-pnpm --filter @deepseek-ai/dsh-soc-agent-scheduler test
 ```
 
 Dependencies are intentionally ignored from version control. Recreate all

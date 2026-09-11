@@ -774,7 +774,7 @@ export async function runAuthCommand(command, payload) {
   } catch (error) {
     if (error?.controlUnavailable === true) {
       // Fall back only before transmission. Lost responses must never replay
-      // an email send, catalog publication, or other ambiguous mutation.
+      // an email send or another ambiguous mutation.
       controlChannel = null
       return spawnAuthCommand(command, payload)
     }
@@ -1273,7 +1273,6 @@ export class SocAuthService {
     }
     this.adminSessions = new Map()
     this.agentSessions = new Map()
-    this.agentInvestigations = new Map()
     this.pendingResponses = new Map()
     this.applicationSessionSignals = new Map()
     this.revokedApplicationSessions = new Map()
@@ -1552,7 +1551,7 @@ export class SocAuthService {
     const sessionId = ambient && this.isApplicationSessionRevoked(ambient.id)
       ? ambient.id
       : current?.id ?? this.agentSessions.get(sessionIdOf(exec?.agent))
-    return sessionId ? { soc_session_id: sessionId, ...this.agentInvestigations.get(sessionIdOf(exec?.agent)) } : undefined
+    return sessionId ? { soc_session_id: sessionId } : undefined
   }
 
   async sessionForAgent(agent) {
@@ -1562,19 +1561,17 @@ export class SocAuthService {
     return await this.store.session(sessionId)
   }
 
-  bindAgentSession(sessionId, applicationSessionId, investigation) {
+  bindAgentSession(sessionId, applicationSessionId) {
     const current = this.currentSession()
     const agentId = String(sessionId ?? '')
     const ownerSessionId = applicationSessionId ?? current?.id
     if (ownerSessionId && agentId && !this.isApplicationSessionRevoked(ownerSessionId)) {
       this.agentSessions.set(agentId, String(ownerSessionId))
-      if (investigation) this.agentInvestigations.set(agentId, Object.freeze({ ...investigation }))
     }
   }
 
   unbindAgentSession(sessionId) {
     this.agentSessions.delete(String(sessionId ?? ''))
-    this.agentInvestigations.delete(String(sessionId ?? ''))
   }
 
   unbindApplicationSession(sessionId) {

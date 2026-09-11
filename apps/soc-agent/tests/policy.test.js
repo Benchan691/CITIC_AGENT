@@ -5,9 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { ACTION_CATALOG, apply, APPROVAL_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, TOOL_CATALOG } from '../host.js'
+import { ACTION_CATALOG, apply, APPROVAL_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, TOOL_CATALOG } from '../host.js'
 import { ACTION_TOOLS, READ_ONLY_TOOLS, ZIMBRA_READ_TOOLS } from '../policy.js'
-import { READ_ONLY_DOMAIN_TOOLS } from '../scheduler.js'
 
 const policyAuth = {
   requireSession: () => ({ id: 'policy-user' }),
@@ -15,15 +14,8 @@ const policyAuth = {
 }
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 78)
+  assert.equal(DOMAIN_TOOLS.size, 57)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
-    'mcp__soc_agent__catalog_archive_record',
-    'mcp__soc_agent__catalog_update_customer',
-    'mcp__soc_agent__catalog_update_fix_source_type',
-    'mcp__soc_agent__catalog_update_rule',
-    'mcp__soc_agent__catalog_write_customer',
-    'mcp__soc_agent__catalog_write_fix_source_type',
-    'mcp__soc_agent__catalog_write_rule',
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
     'mcp__soc_agent__update_subscription',
@@ -36,27 +28,20 @@ test('interactive analyst policy exposes the exact product tool set', () => {
     'mcp__soc_agent__zimbra_reorder_email_filter',
     'mcp__soc_agent__zimbra_set_email_filter_enabled',
     'mcp__soc_agent__zimbra_update_email_filter',
-    'scheduled_task_create',
-    'scheduled_task_delete',
-    'scheduled_task_pause',
-    'scheduled_task_resume',
-    'scheduled_task_run_now',
   ])
   for (const name of APPROVAL_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
+  assert.equal([...DOMAIN_TOOLS].some(name => name.startsWith('mcp__soc_agent__catalog_')), false)
+  assert.equal([...DOMAIN_TOOLS].some(name => name.startsWith('scheduled_task_')), false)
 })
 
 test('SOC policy has disjoint read-only and action categories', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 54)
+  assert.equal(READ_ONLY_TOOLS.length, 45)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__zimbra_list_accounts'), false)
-  assert.equal(ACTION_TOOLS.length, 24)
+  assert.equal(ACTION_TOOLS.length, 12)
   for (const name of READ_ONLY_TOOLS) assert.equal(ACTION_TOOLS.includes(name), false)
   for (const name of ACTION_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
-  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__catalog_list_rules'), true)
-  assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__catalog_preview_publication'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__soc_evidence_read'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_plan_search'), true)
-  assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__catalog_write_rule'), true)
-  assert.equal(ACTION_TOOLS.includes('mcp__soc_agent__catalog_archive_record'), true)
   assert.equal(READ_ONLY_TOOLS.includes('skill'), true)
   assert.equal(ACTION_TOOLS.includes('skill'), false)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__splunk_list_indexes'), false)
@@ -76,7 +61,7 @@ test('SOC policy has disjoint read-only and action categories', () => {
     assert.equal(READ_ONLY_TOOLS.includes(name), true)
     assert.equal(ACTION_TOOLS.includes(name), false)
   }
-  assert.equal(READ_ONLY_TOOLS.includes('scheduled_task_list'), true)
+  assert.equal(READ_ONLY_TOOLS.some(name => name.startsWith('scheduled_task_')), false)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__list_subscriptions'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__get_subscription_schema'), true)
   assert.equal(READ_ONLY_TOOLS.includes('mcp__soc_agent__preview_subscription'), true)
@@ -96,30 +81,36 @@ test('SOC policy has disjoint read-only and action categories', () => {
 
 test('admin inventory covers every Zimbra capability and the confirmed Send control', () => {
   const names = new Set(TOOL_CATALOG.map(tool => tool.name))
+  const zimbraTools = [...DOMAIN_TOOLS].filter(name => name.startsWith('mcp__soc_agent__zimbra_')).sort()
+  assert.deepEqual(zimbraTools, [
+    'mcp__soc_agent__zimbra_create_email_filter',
+    'mcp__soc_agent__zimbra_create_folder',
+    'mcp__soc_agent__zimbra_create_signature',
+    'mcp__soc_agent__zimbra_delete_email_filter',
+    'mcp__soc_agent__zimbra_delete_signature',
+    'mcp__soc_agent__zimbra_get_attachment_text',
+    'mcp__soc_agent__zimbra_get_email',
+    'mcp__soc_agent__zimbra_get_email_filter',
+    'mcp__soc_agent__zimbra_get_email_headers',
+    'mcp__soc_agent__zimbra_list_email_filters',
+    'mcp__soc_agent__zimbra_list_folders',
+    'mcp__soc_agent__zimbra_list_signatures',
+    'mcp__soc_agent__zimbra_move_email',
+    'mcp__soc_agent__zimbra_preview_email_filter_update',
+    'mcp__soc_agent__zimbra_reorder_email_filter',
+    'mcp__soc_agent__zimbra_search_emails',
+    'mcp__soc_agent__zimbra_send_email',
+    'mcp__soc_agent__zimbra_set_email_filter_enabled',
+    'mcp__soc_agent__zimbra_update_email_filter',
+    'mcp__soc_agent__zimbra_use_signature_on_email',
+    'mcp__soc_agent__zimbra_validate_email_filter',
+  ])
+  assert.equal(zimbraTools.length, 21)
   for (const name of ZIMBRA_READ_TOOLS) assert.equal(names.has(name), true)
   for (const name of ACTION_TOOLS.filter(name => name.includes('__zimbra_'))) assert.equal(names.has(name), true)
   assert.equal(names.has('ui__soc_agent__send_email'), true)
   assert.equal(TOOL_CATALOG.find(tool => tool.name === 'ui__soc_agent__send_email').kind, 'ui-confirmed')
   assert.equal(MANAGED_TOOL_NAMES.includes('ui__soc_agent__send_email'), false)
-})
-
-test('scheduled workers have an exact read-only allowlist', () => {
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.length, 48)
-  for (const name of READ_ONLY_DOMAIN_TOOLS) {
-    assert.equal(DOMAIN_TOOLS.has(name), true)
-    assert.equal(APPROVAL_TOOLS.has(name), false)
-    assert.equal(name.startsWith('scheduled_task_'), false)
-  }
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_move_email'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__splunk_list_indexes'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__splunk_list_data_sources'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_send_email'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_use_signature_on_email'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__zimbra_list_signatures'), true)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__list_subscriptions'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__get_subscription_schema'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('mcp__soc_agent__preview_subscription'), false)
-  assert.equal(READ_ONLY_DOMAIN_TOOLS.includes('ask_user_question'), false)
 })
 
 test('host policy delegates reads, asks for mutations, and denies generic tools', async () => {
@@ -244,8 +235,6 @@ test('SOC action approval defaults fail closed and session overrides are live', 
   assert.equal((await preExecute(action, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.deepEqual(await preExecute({ name: ACTION_TOOLS[1], agent }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_search_emails', agent }, () => ({ kind: 'delegate' }))).kind, 'delegate')
-  const catalogDecision = await preExecute({ name: CATALOG_ACTION_TOOLS[0], agent }, () => ({ kind: 'delegate' }))
-  assert.equal(catalogDecision.kind, 'ask')
   assert.equal((await rpcHandler('set-session-action-policy', {
     session_id: session.id,
     mode: 'soc',
@@ -263,34 +252,6 @@ test('SOC action approval defaults fail closed and session overrides are live', 
   assert.deepEqual(missingPolicy.error.details, { sessionId: 'missing-session' })
   handlers.get('session/disposed')(session)
   assert.equal((await rpcHandler('get-action-policy', { session_id: session.id })).value.source, 'defaults')
-})
-
-test('catalog changes cannot be auto-approved by action name', async () => {
-  const handlers = new Map()
-  const session = { id: 'soc-catalog-policy-1' }
-  const agent = { id: session.id, session, ctx: { tools: { restrict() {} } } }
-  let saved = { autoApproveActions: [...CATALOG_ACTION_TOOLS] }
-  let rpcHandler
-  apply({
-    get(name) {
-      if (name === 'settings') return { get: () => saved }
-      if (name === 'socAuth') return policyAuth
-      return undefined
-    },
-    on(event, handler) { handlers.set(event, handler) },
-    agents: { roots: () => [agent] },
-    sessions: { get: id => id === session.id ? session : undefined },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
-  })
-  const preExecute = handlers.get('tools/pre-execute')
-  for (const name of CATALOG_ACTION_TOOLS) {
-    const decision = await preExecute({ name, agent, arguments: {} }, () => ({ kind: 'delegate' }))
-    assert.equal(decision.kind, 'ask')
-    assert.match(decision.reason, /catalog change requires approval/)
-  }
-  const policy = await rpcHandler('get-action-policy', { session_id: session.id })
-  assert.equal(policy.value.autoApproveActions.some(name => CATALOG_ACTION_TOOLS.includes(name)), false)
-  saved = { autoApproveActions: [] }
 })
 
 test('session modes cannot re-enable a deployment-disabled tool', async () => {
@@ -319,46 +280,6 @@ test('session modes cannot re-enable a deployment-disabled tool', async () => {
   assert.equal((await preExecute({ name: disabled, agent }, () => ({ kind: 'delegate' }))).kind, 'deny')
 })
 
-test('save-catalog-record is an authenticated editor RPC with strict request validation', async () => {
-  let rpcHandler
-  apply({
-    get(name) {
-      return name === 'socAuth' ? policyAuth : undefined
-    },
-    on() {},
-    agents: { roots: () => [] },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
-  })
-
-  const invalid = await rpcHandler('save-catalog-record', { operation: 'write', catalog: 'rule' })
-  assert.deepEqual(invalid, {
-    ok: false,
-    error: { code: 'bad-request', message: 'The catalog record draft is invalid.', details: { issues: [] } },
-  })
-
-  const invalidCatalog = await rpcHandler('save-catalog-record', {
-    operation: 'write',
-    catalog: 'unknown',
-    record: {},
-  })
-  assert.equal(invalidCatalog.error.code, 'bad-request')
-
-  apply({
-    on() {},
-    agents: { roots: () => [] },
-    connection: { rpc: { handle(_channel, handler) { rpcHandler = handler } } },
-  })
-  const unauthenticated = await rpcHandler('save-catalog-record', {
-    operation: 'write',
-    catalog: 'rule',
-    record: { rule_number: '0001', rule_name_en: 'Threat Detection' },
-  })
-  assert.deepEqual(unauthenticated, {
-    ok: false,
-    error: { code: 'authentication-required', message: 'authentication required', details: {} },
-  })
-})
-
 test('host RPC failures use the shared result error contract', async () => {
   let rpcHandler
   apply({
@@ -374,6 +295,19 @@ test('host RPC failures use the shared result error contract', async () => {
     ok: false,
     error: { code: 'bad-request', message: 'Unknown endpoint: missing-endpoint', details: { issues: [] } },
   })
+  for (const endpoint of [
+    'catalog-list',
+    'catalog-get',
+    'catalog-history',
+    'catalog-publications',
+    'catalog-preview-publish',
+    'save-catalog-record',
+    'archive-catalog-record',
+  ]) {
+    const removed = await rpcHandler(endpoint, {})
+    assert.equal(removed.error.code, 'bad-request')
+    assert.equal(removed.error.message, `Unknown endpoint: ${endpoint}`)
+  }
 
   const previousServer = process.env.DSH_SOC_AGENT_SERVER
   process.env.DSH_SOC_AGENT_SERVER = '/path/that/does/not/exist'

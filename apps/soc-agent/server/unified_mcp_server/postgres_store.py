@@ -26,6 +26,19 @@ except ImportError:  # pragma: no cover - exercised when the optional runtime is
     ConnectionPool = None  # type: ignore[assignment,misc]
 
 
+_CATALOG_REMOVAL_MARKER = "catalog-feature-removed-v1"
+_CATALOG_TABLES = (
+    "soc_catalog_staging",
+    "soc_catalog_import_batches",
+    "soc_catalog_publications",
+    "soc_catalog_history",
+    "soc_fix_source_type",
+    "soc_rule_catalog",
+    "soc_customer",
+    "soc_catalog_migrations",
+)
+
+
 def _derive_key(value: str) -> bytes:
     return base64.urlsafe_b64encode(hashlib.sha256(value.encode("utf-8")).digest())
 
@@ -266,6 +279,18 @@ class PostgresStore:
                 )
                 """
             )
+            marker = connection.execute(
+                """
+                INSERT INTO soc_bootstrap (key)
+                VALUES (%s)
+                ON CONFLICT (key) DO NOTHING
+                RETURNING key
+                """,
+                (_CATALOG_REMOVAL_MARKER,),
+            ).fetchone()
+            if marker is not None:
+                for table in _CATALOG_TABLES:
+                    connection.execute(f"DROP TABLE IF EXISTS {table}")
 
     def get_config(self, key: str, default: str = "") -> str:
         with self._connect() as connection:

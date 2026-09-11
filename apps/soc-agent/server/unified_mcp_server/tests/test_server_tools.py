@@ -28,21 +28,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "splunk_run_saved_search",
         "soc_evidence_read",
         "splunk_plan_search",
-        "catalog_list_rules",
-        "catalog_get_rule",
-        "catalog_list_customers",
-        "catalog_get_customer",
-        "catalog_list_fix_source_types",
-        "catalog_get_fix_source_type",
-        "catalog_get_record_history",
-        "catalog_preview_publication",
-        "catalog_write_rule",
-        "catalog_update_rule",
-        "catalog_write_customer",
-        "catalog_update_customer",
-        "catalog_write_fix_source_type",
-        "catalog_update_fix_source_type",
-        "catalog_archive_record",
         "zimbra_list_folders",
         "zimbra_list_signatures",
         "zimbra_create_signature",
@@ -71,6 +56,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "update_subscription",
         "delete_subscription",
     }
+    assert len(tools) == 43
+    assert not {tool.name for tool in tools if tool.name.startswith("catalog_")}
     for tool in tools:
         assert "ctx" not in tool.parameters.get("properties", {})
         assert "ctx" not in tool.parameters.get("required", [])
@@ -168,20 +155,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "name", "expected_fingerprint",
     }
     assert set(delete_filter_tool.parameters["required"]) == {"name", "expected_fingerprint"}
-    catalog_write = next(tool for tool in tools if tool.name == "catalog_write_rule")
-    assert set(catalog_write.parameters["properties"]) == {"rule"}
-    assert catalog_write.parameters["required"] == ["rule"]
-    catalog_update = next(tool for tool in tools if tool.name == "catalog_update_rule")
-    assert set(catalog_update.parameters["properties"]) == {"rule_id", "rule", "expected_revision"}
-    assert set(catalog_update.parameters["required"]) == {"rule_id", "rule", "expected_revision"}
-    archive_tool = next(tool for tool in tools if tool.name == "catalog_archive_record")
-    assert set(archive_tool.parameters["properties"]) == {
-        "catalog", "record_id", "expected_revision", "restore", "reason",
-    }
-    assert set(archive_tool.parameters["required"]) == {"catalog", "record_id", "expected_revision"}
-    assert "publish" in next(
-        tool for tool in tools if tool.name == "catalog_preview_publication"
-    ).description.lower()
     get_lookup_tool = next(tool for tool in tools if tool.name == "splunk_get_lookup")
     assert set(get_lookup_tool.parameters["properties"]) == {"name"}
     assert get_lookup_tool.parameters["required"] == ["name"]

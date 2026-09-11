@@ -37,7 +37,7 @@ def resolve_time_window(earliest: str, latest: str) -> tuple[str, str, bool]:
     Calendar snaps depend on the provider timezone and are never guessed here.
     Such requests can still run, but completed-snapshot reuse is disabled.
     """
-    now = operation_context.get().scheduled_at or time()
+    now = time()
     def resolve(value):
         if value == "now":
             return f"{now:.6f}", True

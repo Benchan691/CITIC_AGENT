@@ -14,7 +14,7 @@ def _principal_id(get_runtime, ctx: Context) -> str:
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success, failure, service_error) -> None:
     @server.tool(annotations={"readOnlyHint": True})
     async def splunk_get_detection(ctx: Context, name: str) -> dict[str, Any]:
-        """Retrieve one saved search with alert timing, trigger, throttle, and action fields; secret-like fields are omitted."""
+        """Retrieve one saved search with bounded times, trigger, throttle, and action fields; secret-like fields are omitted."""
         return await execute(ctx, "splunk", "get_detection", lambda: get_runtime(ctx).splunk_detection.get_detection(name))
 
     @server.tool(annotations={"readOnlyHint": True})

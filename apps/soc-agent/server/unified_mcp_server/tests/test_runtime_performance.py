@@ -14,13 +14,12 @@ from unified_mcp_server.request_context import operation_budget, operation_conte
 from unified_mcp_server.server import Runtime
 
 
-async def test_real_runtime_constructs_catalog_and_reuses_immutable_mail_services(monkeypatch):
+async def test_real_runtime_reuses_immutable_mail_services(monkeypatch):
     for key in ("APP_POSTGRES_URI", "LANGGRAPH_POSTGRES_URI", "POSTGRES_URI"):
         monkeypatch.delenv(key, raising=False)
     settings = ServerSettings.from_env({})
     runtime = Runtime.create(settings, accounts=SimpleNamespace(count=lambda: 0))
     try:
-        assert runtime.catalog.settings is settings.splunk
         a = ZimbraIdentity("user-a", "a@example.test", "token-a", "session-a")
         b = ZimbraIdentity("user-b", "b@example.test", "token-b", "session-b")
         assert runtime.for_identity(a) is runtime.for_identity(a)
@@ -30,28 +29,19 @@ async def test_real_runtime_constructs_catalog_and_reuses_immutable_mail_service
         await runtime.close()
 
 
-async def test_actual_mcp_callbacks_handle_sync_catalog_reads_and_local_email_drafts(monkeypatch):
+async def test_actual_mcp_callback_handles_local_email_drafts(monkeypatch):
     from unified_mcp_server.server import create_server, PostgresStore
-    from unified_mcp_server.catalog.service import CatalogService
     monkeypatch.setattr(PostgresStore, "from_env", lambda: None)
     settings = ServerSettings.from_env({})
     server = create_server(settings)
     owner = SimpleNamespace(user_id="user-a", zimbra_email="a@example.test", zimbra_token="fixture-token", session_id="app-a")
     store = SimpleNamespace(get_app_session=lambda _id: owner, close=lambda: None)
     runtime = Runtime.create(settings, accounts=SimpleNamespace(count=lambda: 0), postgres=store)
-    event_thread = threading.get_ident()
-    def records(*_args, **_kwargs):
-        assert threading.get_ident() != event_thread
-        return {"items": [], "total": 0}
-    runtime.catalog = CatalogService(SimpleNamespace(list_records=records), settings.splunk)
     context = SimpleNamespace(request_context=SimpleNamespace(
         lifespan_context=runtime, meta={"soc_session_id": "app-a", "soc_investigation_id": "case-a"},
     ))
     before = operation_context.get()
     try:
-        listed = await server._tool_manager.get_tool("catalog_list_rules").fn(context)
-        assert listed["ok"] is True
-        assert listed["data"] == {"items": [], "total": 0}
         draft = await server._tool_manager.get_tool("zimbra_send_email").fn(context, to=["recipient@example.test"], subject="Fixture", body="Draft only")
         assert draft["ok"] is True
         assert operation_context.get() is before
@@ -94,30 +84,6 @@ async def test_cancelled_blocking_wait_does_not_release_busy_provider_slot():
     assert pool.users == {}
 
 
-async def test_interactive_search_gets_next_free_slot_before_waiting_scheduled_work():
-    from dataclasses import replace
-    from unified_mcp_server.splunk.search.resource_manager import SearchResourceManager
-    from unified_mcp_server.splunk.search.resource_policy import SearchResourceConfig
-    manager = SearchResourceManager(SearchResourceConfig(global_concurrency=1, per_principal_concurrency=1, queue_timeout_seconds=1))
-    admitted = []
-    async def work(name, workload):
-        token = operation_context.set(replace(operation_context.get(), workload=workload))
-        try:
-            async with manager.acquire(principal=name, cost_class="cheap", weight=1, budget_cost=1):
-                admitted.append(name)
-                await asyncio.sleep(0)
-        finally:
-            operation_context.reset(token)
-    async with manager.acquire(principal="occupied", cost_class="cheap", weight=1, budget_cost=1):
-        scheduled = asyncio.create_task(work("scheduled", "scheduled"))
-        interactive = asyncio.create_task(work("interactive", "interactive"))
-        while manager.snapshot()["queued_splunk_searches"] < 2:
-            await asyncio.sleep(0)
-    await asyncio.gather(scheduled, interactive)
-    assert admitted == ["interactive", "scheduled"]
-    assert manager._waiters == []
-
-
 async def test_only_transient_reads_are_retried_once():
     import httpx
     from unified_mcp_server.splunk.splunk_client import SplunkClient
@@ -148,18 +114,6 @@ async def test_splunk_dispatch_itself_is_bounded_by_the_job_budget():
                                                results_path_prefix="/fixture", label="fixture", runtime_limit=0.01), 1)
     assert error.value.error_code == "runtime_limit_exceeded"
     assert stopped.is_set()
-
-
-def test_scheduled_relative_window_uses_original_run_time():
-    from dataclasses import replace
-    from unified_mcp_server.splunk.search.evidence import resolve_time_window
-    token = operation_context.set(replace(operation_context.get(), scheduled_at=1700000000))
-    try:
-        start, end, resolved = resolve_time_window("-24h", "now")
-        assert (float(start), float(end), resolved) == (1700000000 - 86400, 1700000000, True)
-        assert resolve_time_window("-1d@d", "now")[2] is False
-    finally:
-        operation_context.reset(token)
 
 
 async def test_zimbra_checks_the_remaining_budget_at_each_soap_boundary(monkeypatch):

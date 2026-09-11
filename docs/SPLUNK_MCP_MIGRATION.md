@@ -35,8 +35,10 @@ resource admission remain available only for legacy REST execution; they do
 not gate the official MCP path.
 
 There is no application-owned Splunk mutation surface: detection writes,
-lookup writes, catalog publication, rollback, write RPCs, and write editor
-toolviews are removed. Catalog records and read-only snapshot previews remain.
+lookup writes, rollback, write RPCs, and write editor toolviews are removed.
+The former PostgreSQL Ruleset, Customer Information, and Fix Source type
+catalog feature is also removed; `Ruleset.csv` remains available only through
+the bounded read-only lookup path.
 
 ## Verification
 

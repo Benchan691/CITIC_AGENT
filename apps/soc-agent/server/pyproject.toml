@@ -35,7 +35,6 @@ unified-mcp-server = "unified_mcp_server.server:main"
 [tool.setuptools]
 packages = [
     "unified_mcp_server",
-    "unified_mcp_server.catalog",
     "unified_mcp_server.splunk",
     "unified_mcp_server.splunk.core",
     "unified_mcp_server.splunk.search",

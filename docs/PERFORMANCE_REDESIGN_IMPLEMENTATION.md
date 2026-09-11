@@ -5,6 +5,12 @@ existing performance foundations and fixes integration defects found during
 verification. No deployment, live investigation, email send or Splunk write was
 performed. Changes remain uncommitted.
 
+> Current status (2026-09-11): the application-owned PostgreSQL catalog and
+> scheduler features described in this historical report have been removed.
+> Ruleset checks now use the read-only `Ruleset.csv` lookup, catalog maintenance
+> is an external human process, and the application no longer exposes detection
+> schedule metadata. References below document the 2026-09-05 implementation only.
+
 **1. Architecture at the merge baseline**
 
 ```mermaid

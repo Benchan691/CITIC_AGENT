@@ -29,15 +29,8 @@ _SECRET_FIELD = re.compile(
 # action prefix is intentionally open so installed Splunk apps can provide
 # custom alert actions without an MCP code change.
 _ALERT_FIELDS = frozenset({
-    "is_scheduled",
-    "cron_schedule",
     "dispatch.earliest_time",
     "dispatch.latest_time",
-    "dispatch.rt_backfill",
-    "dispatch.indexedRealtime",
-    "dispatch.indexedRealtimeOffset",
-    "dispatch.indexedRealtimeMinSpan",
-    "dispatch.rt_maximum_span",
     "alert_type",
     "alert_comparator",
     "alert_threshold",
@@ -110,7 +103,7 @@ def canonical_alert_fields(payload: Mapping[str, Any]) -> dict[str, str]:
             continue
         fields[canonical] = _scalar_value(canonical, value)
         priorities[canonical] = priority
-    return fields
+    return _without_realtime_bounds(fields)
 
 
 def public_alert_fields(content: Mapping[str, Any]) -> dict[str, str]:
@@ -132,6 +125,14 @@ def public_alert_fields(content: Mapping[str, Any]) -> dict[str, str]:
             continue
         fields[canonical] = normalized
         priorities[canonical] = priority
+    return _without_realtime_bounds(fields)
+
+
+def _without_realtime_bounds(fields: dict[str, str]) -> dict[str, str]:
+    bounds = (fields.get("dispatch.earliest_time", ""), fields.get("dispatch.latest_time", ""))
+    if any(_REALTIME_TIME.match(value) for value in bounds):
+        fields.pop("dispatch.earliest_time", None)
+        fields.pop("dispatch.latest_time", None)
     return fields
 
 
@@ -142,7 +143,6 @@ class DetectionDraft:
     description: str = ""
     earliest_time: str = "-10m"
     latest_time: str = "now"
-    cron_schedule: str = ""
     severity: str = "medium"
     mitre_attack: tuple[str, ...] = field(default_factory=tuple)
     risk_score: int = 0
@@ -175,13 +175,16 @@ class DetectionDraft:
         alert_fields = canonical_alert_fields(payload)
         earliest_time = alert_fields.get("dispatch.earliest_time", text("earliest_time", "-10m"))
         latest_time = alert_fields.get("dispatch.latest_time", text("latest_time", "now"))
+        if _REALTIME_TIME.match(earliest_time) or _REALTIME_TIME.match(latest_time):
+            earliest_time, latest_time = "-10m", "now"
+            alert_fields.pop("dispatch.earliest_time", None)
+            alert_fields.pop("dispatch.latest_time", None)
         return cls(
             name=text("name"),
             spl=text("spl", text("search")),
             description=text("description"),
             earliest_time=earliest_time,
             latest_time=latest_time,
-            cron_schedule=alert_fields.get("cron_schedule", text("cron_schedule")),
             severity=text("severity", "medium").lower(),
             mitre_attack=tuple(str(item).strip() for item in mitre if str(item).strip()),
             risk_score=score,
@@ -202,7 +205,6 @@ class DetectionDraft:
             "spl": self.spl,
             "earliest_time": self.earliest_time,
             "latest_time": self.latest_time,
-            "cron_schedule": self.cron_schedule,
             "severity": self.severity,
             "mitre_attack": list(self.mitre_attack),
             "risk_score": self.risk_score,
@@ -228,20 +230,6 @@ def _boolean_field(fields: Mapping[str, str], key: str, errors: list[str]) -> bo
 
 def _validate_alert_fields(draft: DetectionDraft, errors: list[str], warnings: list[str]) -> None:
     fields = dict(draft.alert_fields)
-    is_scheduled = _boolean_field(fields, "is_scheduled", errors)
-    realtime = bool(_REALTIME_TIME.match(draft.earliest_time)) or bool(_REALTIME_TIME.match(draft.latest_time))
-    if realtime and not (_REALTIME_TIME.match(draft.earliest_time) and _REALTIME_TIME.match(draft.latest_time)):
-        errors.append("real-time alerts require rt-prefixed earliest and latest times")
-    if is_scheduled is True:
-        if not realtime and not draft.cron_schedule.strip():
-            errors.append("scheduled alerts require cron_schedule")
-        if realtime:
-            warnings.append("real-time alerts can consume more Splunk search resources than scheduled alerts")
-    elif is_scheduled is False and draft.cron_schedule.strip():
-        errors.append("cron_schedule cannot be set when is_scheduled is false")
-    elif realtime:
-        errors.append("real-time alert time ranges require is_scheduled=true")
-
     trigger_keys = {"alert_type", "alert_comparator", "alert_threshold", "alert_condition"}
     has_trigger_configuration = any(key in fields and fields[key].strip() for key in trigger_keys)
     alert_type = fields.get("alert_type", "").strip().lower()
@@ -334,8 +322,6 @@ def validate_detection(draft: DetectionDraft, *, query_validation: dict[str, Any
         errors.append("risk_score must be between 0 and 100")
     if draft.enabled:
         errors.append("detection writes must be disabled; MCP cannot enable detections")
-    if draft.cron_schedule and len(draft.cron_schedule.split()) not in {5, 6}:
-        errors.append("cron_schedule must contain five or six fields")
     _validate_alert_fields(draft, errors, warnings)
     for technique in draft.mitre_attack:
         if not _MITRE_ID.match(technique):
@@ -357,7 +343,7 @@ def validate_detection(draft: DetectionDraft, *, query_validation: dict[str, Any
     if "index=" not in draft.spl.lower():
         warnings.append("SPL does not name an index; confirm the data scope before deployment")
     if "| tstats" not in draft.spl.lower() and "| datamodel" not in draft.spl.lower():
-        warnings.append("consider tstats or a data model for scheduled detections at scale")
+        warnings.append("consider tstats or a data model for detections at scale")
     return {
         "valid": not errors,
         "errors": errors,

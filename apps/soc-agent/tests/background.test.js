@@ -68,7 +68,7 @@ test('BACKGROUND refresh counts durable user prompts and applies live cadence ch
   for (let prompt = 1; prompt < 5; prompt += 1) {
     assert.equal(refreshes(await enter(bench.preStep, session, [user(`prompt ${prompt}`)])).length, 0)
   }
-  assert.equal(refreshes(await enter(bench.preStep, session, [{ source: { kind: 'plugin', plugin: 'scheduler' }, content: [] }])).length, 0)
+  assert.equal(refreshes(await enter(bench.preStep, session, [{ source: { kind: 'plugin', plugin: 'fixture' }, content: [] }])).length, 0)
 
   const fifth = await enter(bench.preStep, session, [user('prompt 5')])
   const [refresh] = refreshes(fifth)

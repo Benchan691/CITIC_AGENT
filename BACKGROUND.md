@@ -53,6 +53,5 @@ replacement for `AGENTS.md`.
 - MCP never creates, updates, enables, disables, or rolls back a detection.
 - Authentication, environment configuration, customer context, and live
   evidence come from their authoritative sources, not from this document.
-- The Ruleset, Customer Information, and Fix Source type catalogs are managed
-  in PostgreSQL with audited, revision-checked edits. The application can
-  preview lookup snapshots but cannot publish or modify Splunk lookups.
+- `Ruleset.csv` remains read-only evidence for rule-number checks. Catalog
+  maintenance is handled by the external human process.

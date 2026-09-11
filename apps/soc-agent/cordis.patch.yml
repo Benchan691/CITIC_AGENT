@@ -205,13 +205,6 @@
     - id: soc-agent-admin-host
       name: dsh-soc-agent/host
       description: Host policy, tool allowlists, and admin RPC for the SOC Agent product.
-    - id: soc-agent-scheduler
-      name: dsh-soc-agent/scheduler
-      description: Durable scheduled read-only Splunk and Zimbra investigation runs.
-      config:
-        workspaceRoot: !!js "process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]"
-        maxConcurrentRuns: 1
-        runTimeoutMs: 900000
     - id: soc-agent-admin-ui
       name: dsh-soc-agent-client
 

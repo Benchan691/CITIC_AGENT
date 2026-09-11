@@ -6,22 +6,11 @@ server, and pinned harness source.
 
 ## Repository layout
 
-- `apps/soc-agent` — application host, policy, scheduler, and MCP server
-- `packages` — SOC client and scheduler packages
+- `apps/soc-agent` — application host, policy, and MCP server
+- `packages` — SOC client package
 - `vendor/deepseek-harness` — JavaScript workspace and web runtime
 - `skills` — SOC operating playbooks
 - `docs` — project structure and operating notes
-
-## SOC catalogs
-
-The Ruleset, Customer Information, and Fix Source type catalogs live in
-PostgreSQL. Analysts edit records through authenticated forms (`/catalogs`, or
-the catalog MCP tools with the editor's explicit Save); every change is
-recorded in an audit history table with the actor, timestamp, reason, and
-before/after values. The application can preview validated lookup snapshots,
-but it never publishes catalog data to Splunk. Imports of existing lookup data
-remain read-only and go through staging and a reconciliation report via
-`python -m unified_mcp_server.catalog_cli --help`.
 
 ## First-time setup
 
@@ -69,8 +58,7 @@ flow. Splunk MCP Server applies its own query guardrails and result cap. The
 application still enforces authentication and session ownership, sanitizes
 results, preserves evidence boundaries, bounds model-visible output, and keeps
 transport deadlines. Shell, filesystem, coding, and unrelated tools remain
-disabled. The application exposes no Splunk mutation tool or catalog-to-Splunk
-publication path.
+disabled. The application exposes no Splunk mutation tool.
 
 ## Splunk background context
 
@@ -85,9 +73,9 @@ and enable or throttle current-time context from the **Agent context** section o
 The deployment-wide access mode and per-action checklist are available in the
 **Access & approvals** section of the admin dashboard. Individual sessions can
 choose **Full access** or **SOC mode** from the conversation controls. Full
-access runs permitted non-disabled actions directly; catalog and detection
-changes still require their approval/editor flow, and sending email always
-requires the authenticated draft-view Send confirmation.
+access runs permitted non-disabled actions directly. Detection deployment stays
+outside the application, and sending email always requires the authenticated
+draft-view Send confirmation.
 
 To start the web app:
 

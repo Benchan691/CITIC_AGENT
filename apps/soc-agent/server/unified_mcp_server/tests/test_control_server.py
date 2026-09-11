@@ -55,7 +55,7 @@ def test_response_bound_preserves_the_complete_protocol_envelope(monkeypatch):
 def test_command_failure_shapes_are_bounded_and_credential_free():
     login_failure = command_failure("login", RuntimeError("password was hunter2"))
     assert login_failure == {"code": "authentication_failed", "message": "authentication failed", "details": {}}
-    service_failure = command_failure("catalog-list", ServiceError("not_configured", "Catalog storage missing."))
+    service_failure = command_failure("list-signatures", ServiceError("not_configured", "Zimbra is not configured."))
     assert service_failure["code"] == "not_configured"
     generic = command_failure("send-email", RuntimeError("boom"))
     assert generic == {"code": "operation_failed", "message": "The requested operation failed.", "details": {}}

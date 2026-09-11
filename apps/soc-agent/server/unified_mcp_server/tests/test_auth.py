@@ -33,6 +33,8 @@ class SocConnection:
         upper = " ".join(query.strip().upper().split())
         if upper.startswith("CREATE TABLE"):
             return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
+        if upper.startswith("INSERT INTO SOC_BOOTSTRAP"):
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
         if upper.startswith("INSERT INTO SOC_USERS"):
             proposed_id, email, created_at, last_login_at = params
             current = next((user for user in self.users.values() if user["email"] == email), None)

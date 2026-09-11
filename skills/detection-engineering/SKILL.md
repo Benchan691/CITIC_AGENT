@@ -14,7 +14,7 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 - Validate before every backtest or handoff.
 - Backtests are bounded samples, not total match counts or proof of production quality.
 - Generic saved-search writes do not persist severity, ATT&CK, risk, suppression, or provider-specific action settings.
-- If a rule is later activated outside MCP, require a persisted schedule and at least one persisted Splunk alert action.
+- Activation timing is outside this application; require at least one persisted Splunk alert action before an external operator activates a rule.
 - Do not invent MITRE mappings, severity, risk objects, or scores.
 - Any deployment must occur through a separately controlled human Splunk
   process outside this application.
@@ -36,13 +36,11 @@ Turn supported evidence into a precise, reviewable detection. A hypothesis alone
 
 For a new customer detection:
 
-1. Review the rule catalog and select a rule number not already used in the
-   four-digit range `0000`–`9999`. Prefer the managed catalog tools
-   (`catalog_list_rules`, then a `catalog_write_rule` draft followed by the
-   editor's explicit Save). Existing Splunk lookup data remains read-only.
-2. Create the corresponding catalog row and fill in its required rule
-   information, using the verified `[COMPANY_SHORT] detection alert name`
-   convention. Catalog changes remain local to the application.
+1. Read the current `Ruleset.csv` lookup and select a rule number not already used
+   in the four-digit range `0000`–`9999`. This check is read-only.
+2. Hand the required catalog maintenance to the external human process, using
+   the verified `[COMPANY_SHORT] detection alert name` convention. Do not claim
+   the rule number is reserved until that process confirms it.
 3. Complete the alert configuration checklist below.
 4. Prepare the validated rule for the separately controlled deployment process.
 
@@ -75,11 +73,7 @@ contain `outputcsv`.
 
 Every new rule must record:
 
-- Alert type: Scheduled uses `is_scheduled=true`, non-real-time dispatch
-  bounds, and a cron expression. Real-time uses `is_scheduled=true`, `rt...`
-  for both dispatch bounds, and no cron expression.
 - Time range: `dispatch.earliest_time` and `dispatch.latest_time`.
-- Cron expression: required for Scheduled alerts.
 - Expires: a positive `alert.expires` duration.
 - Trigger Conditions: `alert_type`/`counttype`, comparator/`relation`,
   threshold/`quantity`, or a custom `alert_condition`.
@@ -111,9 +105,9 @@ and case prefix:
 ]
 ```
 
-`outputcsv` is permitted only in the exact disabled, harness-approved detection
-draft. It runs later in Splunk's alert runtime, is never executed or exported
-by MCP, must not be used for investigation/backtesting, writes on the local
+`outputcsv` is permitted only in the exact disabled, externally reviewed
+detection definition. It runs later in Splunk's alert runtime, is never
+executed or exported by MCP, must not be used for investigation/backtesting, writes on the local
 search head, and is unavailable on Splunk Cloud. Use the supported email
 CSV attachment action on Splunk Cloud. Recheck `Ruleset.csv` immediately
 before the change; its row and the detection change remain separately
@@ -124,16 +118,18 @@ controlled operations.
 1. State the behavior, evidence, entities, expected data, match condition, and known benign behavior.
 2. Inspect existing or equivalent rules. Request full SPL only for the exact relevant rule.
 3. Design base detection logic with stable fields, bounded windows, and only necessary transformations. Prefer `tstats` or accelerated data models when appropriate and actually available.
-4. Compile the logic with `splunk_compile_citic_detection`; use its production SPL for validation and write/update, and its derived backtest SPL for testing.
-5. Define supported metadata: name, description, time range, schedule, severity, ATT&CK, risk, suppression, alert actions, and `enabled: false`.
+4. Compile the logic with `splunk_compile_citic_detection`; use its production SPL for validation and external handoff, and its derived backtest SPL for testing.
+5. Define supported metadata: name, description, bounded time range, severity, ATT&CK, risk, suppression, alert actions, and `enabled: false`. Do not include schedule or real-time activation fields; the application ignores them.
 6. Validate and resolve errors. Review warnings rather than ignoring them.
 7. Backtest on a representative bounded period. Examine the returned sample count and budget, repeated entities, field consistency, noise, suppression need, and performance; the tool does not return a total match count.
 8. Iterate design → compile → validate → backtest until the result is defensible or limitations are explicit.
-9. Present the exact proposed change and evidence before writing.
-10. Create or update a disabled draft and review its complete editor state.
-11. Let the harness approve the draft tool call, then Save the inline editor. Verify the persisted detection is disabled; treat returned review-only metadata as unpersisted.
-12. If activation or rollback is required, hand off to the separately controlled human Splunk process outside MCP and verify the resulting state with `splunk_get_detection`.
-13. If behavior is unsafe or noisy, stop further MCP changes and document the outside-MCP rollback evidence.
+9. Present the exact proposed change and evidence before handoff.
+10. Hand off the disabled-by-default validated definition and the required
+    `Ruleset.csv` maintenance to the separately controlled human process.
+11. After the operator deploys it, verify the resulting state with
+    `splunk_get_detection`.
+12. If behavior is unsafe or noisy, stop and document the outside-MCP rollback
+    recommendation and any independently verified rollback evidence.
 
 ## Output
 

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import z from '@deepseek-ai/schemastery'
 import { renderWorkspaceContext } from '@deepseek-ai/dsh-agent-instructions'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG } from './policy.js'
+import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG } from './policy.js'
 import { runAuthCommand } from './ownership.js'
 import { installInvestigationProjection } from './investigation.js'
 
@@ -27,19 +27,10 @@ const BackgroundSettings = z.object({
   repeatEveryUserPrompts: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_BACKGROUND_PROMPTS),
 })
 const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
-const CATALOG_ENDPOINTS = new Set([
-  'catalog-list',
-  'catalog-get',
-  'catalog-history',
-  'catalog-publications',
-  'catalog-preview-publish',
-  'save-catalog-record',
-  'archive-catalog-record',
-])
 const HARD_ATTACHMENT_BYTES = 100_000_000
 const HARD_MARKDOWN_CHARS = 2_000_000
 
-export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CATALOG_ACTION_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG }
+export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG }
 
 const ACTION_NAMES = new Set(ACTION_TOOLS)
 const nodeRequire = createRequire(import.meta.url)
@@ -429,10 +420,6 @@ function policyValue(ctx, sessionPolicies, sessionId) {
   }
 }
 
-function catalogApprovalReason(exec) {
-  return 'This catalog change requires approval before it can run.'
-}
-
 function policyError(error, sessionId) {
   if (error instanceof ActionPolicyError) {
     if (error.code === 'soc-action-session-not-found') {
@@ -624,85 +611,6 @@ function validateAttachmentPayload(payload) {
   return { filename, content_type: contentType, data, limits: { max_bytes: maxBytes, max_chars: maxChars } }
 }
 
-const CATALOG_NAMES = new Set(['customer', 'rule', 'fix_source_type'])
-
-function validateCatalogSavePayload(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new Error('The catalog save request is invalid.')
-  }
-  const operation = payload.operation
-  if (operation !== 'write' && operation !== 'update') {
-    throw new Error('The catalog save operation is invalid.')
-  }
-  const catalog = payload.catalog
-  if (typeof catalog !== 'string' || !CATALOG_NAMES.has(catalog)) {
-    throw new Error('The catalog name is invalid.')
-  }
-  if (!payload.record || typeof payload.record !== 'object' || Array.isArray(payload.record)) {
-    throw new Error('The catalog record draft is invalid.')
-  }
-  if (operation === 'update' && (typeof payload.record_id !== 'string' || payload.record_id.trim() === '')) {
-    throw new Error('The catalog record ID is invalid.')
-  }
-  if (payload.record_id !== undefined && payload.record_id !== null && typeof payload.record_id !== 'string') {
-    throw new Error('The catalog record ID is invalid.')
-  }
-  if (operation === 'update' && (!Number.isInteger(payload.expected_revision) || payload.expected_revision < 1)) {
-    throw new Error('The catalog record revision is invalid.')
-  }
-  if (payload.reason !== undefined && typeof payload.reason !== 'string') {
-    throw new Error('The change reason is invalid.')
-  }
-  return {
-    catalog,
-    operation,
-    record: payload.record,
-    ...(payload.record_id === undefined || payload.record_id === null ? {} : { record_id: payload.record_id }),
-    ...(operation === 'update' ? { expected_revision: payload.expected_revision } : {}),
-    ...(payload.reason ? { reason: payload.reason.slice(0, 500) } : {}),
-  }
-}
-
-function validateCatalogArchivePayload(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new Error('The catalog archive request is invalid.')
-  }
-  const catalog = payload.catalog
-  if (typeof catalog !== 'string' || !CATALOG_NAMES.has(catalog)) {
-    throw new Error('The catalog name is invalid.')
-  }
-  if (typeof payload.record_id !== 'string' || payload.record_id.trim() === '') {
-    throw new Error('The catalog record ID is invalid.')
-  }
-  if (!Number.isInteger(payload.expected_revision) || payload.expected_revision < 1) {
-    throw new Error('The catalog record revision is invalid.')
-  }
-  return {
-    catalog,
-    record_id: payload.record_id,
-    expected_revision: payload.expected_revision,
-    restore: payload.restore === true,
-    ...(typeof payload.reason === 'string' && payload.reason ? { reason: payload.reason.slice(0, 500) } : {}),
-  }
-}
-
-function validateCatalogNamePayload(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new Error('The catalog request is invalid.')
-  }
-  const catalog = payload.catalog
-  if (typeof catalog !== 'string' || !CATALOG_NAMES.has(catalog)) {
-    throw new Error('The catalog name is invalid.')
-  }
-  return {
-    catalog,
-    ...(typeof payload.search === 'string' ? { search: payload.search } : {}),
-    ...(Number.isInteger(payload.limit) ? { limit: payload.limit } : {}),
-    ...(Number.isInteger(payload.offset) ? { offset: payload.offset } : {}),
-    ...(payload.include_archived === undefined ? {} : { include_archived: payload.include_archived === true }),
-  }
-}
-
 async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
   switch (endpoint) {
     case 'get-action-catalog': requireUser(ctx); return ok({ actions: ACTION_CATALOG, tools: TOOL_CATALOG })
@@ -762,51 +670,6 @@ async function handleEndpoint(endpoint, payload, signal, ctx, sessionPolicies) {
       const session = requireUser(ctx)
       return ok(await runAuthCommand('send-email', { ...payload, session_id: session.id }))
     }
-    case 'catalog-list': {
-      const session = requireUser(ctx)
-      return ok(await runAuthCommand('catalog-list', { ...validateCatalogNamePayload(payload), session_id: session.id }))
-    }
-    case 'catalog-get':
-    case 'catalog-history': {
-      const session = requireUser(ctx)
-      if (typeof payload?.record_id !== 'string' || payload.record_id.trim() === '') {
-        return badRequest('The catalog record ID is invalid.')
-      }
-      const command = endpoint === 'catalog-get' ? 'catalog-get' : 'catalog-history'
-      return ok(await runAuthCommand(command, {
-        catalog: validateCatalogNamePayload(payload).catalog,
-        record_id: payload.record_id,
-        session_id: session.id,
-      }))
-    }
-    case 'catalog-publications': {
-      const session = requireUser(ctx)
-      return ok(await runAuthCommand('catalog-publications', { ...validateCatalogNamePayload(payload), session_id: session.id }))
-    }
-    case 'catalog-preview-publish': {
-      const session = requireUser(ctx)
-      return ok(await runAuthCommand('catalog-preview-publish', { ...validateCatalogNamePayload(payload), session_id: session.id }))
-    }
-    case 'save-catalog-record': {
-      const session = requireUser(ctx)
-      let request
-      try {
-        request = validateCatalogSavePayload(payload)
-      } catch (error) {
-        return badRequest(error instanceof Error ? error.message : 'The catalog save request is invalid.')
-      }
-      return ok(await runAuthCommand('save-catalog-record', { ...request, session_id: session.id }))
-    }
-    case 'archive-catalog-record': {
-      const session = requireUser(ctx)
-      let request
-      try {
-        request = validateCatalogArchivePayload(payload)
-      } catch (error) {
-        return badRequest(error instanceof Error ? error.message : 'The catalog archive request is invalid.')
-      }
-      return ok(await runAuthCommand('archive-catalog-record', { ...request, session_id: session.id }))
-    }
     case 'list-signatures': {
       const session = requireUser(ctx)
       return ok(await runAuthCommand('list-signatures', { session_id: session.id }))
@@ -838,34 +701,20 @@ export function apply(ctx) {
         path: '/admin/',
         handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
       })
-      // The catalog management page reuses the admin shell; the RPC channel
-      // enforces authentication and (for publishing) admin rights per call.
-      const catalogs = ctx.webServer.register({
-        kind: 'exact',
-        path: '/catalogs',
-        handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
-      })
-      const catalogsTrailing = ctx.webServer.register({
-        kind: 'exact',
-        path: '/catalogs/',
-        handler: (request, response) => serveAdminPage(request, response, ctx.webServer),
-      })
       return () => {
         admin?.()
         adminTrailing?.()
-        catalogs?.()
-        catalogsTrailing?.()
       }
     }, 'soc-agent-host: admin web surface')
   }
   installInvestigationProjection(ctx)
   ctx.on('agent/created', ({ agent }) => {
     if (!ctx.agents.roots().includes(agent)) return
-    try { agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS, ...CONTROL_TOOLS] }) } catch { /* scheduler tools register asynchronously; pre-execute enforces */ }
+    agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS, ...CONTROL_TOOLS] })
   })
   ctx.on('tools/pre-execute', (exec, next) => {
     if (!DOMAIN_TOOLS.has(exec.name) && !CONTROL_TOOLS.has(exec.name)) {
-      return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only approved Splunk, Zimbra, subscription, scheduling, and catalog tools.' })
+      return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only approved Splunk, Zimbra, and subscription tools.' })
     }
     const agent = exec?.agent
     const sessionId = sessionIdOf(agent)
@@ -880,9 +729,7 @@ export function apply(ctx) {
     if (alwaysAsk || state === 'ask' || (state === 'auto' && APPROVAL_TOOLS.has(exec.name) && !interactive)) {
       return Promise.resolve({
         kind: 'ask',
-        reason: alwaysAsk
-          ? catalogApprovalReason(exec)
-          : 'This action changes a SOC system, sends email, or changes a persistent schedule.',
+        reason: 'This action changes a SOC system or sends email.',
       })
     }
     return next()
@@ -936,14 +783,6 @@ export function apply(ctx) {
           const message = error instanceof Error ? error.message.trim() : ''
           if (message.startsWith(prefix)) return internalError(message)
           return internalError(`${prefix} ${message || 'The test process did not return a diagnostic. Check the server .env configuration and server logs.'}`)
-        }
-        if (CATALOG_ENDPOINTS.has(endpoint)) {
-          const code = typeof error?.code === 'string' ? error.code : 'internal'
-          const message = code === 'internal'
-            ? 'The catalog operation failed.'
-            : error instanceof Error ? error.message : 'The catalog operation failed.'
-          const details = error?.details && typeof error.details === 'object' ? error.details : {}
-          return { ok: false, error: { code, message, details } }
         }
         if (endpoint === 'get-action-policy' || endpoint === 'set-session-action-policy' || endpoint === 'reset-session-action-policy') {
           const sessionId = payload?.session_id ?? payload?.sessionId

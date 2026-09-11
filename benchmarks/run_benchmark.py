@@ -74,7 +74,7 @@ def write_overlay(cfg: dict) -> Path:
 # server at the TEST Splunk with detection-write enabled (enable stays off;
 # the Splunk/subscription settings reach the server through the bench .env
 # swap done by the runner because load_dotenv(override=True) beats process
-# env). The last three entries disable web-profile-only SOC hosts that would
+# env). The last two entries disable web-profile-only SOC hosts that would
 # block a headless boot.
 - id: soc-agent-mcp
   config:
@@ -90,8 +90,6 @@ def write_overlay(cfg: dict) -> Path:
 - id: soc-agent-auth-host
   disabled: true
 - id: soc-agent-admin-host
-  disabled: true
-- id: soc-agent-scheduler
   disabled: true
 """
     OVERLAY_PATH.write_text(overlay)

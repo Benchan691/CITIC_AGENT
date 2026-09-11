@@ -18,8 +18,6 @@ class OperationContext:
     investigation_id: str = ""
     customer_id: str = ""
     config_revision: str = ""
-    scheduled_at: float | None = None
-    workload: str = "interactive"
     deadline: float = float("inf")
 
     @property

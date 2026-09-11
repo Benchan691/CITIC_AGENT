@@ -11,7 +11,7 @@ uv run unified-mcp-server
 uv run pytest
 ```
 
-Authenticated UI operations (catalog edits and email) run through a persistent Python control channel
+Authenticated email operations run through a persistent Python control channel
 (`unified_mcp_server.control_server`) instead of one interpreter per command;
 `SOC_CONTROL_CHANNEL=off` restores per-command interpreters. The control channel
 shares settings, provider clients and bounded PostgreSQL pools across requests.
@@ -26,11 +26,7 @@ The deterministic search planner is exposed as `splunk_plan_search` once
 
 Configure Splunk, Zimbra, MarkItDown, and subscription-server settings in the
 ignored `.env` file. PostgreSQL stores authenticated users, sessions, and
-workspace ownership, plus the SOC catalogs (Ruleset, Customer Information,
-Fix Source type) with their audit history; it is not a service-configuration
-source. Catalog records are edited through the authenticated editor workflow.
-The application can preview validated lookup snapshots but cannot publish them
-to Splunk. The
+workspace ownership; it is not a service-configuration source. The
 `/admin` console shows service status and manages LLM provider credentials, but
 does not expose or edit deployment variables. The user model picker includes
 only providers whose named credential is currently configured; adding or
@@ -62,7 +58,7 @@ connection and does not disable TLS checks process-wide.
 The Python adapter remains for compatibility reads such as bounded lookup and
 existing search-job result retrieval. An official MCP rejection is surfaced
 and is never silently retried through REST. The application exposes no Splunk
-write tool, REST mutation method, or catalog-to-Splunk publication path.
+write tool or REST mutation method.
 
 Remove either official MCP setting and restart the host to disable the direct
 bridge; the legacy read-only compatibility tools remain available when their
@@ -77,8 +73,8 @@ MarkItDown-based attachment-to-Markdown conversion for PDF, Word, PowerPoint,
 Excel, images, ZIP, EPUB, CSV, JSON, XML, HTML, and text files; attachment
 hashes; and verified reversible message moves. The authenticated email
 webserver exposes subscription listing, preview, creation, updates, and
-deletion. Sends, moves, folders, filters, catalog changes, and subscription
-mutations remain approval-gated by the host.
+deletion. Sends, moves, folders, filters, and subscription mutations remain
+approval-gated by the host.
 
 Ad-hoc searches coalesce identical in-flight requests within the host-resolved
 user, investigation and customer scope. Completed snapshots can be reused for

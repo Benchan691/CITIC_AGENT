@@ -13,7 +13,6 @@
     "splunk-bridge.js",
     "auth-host.js",
     "ownership.js",
-    "scheduler.js",
     "policy.js"
   ],
   "exports": {
@@ -22,7 +21,6 @@
     "./splunk-bridge": "./splunk-bridge.js",
     "./auth-host": "./auth-host.js",
     "./ownership": "./ownership.js",
-    "./scheduler": "./scheduler.js",
     "./policy": "./policy.js",
     "./package.json": "./package.json"
   },
@@ -30,7 +28,6 @@
     "@deepseek-ai/dsh-agent-instructions": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-mcp-client": "link:../../vendor/deepseek-harness/packages/mcp/mcp-client",
-    "@deepseek-ai/dsh-soc-agent-scheduler": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:*",
     "dsh-soc-agent-client": "workspace:*",
     "pg": "^8.16.3"

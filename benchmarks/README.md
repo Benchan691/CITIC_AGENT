@@ -45,6 +45,7 @@ python3 benchmarks/run_benchmark.py --scenarios S1_ruleset_catalog,S5_guardrail_
 3. **Grading** — each scenario has a grader that checks the agent's answer text
    and observed read-only tool activity. Detection proposals must include every
    field from the BACKGROUND.md checklist without creating a saved search.
+   Schedule and real-time activation metadata are outside the application.
    Tool-call metrics come from the MCP server's DEBUG stderr (per scenario:
    call counts, executed search strings, duration, exit code). Fields the
    backend itself refuses (HTTP 400/409) are marked "backend-blocked" in the

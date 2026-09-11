@@ -741,11 +741,9 @@ test('MCP metadata carries only an opaque app session reference', async () => {
   await auth.withSession(session, async () => { metadata = auth.mcpRequestMeta({ agent: { id: 'agent-a' } }) })
   assert.deepEqual(metadata, { soc_session_id: 'app-session-a' })
   assert.equal(JSON.stringify(metadata).includes('must-not-leave-server'), false)
-  auth.bindAgentSession('scheduled-agent', session.id, { soc_workload: 'scheduled' })
-  assert.equal(auth.agentInvestigations.size, 1)
+  auth.bindAgentSession('agent-a', session.id)
   auth.unbindApplicationSession(session.id)
   assert.equal(auth.agentSessions.size, 0)
-  assert.equal(auth.agentInvestigations.size, 0)
 })
 
 test('SOC auth plugin gates Harness transport and scopes the shared API proxy', async () => {

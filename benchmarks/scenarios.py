@@ -150,8 +150,8 @@ def scenario_detection(test, prod, metrics, answer) -> tuple[bool, list[dict]]:
             "g41228_windows_wec" in lower and "eventcode=4625" in lower,
         ),
         _check(
-            "proposal includes schedule and trigger settings",
-            "*/5 * * * *" in a and "-5m" in lower and "greater than 0" in lower,
+            "proposal includes bounded time and trigger settings without scheduling",
+            "*/5 * * * *" not in a and "-5m" in lower and "greater than 0" in lower,
         ),
         _check(
             "proposal includes alert tracking and log-event actions",
@@ -245,8 +245,8 @@ SCENARIOS = [
             "detection-engineering skill and the BACKGROUND.md alert checklist. Steps: "
             "(1) verify rule number 7810 is unused in Ruleset.csv; (2) name it exactly "
             "'[GTJA] 7810_Bench Test Detection'; (3) SPL: index=g41228_windows_wec EventCode=4625 "
-            "| stats count by _time, Account_Name; (4) alert type Scheduled with cron */5 * * * *, "
-            "dispatch time range -5m to now, expires 24h; (5) trigger condition: number of events "
+            "| stats count by _time, Account_Name; (4) dispatch time range -5m to now, expires 24h, "
+            "with no schedule or real-time activation fields; (5) trigger condition: number of events "
             "greater than 0, trigger once per result (digest false); (6) throttle explicitly disabled; "
             "(7) trigger actions: Add to Triggered Alerts (track true) and Log Event enabled; "
             "(8) backtest over the last 24h first. Do not create or update anything in Splunk; "

@@ -1,6 +1,6 @@
 ---
 name: soc-shift-operations
-description: Run bounded SOC shift-start, daily screening, queue prioritization, and analyst handoff across configured Splunk and Zimbra sources. Use for recurring operational coverage, not a single known incident.
+description: Run bounded SOC shift-start, daily screening, queue prioritization, and analyst handoff across configured Splunk and Zimbra sources. Use for broad operational coverage, not a single known incident.
 ---
 
 # SOC Shift Operations
@@ -13,7 +13,7 @@ Screen the queue without turning one shift run into an unbounded investigation.
 - Fix the window start/end, timezone, handoff owner, named Splunk saved searches or detections, and the authenticated Zimbra mailbox's folder/query.
 - Never infer an index, sourcetype, mailbox identity, or saved-search name.
 - Default to at most 20 metadata records per source and three deep investigations per run unless the operator sets different limits.
-- Scheduled runs are read-only screening. Route interactive writes to `detection-engineering` or `zimbra-operations`.
+- Shift screening is read-only. Route writes to `detection-engineering` or `zimbra-operations`.
 
 ## Workflow
 
@@ -24,10 +24,6 @@ Screen the queue without turning one shift run into an unbounded investigation.
 5. Prioritize P1, P2, P3, or Needs-context from supported impact and urgency. Missing evidence never makes a case low priority by itself.
 6. Investigate only the highest-priority cases, one specialist skill at a time. Stop each case after two evidence-neutral pivots.
 7. Defer the remaining queue with the exact next query, owner, or evidence needed.
-
-## Scheduled objective
-
-A reusable schedule prompt must name the window/timezone, authenticated Zimbra folders or queries, exact saved searches/detections, per-source limits, maximum cases, and handoff owner. Reject a generic “check everything” objective.
 
 ## Handoff
 

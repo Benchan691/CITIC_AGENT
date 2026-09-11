@@ -2,11 +2,9 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-test('removes scheduled-task management from settings while keeping prompt-driven creation', () => {
+test('does not expose scheduled-task management in settings', () => {
   const clientSource = readFileSync(new URL('../src/client/index.ts', import.meta.url), 'utf8')
-  const schedulerSource = readFileSync(new URL('../../soc-agent-scheduler/index.js', import.meta.url), 'utf8')
   assert.doesNotMatch(clientSource, /ScheduledTasksForm|settings\.section|soc-agent-schedules/)
-  assert.match(schedulerSource, /tool\('scheduled_task_create'/)
 })
 
 test('exports independent SOC settings components', () => {

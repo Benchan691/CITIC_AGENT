@@ -41,7 +41,7 @@ class SplunkDetectionService:
             key: detection.get(key)
             for key in (
                 "name", "description", "spl", "earliest_time", "latest_time",
-                "cron_schedule", "is_scheduled", "disabled", "actions", "app", "owner",
+                "disabled", "actions", "app", "owner",
             )
         }
         fields.update(public_alert_fields(detection))
@@ -83,10 +83,8 @@ class SplunkDetectionService:
             "name": result.get("name", name) if isinstance(result, dict) else name,
             "description": content.get("description", ""),
             "spl": content.get("search", ""),
-            "earliest_time": content.get("dispatch.earliest_time", ""),
-            "latest_time": content.get("dispatch.latest_time", ""),
-            "cron_schedule": content.get("cron_schedule", ""),
-            "is_scheduled": self._flag(content.get("is_scheduled", False)),
+            "earliest_time": alert_fields.get("dispatch.earliest_time", ""),
+            "latest_time": alert_fields.get("dispatch.latest_time", ""),
             "disabled": self._flag(content.get("disabled", False)),
             "actions": content.get("actions", ""),
             # The request is scoped to these configured values; never let a
@@ -98,18 +96,6 @@ class SplunkDetectionService:
         detection.update(alert_fields)
         # Keep the legacy aliases in reads while exposing the raw REST names
         # beside them. The raw values are the canonical source for editor drafts.
-        detection["earliest_time"] = alert_fields.get(
-            "dispatch.earliest_time", detection["earliest_time"]
-        )
-        detection["latest_time"] = alert_fields.get(
-            "dispatch.latest_time", detection["latest_time"]
-        )
-        detection["cron_schedule"] = alert_fields.get(
-            "cron_schedule", detection["cron_schedule"]
-        )
-        detection["is_scheduled"] = self._flag(
-            alert_fields.get("is_scheduled", detection["is_scheduled"])
-        )
         detection["actions"] = alert_fields.get("actions", detection["actions"]) or ""
         detection["fingerprint"] = self._fingerprint(detection)
         return detection

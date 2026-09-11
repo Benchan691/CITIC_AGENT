@@ -27,7 +27,7 @@ Do not load every specialist skill up front.
 6. **Correlate:** maintain a compact evidence ledger of source, timestamp, entity, observation, and confidence. Normalize time to UTC while preserving original timezone.
 7. **Test:** evaluate a primary hypothesis and at least one plausible alternative. Pivot only from observed evidence.
 8. **Assess:** classify malicious, suspicious, likely benign, no supporting evidence, or inconclusive. State confidence and missing evidence.
-9. **Act:** recommend the smallest reversible next action. Changing filters, changing detections, or creating schedules requires the corresponding approval gate; email actions remain draft-only.
+9. **Act:** recommend the smallest reversible next action. Changing filters or detections requires the corresponding approval gate; email actions remain draft-only.
 10. **Close or hand off:** summarize evidence, impact, affected scope, actions taken, owner, and follow-up criteria. Route rule work to detection engineering.
 
 ## Stop conditions

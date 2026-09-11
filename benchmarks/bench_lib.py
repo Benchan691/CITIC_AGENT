@@ -163,8 +163,6 @@ class SplunkREST:
             c = e["content"]
             out[e["name"]] = {
                 "disabled": bool(c.get("disabled")),
-                "is_scheduled": c.get("is_scheduled"),
-                "cron_schedule": c.get("cron_schedule"),
                 "dispatch.earliest_time": c.get("dispatch.earliest_time"),
                 "dispatch.latest_time": c.get("dispatch.latest_time"),
                 "alert.expires": c.get("alert.expires"),

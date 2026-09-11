@@ -35,14 +35,6 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__splunk_backtest_detection',
   'mcp__soc_agent__soc_evidence_read',
   'mcp__soc_agent__splunk_plan_search',
-  'mcp__soc_agent__catalog_list_rules',
-  'mcp__soc_agent__catalog_get_rule',
-  'mcp__soc_agent__catalog_list_customers',
-  'mcp__soc_agent__catalog_get_customer',
-  'mcp__soc_agent__catalog_list_fix_source_types',
-  'mcp__soc_agent__catalog_get_fix_source_type',
-  'mcp__soc_agent__catalog_get_record_history',
-  'mcp__soc_agent__catalog_preview_publication',
   'mcp__soc_agent__zimbra_list_folders',
   'mcp__soc_agent__zimbra_search_emails',
   'mcp__soc_agent__zimbra_get_email',
@@ -58,7 +50,6 @@ export const READ_ONLY_TOOLS = Object.freeze([
   'mcp__soc_agent__list_subscriptions',
   'mcp__soc_agent__get_subscription_schema',
   'mcp__soc_agent__preview_subscription',
-  'scheduled_task_list',
 ])
 
 // All Zimbra capabilities are kept in one inventory for the administrative
@@ -95,21 +86,9 @@ export const ACTION_CATALOG = Object.freeze([
   { name: 'mcp__soc_agent__zimbra_create_folder', group: 'Zimbra', label: 'Create folder' },
   { name: 'mcp__soc_agent__zimbra_create_signature', group: 'Zimbra', label: 'Create signature' },
   { name: 'mcp__soc_agent__zimbra_delete_signature', group: 'Zimbra', label: 'Delete signature' },
-  { name: 'mcp__soc_agent__catalog_write_rule', group: 'Catalogs', label: 'Create Ruleset draft' },
-  { name: 'mcp__soc_agent__catalog_update_rule', group: 'Catalogs', label: 'Edit Ruleset record' },
-  { name: 'mcp__soc_agent__catalog_write_customer', group: 'Catalogs', label: 'Create customer draft' },
-  { name: 'mcp__soc_agent__catalog_update_customer', group: 'Catalogs', label: 'Edit customer record' },
-  { name: 'mcp__soc_agent__catalog_write_fix_source_type', group: 'Catalogs', label: 'Create Fix Source type draft' },
-  { name: 'mcp__soc_agent__catalog_update_fix_source_type', group: 'Catalogs', label: 'Edit Fix Source type record' },
-  { name: 'mcp__soc_agent__catalog_archive_record', group: 'Catalogs', label: 'Archive or restore catalog record' },
   { name: 'mcp__soc_agent__create_subscription', group: 'Subscriptions', label: 'Create subscription' },
   { name: 'mcp__soc_agent__update_subscription', group: 'Subscriptions', label: 'Update subscription' },
   { name: 'mcp__soc_agent__delete_subscription', group: 'Subscriptions', label: 'Delete subscription' },
-  { name: 'scheduled_task_create', group: 'Schedules', label: 'Create scheduled task' },
-  { name: 'scheduled_task_pause', group: 'Schedules', label: 'Pause scheduled task' },
-  { name: 'scheduled_task_resume', group: 'Schedules', label: 'Resume scheduled task' },
-  { name: 'scheduled_task_delete', group: 'Schedules', label: 'Delete scheduled task' },
-  { name: 'scheduled_task_run_now', group: 'Schedules', label: 'Run scheduled task now' },
 ])
 
 export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
@@ -151,34 +130,7 @@ export const MANAGED_TOOL_NAMES = Object.freeze(
     .map(tool => tool.name),
 )
 
-export const CATALOG_ACTION_TOOLS = Object.freeze([
-  'mcp__soc_agent__catalog_write_rule',
-  'mcp__soc_agent__catalog_update_rule',
-  'mcp__soc_agent__catalog_write_customer',
-  'mcp__soc_agent__catalog_update_customer',
-  'mcp__soc_agent__catalog_write_fix_source_type',
-  'mcp__soc_agent__catalog_update_fix_source_type',
-  'mcp__soc_agent__catalog_archive_record',
-])
-
-// Draft changes must never be auto-approved by a remembered session policy.
-export const ALWAYS_ASK_ACTION_TOOLS = Object.freeze([
-  ...CATALOG_ACTION_TOOLS,
-])
+export const ALWAYS_ASK_ACTION_TOOLS = Object.freeze([])
 
 export const DOMAIN_TOOLS = new Set([...READ_ONLY_TOOLS, ...ACTION_TOOLS])
 export const APPROVAL_TOOLS = new Set(ACTION_TOOLS)
-
-// Scheduled investigations cannot access scheduler inspection/mutation tools
-// or create browser-editable email drafts.
-const SCHEDULED_EXCLUDED_READ_TOOLS = new Set([
-  'scheduled_task_list',
-  'mcp__soc_agent__zimbra_send_email',
-  'mcp__soc_agent__zimbra_use_signature_on_email',
-  'mcp__soc_agent__list_subscriptions',
-  'mcp__soc_agent__get_subscription_schema',
-  'mcp__soc_agent__preview_subscription',
-])
-export const READ_ONLY_DOMAIN_TOOLS = Object.freeze(
-  READ_ONLY_TOOLS.filter(name => !SCHEDULED_EXCLUDED_READ_TOOLS.has(name)),
-)

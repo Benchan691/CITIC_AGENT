@@ -10,8 +10,6 @@ import React from 'react'
 import { CiticBrandMark, CiticBrandName } from './CiticBrand.tsx'
 import { AdminConsole } from './AdminConsole.tsx'
 import { AuthGate } from './AuthGate.tsx'
-import { CatalogManager } from './CatalogManager.tsx'
-import { installCatalogToolview } from './CatalogToolview.tsx'
 import { installEmailDraftToolview } from './EmailDraftToolview.tsx'
 import { MarkItDownDocumentController } from './markitdownAttachments.ts'
 import { MarkItDownDocuments, openMarkItDownPicker } from './MarkItDownDocuments.tsx'
@@ -24,9 +22,7 @@ export const inject = ['slots', 'connection', 'conversation', 'commandUi', 'sett
 export { SplunkSettings } from './SplunkSettings.ts'
 export { SubscriptionServerSettings } from './SubscriptionServerSettings.ts'
 export { AdminConsole } from './AdminConsole.tsx'
-export { CatalogManager } from './CatalogManager.tsx'
 export { EmailDraftToolview } from './EmailDraftToolview.tsx'
-export { CatalogToolview } from './CatalogToolview.tsx'
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle
@@ -39,15 +35,6 @@ export function apply(ctx: ClientContext): void {
       name: 'root',
       priority: -1,
     }, () => React.createElement(AdminConsole, { connection })))
-    return
-  }
-  if (path === '/catalogs' || path.startsWith('/catalogs/')) {
-    // The catalog management page mirrors the admin console pattern: it
-    // replaces the conversation shell and authenticates on every RPC call.
-    ctx.slots.inject('root', () => ctx.slots.register({
-      name: 'root',
-      priority: -1,
-    }, () => React.createElement(CatalogManager, { connection })))
     return
   }
   // SOC workspaces are the per-user filesystem workspaces guarded by the
@@ -97,7 +84,6 @@ export function apply(ctx: ClientContext): void {
     priority: -10,
   }, props => React.createElement(SocActionPolicyMenu, { ...props, connection })))
   installEmailDraftToolview(ctx)
-  installCatalogToolview(ctx)
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
     id: 'soc-agent-auth-gate',

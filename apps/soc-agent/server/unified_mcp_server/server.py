@@ -13,7 +13,6 @@ from collections import OrderedDict
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
-from datetime import datetime
 from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -21,8 +20,6 @@ from pydantic_settings.exceptions import IncompleteFieldDefinitionWarning
 
 from .account_store import AccountStore
 from .auth import ZimbraIdentity, identity_for_session
-from .catalog.service import CatalogService
-from .catalog.tools import register_tools as register_catalog_tools
 from .config import ServerSettings
 from .env_loader import load_server_env
 from .errors import ServiceError
@@ -75,7 +72,6 @@ class Runtime:
     zimbra_filters: ZimbraFilterService | None = None
     postgres: PostgresStore | None = None
     account_store: AccountStore | PostgresAccountStore | None = None
-    catalog: CatalogService | None = None
     identity: ZimbraIdentity | None = None
     owns_services: bool = True
     config_revision: str = field(init=False)
@@ -121,7 +117,6 @@ class Runtime:
             zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
             postgres=postgres,
             account_store=accounts,
-            catalog=CatalogService.from_env(settings.splunk),
         )
 
     async def close(self) -> None:
@@ -129,8 +124,6 @@ class Runtime:
             return
         await self.splunk.close()
         await self.email_subscriptions.close()
-        if self.catalog is not None:
-            await self.catalog.close()
         if self.postgres is not None:
             await asyncio.to_thread(self.postgres.close)
         self._mail_sessions.clear()
@@ -158,7 +151,6 @@ class Runtime:
             ),
             postgres=self.postgres,
             account_store=self.account_store,
-            catalog=self.catalog,
             identity=identity,
             owns_services=False,
         )
@@ -223,9 +215,7 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
                 prepare_started = time.monotonic()
                 await fresh_runtime(ctx)
                 prepare_ms = (time.monotonic() - prepare_started) * 1000
-                # Catalog callbacks use synchronous PostgreSQL APIs. Other
-                # capabilities return either an awaitable or a local draft.
-                data = await run_blocking(action, principal=operation_context.get().principal_id) if service == "catalog" else action()
+                data = action()
                 if inspect.isawaitable(data):
                     data = await data
                 logger.debug(
@@ -316,8 +306,6 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
             investigation_id=str(_meta_value(ctx, "soc_investigation_id") or identity.session_id)[:128],
             customer_id=str(_meta_value(ctx, "soc_customer_id") or "")[:128],
             config_revision=base.config_revision,
-            scheduled_at=datetime.fromisoformat(_meta_value(ctx, "soc_scheduled_for")).timestamp() if _meta_value(ctx, "soc_scheduled_for") else None,
-            workload="scheduled" if _meta_value(ctx, "soc_workload") == "scheduled" else "interactive",
         ))
         scoped = base.for_identity(identity)
         _request_runtime.set(scoped)
@@ -353,16 +341,6 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         get_runtime=runtime,
         execute=execute,
     )
-    register_catalog_tools(
-        server,
-        get_runtime=runtime,
-        fresh_runtime=fresh_runtime,
-        execute=execute,
-        success=success,
-        failure=failure,
-        service_error=ServiceError,
-    )
-
     register_mail_tools(
         server,
         get_runtime=runtime,

@@ -941,9 +941,6 @@ class SplunkClient:
                     "name": entry.get("name", ""),
                     "search": content.get("search", ""),
                     "description": content.get("description", ""),
-                    "is_scheduled": self._flag(content.get("is_scheduled", False)),
-                    "cron_schedule": content.get("cron_schedule", ""),
-                    "next_scheduled_time": content.get("next_scheduled_time", ""),
                     "actions": content.get("actions", ""),
                     "disabled": self._flag(content.get("disabled", False)),
                     "app": acl.get("app") or content.get("app", ""),
@@ -957,7 +954,7 @@ class SplunkClient:
             raise SplunkAPIError("Failed to get saved searches.") from e
 
     async def get_saved_search(self, search_name: str, app: str = "", owner: str = "") -> Dict[str, Any]:
-        """Retrieve one saved search, including its ACL and schedule fields."""
+        """Retrieve one saved search, including its ACL and bounded dispatch fields."""
         self._ensure_connected()
         try:
             url = f"{self._saved_searches_path(app, owner)}/{quote(search_name, safe='')}"
