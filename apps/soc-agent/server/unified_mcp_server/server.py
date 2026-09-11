@@ -1,4 +1,4 @@
-"""Unified MCP server exposing prefixed Splunk and Zimbra tools."""
+"""Unified MCP server exposing Zimbra and subscription tools."""
 
 import json
 import asyncio
@@ -29,10 +29,6 @@ from .postgres_store import PostgresAccountStore, PostgresStore
 from .responses import failure, success
 from .request_context import operation_budget, operation_context
 from .blocking_io import run_blocking
-from .splunk_service import SplunkService
-from .splunk.search.tools import register_tools as register_search_tools
-from .splunk.detection.tools import register_tools as register_detection_tools
-from .splunk.security_queue.tools import register_tools as register_security_queue_tools
 from .zimbra_service import ZimbraService
 from .zimbra.mail.service import ZimbraMailService
 from .zimbra.mail.tools import register_tools as register_mail_tools
@@ -66,7 +62,6 @@ class McpFailureEnvelope(Exception):
 @dataclass
 class Runtime:
     settings: ServerSettings
-    splunk: SplunkService
     zimbra: ZimbraService
     email_subscriptions: EmailSubscriptionService
     zimbra_filters: ZimbraFilterService | None = None
@@ -79,18 +74,6 @@ class Runtime:
 
     def __post_init__(self):
         self.config_revision = hashlib.sha256(repr(self.settings.splunk).encode()).hexdigest()
-
-    @property
-    def splunk_search(self):
-        return self.splunk.search_service
-
-    @property
-    def splunk_detection(self):
-        return self.splunk.detection_service
-
-    @property
-    def splunk_security_queue(self):
-        return self.splunk.security_queue_service
 
     @property
     def zimbra_mail(self):
@@ -108,10 +91,8 @@ class Runtime:
             settings.zimbra.key_file,
             settings.zimbra.explicit_key,
         )
-        splunk_service = SplunkService(settings.splunk)
         return cls(
             settings,
-            splunk_service,
             ZimbraMailService(settings.zimbra, accounts, settings.markitdown),
             EmailSubscriptionService(settings.email_server),
             zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
@@ -122,7 +103,6 @@ class Runtime:
     async def close(self) -> None:
         if not self.owns_services:
             return
-        await self.splunk.close()
         await self.email_subscriptions.close()
         if self.postgres is not None:
             await asyncio.to_thread(self.postgres.close)
@@ -136,7 +116,6 @@ class Runtime:
             return cached
         scoped = Runtime(
             settings=self.settings,
-            splunk=self.splunk,
             zimbra=ZimbraMailService(
                 self.settings.zimbra,
                 None,
@@ -311,36 +290,6 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         _request_runtime.set(scoped)
         return scoped
 
-    @server.tool(annotations={"readOnlyHint": True})
-    async def system_get_status(ctx: Context) -> dict[str, Any]:
-        """Show non-sensitive service readiness; detailed configuration is administrator-only."""
-        async def status():
-            return runtime(ctx).settings.public_readiness()
-        return await execute(ctx, "system", "get_status", status)
-
-    register_search_tools(
-        server,
-        get_runtime=runtime,
-        fresh_runtime=fresh_runtime,
-        execute=execute,
-        success=success,
-        failure=failure,
-        service_error=ServiceError,
-    )
-    register_detection_tools(
-        server,
-        get_runtime=runtime,
-        fresh_runtime=fresh_runtime,
-        execute=execute,
-        success=success,
-        failure=failure,
-        service_error=ServiceError,
-    )
-    register_security_queue_tools(
-        server,
-        get_runtime=runtime,
-        execute=execute,
-    )
     register_mail_tools(
         server,
         get_runtime=runtime,

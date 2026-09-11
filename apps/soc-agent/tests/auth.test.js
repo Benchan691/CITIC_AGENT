@@ -575,7 +575,7 @@ test('SOC auth plugin attaches session metadata to the Harness MCP client withou
   assert.equal(typeof metadata.soc_correlation_id, 'string')
   assert.ok(metadata.soc_deadline_ms > Date.now())
   assert.equal(JSON.stringify(metadata).includes('zimbra'), false)
-  const officialMetadata = await executeListener({ agent: { id: 'agent-a' } }, 'splunk_official', async () => ({ trace: 'official' }))
+  const officialMetadata = await executeListener({ agent: { id: 'agent-a' } }, 'splunk_mcp', async () => ({ trace: 'official' }))
   assert.equal(officialMetadata.soc_session_id, 'app-session-a')
   assert.equal(officialMetadata.soc_investigation_id, 'agent-a')
   assert.equal(officialMetadata.trace, 'official')

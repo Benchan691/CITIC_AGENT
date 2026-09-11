@@ -11,22 +11,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
 
     tools = server._tool_manager.list_tools()
     assert {tool.name for tool in tools} == {
-        "system_get_status",
-        "splunk_validate_query",
-        "splunk_search",
-        "splunk_list_security_findings",
-        "splunk_get_security_finding",
-        "splunk_list_saved_searches",
-        "splunk_find_lookup",
-        "splunk_list_lookups",
-        "splunk_get_lookup",
-        "splunk_get_detection",
-        "splunk_validate_detection",
-        "splunk_compile_citic_detection",
-        "splunk_backtest_detection",
-        "splunk_run_saved_search",
-        "soc_evidence_read",
-        "splunk_plan_search",
         "zimbra_list_folders",
         "zimbra_list_signatures",
         "zimbra_create_signature",
@@ -55,7 +39,9 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "update_subscription",
         "delete_subscription",
     }
-    assert len(tools) == 43
+    assert len(tools) == 27
+    assert not {tool.name for tool in tools if tool.name.startswith("splunk_")}
+    assert "system_get_status" not in {tool.name for tool in tools}
     assert not {tool.name for tool in tools if tool.name.startswith("catalog_")}
     assert not {tool.name for tool in tools if tool.name.startswith("scheduled_task_")}
     for tool in tools:
@@ -63,45 +49,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         assert "ctx" not in tool.parameters.get("required", [])
         if tool.name.startswith("zimbra_"):
             assert "account_id" not in tool.parameters.get("properties", {})
-
-    saved_searches = next(tool for tool in tools if tool.name == "splunk_list_saved_searches")
-    assert set(saved_searches.parameters["properties"]) == {
-        "name", "app", "limit", "include_spl",
-    }
-    assert saved_searches.parameters.get("required", []) == []
-    search_tool = next(tool for tool in tools if tool.name == "splunk_search")
-    assert set(search_tool.parameters["properties"]) == {
-        "query", "earliest_time", "latest_time", "max_count", "fields", "fresh",
-    }
-    assert search_tool.parameters["required"] == ["query"]
-    assert "stats" in search_tool.description.lower()
-    queue_list_tool = next(tool for tool in tools if tool.name == "splunk_list_security_findings")
-    assert set(queue_list_tool.parameters["properties"]) == {
-        "status", "urgency", "owner", "detection", "earliest_time", "latest_time", "limit", "cursor",
-    }
-    assert queue_list_tool.parameters.get("required", []) == []
-    finding_tool = next(tool for tool in tools if tool.name == "splunk_get_security_finding")
-    assert set(finding_tool.parameters["properties"]) == {"finding_id"}
-    assert finding_tool.parameters["required"] == ["finding_id"]
-    assert "read-only" in queue_list_tool.description.lower()
-    assert "splunk_list_data_sources" not in {tool.name for tool in tools}
-    assert "splunk_list_indexes" not in {tool.name for tool in tools}
-    tool_names = {tool.name for tool in tools}
-    assert not {
-        "splunk_write_lookup",
-        "splunk_update_lookup",
-        "splunk_delete_lookup",
-        "splunk_write_detection",
-        "splunk_update_detection",
-        "splunk_create_detection_draft",
-        "splunk_update_detection_draft",
-        "splunk_enable_detection",
-        "splunk_disable_detection",
-    } & tool_names
-
-    # The ordinary status tool is intentionally limited to readiness; detailed
-    # endpoint, policy, and LLM configuration is served through the admin plane.
-    assert "detailed configuration" in next(tool for tool in tools if tool.name == "system_get_status").description.lower()
 
     schema_tool = next(tool for tool in tools if tool.name == "get_subscription_schema")
     assert schema_tool.parameters.get("required", []) == []
@@ -155,19 +102,3 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "name", "expected_fingerprint",
     }
     assert set(delete_filter_tool.parameters["required"]) == {"name", "expected_fingerprint"}
-    get_lookup_tool = next(tool for tool in tools if tool.name == "splunk_get_lookup")
-    assert set(get_lookup_tool.parameters["properties"]) == {"name"}
-    assert get_lookup_tool.parameters["required"] == ["name"]
-    compiler_tool = next(tool for tool in tools if tool.name == "splunk_compile_citic_detection")
-    assert set(compiler_tool.parameters["properties"]) == {
-        "detection_logic", "rulename", "threat_name", "threat_type",
-        "case_prefix", "event_field_mappings", "extra_table_fields",
-    }
-    assert set(compiler_tool.parameters["required"]) == {
-        "detection_logic", "rulename", "threat_name", "threat_type",
-        "case_prefix", "event_field_mappings",
-    }
-    assert "splunk_approve_detection_change" not in {tool.name for tool in tools}
-    assert "splunk_apply_approved_detection_change" not in {tool.name for tool in tools}
-    backtest_tool = next(tool for tool in tools if tool.name == "splunk_backtest_detection")
-    assert "fields" in backtest_tool.parameters["properties"]

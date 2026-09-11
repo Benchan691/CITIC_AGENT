@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ACTION_CATALOG, apply, APPROVAL_TOOLS, DOMAIN_TOOLS, TOOL_CATALOG } from '../host.js'
+import { ACTION_CATALOG, apply, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG } from '../host.js'
 import { ACTION_TOOLS } from '../policy.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(DOMAIN_TOOLS.size, 57)
+  assert.equal(READ_ONLY_TOOLS.length, 29)
+  assert.equal(DOMAIN_TOOLS.size, 41)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
@@ -22,6 +23,8 @@ test('interactive analyst policy exposes the exact product tool set', () => {
   for (const name of APPROVAL_TOOLS) assert.equal(DOMAIN_TOOLS.has(name), true)
   assert.equal([...DOMAIN_TOOLS].some(name => name.startsWith('mcp__soc_agent__catalog_')), false)
   assert.equal([...DOMAIN_TOOLS].some(name => name.startsWith('scheduled_task_')), false)
+  assert.equal([...DOMAIN_TOOLS].some(name => name.startsWith('mcp__soc_agent__splunk_')), false)
+  assert.equal(DOMAIN_TOOLS.has('mcp__soc_agent__system_get_status'), false)
 })
 
 
@@ -47,13 +50,15 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.deepEqual(await preExecute({ name: 'skill' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'exit_plan_mode' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'ask_user_question' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
-  assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_search' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
-  assert.deepEqual(await preExecute({ name: 'mcp__splunk_official__splunk_run_query' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.deepEqual(await preExecute({ name: 'mcp__splunk_mcp__splunk_run_query' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_search' }, () => ({ kind: 'delegate' }))).kind, 'deny')
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__system_get_status' }, () => ({ kind: 'delegate' }))).kind, 'deny')
+  assert.equal((await preExecute({ name: 'mcp__splunk_official__splunk_run_query' }, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_write_detection' }, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_write_lookup' }, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_list_indexes' }, () => ({ kind: 'delegate' }))).kind, 'deny')
-  assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_find_lookup' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
-  assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__splunk_list_lookups' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_find_lookup' }, () => ({ kind: 'delegate' }))).kind, 'deny')
+  assert.equal((await preExecute({ name: 'mcp__soc_agent__splunk_list_lookups' }, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_list_email_filters' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_preview_email_filter_update' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_send_email' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })

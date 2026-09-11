@@ -78,3 +78,28 @@ test('SOC profile exposes only allowlisted official Splunk reads when configured
   }
   assert.doesNotMatch(bridge, /splunk_(create|update|delete|write)_/)
 })
+
+test('soc_agent MCP allowlist contains only Zimbra and subscription tools', () => {
+  const productRoot = fileURLToPath(new URL('..', import.meta.url))
+  const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
+  const start = patch.indexOf('- id: soc-agent-mcp')
+  const end = patch.indexOf('- id: splunk-official-mcp', start)
+  const socBlock = patch.slice(start, end)
+  const expected = [
+    'zimbra_list_folders', 'zimbra_list_signatures', 'zimbra_create_signature',
+    'zimbra_delete_signature', 'zimbra_create_folder', 'zimbra_search_emails',
+    'zimbra_get_email', 'zimbra_get_email_headers', 'zimbra_get_attachment_text',
+    'zimbra_send_email', 'zimbra_use_signature_on_email', 'zimbra_move_email',
+    'zimbra_list_email_filters', 'zimbra_get_email_filter',
+    'zimbra_validate_email_filter', 'zimbra_preview_email_filter_update',
+    'zimbra_create_email_filter', 'zimbra_update_email_filter',
+    'zimbra_delete_email_filter', 'zimbra_set_email_filter_enabled',
+    'zimbra_reorder_email_filter', 'list_subscriptions', 'get_subscription_schema',
+    'preview_subscription', 'create_subscription', 'update_subscription',
+    'delete_subscription',
+  ]
+  const allowlist = socBlock.match(/allowedToolNames:\n([\s\S]*?)(?=\n\s*#|\n\s*toolCallTimeoutMs)/)?.[1] ?? ''
+  const actual = [...allowlist.matchAll(/^\s+- ([a-z][a-z_]*)$/gm)].map(match => match[1])
+  assert.deepEqual(actual, expected)
+  assert.doesNotMatch(socBlock, /splunk_/)
+})

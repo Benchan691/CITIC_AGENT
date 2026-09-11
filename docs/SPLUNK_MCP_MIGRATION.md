@@ -3,7 +3,8 @@
 The SOC host connects directly to Splunk MCP Server 2.0 over Streamable HTTP
 when both `SPLUNK_MCP_ENDPOINT` and `SPLUNK_TOKEN` are configured. The bridge
 forwards the bearer token and publishes allowlisted tools under the
-`mcp__splunk_official__...` namespace.
+`mcp__splunk_mcp__...` namespace. The separate `soc_agent` MCP server exposes
+only Zimbra and subscription tools.
 
 `SPLUNK_VERIFY_SSL` defaults to `true`. A deployment with a self-signed chain
 can set it to `false`; the exception applies only to the official MCP
@@ -28,11 +29,9 @@ Splunk MCP Server. The application retains authentication, session/customer
 scope metadata, sanitization, evidence boundaries, model-visible output
 limits, and transport deadlines.
 
-The local Python MCP server retains read-only SOC workflows and bounded REST
-compatibility reads that have no official equivalent, including existing
-search-job result reads and the bounded complete-lookup path. Local query and
-resource admission remain available only for legacy REST execution; they do
-not gate the official MCP path.
+The local Python MCP server does not register Splunk tools. Splunk REST and
+search implementation modules remain available only to admin or compatibility
+paths; they do not gate or silently replace the official MCP path.
 
 There is no application-owned Splunk mutation surface: detection writes,
 lookup writes, rollback, write RPCs, and write editor toolviews are removed.

@@ -43,7 +43,7 @@ export function resolveOfficialSplunkConfig(env = process.env, serverRoot) {
   if (!endpoint || !token) return undefined
   const verifyTls = !/^(0|false|no|off)$/i.test(read('SPLUNK_VERIFY_SSL'))
   return {
-    serverName: 'splunk_official',
+    serverName: 'splunk_mcp',
     transport: 'streamable-http',
     url: endpoint,
     headers: { Authorization: `Bearer ${token}` },

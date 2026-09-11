@@ -192,6 +192,34 @@
           APP_POSTGRES_URI: !!js "process.env.APP_POSTGRES_URI || process.env.LANGGRAPH_POSTGRES_URI || process.env.POSTGRES_URI || ''"
           APP_SETTINGS_ENCRYPTION_KEY: !!js process.env.APP_SETTINGS_ENCRYPTION_KEY ?? ''
           SOC_EVIDENCE_STORE: !!js "process.env.SOC_EVIDENCE_STORE ?? ((process.env.DSH_HOME ?? process.env.HOME + '/.dsh') + '/soc-evidence.sqlite3')"
+        allowedToolNames:
+          - zimbra_list_folders
+          - zimbra_list_signatures
+          - zimbra_create_signature
+          - zimbra_delete_signature
+          - zimbra_create_folder
+          - zimbra_search_emails
+          - zimbra_get_email
+          - zimbra_get_email_headers
+          - zimbra_get_attachment_text
+          - zimbra_send_email
+          - zimbra_use_signature_on_email
+          - zimbra_move_email
+          - zimbra_list_email_filters
+          - zimbra_get_email_filter
+          - zimbra_validate_email_filter
+          - zimbra_preview_email_filter_update
+          - zimbra_create_email_filter
+          - zimbra_update_email_filter
+          - zimbra_delete_email_filter
+          - zimbra_set_email_filter_enabled
+          - zimbra_reorder_email_filter
+          - list_subscriptions
+          - get_subscription_schema
+          - preview_subscription
+          - create_subscription
+          - update_subscription
+          - delete_subscription
         # One 180-second end-to-end operation budget plus cleanup margin; the
         # MCP transport deadline is derived from it (see redesign plan, §6).
         toolCallTimeoutMs: 185000

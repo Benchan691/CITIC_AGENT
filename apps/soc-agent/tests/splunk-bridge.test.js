@@ -15,6 +15,7 @@ test('official bridge reads deployment config, forwards bearer auth, and allowli
     ].join('\n'))
     const config = resolveOfficialSplunkConfig({}, directory)
 
+    assert.equal(config.serverName, 'splunk_mcp')
     assert.equal(config.url, 'https://splunk.example.test/services/mcp')
     assert.equal(config.headers.Authorization, 'Bearer file-token')
     assert.equal(config.verifyTls, false)

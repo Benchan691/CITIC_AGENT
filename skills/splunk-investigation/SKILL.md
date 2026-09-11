@@ -20,16 +20,16 @@ Route email-led investigations to `email-to-splunk-investigation`, false-positiv
 
 ## Tools
 
-Use only the directly exposed `mcp__splunk_official__...` tools:
+Use only the directly exposed `mcp__splunk_mcp__...` tools:
 
-- `mcp__splunk_official__splunk_get_indexes` and `mcp__splunk_official__splunk_get_index_info` establish index scope.
-- `mcp__splunk_official__splunk_get_metadata` discovers hosts, sources, or sourcetypes across known indexes and a selected time window.
-- `mcp__splunk_official__splunk_get_knowledge_objects` discovers saved searches, alerts, lookups, macros, data models, and other supported knowledge-object types.
-- `mcp__splunk_official__splunk_list_alerts` and `mcp__splunk_official__splunk_get_alert_details` inspect alert definitions and trigger settings.
-- `mcp__splunk_official__splunk_list_fired_alerts` and `mcp__splunk_official__splunk_get_fired_alert_details` inspect active fired alerts and recent firings.
-- `mcp__splunk_official__splunk_get_alert_throttle` and `mcp__splunk_official__splunk_list_active_throttles` inspect suppression state.
-- `mcp__splunk_official__splunk_run_query` runs explicit SPL. Use known index/sourcetype scope, a narrow time range, selected fields, aggregation, and a small row limit.
-- `mcp__splunk_official__splunk_run_saved_search` runs an existing saved search when that is narrower than new SPL.
+- `mcp__splunk_mcp__splunk_get_indexes` and `mcp__splunk_mcp__splunk_get_index_info` establish index scope.
+- `mcp__splunk_mcp__splunk_get_metadata` discovers hosts, sources, or sourcetypes across known indexes and a selected time window.
+- `mcp__splunk_mcp__splunk_get_knowledge_objects` discovers saved searches, alerts, lookups, macros, data models, and other supported knowledge-object types.
+- `mcp__splunk_mcp__splunk_list_alerts` and `mcp__splunk_mcp__splunk_get_alert_details` inspect alert definitions and trigger settings.
+- `mcp__splunk_mcp__splunk_list_fired_alerts` and `mcp__splunk_mcp__splunk_get_fired_alert_details` inspect active fired alerts and recent firings.
+- `mcp__splunk_mcp__splunk_get_alert_throttle` and `mcp__splunk_mcp__splunk_list_active_throttles` inspect suppression state.
+- `mcp__splunk_mcp__splunk_run_query` runs explicit SPL. Use known index/sourcetype scope, a narrow time range, selected fields, aggregation, and a small row limit.
+- `mcp__splunk_mcp__splunk_run_saved_search` runs an existing saved search when that is narrower than new SPL.
 
 There is no separate local validation tool in this workflow. Splunk MCP Server applies the query guardrails and returns a rejection when a search is unsafe, too slow, or too large.
 
@@ -39,7 +39,7 @@ There is no separate local validation tool in this workflow. Splunk MCP Server a
 2. If an alert is involved, inspect its definition or fired-alert details first. For an alert or saved search without an exact name, use alert or knowledge-object discovery before constructing a query.
 3. Form one testable hypothesis and one plausible alternative.
 4. Write one explicit, bounded SPL query with the smallest justified index, sourcetype, time range, fields, and row limit.
-5. Run it with `mcp__splunk_official__splunk_run_query`; stop or revise if the provider rejects it.
+5. Run it with `mcp__splunk_mcp__splunk_run_query`; stop or revise if the provider rejects it.
 6. For statistical questions, aggregate in Splunk with `stats`, `tstats`, `chart`, or similar, then add `sort`/`head` when appropriate. Use a small raw-event sample only when individual evidence is needed.
 7. Inspect returned counts and truncation metadata. Never interpret the displayed row count as total matches when the response is truncated.
 8. If MCP or model-context truncation is reported, narrow fields or scope; do not treat omitted samples as zero matches.

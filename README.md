@@ -48,7 +48,7 @@ the selection when prompted before running the update.
 ## Official Splunk MCP (read-only)
 
 Set `SPLUNK_MCP_ENDPOINT` and `SPLUNK_TOKEN` to expose the approved official
-Splunk MCP read tools directly as `mcp__splunk_official__...`. The bridge uses
+Splunk MCP read tools directly as `mcp__splunk_mcp__...`. The bridge uses
 Streamable HTTP, forwards the bearer token, and registers only query, instance,
 index, metadata, knowledge-object, saved-search, alert, fired-alert, and
 throttle reads. It is disabled unless both settings are present.
