@@ -962,8 +962,7 @@ const SocActionApprovalSettingsSchema = Schema.object({
 		"ask",
 		"auto",
 		"disabled"
-	])).default({}),
-	autoApproveActions: Schema.array(Schema.string()).default([])
+	])).default({})
 });
 //#endregion
 //#region src/index.ts

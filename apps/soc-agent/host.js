@@ -11,7 +11,7 @@ import { runAuthCommand } from './ownership.js'
 import { installInvestigationProjection } from './investigation.js'
 
 export const name = 'soc-agent-host'
-export const inject = ['agents', 'connection', 'tools', 'socAuth', 'sessions', 'settings', 'webServer']
+export const inject = ['agents', 'connection', 'tools', 'socAuth', 'settings', 'webServer']
 
 const CHANNEL = '/soc-agent-config'
 const ACTION_POLICY_NAMESPACE = 'soc-action-approval'
@@ -32,7 +32,6 @@ const HARD_MARKDOWN_CHARS = 2_000_000
 
 export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG }
 
-const ACTION_NAMES = new Set(ACTION_TOOLS)
 const nodeRequire = createRequire(import.meta.url)
 
 function requireAdmin(ctx) {
@@ -95,27 +94,6 @@ class ActionPolicyError extends Error {
     super(message)
     this.name = 'ActionPolicyError'
     this.code = code
-  }
-}
-
-function sessionIdOf(agent) {
-  const id = agent?.session?.id ?? agent?.id
-  return id === undefined || id === null ? undefined : String(id)
-}
-
-function rootsOf(ctx) {
-  try {
-    return typeof ctx.agents?.roots === 'function' ? ctx.agents.roots() : []
-  } catch {
-    return []
-  }
-}
-
-function sessionStoreOf(ctx) {
-  try {
-    return ctx.sessions ?? ctx.get?.('sessions')
-  } catch {
-    return undefined
   }
 }
 
@@ -317,7 +295,7 @@ function parseActionStates(value, { strict = false } = {}) {
 }
 
 function defaultActionState(name) {
-  return ACTION_NAMES.has(name) ? 'ask' : 'auto'
+  return APPROVAL_TOOLS.has(name) ? 'ask' : 'auto'
 }
 
 function normalizedActionPolicy(value, { strict = false } = {}) {
@@ -359,18 +337,8 @@ function policyValue(ctx) {
   }
 }
 
-function policyError(error, sessionId) {
+function policyError(error) {
   if (error instanceof ActionPolicyError) {
-    if (error.code === 'soc-action-session-not-found') {
-      return {
-        ok: false,
-        error: {
-          code: 'session-not-found',
-          message: error.message,
-          details: { sessionId: String(sessionId ?? '') },
-        },
-      }
-    }
     return {
       ok: false,
       error: {

@@ -715,7 +715,7 @@ function AccessApprovalsSettings({ connection }: { connection: any }) {
               <legend className={styles.srOnly}>Deployment access mode</legend>
               <label className={styles.modeChoice}>
                 <input type="radio" name="deployment-mode" value="full" checked={mode === 'full'} onChange={() => setMode('full')} disabled={!data.writable || busy || loading} />
-                <span><strong>Full access</strong><small>Run every permitted, non-disabled tool directly.</small></span>
+                <span><strong>Full access</strong><small>Run every permitted tool directly.</small></span>
               </label>
               <label className={styles.modeChoice}>
                 <input type="radio" name="deployment-mode" value="soc" checked={mode === 'soc'} onChange={() => setMode('soc')} disabled={!data.writable || busy || loading} />

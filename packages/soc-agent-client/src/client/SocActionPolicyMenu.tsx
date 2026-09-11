@@ -48,7 +48,7 @@ export function SocActionPolicyMenu({ scope }: MenuProps) {
         <legend className={css.modeLegend}>Choose a mode</legend>
         <label className={css.mode}>
           <input className={css.modeRadio} type="radio" name={panelId} checked={mode === 'full'} disabled={saving || !snapshot.writable} onChange={() => { void selectMode('full') }} />
-          <span className={css.modeText}><span className={css.modeLabel}>Full access</span><span className={css.modeDescription}>Run every permitted, non-disabled tool directly.</span></span>
+          <span className={css.modeText}><span className={css.modeLabel}>Full access</span><span className={css.modeDescription}>Run every permitted tool directly.</span></span>
         </label>
         <label className={css.mode}>
           <input className={css.modeRadio} type="radio" name={panelId} checked={mode === 'soc'} disabled={saving || !snapshot.writable} onChange={() => { void selectMode('soc') }} />

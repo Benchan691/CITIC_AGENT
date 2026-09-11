@@ -72,7 +72,7 @@ test('admin console exposes the deployment access and approval controls', () => 
   assert.match(source, /SOC mode/)
   assert.doesNotMatch(source, /autoApproveActions/)
   assert.match(source, /actionApproval\.revision/)
-  assert.match(source, /Email delivery always requires the explicit Send confirmation/)
+  assert.match(source, /Email delivery still requires the explicit Send confirmation/)
   assert.match(source, /Explicit confirmation/)
   assert.match(source, /type="button" onClick=\{\(\) => void load\(\)\}/)
 })
