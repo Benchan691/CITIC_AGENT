@@ -225,10 +225,27 @@ fi
 
 DSH_PROFILE="${DSH_PROFILE:-web}"
 
-# The browser-facing artifact of the SOC settings UI. Its health is guarded
-# below: it is rebuilt by `prepare` on every pnpm install and can silently
-# drift (see ensure_harness_ready).
+# Browser-facing SOC artifacts. Their health is guarded below because a
+# package install or a framework rebuild can silently replace a tracked
+# bundle with an artifact built before the framework libraries were ready.
 SOC_CLIENT_LIB="$REPO_ROOT/packages/soc-agent-client/lib/client.js"
+SOC_SIDEBAR_LIB="$REPO_ROOT/packages/soc-agent-sidebar/lib/client.js"
+SOC_WORKSPACE_LIB="$REPO_ROOT/packages/soc-agent-workspace/lib/client.js"
+SOC_CLIENT_PACKAGE_NAMES=(
+  dsh-soc-agent-sidebar
+  dsh-soc-agent-workspace
+  dsh-soc-agent-client
+)
+SOC_CLIENT_PACKAGE_DIRS=(
+  soc-agent-sidebar
+  soc-agent-workspace
+  soc-agent-client
+)
+SOC_CLIENT_LIBS=(
+  "$SOC_SIDEBAR_LIB"
+  "$SOC_WORKSPACE_LIB"
+  "$SOC_CLIENT_LIB"
+)
 
 if [ ! -f "$SERVER_ENV_EXAMPLE" ]; then
   echo "error: template '$SERVER_ENV_EXAMPLE' is missing." >&2
@@ -263,11 +280,17 @@ PLUGIN_NAMES=(
 PLUGIN_SPECS=()
 
 # Direct profile dependencies setup.sh owns besides the external plugins:
-# the SOC product bundle and its client package (wired by ensure_soc_bundle).
+# the SOC product bundle and its three browser packages (wired by
+# ensure_soc_bundle).
 # Any other direct dependency found in the profile manifest is stale and gets
 # pruned (see prune_stale_plugins) — so removing a plugin from
 # requirements.txt propagates to every machine on the next setup run.
-SOC_MANAGED_DEPS=(dsh-soc-agent dsh-soc-agent-client)
+SOC_MANAGED_DEPS=(
+  dsh-soc-agent
+  dsh-soc-agent-sidebar
+  dsh-soc-agent-workspace
+  dsh-soc-agent-client
+)
 
 read_plugin_requirements() {
   PLUGIN_SPECS=()
@@ -677,24 +700,46 @@ write_files() {
 #      its lib/ exists silently emits require("@deepseek-ai/schemastery"),
 #      which the browser module table can never answer ("missed the module
 #      table" at boot).
-#   3. The SOC client bundle artifact is drift-free. packages/soc-agent-client's
-#      `prepare` script rebuilds it during EVERY pnpm install — on a fresh
-#      clone that runs before schemastery exists, so the committed healthy
-#      artifact gets overwritten with a drifted one. The guard below detects
-#      the drift and the repair rebuilds the package after the framework
-#      build, when inlining succeeds.
+#   3. The browser-facing SOC package artifacts are drift-free. The existing
+#      packages/soc-agent-client `prepare` script can rebuild its bundle during
+#      EVERY pnpm install — on a fresh clone that runs before schemastery exists,
+#      so the committed healthy artifact gets overwritten with a drifted one.
+#      The guard below detects that case (and missing new-package artifacts)
+#      and repairs every SOC bundle after the framework build, when inlining
+#      succeeds.
 #
 # The wiring itself (registering the product bundle in the harness `web`
 # profile) then follows in ensure_soc_bundle.
 
 # Specifiers a client bundle may require externally (module-table rows).
-# Anything else found as a literal require() in lib/client.js is drift.
-client_external_violations() {
+# Anything else found as a literal require() in a client bundle is drift.
+client_external_violations() { # $1 = client bundle path
   local allow='^(react|react/jsx-runtime|react-dom|react-dom/client|@deepseek-ai/cordis|@deepseek-ai/dsh-client-ui-slots|@deepseek-ai/dsh-client-ui-primitives|@deepseek-ai/dsh-client-runtime/client)$'
-  grep -o 'require("[^"]*")' "$SOC_CLIENT_LIB" 2>/dev/null \
+  grep -o 'require("[^"]*")' "$1" 2>/dev/null \
     | sed -e 's/^require("//' -e 's/")$//' \
     | sort -u \
     | grep -vE "$allow" || true
+}
+
+verify_soc_client_artifacts() {
+  local all_ok=0 index package lib violations
+  for index in "${!SOC_CLIENT_PACKAGE_NAMES[@]}"; do
+    package="${SOC_CLIENT_PACKAGE_NAMES[$index]}"
+    lib="${SOC_CLIENT_LIBS[$index]}"
+    if [ ! -f "$lib" ]; then
+      bad "$package bundle artifact missing — run: ./setup.sh --plugins"
+      all_ok=1
+      continue
+    fi
+    violations="$(client_external_violations "$lib")"
+    if [ -n "$violations" ]; then
+      bad "$package bundle artifact drifted — browser-unservable external requires: $violations"
+      all_ok=1
+    else
+      ok "$package bundle artifact healthy"
+    fi
+  done
+  return "$all_ok"
 }
 
 ensure_python_server() {
@@ -741,9 +786,13 @@ harness_source_fingerprint() {
       -o -name '*.css' -o -name '*.yml' -o -name '*.yaml' -o -name '*.json' \) \
       -not -path '*/node_modules/*' -not -path '*/lib/*' -not -path '*/dist/*' \
       -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum
-    cd "$REPO_ROOT/packages/soc-agent-client" && find src tests tsdown.config.ts package.json \
-      -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.css' -o -name '*.json' \) \
-      -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum
+    for index in "${!SOC_CLIENT_PACKAGE_NAMES[@]}"; do
+      package_dir="${SOC_CLIENT_PACKAGE_DIRS[$index]}"
+      cd "$REPO_ROOT/packages/$package_dir" && find src tests tsdown.config.ts tsconfig.json package.json \
+        -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.css' -o -name '*.json' \) \
+        -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum
+      if [ -f tsconfig.types.json ]; then sha256sum tsconfig.types.json; fi
+    done
   ) 2>/dev/null | sha256sum | awk '{print $1}'
 }
 
@@ -751,7 +800,9 @@ harness_install_fingerprint() {
   {
     sha256sum "$HARNESS_DIR/pnpm-lock.yaml" 2>/dev/null || true
     sha256sum "$REPO_ROOT/apps/soc-agent/package.json" 2>/dev/null || true
-    sha256sum "$REPO_ROOT/packages/soc-agent-client/package.json" 2>/dev/null || true
+    for package_dir in "${SOC_CLIENT_PACKAGE_DIRS[@]}"; do
+      sha256sum "$REPO_ROOT/packages/$package_dir/package.json" 2>/dev/null || true
+    done
   } | sha256sum | awk '{print $1}'
 }
 
@@ -778,13 +829,14 @@ ensure_harness_ready() {
     fi
   fi
 
-  local source_fingerprint build_recorded
+  local source_fingerprint build_recorded source_changed=1
   source_fingerprint="$(harness_source_fingerprint)"
   build_recorded="$(cat "$HARNESS_BUILD_MARKER" 2>/dev/null || true)"
   if [ "$FORCE_REBUILD" != "1" ] && [ -n "$build_recorded" ] \
     && [ "$build_recorded" = "$source_fingerprint" ] \
     && [ -f "$HARNESS_DIR/apps/web/dist/index.html" ] \
     && [ -f "$HARNESS_DIR/packages/mcp/mcp-client/lib/index.js" ]; then
+    source_changed=0
     info "harness sources unchanged since the last build — skipping pnpm run build"
   else
     echo "Building the harness (framework libs, client bundles, and web dist) — this can take several minutes…"
@@ -798,35 +850,41 @@ ensure_harness_ready() {
     fi
   fi
 
-  local need_repair=0 violations
-  if [ ! -f "$SOC_CLIENT_LIB" ]; then
-    warn "SOC client bundle artifact is missing"
-    need_repair=1
-  else
-    violations="$(client_external_violations)"
-    if [ -n "$violations" ]; then
-      warn "SOC client bundle artifact drifted — browser-unservable external requires:"
-      printf '%s\n' "$violations"
+  local need_repair="$source_changed" index package lib violations
+  for index in "${!SOC_CLIENT_PACKAGE_NAMES[@]}"; do
+    package="${SOC_CLIENT_PACKAGE_NAMES[$index]}"
+    lib="${SOC_CLIENT_LIBS[$index]}"
+    if [ ! -f "$lib" ]; then
+      warn "$package bundle artifact is missing"
       need_repair=1
-    fi
-  fi
-  if [ "$need_repair" = 1 ]; then
-    echo "Rebuilding packages/soc-agent-client against the built framework…"
-    if (cd "$HARNESS_DIR" && pnpm --filter dsh-soc-agent-client run build); then
-      ok "SOC client bundle rebuilt"
     else
-      bad "SOC client rebuild failed"
-      PREREQ_WARNINGS+=("SOC client artifact")
-      return 1
+      violations="$(client_external_violations "$lib")"
+      if [ -n "$violations" ]; then
+        warn "$package bundle artifact drifted — browser-unservable external requires: $violations"
+        need_repair=1
+      fi
     fi
-    violations="$(client_external_violations)"
-    if [ ! -f "$SOC_CLIENT_LIB" ] || [ -n "$violations" ]; then
-      bad "SOC client bundle is still unhealthy after rebuild"
-      PREREQ_WARNINGS+=("SOC client artifact")
+  done
+  if [ "$need_repair" = 1 ]; then
+    echo "Rebuilding the SOC client bundles against the built framework…"
+    for package in "${SOC_CLIENT_PACKAGE_NAMES[@]}"; do
+      if (cd "$HARNESS_DIR" && pnpm --filter "$package" run build); then
+        ok "$package bundle rebuilt"
+      else
+        bad "$package bundle rebuild failed"
+        PREREQ_WARNINGS+=("$package artifact")
+        return 1
+      fi
+    done
+    if verify_soc_client_artifacts; then
+      :
+    else
+      bad "one or more SOC client bundles are still unhealthy after rebuild"
+      PREREQ_WARNINGS+=("SOC client artifacts")
       return 1
     fi
   fi
-  ok "SOC client bundle artifact verified"
+  ok "SOC client bundle artifacts verified"
 }
 
 # --- profile wiring ---------------------------------------------------------
@@ -1082,6 +1140,8 @@ verify_profile_resolution() { # $1 = profile dir; prints one line per plugin nam
   for spec in \
     dsh-soc-agent/auth-host \
     dsh-soc-agent/host \
+    dsh-soc-agent-sidebar \
+    dsh-soc-agent-workspace \
     dsh-soc-agent-client \
     @deepseek-ai/dsh-time-context \
     @linxin666/dsh-client-ui-skin-center \
@@ -1121,13 +1181,18 @@ ensure_soc_bundle() {
   fi
 
   if profile_lists "$pdir/package.json" "dsh-soc-agent" \
+    && profile_lists "$pdir/package.json" "dsh-soc-agent-sidebar" \
+    && profile_lists "$pdir/package.json" "dsh-soc-agent-workspace" \
     && profile_lists "$pdir/package.json" "dsh-soc-agent-client"; then
-    ok "SOC bundle already registered in the '$DSH_PROFILE' profile"
+    ok "SOC bundle and isolated UI packages already registered in the '$DSH_PROFILE' profile"
   else
     echo "Registering the SOC product bundle in the '$DSH_PROFILE' profile…"
     if (cd "$HARNESS_DIR" && pnpm dsh plugin --profile "$DSH_PROFILE" add \
-        "$REPO_ROOT/apps/soc-agent" "$REPO_ROOT/packages/soc-agent-client" 2>&1 | tail -n 3); then
-      ok "installed dsh-soc-agent and dsh-soc-agent-client"
+        "$REPO_ROOT/apps/soc-agent" \
+        "$REPO_ROOT/packages/soc-agent-sidebar" \
+        "$REPO_ROOT/packages/soc-agent-workspace" \
+        "$REPO_ROOT/packages/soc-agent-client" 2>&1 | tail -n 3); then
+      ok "installed dsh-soc-agent and its isolated UI packages"
     else
       bad "could not install the SOC bundle into the harness profile (see output above)"
       PREREQ_WARNINGS+=("harness profile wiring")
@@ -1235,19 +1300,16 @@ run_check_mode() {
     else
       bad "framework build incomplete — run: ./setup.sh --plugins"; fails=$((fails+1))
     fi
-    if [ -f "$SOC_CLIENT_LIB" ]; then
-      local viol
-      viol="$(client_external_violations)"
-      if [ -z "$viol" ]; then
-        ok "SOC client bundle artifact healthy"
-      else
-        bad "SOC client bundle artifact drifted — run: ./setup.sh --plugins"; fails=$((fails+1))
-      fi
+    if verify_soc_client_artifacts; then
+      :
     else
-      bad "SOC client bundle artifact missing — run: ./setup.sh --plugins"; fails=$((fails+1))
+      fails=$((fails+1))
     fi
-    if profile_lists "$pdir/package.json" "dsh-soc-agent"; then
-      ok "dsh-soc-agent registered in the '$DSH_PROFILE' profile"
+    if profile_lists "$pdir/package.json" "dsh-soc-agent" \
+      && profile_lists "$pdir/package.json" "dsh-soc-agent-sidebar" \
+      && profile_lists "$pdir/package.json" "dsh-soc-agent-workspace" \
+      && profile_lists "$pdir/package.json" "dsh-soc-agent-client"; then
+      ok "SOC bundle and isolated UI packages registered in the '$DSH_PROFILE' profile"
     else
       bad "SOC bundle not registered — run: ./setup.sh --plugins"; fails=$((fails+1))
     fi

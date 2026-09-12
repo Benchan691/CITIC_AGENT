@@ -31,6 +31,8 @@
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-mcp-client": "link:../../vendor/deepseek-harness/packages/mcp/mcp-client",
     "@deepseek-ai/schemastery": "workspace:*",
+    "dsh-soc-agent-sidebar": "workspace:*",
+    "dsh-soc-agent-workspace": "workspace:*",
     "dsh-soc-agent-client": "workspace:*",
     "pg": "^8.16.3"
   },

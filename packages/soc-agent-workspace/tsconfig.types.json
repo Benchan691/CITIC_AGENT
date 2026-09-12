@@ -1,0 +1,26 @@
+{
+  "extends": "../../vendor/deepseek-harness/tsconfig.base.client.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": false,
+    "emitDeclarationOnly": true,
+    "outDir": "lib/types",
+    "rootDir": "src"
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "references": [
+    { "path": "../../vendor/deepseek-harness/packages/client/locale" },
+    { "path": "../../vendor/deepseek-harness/vendor/cordis" },
+    { "path": "../../vendor/deepseek-harness/packages/client/ui-slots" },
+    { "path": "../../vendor/deepseek-harness/packages/client/ui-primitives" },
+    { "path": "../../vendor/deepseek-harness/packages/client/connection/tsconfig.client.json" },
+    { "path": "../../vendor/deepseek-harness/packages/client/runtime" },
+    { "path": "../soc-agent-sidebar/tsconfig.types.json" },
+    { "path": "../../vendor/deepseek-harness/packages/client/ui-conversation" },
+    { "path": "../../vendor/deepseek-harness/packages/runtime-diagnostics/invariants" }
+  ]
+}

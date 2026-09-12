@@ -145,6 +145,14 @@
 - id: session-folders
   disabled: true
 
+# The upstream shell is intentionally disabled for the SOC product. The
+# isolated replacements below own the same standard slots and keep this
+# checkout's current UI behavior stable while Harness continues iterating.
+- id: ui-sidebar
+  disabled: true
+- id: ui-workspace
+  disabled: true
+
 - id: ui-cordis
   disabled: true
 - id: ui-workflow-run
@@ -236,6 +244,12 @@
       description: Host policy, tool allowlists, and admin RPC for the SOC Agent product.
     - id: soc-agent-admin-ui
       name: dsh-soc-agent-client
+    - id: soc-agent-sidebar-ui
+      name: dsh-soc-agent-sidebar
+      description: Isolated SOC sidebar shell and slot contract.
+    - id: soc-agent-workspace-ui
+      name: dsh-soc-agent-workspace
+      description: Isolated SOC workspace and session browser.
 
 - id: connection
   name: '@deepseek-ai/dsh-client-connection'

@@ -141,6 +141,12 @@ importers:
       dsh-soc-agent-client:
         specifier: workspace:*
         version: link:../../packages/soc-agent-client
+      dsh-soc-agent-sidebar:
+        specifier: workspace:*
+        version: link:../../packages/soc-agent-sidebar
+      dsh-soc-agent-workspace:
+        specifier: workspace:*
+        version: link:../../packages/soc-agent-workspace
       pg:
         specifier: ^8.16.3
         version: 8.23.0
@@ -171,9 +177,6 @@ importers:
       '@deepseek-ai/dsh-client-ui-settings-plugins':
         specifier: workspace:*
         version: link:../../vendor/deepseek-harness/packages/client/ui-settings-plugins
-      '@deepseek-ai/dsh-client-ui-sidebar':
-        specifier: workspace:*
-        version: link:../../vendor/deepseek-harness/packages/client/ui-sidebar
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:*
         version: link:../../vendor/deepseek-harness/packages/client/ui-slots
@@ -192,12 +195,101 @@ importers:
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
+      dsh-soc-agent-sidebar:
+        specifier: workspace:*
+        version: link:../soc-agent-sidebar
       react:
         specifier: ^18.2.0
         version: 18.3.1
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
+
+  ../../packages/soc-agent-sidebar:
+    dependencies:
+      clsx:
+        specifier: ^2.0.0
+        version: 2.1.1
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/vendor/cordis
+      '@deepseek-ai/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/locale
+      '@deepseek-ai/dsh-client-runtime':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/runtime
+      '@deepseek-ai/dsh-client-test-runtime':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/test-support/client-runtime
+      '@deepseek-ai/dsh-client-ui-layout':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/ui-layout
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/ui-primitives
+      '@deepseek-ai/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/ui-slots
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/runtime-diagnostics/invariants
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
+  ../../packages/soc-agent-workspace:
+    dependencies:
+      clsx:
+        specifier: ^2.0.0
+        version: 2.1.1
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/vendor/cordis
+      '@deepseek-ai/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/connection
+      '@deepseek-ai/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/locale
+      '@deepseek-ai/dsh-client-runtime':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/runtime
+      '@deepseek-ai/dsh-client-test-runtime':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/test-support/client-runtime
+      '@deepseek-ai/dsh-client-ui-conversation':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/ui-conversation
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/ui-primitives
+      '@deepseek-ai/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/client/ui-slots
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/runtime-diagnostics/invariants
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      dsh-soc-agent-sidebar:
+        specifier: workspace:*
+        version: link:../soc-agent-sidebar
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
 
   apps/cli:
     dependencies:
