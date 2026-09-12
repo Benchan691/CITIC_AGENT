@@ -17,7 +17,7 @@ class _EmptyAccountStore:
     def list(self) -> list[StoredAccount]:
         return []
 
-    def list_agent(self) -> list[StoredAccount]:
+    def list_agent(self) -> list[dict[str, Any]]:
         return []
 
     def count(self) -> int:

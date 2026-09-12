@@ -28,6 +28,8 @@ class FakeConnection:
 
     def execute(self, query, params=()):
         upper = " ".join(query.strip().upper().split())
+        if upper.startswith(("SELECT PG_ADVISORY_XACT_LOCK", "SELECT VERSION FROM SOC_SCHEMA_MIGRATIONS", "INSERT INTO SOC_SCHEMA_MIGRATIONS", "DO $$")):
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
         if upper.startswith("CREATE TABLE"):
             self.schema_queries.append(upper)
             return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])

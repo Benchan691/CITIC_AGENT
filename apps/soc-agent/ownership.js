@@ -1,3 +1,4 @@
+import { pythonEnvironment, runPythonCommand } from './python-command.js'
 import pg from 'pg'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
@@ -86,17 +87,6 @@ export function resolveAdminCredentials(env = process.env, serverRoot) {
   return { email, password }
 }
 
-function childEnvironment() {
-  const environment = {
-    ...process.env,
-    MCP_SERVER_ROOT: configuredWorkspaceRoot(),
-  }
-  // Static admin credentials are consumed only by this Node host. They must
-  // never cross the process boundary into a Python child.
-  delete environment[ADMIN_EMAIL_ENV]
-  delete environment[ADMIN_PASSWORD_ENV]
-  return environment
-}
 
 function configuredWorkspaceRoot() {
   const bundleRoot = dirname(fileURLToPath(import.meta.url))
@@ -305,52 +295,12 @@ export class SocStateStore {
 
   async ensureSchema() {
     if (!this.pool) return
-    await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS soc_users (
-        id TEXT PRIMARY KEY,
-        zimbra_email TEXT NOT NULL UNIQUE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        last_login_at TIMESTAMPTZ NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS soc_app_sessions (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
-        zimbra_token_encrypted TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL,
-        expires_at TIMESTAMPTZ NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS soc_app_sessions_user_idx ON soc_app_sessions(user_id);
-      CREATE INDEX IF NOT EXISTS soc_app_sessions_expiry_idx ON soc_app_sessions(expires_at);
-      CREATE TABLE IF NOT EXISTS soc_session_revocations (
-        session_id TEXT PRIMARY KEY,
-        reason TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL,
-        expires_at TIMESTAMPTZ NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS soc_workspace_owners (
-        workspace_id TEXT PRIMARY KEY,
-        owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
-        workspace_path TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE TABLE IF NOT EXISTS soc_session_owners (
-        session_id TEXT PRIMARY KEY,
-        owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
-        workspace_id TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS soc_session_owners_user_idx ON soc_session_owners(owner_user_id);
-      CREATE INDEX IF NOT EXISTS soc_session_owners_workspace_idx ON soc_session_owners(workspace_id);
-      CREATE TABLE IF NOT EXISTS soc_folder_owners (
-        folder_id TEXT PRIMARY KEY,
-        owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE TABLE IF NOT EXISTS soc_bootstrap (
-        key TEXT PRIMARY KEY,
-        completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `)
+    await runPythonCommand({
+      module: 'unified_mcp_server.schema', command: 'migrate',
+      payload: { uri: this.pool.options.connectionString },
+      timeoutMs: AUTH_COMMAND_TIMEOUT_MS,
+      mapError: () => new Error('SOC database schema initialization failed.'),
+    })
   }
 
   async close() {
@@ -553,58 +503,22 @@ function authCommandError(command, stderr = '') {
 }
 
 // Privileged helper subprocesses are bounded so a hung Python process can
-// never hold an authenticated UI request open indefinitely. Publication runs
-// the same bound: the Splunk upload and read-back must finish within it.
+// never hold an authenticated UI request open indefinitely.
 const AUTH_COMMAND_TIMEOUT_MS = Number(process.env.SOC_AUTH_COMMAND_TIMEOUT_MS ?? 185_000)
 const CONTROL_CHANNEL_START_TIMEOUT_MS = 60_000
 // 'off' always spawns a fresh interpreter; 'auto' (default) uses the
 // persistent control channel and falls back to spawning when it is unusable.
 const controlChannelMode = () => String(process.env.SOC_CONTROL_CHANNEL ?? 'auto').toLowerCase()
 
-async function spawnAuthCommand(command, payload) {
-  const { spawn } = await import('node:child_process')
-  const bundleRoot = dirname(fileURLToPath(import.meta.url))
-  const serverRoot = process.env.DSH_SOC_AGENT_SERVER || join(bundleRoot, 'server')
-  const workspaceRoot = process.env.MCP_SERVER_ROOT || process.env.MCP_SEVER_ROOT || dirname(dirname(bundleRoot))
-  return await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn('uv', ['run', 'python', '-m', 'unified_mcp_server.auth_cli', command], {
-      cwd: serverRoot,
-      env: childEnvironment(),
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    let stdout = ''
-    let stderr = ''
-    let settled = false
-    const timeoutTimer = setTimeout(() => {
-      if (settled) return
-      settled = true
-      child.kill('SIGTERM')
-      const error = authCommandError(command)
-      error.code = 'operation_timeout'
-      rejectPromise(error)
-    }, AUTH_COMMAND_TIMEOUT_MS)
-    timeoutTimer.unref?.()
-    const fail = () => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeoutTimer)
-      child.kill('SIGTERM')
-      rejectPromise(authCommandError(command))
-    }
-    child.stdout.on('data', chunk => { stdout += String(chunk) })
-    child.stderr.on('data', chunk => { stderr += String(chunk) })
-    child.on('error', fail)
-    child.on('close', code => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeoutTimer)
-      if (code !== 0) {
-        rejectPromise(authCommandError(command, stderr))
-        return
-      }
-      try { resolvePromise(JSON.parse(stdout || '{}')) } catch { rejectPromise(authCommandError(command)) }
-    })
-    child.stdin.end(JSON.stringify(payload ?? {}))
+function spawnAuthCommand(command, payload) {
+  return runPythonCommand({
+    module: 'unified_mcp_server.auth_cli', command, payload: payload ?? {},
+    timeoutMs: AUTH_COMMAND_TIMEOUT_MS,
+    mapError(kind, stderr) {
+      const error = authCommandError(command, stderr)
+      if (kind === 'timeout') error.code = 'operation_timeout'
+      return error
+    },
   })
 }
 
@@ -617,7 +531,7 @@ async function startControlChannel() {
   const serverRoot = process.env.DSH_SOC_AGENT_SERVER || join(bundleRoot, 'server')
   const child = spawn('uv', ['run', 'python', '-m', 'unified_mcp_server.control_server'], {
     cwd: serverRoot,
-    env: childEnvironment(),
+    env: pythonEnvironment(),
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   const channel = {

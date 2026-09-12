@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "soc-agent-mcp"
 version = "0.1.0"
-description = "SOC Agent MCP server for Splunk and Zimbra investigation"
+description = "SOC Agent MCP server for Zimbra and subscriptions"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -35,11 +35,6 @@ unified-mcp-server = "unified_mcp_server.server:main"
 [tool.setuptools]
 packages = [
     "unified_mcp_server",
-    "unified_mcp_server.splunk",
-    "unified_mcp_server.splunk.core",
-    "unified_mcp_server.splunk.search",
-    "unified_mcp_server.splunk.detection",
-    "unified_mcp_server.splunk.security_queue",
     "unified_mcp_server.zimbra",
     "unified_mcp_server.zimbra.core",
     "unified_mcp_server.zimbra.mail",
@@ -51,3 +46,6 @@ packages = [
 addopts = "-q"
 asyncio_mode = "auto"
 testpaths = ["unified_mcp_server/tests"]
+
+[tool.setuptools.package-data]
+unified_mcp_server = ["migrations/*.sql"]

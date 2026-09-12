@@ -16,7 +16,6 @@ from .email.service import EmailSubscriptionService
 from .env_loader import load_server_env
 from .errors import ServiceError
 from .postgres_store import PostgresStore, dump_json
-from .splunk_service import SplunkService
 
 load_server_env()
 
@@ -62,16 +61,6 @@ def update_settings(store: PostgresStore, payload: Mapping[str, Any]) -> dict[st
 def delete_setting(store: PostgresStore, key: str) -> dict[str, Any]:
     del store, key
     raise RuntimeError("Service configuration is managed by the server .env file.")
-
-
-async def test_splunk(store: PostgresStore) -> dict[str, Any]:
-    settings = _settings(store)
-    service = SplunkService(settings.splunk)
-    try:
-        await service.test_connection()
-        return {"ok": True}
-    finally:
-        await service.close()
 
 
 async def test_subscription_server(store: PostgresStore) -> dict[str, Any]:
@@ -200,8 +189,6 @@ def main() -> None:
             result = asyncio.run(list_signatures(store, payload))
         elif command == "convert-attachment":
             result = convert_attachment(store, payload)
-        elif command == "test-splunk":
-            result = asyncio.run(test_splunk(store))
         elif command == "test-subscription-server":
             result = asyncio.run(test_subscription_server(store))
         elif command == "migrate":
@@ -212,7 +199,7 @@ def main() -> None:
         _write_service_error(error)
         raise SystemExit(2) from error
     except ValueError:
-        if command not in {"get-settings", "test-splunk", "test-subscription-server"}:
+        if command not in {"get-settings", "test-subscription-server"}:
             raise
         payload = {
             "code": "admin_configuration_error",

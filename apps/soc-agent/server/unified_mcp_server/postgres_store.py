@@ -17,6 +17,7 @@ from typing import Any
 from cryptography.fernet import Fernet, InvalidToken
 
 from .account_store import AccountStore, StoredAccount
+from .schema import apply_migrations
 
 try:
     import psycopg
@@ -24,19 +25,6 @@ try:
 except ImportError:  # pragma: no cover - exercised when the optional runtime is absent
     psycopg = None  # type: ignore[assignment]
     ConnectionPool = None  # type: ignore[assignment,misc]
-
-
-_CATALOG_REMOVAL_MARKER = "catalog-feature-removed-v1"
-_CATALOG_TABLES = (
-    "soc_catalog_staging",
-    "soc_catalog_import_batches",
-    "soc_catalog_publications",
-    "soc_catalog_history",
-    "soc_fix_source_type",
-    "soc_rule_catalog",
-    "soc_customer",
-    "soc_catalog_migrations",
-)
 
 
 def _derive_key(value: str) -> bytes:
@@ -188,109 +176,7 @@ class PostgresStore:
 
     def _ensure_schema(self) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS app_config (
-                    key TEXT PRIMARY KEY,
-                    value_encrypted TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS zimbra_accounts (
-                    id TEXT PRIMARY KEY,
-                    label TEXT NOT NULL,
-                    email TEXT NOT NULL,
-                    username TEXT NOT NULL,
-                    password_encrypted TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS soc_users (
-                    id TEXT PRIMARY KEY,
-                    zimbra_email TEXT NOT NULL UNIQUE,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    last_login_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS soc_app_sessions (
-                    id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
-                    zimbra_token_encrypted TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    expires_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS soc_session_revocations (
-                    session_id TEXT PRIMARY KEY,
-                    reason TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    expires_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS soc_workspace_owners (
-                    workspace_id TEXT PRIMARY KEY,
-                    owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
-                    workspace_path TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS soc_session_owners (
-                    session_id TEXT PRIMARY KEY,
-                    owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
-                    workspace_id TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS soc_folder_owners (
-                    folder_id TEXT PRIMARY KEY,
-                    owner_user_id TEXT NOT NULL REFERENCES soc_users(id) ON DELETE CASCADE,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS soc_bootstrap (
-                    key TEXT PRIMARY KEY,
-                    completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """
-            )
-            marker = connection.execute(
-                """
-                INSERT INTO soc_bootstrap (key)
-                VALUES (%s)
-                ON CONFLICT (key) DO NOTHING
-                RETURNING key
-                """,
-                (_CATALOG_REMOVAL_MARKER,),
-            ).fetchone()
-            if marker is not None:
-                for table in _CATALOG_TABLES:
-                    connection.execute(f"DROP TABLE IF EXISTS {table}")
+            apply_migrations(connection)
 
     def get_config(self, key: str, default: str = "") -> str:
         with self._connect() as connection:

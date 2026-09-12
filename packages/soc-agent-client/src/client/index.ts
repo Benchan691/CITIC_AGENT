@@ -19,8 +19,6 @@ import { MARKITDOWN_ATTACHMENTS_NAMESPACE } from '../attachment-constants.ts'
 
 export const inject = ['slots', 'connection', 'conversation', 'commandUi', 'settingsScope'] as const
 
-export { SplunkSettings } from './SplunkSettings.ts'
-export { SubscriptionServerSettings } from './SubscriptionServerSettings.ts'
 export { AdminConsole } from './AdminConsole.tsx'
 export { EmailDraftToolview } from './EmailDraftToolview.tsx'
 

@@ -1,120 +1,23 @@
-// Shared SOC tool policy categories.
+// Derive policy categories and admin choices from the same tool inventory.
+import { OFFICIAL_SPLUNK_TOOL_NAMES, SUBSCRIPTION_READ_TOOLS, TOOL_CATALOG } from './tool-inventory.js'
 
-export const OFFICIAL_SPLUNK_READ_TOOLS = Object.freeze([
-  'mcp__splunk_mcp__splunk_run_query',
-  'mcp__splunk_mcp__splunk_get_info',
-  'mcp__splunk_mcp__splunk_get_indexes',
-  'mcp__splunk_mcp__splunk_get_index_info',
-  'mcp__splunk_mcp__splunk_get_metadata',
-  'mcp__splunk_mcp__splunk_get_knowledge_objects',
-  'mcp__splunk_mcp__splunk_run_saved_search',
-  'mcp__splunk_mcp__splunk_list_alerts',
-  'mcp__splunk_mcp__splunk_get_alert_details',
-  'mcp__splunk_mcp__splunk_list_fired_alerts',
-  'mcp__splunk_mcp__splunk_get_fired_alert_details',
-  'mcp__splunk_mcp__splunk_get_alert_throttle',
-  'mcp__splunk_mcp__splunk_list_active_throttles',
-])
-
-export const READ_ONLY_TOOLS = Object.freeze([
-  'skill',
-  ...OFFICIAL_SPLUNK_READ_TOOLS,
-  'mcp__soc_agent__zimbra_list_folders',
-  'mcp__soc_agent__zimbra_search_emails',
-  'mcp__soc_agent__zimbra_get_email',
-  'mcp__soc_agent__zimbra_get_email_headers',
-  'mcp__soc_agent__zimbra_get_attachment_text',
-  'mcp__soc_agent__zimbra_send_email',
-  'mcp__soc_agent__zimbra_list_signatures',
-  'mcp__soc_agent__zimbra_use_signature_on_email',
-  'mcp__soc_agent__zimbra_list_email_filters',
-  'mcp__soc_agent__zimbra_get_email_filter',
-  'mcp__soc_agent__zimbra_validate_email_filter',
-  'mcp__soc_agent__zimbra_preview_email_filter_update',
-  'mcp__soc_agent__list_subscriptions',
-  'mcp__soc_agent__get_subscription_schema',
-  'mcp__soc_agent__preview_subscription',
-])
-
-// All Zimbra capabilities are kept in one inventory for the administrative
-// access console. Read/preview tools are intentionally separate from
-// ACTION_CATALOG so their default state can remain automatic while an
-// administrator can still ask or disable them.
-export const ZIMBRA_READ_TOOLS = Object.freeze([
-  'mcp__soc_agent__zimbra_list_folders',
-  'mcp__soc_agent__zimbra_search_emails',
-  'mcp__soc_agent__zimbra_get_email',
-  'mcp__soc_agent__zimbra_get_email_headers',
-  'mcp__soc_agent__zimbra_get_attachment_text',
-  'mcp__soc_agent__zimbra_send_email',
-  'mcp__soc_agent__zimbra_list_signatures',
-  'mcp__soc_agent__zimbra_use_signature_on_email',
-  'mcp__soc_agent__zimbra_list_email_filters',
-  'mcp__soc_agent__zimbra_get_email_filter',
-  'mcp__soc_agent__zimbra_validate_email_filter',
-  'mcp__soc_agent__zimbra_preview_email_filter_update',
-])
-
-/**
- * The one user-facing catalog of actions. Keep the tool name here in sync
- * with the MCP server and derive ACTION_TOOLS below so policy and UI cannot
- * silently drift apart.
- */
-export const ACTION_CATALOG = Object.freeze([
-  { name: 'mcp__soc_agent__zimbra_move_email', group: 'Zimbra', label: 'Move email' },
-  { name: 'mcp__soc_agent__zimbra_create_email_filter', group: 'Zimbra', label: 'Create email filter' },
-  { name: 'mcp__soc_agent__zimbra_update_email_filter', group: 'Zimbra', label: 'Update email filter' },
-  { name: 'mcp__soc_agent__zimbra_delete_email_filter', group: 'Zimbra', label: 'Delete email filter' },
-  { name: 'mcp__soc_agent__zimbra_set_email_filter_enabled', group: 'Zimbra', label: 'Enable or disable email filter' },
-  { name: 'mcp__soc_agent__zimbra_reorder_email_filter', group: 'Zimbra', label: 'Reorder email filters' },
-  { name: 'mcp__soc_agent__zimbra_create_folder', group: 'Zimbra', label: 'Create folder' },
-  { name: 'mcp__soc_agent__zimbra_create_signature', group: 'Zimbra', label: 'Create signature' },
-  { name: 'mcp__soc_agent__zimbra_delete_signature', group: 'Zimbra', label: 'Delete signature' },
-  { name: 'mcp__soc_agent__create_subscription', group: 'Subscriptions', label: 'Create subscription' },
-  { name: 'mcp__soc_agent__update_subscription', group: 'Subscriptions', label: 'Update subscription' },
-  { name: 'mcp__soc_agent__delete_subscription', group: 'Subscriptions', label: 'Delete subscription' },
-])
-
-export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
-
-const zimbraReadLabels = Object.freeze({
-  'mcp__soc_agent__zimbra_list_folders': 'List mail folders',
-  'mcp__soc_agent__zimbra_search_emails': 'Search email',
-  'mcp__soc_agent__zimbra_get_email': 'Read email',
-  'mcp__soc_agent__zimbra_get_email_headers': 'Read email headers',
-  'mcp__soc_agent__zimbra_get_attachment_text': 'Read attachment text',
-  'mcp__soc_agent__zimbra_send_email': 'Create email draft',
-  'mcp__soc_agent__zimbra_list_signatures': 'List signatures',
-  'mcp__soc_agent__zimbra_use_signature_on_email': 'Create signed email draft',
-  'mcp__soc_agent__zimbra_list_email_filters': 'List email filters',
-  'mcp__soc_agent__zimbra_get_email_filter': 'Read email filter',
-  'mcp__soc_agent__zimbra_validate_email_filter': 'Validate email filter',
-  'mcp__soc_agent__zimbra_preview_email_filter_update': 'Preview email filter update',
-})
-
-export const TOOL_CATALOG = Object.freeze([
-  ...ZIMBRA_READ_TOOLS.map(name => ({
-    name,
-    group: 'Zimbra',
-    label: zimbraReadLabels[name],
-    kind: 'read',
-  })),
-  ...ACTION_CATALOG.map(action => ({ ...action, kind: 'mutation' })),
-  {
-    name: 'ui__soc_agent__send_email',
-    group: 'Zimbra',
-    label: 'Send email (UI-confirmed)',
-    kind: 'ui-confirmed',
-  },
-])
-
-export const MANAGED_TOOL_NAMES = Object.freeze(
-  TOOL_CATALOG
-    .filter(tool => tool.kind !== 'ui-confirmed')
-    .map(tool => tool.name),
+export { TOOL_CATALOG }
+export const OFFICIAL_SPLUNK_READ_TOOLS = Object.freeze(
+  OFFICIAL_SPLUNK_TOOL_NAMES.map(name => `mcp__splunk_mcp__${name}`),
 )
-
+export const ZIMBRA_READ_TOOLS = Object.freeze(
+  TOOL_CATALOG.filter(tool => tool.kind === 'read').map(tool => tool.name),
+)
+export const READ_ONLY_TOOLS = Object.freeze([
+  'skill', ...OFFICIAL_SPLUNK_READ_TOOLS, ...ZIMBRA_READ_TOOLS, ...SUBSCRIPTION_READ_TOOLS,
+])
+export const ACTION_CATALOG = Object.freeze(
+  TOOL_CATALOG.filter(tool => tool.kind === 'mutation').map(({ kind, ...action }) => Object.freeze(action)),
+)
+export const ACTION_TOOLS = Object.freeze(ACTION_CATALOG.map(action => action.name))
+export const MANAGED_TOOL_NAMES = Object.freeze(
+  TOOL_CATALOG.filter(tool => tool.kind !== 'ui-confirmed').map(tool => tool.name),
+)
 export const ALWAYS_ASK_ACTION_TOOLS = Object.freeze([])
-
 export const DOMAIN_TOOLS = new Set([...READ_ONLY_TOOLS, ...ACTION_TOOLS])
 export const APPROVAL_TOOLS = new Set(ACTION_TOOLS)

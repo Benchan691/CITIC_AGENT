@@ -31,13 +31,13 @@ window.__ModuleLoader__.load({
 		let react_jsx_runtime = require("react/jsx-runtime");
 		let _deepseek_ai_dsh_client_runtime_client = require("@deepseek-ai/dsh-client-runtime/client");
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/CiticBrand.module.css.mjs
-		const css$7 = ".U2KmSq_wordmark{text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;align-items:center;min-width:0;max-width:100%;font-size:16px;font-weight:700;line-height:24px;display:inline-flex;overflow:hidden}";
-		const tagId$7 = "dsh-soc-agent-client/CiticBrand.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$7) + "]") === null) {
+		const css$6 = ".U2KmSq_wordmark{text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;align-items:center;min-width:0;max-width:100%;font-size:16px;font-weight:700;line-height:24px;display:inline-flex;overflow:hidden}";
+		const tagId$6 = "dsh-soc-agent-client/CiticBrand.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$6) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$7;
-			tag.textContent = css$7;
+			tag.dataset.pluginCss = tagId$6;
+			tag.textContent = css$6;
 			document.head.appendChild(tag);
 		}
 		var CiticBrand_module_css_default = { "wordmark": "U2KmSq_wordmark" };
@@ -94,13 +94,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/AdminConsole.module.css.mjs
-		const css$6 = ".IhE_MG_page,.IhE_MG_loginPage{--ink:#202c35;--muted:#65747d;--line:#dfe5e5;--accent:#216b5c;--paper:#fff;color-scheme:light;color:var(--ink);background:#f4f6f5;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;line-height:1.5}.IhE_MG_page *,.IhE_MG_loginPage *{box-sizing:border-box}.IhE_MG_page [hidden]{display:none!important}.IhE_MG_page button,.IhE_MG_loginPage button,.IhE_MG_page input,.IhE_MG_page select,.IhE_MG_page textarea{font:inherit}.IhE_MG_page a{color:inherit}.IhE_MG_page :focus-visible,.IhE_MG_loginPage :focus-visible{outline-offset:3px;outline:3px solid #49a68d}.IhE_MG_page{grid-template-columns:232px minmax(0,1fr);display:grid}.IhE_MG_sidebar{color:#d3dfdc;background:#142c2c;flex-direction:column;height:100vh;padding:32px 18px 22px;display:flex;position:sticky;top:0}.IhE_MG_brand{letter-spacing:-.5px;align-items:center;gap:12px;padding:0 10px 42px;font-size:22px;font-weight:700;text-decoration:none;display:flex}.IhE_MG_brand small{letter-spacing:.3px;color:#a9bfba;font-size:11px;font-weight:400;display:block}.IhE_MG_brandMark{color:#194e40;background:#d9eee1;border-radius:12px;place-items:center;width:38px;height:42px;font-family:Georgia,serif;font-size:24px;display:grid}.IhE_MG_navLabel{letter-spacing:1.8px;color:#8da9a2;margin:0 0 12px;padding:0 14px;font-size:10px;font-weight:600}.IhE_MG_navigation{gap:5px;display:grid}.IhE_MG_navigation a{color:#b4c8c2;border-radius:7px;align-items:center;gap:12px;padding:12px 14px;font-size:13px;text-decoration:none;display:flex}.IhE_MG_navigation a:hover{color:#fff;background:#203d3b}.IhE_MG_navigation .IhE_MG_navActive{color:#f0f8f3;background:#2c4944;font-weight:600;box-shadow:inset 3px 0 #a9d3b7}.IhE_MG_sidebarFoot{margin-top:auto;padding:32px 10px 0}.IhE_MG_backLink{padding-bottom:24px;font-size:12px;text-decoration:none;display:block;color:#b8c9c4!important}.IhE_MG_identity{border-top:1px solid #37504a;gap:10px;min-width:0;padding:19px 0 10px;display:flex}.IhE_MG_identity>div{min-width:0}.IhE_MG_identity strong{color:#e0e9e5;font-size:12px;font-weight:500;display:block}.IhE_MG_avatar{color:#d4e9db;background:#36574b;border-radius:50%;flex:0 0 33px;place-items:center;height:33px;display:grid}.IhE_MG_account{text-overflow:ellipsis;white-space:nowrap;color:#9eb6ae;max-width:155px;font-size:11px;display:block;overflow:hidden}.IhE_MG_signOut{color:#b9cdc5;cursor:pointer;background:0 0;border:0;padding:8px 0;font-size:12px!important}.IhE_MG_shell{width:100%;min-width:0;max-width:1550px;margin:0 auto;padding:0 clamp(24px,4vw,64px)}.IhE_MG_topbar{border-bottom:1px solid var(--line);min-height:74px;color:var(--muted);justify-content:space-between;align-items:center;font-size:12px;display:flex}.IhE_MG_topbar strong{color:var(--ink);font-weight:500}.IhE_MG_adminBadge{color:#4c6259;background:#e8eeeb;border-radius:4px;padding:4px 10px;font-size:11px}.IhE_MG_header{justify-content:space-between;align-items:center;gap:24px;padding:34px 0 26px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#677f75;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 9px;font-size:10px;font-weight:700}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:var(--ink);letter-spacing:-.6px;margin:0;font-weight:600}.IhE_MG_title{font-size:34px;line-height:1.2}.IhE_MG_subtitle{color:var(--muted);margin:10px 0 0;font-size:14px}.IhE_MG_headerMark{color:#4c7161;background:#ecf1ec;border:1px solid #d3dfd8;border-radius:13px;place-items:center;width:48px;height:48px;display:grid}.IhE_MG_headerMark svg{width:24px;height:24px}.IhE_MG_section{margin:8px 0 32px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;display:flex}.IhE_MG_sectionTitle{font-size:20px}.IhE_MG_sectionHint{color:var(--muted);text-align:right;max-width:290px;font-size:12px}.IhE_MG_headerActions,.IhE_MG_toolbar{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0 0 28px;display:grid}.IhE_MG_metric{border:1px solid var(--line);background:#fff;border-radius:10px;flex-direction:column;padding:22px;text-decoration:none;display:flex;box-shadow:0 2px 3px #182e2610}.IhE_MG_metric:hover{border-color:#a8c4b8}.IhE_MG_metricLabel{color:#54675f;justify-content:space-between;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_metricLabel svg{color:#7a9689}.IhE_MG_metric>strong{letter-spacing:-1px;margin:18px 0;font-size:32px;font-weight:600;line-height:1.3}.IhE_MG_metric>small{color:var(--muted);justify-content:space-between;gap:12px;font-size:11px;display:flex}.IhE_MG_metricAttention{background:#fffaf2;border-color:#ebd6b7}.IhE_MG_metricAttention>strong{color:#976322}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.9fr) minmax(230px,1fr);align-items:start;gap:22px;display:grid}.IhE_MG_card{background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:0;margin-bottom:22px;padding:26px}.IhE_MG_helpCard{color:#455c4e;background:#eaf0e9;border:1px solid #dce5d9;border-radius:10px;padding:28px}.IhE_MG_helpCard h3{color:#294938;margin:0 0 12px;font-family:Georgia,serif;font-size:26px;font-weight:400;line-height:1.2}.IhE_MG_helpCard p{font-size:13px;line-height:1.75}.IhE_MG_steps{margin:22px 0;padding-left:20px;font-size:12px}.IhE_MG_steps li{padding:5px 0 5px 5px}.IhE_MG_quickLinks{margin-top:18px;display:grid}.IhE_MG_quickLinks a{border-bottom:1px solid #e9eeeb;align-items:center;gap:15px;padding:20px 0;text-decoration:none;display:flex}.IhE_MG_quickLinks a:last-child{border-bottom:0;padding-bottom:4px}.IhE_MG_quickLinks a>span:nth-child(2){flex:1}.IhE_MG_quickLinks strong{font-size:14px;font-weight:600;display:block}.IhE_MG_quickLinks small{color:var(--muted);margin-top:5px;font-size:12px;line-height:1.5;display:block}.IhE_MG_quickLinks a:hover strong{color:var(--accent)}.IhE_MG_quickIcon{color:#50725e;background:#f0f4f1;border:1px solid #e2eae4;border-radius:9px;flex:0 0 38px;place-items:center;width:38px;height:38px;display:grid}.IhE_MG_pageFoot{border-top:1px solid var(--line);color:#77867e;margin-top:30px;padding:24px 0;font-size:11px}.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_statusCard{border:1px solid var(--line);background:#fff;border-radius:10px;gap:15px;min-width:0;padding:22px;display:flex}.IhE_MG_statusIcon{color:#346e55;background:#edf4ef;border:1px solid #d6e4dc;border-radius:9px;flex:0 0 36px;place-items:center;height:36px;font-weight:600;display:grid}.IhE_MG_statusBody{flex:1;min-width:0}.IhE_MG_statusTopline{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;display:flex}.IhE_MG_statusTopline h3{margin:0;font-size:14px;font-weight:600}.IhE_MG_statusBody p{color:var(--muted);margin:9px 0 0;font-size:12px}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;border-radius:5px;align-items:center;gap:6px;padding:4px 9px;font-size:11px;font-weight:500;display:inline-flex}.IhE_MG_statusReady{color:#286043;background:#e5f2e9}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#385e73;background:#e8f0f4}.IhE_MG_statusError{color:#9d3e32;background:#fceee7}.IhE_MG_statusMuted{color:#65726e;background:#eff1ef}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#97a59e;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#378657}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#507c94}.IhE_MG_statusError .IhE_MG_statusDot{background:#bb5f4c}.IhE_MG_textButton{cursor:pointer;background:0 0;border:0;margin-top:14px;padding:0;font-weight:600;text-decoration:none;display:inline-block;color:var(--accent)!important;font-size:12px!important}.IhE_MG_textButton:hover{text-decoration:underline}.IhE_MG_envManaged{color:#76827c;margin-top:14px;font-size:11px;display:block}.IhE_MG_button,.IhE_MG_dangerButton{color:#3e5349;cursor:pointer;background:#fff;border:1px solid #d5deda;border-radius:6px;justify-content:center;align-items:center;gap:7px;min-height:38px;padding:9px 14px;line-height:1.3;text-decoration:none;display:inline-flex;font-size:12px!important;font-weight:600!important}.IhE_MG_button:hover:not(:disabled){background:#f2f6f3;border-color:#91b3a3}.IhE_MG_primary{color:#fff;background:#246b55;border-color:#246b55}.IhE_MG_primary:hover:not(:disabled){background:#19533f;border-color:#19533f}.IhE_MG_dangerButton{color:#a14235;background:#fff9f6;border-color:#eccdc3}.IhE_MG_dangerButton:hover{background:#fceee8}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled,.IhE_MG_textButton:disabled{cursor:not-allowed;opacity:.55}.IhE_MG_error,.IhE_MG_message{overflow-wrap:anywhere;border-radius:6px;margin:12px 0;padding:12px 15px;font-size:13px}.IhE_MG_error{color:#9b3c32;background:#fff0eb}.IhE_MG_success{color:#2b6748;background:#eaf5ed}.IhE_MG_info{color:#365e73;background:#edf3f7}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success{color:#2b6748;padding:5px}.IhE_MG_loading,.IhE_MG_loadingInline{color:#5d7167;background:#f4f6f5;padding:28px;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_providerLayout{border:1px solid var(--line);background:#fff;border-radius:10px;grid-template-columns:250px minmax(0,1fr);display:grid;overflow:hidden}.IhE_MG_providerPicker{border-right:1px solid var(--line);background:#fafbf9;min-width:0;padding:18px 12px}.IhE_MG_pickerHeader{justify-content:space-between;align-items:center;padding:0 8px 12px;font-size:12px;font-weight:600;display:flex}.IhE_MG_countBadge{color:#4a6c59;background:#e9efeb}.IhE_MG_providerList{flex-direction:column;gap:4px;max-height:430px;display:flex;overflow:auto}.IhE_MG_providerOption,.IhE_MG_customOption{text-align:left;width:100%;color:var(--ink);cursor:pointer;background:0 0;border:1px solid #0000;border-radius:6px;align-items:center;gap:10px;padding:12px 10px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_customOption:hover{background:#eef3ef}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{background:#e7f0e9;border-color:#c6d9cc}.IhE_MG_providerDot{flex:0 0 6px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{overflow-wrap:anywhere;font-size:12px;font-weight:600}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:var(--muted);font-size:10px}.IhE_MG_customTag,.IhE_MG_customBadge{color:#806239;background:#f4eee0;font-size:9px}.IhE_MG_customOption{border-top:1px solid var(--line);border-radius:0;margin-top:14px}.IhE_MG_addIcon{color:var(--accent);font-size:20px}.IhE_MG_providerEditor{min-width:0;padding:28px}.IhE_MG_editorHeading{border-bottom:1px solid var(--line);justify-content:space-between;align-items:flex-start;gap:15px;padding-bottom:22px;display:flex}.IhE_MG_editorTitle{font-size:20px}.IhE_MG_editorCopy{color:var(--muted);margin:10px 0 0;font-size:13px;line-height:1.6}.IhE_MG_editorForm,.IhE_MG_form,.IhE_MG_formFields{border:0;flex-direction:column;gap:20px;min-width:0;margin:22px 0 0;padding:0;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_field{color:#3f5449;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:600;display:flex}.IhE_MG_field em{color:var(--muted);font-size:11px;font-style:normal;font-weight:400}.IhE_MG_input{width:100%;min-width:0;color:var(--ink);background:#fff;border:1px solid #cedbd3;border-radius:6px;padding:10px 12px;font-weight:400;line-height:1.5;display:block;font-size:13px!important}.IhE_MG_input::placeholder{color:#7c8c82}.IhE_MG_input:focus{border-color:#559779}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.7;background:#f3f5f2}textarea.IhE_MG_input{resize:vertical}.IhE_MG_textarea{min-height:100px}.IhE_MG_fieldHint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.IhE_MG_advanced{border:1px solid var(--line);background:#fafbf9;border-radius:7px;margin-top:8px}.IhE_MG_advanced summary{cursor:pointer;color:#425e4e;padding:13px 16px;font-size:12px;font-weight:600}.IhE_MG_advancedBody{flex-direction:column;gap:16px;padding:0 16px 18px;display:flex}.IhE_MG_discoveryRow,.IhE_MG_discovered{flex-wrap:wrap;align-items:center;gap:10px;display:flex}.IhE_MG_modelChip{color:#3e6d50;cursor:pointer;background:#edf5ef;border:1px solid #cadecf;border-radius:5px;padding:7px 10px;font-size:12px}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;display:flex}.IhE_MG_confirmGroup{color:#8e4e42;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_confirmGroup .IhE_MG_error{width:100%}.IhE_MG_loginPage{background:#eaf0ea;place-items:center;padding:24px;display:grid}.IhE_MG_loginPanel{background:#fff;border:1px solid #d4dfd5;border-radius:14px;width:min(100%,430px);padding:40px;box-shadow:0 20px 80px #26443515}.IhE_MG_loginMark{color:#fff;background:#246b55;border-radius:11px;place-items:center;width:44px;height:44px;margin-bottom:26px;font-family:Georgia,serif;font-size:22px;display:grid}.IhE_MG_loginTitle{font-size:30px;line-height:1.2}.IhE_MG_loginCopy{color:var(--muted);margin:14px 0 25px;font-size:13px}.IhE_MG_fullButton{width:100%}.IhE_MG_loginFootnote{color:var(--muted);margin:24px 0 0;font-size:11px}.IhE_MG_notice{color:#526b5d;background:#edf2ef;border:1px solid #dce5df;border-radius:7px;align-items:center;gap:12px;padding:14px 18px;font-size:12px;display:flex}.IhE_MG_tabs{border-bottom:1px solid var(--line);flex-wrap:wrap;gap:4px;margin:22px 0;display:flex}.IhE_MG_tabs button{color:var(--muted);cursor:pointer;background:0 0;border:0;border-bottom:2px solid #0000;padding:12px 14px;font-size:12px}.IhE_MG_tabs .IhE_MG_activeTab{color:#256849;border-bottom-color:#256849;font-weight:600}.IhE_MG_toolbar{margin:0 0 18px}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{max-width:320px}.IhE_MG_toolbar>.IhE_MG_button:last-child{margin-left:auto}.IhE_MG_tableWrap{border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:22px;overflow:auto}.IhE_MG_table{border-collapse:collapse;text-align:left;width:100%;font-size:12px}.IhE_MG_table th{color:#67786d;border-bottom:1px solid var(--line);white-space:nowrap;background:#f9fbf8;padding:13px 18px;font-size:11px;font-weight:500}.IhE_MG_table td{vertical-align:top;border-bottom:1px solid #edf0ec;padding:17px 18px}.IhE_MG_table tr:last-child td{border-bottom:0}.IhE_MG_table td strong{font-weight:600}.IhE_MG_table td small{color:var(--muted);margin-top:5px;display:block}.IhE_MG_table td summary{cursor:pointer;min-width:150px}.IhE_MG_empty{color:var(--muted);text-align:center;padding:35px 22px;font-size:13px}.IhE_MG_checkboxGroup{border:1px solid var(--line);border-radius:7px;flex-wrap:wrap;gap:12px;max-height:230px;padding:14px;display:flex;overflow:auto}.IhE_MG_checkboxGroup legend{color:#4b6555;padding:0 5px;font-size:12px}.IhE_MG_checkboxGroup label,.IhE_MG_checkLabel{color:#3c5546;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_checkboxGroup input,.IhE_MG_checkLabel input{accent-color:#276e53;width:16px;height:16px}.IhE_MG_previewEnvelope{border:1px solid var(--line);overflow-wrap:anywhere;background:#f4f7f3;border-bottom:0;margin-top:24px;padding:20px;font-size:12px}.IhE_MG_previewFrame{border:1px solid var(--line);background:#fff;width:100%;height:560px}.IhE_MG_plainText{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;font-size:12px}.IhE_MG_deliveryDetails{overflow-wrap:anywhere;min-width:220px;max-width:360px;font-size:11px}.IhE_MG_mono{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,monospace!important}.IhE_MG_importRow{border-top:1px solid var(--line);overflow-wrap:anywhere;justify-content:space-between;align-items:center;gap:20px;padding:18px 0;font-size:12px;display:flex}.IhE_MG_importRow p{color:var(--muted)}.IhE_MG_srOnly{clip:rect(0,0,0,0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.IhE_MG_skipLink{z-index:10;background:#fff;padding:12px;position:fixed;top:0;left:240px;transform:translateY(-150%)}.IhE_MG_skipLink:focus{transform:translateY(0)}@media (width<=1150px){.IhE_MG_page{grid-template-columns:200px minmax(0,1fr)}.IhE_MG_sidebar{padding-inline:12px}.IhE_MG_shell{padding-inline:28px}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr)}.IhE_MG_metric{padding:18px}.IhE_MG_metric>strong{font-size:28px}.IhE_MG_providerLayout{grid-template-columns:210px minmax(0,1fr)}}@media (width<=900px){.IhE_MG_contentGrid{grid-template-columns:1fr}.IhE_MG_metrics{gap:10px}.IhE_MG_metric{padding:14px}.IhE_MG_metricLabel{font-size:11px}.IhE_MG_metricLabel svg{display:none}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-right:0;border-bottom:1px solid var(--line)}.IhE_MG_providerList{max-height:180px}.IhE_MG_notice{flex-direction:column;align-items:flex-start}}@media (width<=680px){.IhE_MG_page{display:block}.IhE_MG_sidebar{height:auto;padding:18px 16px 0;position:static}.IhE_MG_brand{padding:0 0 18px;font-size:19px}.IhE_MG_brandMark{width:30px;height:34px;font-size:20px}.IhE_MG_navLabel{display:none}.IhE_MG_navigation{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;display:grid}.IhE_MG_navigation a{border-radius:5px 5px 0 0;flex-direction:column;flex-shrink:0;justify-content:center;gap:6px;padding:10px 3px;font-size:10px}.IhE_MG_navigation svg{width:15px}.IhE_MG_navigation .IhE_MG_navActive{box-shadow:inset 0 -3px #a9d3b7}.IhE_MG_sidebarFoot{flex-wrap:wrap;align-items:center;gap:15px;padding:8px 0;display:flex}.IhE_MG_backLink{padding:0;font-size:11px}.IhE_MG_identity{display:none}.IhE_MG_signOut{margin-left:auto}.IhE_MG_shell{padding:0 18px}.IhE_MG_topbar{min-height:54px}.IhE_MG_header{padding:24px 0 20px}.IhE_MG_title{font-size:28px}.IhE_MG_headerMark{display:none}.IhE_MG_sectionHeading{flex-wrap:wrap;align-items:flex-start;gap:12px}.IhE_MG_metrics{grid-template-columns:1fr;gap:10px}.IhE_MG_metric{grid-template-columns:1fr auto;align-items:center;gap:8px;padding:16px 18px;display:grid}.IhE_MG_metric>strong{grid-area:1/2/3;margin:0;font-size:24px}.IhE_MG_metric>small{grid-column:1}.IhE_MG_metric small span{display:none}.IhE_MG_card,.IhE_MG_helpCard,.IhE_MG_providerEditor{padding:20px}.IhE_MG_fieldGrid{grid-template-columns:1fr}.IhE_MG_editorHeading{flex-wrap:wrap}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{width:100%;max-width:none}.IhE_MG_tabs{gap:0}.IhE_MG_tabs button{padding:11px 9px;font-size:11px}.IhE_MG_sectionHint{text-align:left}.IhE_MG_table td,.IhE_MG_table th{padding:12px}.IhE_MG_table{min-width:560px}.IhE_MG_importRow{flex-direction:column;align-items:flex-start}.IhE_MG_skipLink{left:16px}}.IhE_MG_contextGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_contextCard{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;padding:26px;box-shadow:0 2px 3px #182e2610}.IhE_MG_contextCard h3{color:var(--ink);margin:0;font-size:16px;font-weight:600}.IhE_MG_contextCard p:not(.IhE_MG_sectionKicker){color:var(--muted);margin:8px 0 0;font-size:12px;line-height:1.55}.IhE_MG_fieldError{color:#9b3c32;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_input[aria-invalid=true]{background:#fffaf8;border-color:#bb5f4c}.IhE_MG_toggleField{color:#3f5449;cursor:pointer;align-items:flex-start;gap:11px;display:flex}.IhE_MG_toggleField input{accent-color:#276e53;width:17px;height:17px;margin:1px 0 0}.IhE_MG_toggleField span{flex-direction:column;gap:4px;display:flex}.IhE_MG_toggleField strong{font-size:12px}.IhE_MG_toggleField small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.IhE_MG_contextCardWide{grid-column:1/-1}.IhE_MG_actionGroups{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px;display:grid}.IhE_MG_actionGroups .IhE_MG_checkboxGroup{max-height:none;margin:0}.IhE_MG_actionGroups .IhE_MG_checkLabel{align-items:flex-start}.IhE_MG_modeChoices{border:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0 0;padding:0;display:grid}.IhE_MG_modeChoice{border:1px solid var(--line);cursor:pointer;background:#fafcf9;border-radius:7px;align-items:flex-start;gap:10px;min-width:0;padding:14px;display:flex}.IhE_MG_modeChoice:has(input:checked){background:#eef6ef;border-color:#9fc5ae}.IhE_MG_modeChoice input{accent-color:#276e53;width:16px;height:16px;margin:1px 0 0}.IhE_MG_modeChoice span{flex-direction:column;gap:4px;min-width:0;display:flex}.IhE_MG_modeChoice strong{color:#314d40;font-size:12px}.IhE_MG_modeChoice small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.IhE_MG_accessGroups{gap:16px;margin-top:18px;display:grid}.IhE_MG_actionGroup{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;margin:0;padding:0;overflow:hidden}.IhE_MG_actionGroup>legend{border-bottom:1px solid var(--line);color:#4b6555;background:#f9fbf8;width:100%;padding:14px 18px;font-size:12px;font-weight:600}.IhE_MG_actionRow{border-bottom:1px solid #edf0ec;justify-content:space-between;align-items:center;gap:18px;min-width:0;padding:15px 18px;display:flex}.IhE_MG_actionGroup .IhE_MG_actionRow:last-child{border-bottom:0}.IhE_MG_actionInfo{flex-direction:column;flex:1;gap:5px;min-width:0;display:flex}.IhE_MG_actionInfo strong{color:#314b3e;font-size:12px;font-weight:600}.IhE_MG_actionInfo small{color:var(--muted);font-size:10px}.IhE_MG_stateChoices{flex-wrap:wrap;flex:none;justify-content:flex-end;gap:6px;display:flex}.IhE_MG_actionControls{flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;display:flex}.IhE_MG_stateChoice{color:#52685d;cursor:pointer;white-space:nowrap;background:#fff;border:1px solid #d8e2dc;border-radius:5px;align-items:center;gap:5px;padding:6px 8px;font-size:10px;font-weight:500;display:inline-flex}.IhE_MG_stateChoice:has(input:checked){color:#286047;background:#eaf5ed;border-color:#8fb8a0}.IhE_MG_stateChoice input{accent-color:#276e53;width:13px;height:13px;margin:0}.IhE_MG_protectedBadge{color:#8b5f2d;white-space:nowrap;background:#fbf1df;border-radius:5px;flex:none;padding:6px 9px;font-size:10px;font-weight:600}.IhE_MG_unavailableBadge{color:#8b4b42;white-space:nowrap;background:#fceee8;border-radius:5px;padding:5px 8px;font-size:10px;font-weight:600}@media (width<=900px){.IhE_MG_contextGrid,.IhE_MG_actionGroups,.IhE_MG_modeChoices{grid-template-columns:1fr}.IhE_MG_actionRow{flex-direction:column;align-items:flex-start}.IhE_MG_stateChoices,.IhE_MG_actionControls{justify-content:flex-start}}@media (width<=680px){.IhE_MG_contextCard{padding:20px}.IhE_MG_navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}";
-		const tagId$6 = "dsh-soc-agent-client/AdminConsole.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$6) + "]") === null) {
+		const css$5 = ".IhE_MG_page,.IhE_MG_loginPage{--ink:#202c35;--muted:#65747d;--line:#dfe5e5;--accent:#216b5c;--paper:#fff;color-scheme:light;color:var(--ink);background:#f4f6f5;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;line-height:1.5}.IhE_MG_page *,.IhE_MG_loginPage *{box-sizing:border-box}.IhE_MG_page [hidden]{display:none!important}.IhE_MG_page button,.IhE_MG_loginPage button,.IhE_MG_page input,.IhE_MG_page select,.IhE_MG_page textarea{font:inherit}.IhE_MG_page a{color:inherit}.IhE_MG_page :focus-visible,.IhE_MG_loginPage :focus-visible{outline-offset:3px;outline:3px solid #49a68d}.IhE_MG_page{grid-template-columns:232px minmax(0,1fr);display:grid}.IhE_MG_sidebar{color:#d3dfdc;background:#142c2c;flex-direction:column;height:100vh;padding:32px 18px 22px;display:flex;position:sticky;top:0}.IhE_MG_brand{letter-spacing:-.5px;align-items:center;gap:12px;padding:0 10px 42px;font-size:22px;font-weight:700;text-decoration:none;display:flex}.IhE_MG_brand small{letter-spacing:.3px;color:#a9bfba;font-size:11px;font-weight:400;display:block}.IhE_MG_brandMark{color:#194e40;background:#d9eee1;border-radius:12px;place-items:center;width:38px;height:42px;font-family:Georgia,serif;font-size:24px;display:grid}.IhE_MG_navLabel{letter-spacing:1.8px;color:#8da9a2;margin:0 0 12px;padding:0 14px;font-size:10px;font-weight:600}.IhE_MG_navigation{gap:5px;display:grid}.IhE_MG_navigation a{color:#b4c8c2;border-radius:7px;align-items:center;gap:12px;padding:12px 14px;font-size:13px;text-decoration:none;display:flex}.IhE_MG_navigation a:hover{color:#fff;background:#203d3b}.IhE_MG_navigation .IhE_MG_navActive{color:#f0f8f3;background:#2c4944;font-weight:600;box-shadow:inset 3px 0 #a9d3b7}.IhE_MG_sidebarFoot{margin-top:auto;padding:32px 10px 0}.IhE_MG_backLink{padding-bottom:24px;font-size:12px;text-decoration:none;display:block;color:#b8c9c4!important}.IhE_MG_identity{border-top:1px solid #37504a;gap:10px;min-width:0;padding:19px 0 10px;display:flex}.IhE_MG_identity>div{min-width:0}.IhE_MG_identity strong{color:#e0e9e5;font-size:12px;font-weight:500;display:block}.IhE_MG_avatar{color:#d4e9db;background:#36574b;border-radius:50%;flex:0 0 33px;place-items:center;height:33px;display:grid}.IhE_MG_account{text-overflow:ellipsis;white-space:nowrap;color:#9eb6ae;max-width:155px;font-size:11px;display:block;overflow:hidden}.IhE_MG_signOut{color:#b9cdc5;cursor:pointer;background:0 0;border:0;padding:8px 0;font-size:12px!important}.IhE_MG_shell{width:100%;min-width:0;max-width:1550px;margin:0 auto;padding:0 clamp(24px,4vw,64px)}.IhE_MG_topbar{border-bottom:1px solid var(--line);min-height:74px;color:var(--muted);justify-content:space-between;align-items:center;font-size:12px;display:flex}.IhE_MG_topbar strong{color:var(--ink);font-weight:500}.IhE_MG_adminBadge{color:#4c6259;background:#e8eeeb;border-radius:4px;padding:4px 10px;font-size:11px}.IhE_MG_header{justify-content:space-between;align-items:center;gap:24px;padding:34px 0 26px;display:flex}.IhE_MG_eyebrow,.IhE_MG_sectionKicker{color:#677f75;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 9px;font-size:10px;font-weight:700}.IhE_MG_title,.IhE_MG_loginTitle,.IhE_MG_sectionTitle,.IhE_MG_editorTitle{color:var(--ink);letter-spacing:-.6px;margin:0;font-weight:600}.IhE_MG_title{font-size:34px;line-height:1.2}.IhE_MG_subtitle{color:var(--muted);margin:10px 0 0;font-size:14px}.IhE_MG_headerMark{color:#4c7161;background:#ecf1ec;border:1px solid #d3dfd8;border-radius:13px;place-items:center;width:48px;height:48px;display:grid}.IhE_MG_headerMark svg{width:24px;height:24px}.IhE_MG_section{margin:8px 0 32px}.IhE_MG_sectionHeading{justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;display:flex}.IhE_MG_sectionTitle{font-size:20px}.IhE_MG_sectionHint{color:var(--muted);text-align:right;max-width:290px;font-size:12px}.IhE_MG_headerActions,.IhE_MG_toolbar{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.IhE_MG_metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0 0 28px;display:grid}.IhE_MG_metric{border:1px solid var(--line);background:#fff;border-radius:10px;flex-direction:column;padding:22px;text-decoration:none;display:flex;box-shadow:0 2px 3px #182e2610}.IhE_MG_metric:hover{border-color:#a8c4b8}.IhE_MG_metricLabel{color:#54675f;justify-content:space-between;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_metricLabel svg{color:#7a9689}.IhE_MG_metric>strong{letter-spacing:-1px;margin:18px 0;font-size:32px;font-weight:600;line-height:1.3}.IhE_MG_metric>small{color:var(--muted);justify-content:space-between;gap:12px;font-size:11px;display:flex}.IhE_MG_metricAttention{background:#fffaf2;border-color:#ebd6b7}.IhE_MG_metricAttention>strong{color:#976322}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.9fr) minmax(230px,1fr);align-items:start;gap:22px;display:grid}.IhE_MG_card{background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:0;margin-bottom:22px;padding:26px}.IhE_MG_helpCard{color:#455c4e;background:#eaf0e9;border:1px solid #dce5d9;border-radius:10px;padding:28px}.IhE_MG_helpCard h3{color:#294938;margin:0 0 12px;font-family:Georgia,serif;font-size:26px;font-weight:400;line-height:1.2}.IhE_MG_helpCard p{font-size:13px;line-height:1.75}.IhE_MG_steps{margin:22px 0;padding-left:20px;font-size:12px}.IhE_MG_steps li{padding:5px 0 5px 5px}.IhE_MG_quickLinks{margin-top:18px;display:grid}.IhE_MG_quickLinks a{border-bottom:1px solid #e9eeeb;align-items:center;gap:15px;padding:20px 0;text-decoration:none;display:flex}.IhE_MG_quickLinks a:last-child{border-bottom:0;padding-bottom:4px}.IhE_MG_quickLinks a>span:nth-child(2){flex:1}.IhE_MG_quickLinks strong{font-size:14px;font-weight:600;display:block}.IhE_MG_quickLinks small{color:var(--muted);margin-top:5px;font-size:12px;line-height:1.5;display:block}.IhE_MG_quickLinks a:hover strong{color:var(--accent)}.IhE_MG_quickIcon{color:#50725e;background:#f0f4f1;border:1px solid #e2eae4;border-radius:9px;flex:0 0 38px;place-items:center;width:38px;height:38px;display:grid}.IhE_MG_pageFoot{border-top:1px solid var(--line);color:#77867e;margin-top:30px;padding:24px 0;font-size:11px}.IhE_MG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.IhE_MG_statusCard{border:1px solid var(--line);background:#fff;border-radius:10px;gap:15px;min-width:0;padding:22px;display:flex}.IhE_MG_statusIcon{color:#346e55;background:#edf4ef;border:1px solid #d6e4dc;border-radius:9px;flex:0 0 36px;place-items:center;height:36px;font-weight:600;display:grid}.IhE_MG_statusBody{flex:1;min-width:0}.IhE_MG_statusTopline{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;display:flex}.IhE_MG_statusTopline h3{margin:0;font-size:14px;font-weight:600}.IhE_MG_statusBody p{color:var(--muted);margin:9px 0 0;font-size:12px}.IhE_MG_statusPill,.IhE_MG_customBadge,.IhE_MG_customTag,.IhE_MG_countBadge{white-space:nowrap;border-radius:5px;align-items:center;gap:6px;padding:4px 9px;font-size:11px;font-weight:500;display:inline-flex}.IhE_MG_statusReady{color:#286043;background:#e5f2e9}.IhE_MG_statusConfigured,.IhE_MG_statusInfo{color:#385e73;background:#e8f0f4}.IhE_MG_statusError{color:#9d3e32;background:#fceee7}.IhE_MG_statusMuted{color:#65726e;background:#eff1ef}.IhE_MG_statusDot,.IhE_MG_providerDot{background:#97a59e;border-radius:50%;width:6px;height:6px;display:inline-block}.IhE_MG_statusReady .IhE_MG_statusDot,.IhE_MG_providerDotReady{background:#378657}.IhE_MG_statusConfigured .IhE_MG_statusDot,.IhE_MG_statusInfo .IhE_MG_statusDot{background:#507c94}.IhE_MG_statusError .IhE_MG_statusDot{background:#bb5f4c}.IhE_MG_textButton{cursor:pointer;background:0 0;border:0;margin-top:14px;padding:0;font-weight:600;text-decoration:none;display:inline-block;color:var(--accent)!important;font-size:12px!important}.IhE_MG_textButton:hover{text-decoration:underline}.IhE_MG_envManaged{color:#76827c;margin-top:14px;font-size:11px;display:block}.IhE_MG_button,.IhE_MG_dangerButton{color:#3e5349;cursor:pointer;background:#fff;border:1px solid #d5deda;border-radius:6px;justify-content:center;align-items:center;gap:7px;min-height:38px;padding:9px 14px;line-height:1.3;text-decoration:none;display:inline-flex;font-size:12px!important;font-weight:600!important}.IhE_MG_button:hover:not(:disabled){background:#f2f6f3;border-color:#91b3a3}.IhE_MG_primary{color:#fff;background:#246b55;border-color:#246b55}.IhE_MG_primary:hover:not(:disabled){background:#19533f;border-color:#19533f}.IhE_MG_dangerButton{color:#a14235;background:#fff9f6;border-color:#eccdc3}.IhE_MG_dangerButton:hover{background:#fceee8}.IhE_MG_button:disabled,.IhE_MG_dangerButton:disabled,.IhE_MG_textButton:disabled{cursor:not-allowed;opacity:.55}.IhE_MG_error,.IhE_MG_message{overflow-wrap:anywhere;border-radius:6px;margin:12px 0;padding:12px 15px;font-size:13px}.IhE_MG_error{color:#9b3c32;background:#fff0eb}.IhE_MG_success{color:#2b6748;background:#eaf5ed}.IhE_MG_info{color:#365e73;background:#edf3f7}.IhE_MG_checkMessage{overflow-wrap:anywhere}.IhE_MG_checkMessage.IhE_MG_success{color:#2b6748;padding:5px}.IhE_MG_loading,.IhE_MG_loadingInline{color:#5d7167;background:#f4f6f5;padding:28px;font-size:14px}.IhE_MG_loading{place-items:center;min-height:100vh;display:grid}.IhE_MG_providerLayout{border:1px solid var(--line);background:#fff;border-radius:10px;grid-template-columns:250px minmax(0,1fr);display:grid;overflow:hidden}.IhE_MG_providerPicker{border-right:1px solid var(--line);background:#fafbf9;min-width:0;padding:18px 12px}.IhE_MG_pickerHeader{justify-content:space-between;align-items:center;padding:0 8px 12px;font-size:12px;font-weight:600;display:flex}.IhE_MG_countBadge{color:#4a6c59;background:#e9efeb}.IhE_MG_providerList{flex-direction:column;gap:4px;max-height:430px;display:flex;overflow:auto}.IhE_MG_providerOption,.IhE_MG_customOption{text-align:left;width:100%;color:var(--ink);cursor:pointer;background:0 0;border:1px solid #0000;border-radius:6px;align-items:center;gap:10px;padding:12px 10px;display:flex}.IhE_MG_providerOption:hover,.IhE_MG_customOption:hover{background:#eef3ef}.IhE_MG_providerOptionSelected,.IhE_MG_customOptionSelected{background:#e7f0e9;border-color:#c6d9cc}.IhE_MG_providerDot{flex:0 0 6px}.IhE_MG_providerOptionText,.IhE_MG_customOption>span:last-child{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.IhE_MG_providerOptionText strong,.IhE_MG_customOption strong{overflow-wrap:anywhere;font-size:12px;font-weight:600}.IhE_MG_providerOptionText small,.IhE_MG_customOption small{color:var(--muted);font-size:10px}.IhE_MG_customTag,.IhE_MG_customBadge{color:#806239;background:#f4eee0;font-size:9px}.IhE_MG_customOption{border-top:1px solid var(--line);border-radius:0;margin-top:14px}.IhE_MG_addIcon{color:var(--accent);font-size:20px}.IhE_MG_providerEditor{min-width:0;padding:28px}.IhE_MG_editorHeading{border-bottom:1px solid var(--line);justify-content:space-between;align-items:flex-start;gap:15px;padding-bottom:22px;display:flex}.IhE_MG_editorTitle{font-size:20px}.IhE_MG_editorCopy{color:var(--muted);margin:10px 0 0;font-size:13px;line-height:1.6}.IhE_MG_editorForm,.IhE_MG_form,.IhE_MG_formFields{border:0;flex-direction:column;gap:20px;min-width:0;margin:22px 0 0;padding:0;display:flex}.IhE_MG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_field{color:#3f5449;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:600;display:flex}.IhE_MG_field em{color:var(--muted);font-size:11px;font-style:normal;font-weight:400}.IhE_MG_input{width:100%;min-width:0;color:var(--ink);background:#fff;border:1px solid #cedbd3;border-radius:6px;padding:10px 12px;font-weight:400;line-height:1.5;display:block;font-size:13px!important}.IhE_MG_input::placeholder{color:#7c8c82}.IhE_MG_input:focus{border-color:#559779}.IhE_MG_input:disabled{cursor:not-allowed;opacity:.7;background:#f3f5f2}textarea.IhE_MG_input{resize:vertical}.IhE_MG_textarea{min-height:100px}.IhE_MG_fieldHint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.IhE_MG_advanced{border:1px solid var(--line);background:#fafbf9;border-radius:7px;margin-top:8px}.IhE_MG_advanced summary{cursor:pointer;color:#425e4e;padding:13px 16px;font-size:12px;font-weight:600}.IhE_MG_advancedBody{flex-direction:column;gap:16px;padding:0 16px 18px;display:flex}.IhE_MG_discoveryRow,.IhE_MG_discovered{flex-wrap:wrap;align-items:center;gap:10px;display:flex}.IhE_MG_modelChip{color:#3e6d50;cursor:pointer;background:#edf5ef;border:1px solid #cadecf;border-radius:5px;padding:7px 10px;font-size:12px}.IhE_MG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;display:flex}.IhE_MG_confirmGroup{color:#8e4e42;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_confirmGroup .IhE_MG_error{width:100%}.IhE_MG_loginPage{background:#eaf0ea;place-items:center;padding:24px;display:grid}.IhE_MG_loginPanel{background:#fff;border:1px solid #d4dfd5;border-radius:14px;width:min(100%,430px);padding:40px;box-shadow:0 20px 80px #26443515}.IhE_MG_loginMark{color:#fff;background:#246b55;border-radius:11px;place-items:center;width:44px;height:44px;margin-bottom:26px;font-family:Georgia,serif;font-size:22px;display:grid}.IhE_MG_loginTitle{font-size:30px;line-height:1.2}.IhE_MG_loginCopy{color:var(--muted);margin:14px 0 25px;font-size:13px}.IhE_MG_fullButton{width:100%}.IhE_MG_loginFootnote{color:var(--muted);margin:24px 0 0;font-size:11px}.IhE_MG_notice{color:#526b5d;background:#edf2ef;border:1px solid #dce5df;border-radius:7px;align-items:center;gap:12px;padding:14px 18px;font-size:12px;display:flex}.IhE_MG_tabs{border-bottom:1px solid var(--line);flex-wrap:wrap;gap:4px;margin:22px 0;display:flex}.IhE_MG_tabs button{color:var(--muted);cursor:pointer;background:0 0;border:0;border-bottom:2px solid #0000;padding:12px 14px;font-size:12px}.IhE_MG_tabs .IhE_MG_activeTab{color:#256849;border-bottom-color:#256849;font-weight:600}.IhE_MG_toolbar{margin:0 0 18px}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{max-width:320px}.IhE_MG_toolbar>.IhE_MG_button:last-child{margin-left:auto}.IhE_MG_tableWrap{border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:22px;overflow:auto}.IhE_MG_table{border-collapse:collapse;text-align:left;width:100%;font-size:12px}.IhE_MG_table th{color:#67786d;border-bottom:1px solid var(--line);white-space:nowrap;background:#f9fbf8;padding:13px 18px;font-size:11px;font-weight:500}.IhE_MG_table td{vertical-align:top;border-bottom:1px solid #edf0ec;padding:17px 18px}.IhE_MG_table tr:last-child td{border-bottom:0}.IhE_MG_table td strong{font-weight:600}.IhE_MG_table td small{color:var(--muted);margin-top:5px;display:block}.IhE_MG_table td summary{cursor:pointer;min-width:150px}.IhE_MG_empty{color:var(--muted);text-align:center;padding:35px 22px;font-size:13px}.IhE_MG_checkboxGroup{border:1px solid var(--line);border-radius:7px;flex-wrap:wrap;gap:12px;max-height:230px;padding:14px;display:flex;overflow:auto}.IhE_MG_checkboxGroup legend{color:#4b6555;padding:0 5px;font-size:12px}.IhE_MG_checkboxGroup label,.IhE_MG_checkLabel{color:#3c5546;align-items:center;gap:8px;font-size:12px;display:flex}.IhE_MG_checkboxGroup input,.IhE_MG_checkLabel input{accent-color:#276e53;width:16px;height:16px}.IhE_MG_previewEnvelope{border:1px solid var(--line);overflow-wrap:anywhere;background:#f4f7f3;border-bottom:0;margin-top:24px;padding:20px;font-size:12px}.IhE_MG_previewFrame{border:1px solid var(--line);background:#fff;width:100%;height:560px}.IhE_MG_plainText{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;font-size:12px}.IhE_MG_deliveryDetails{overflow-wrap:anywhere;min-width:220px;max-width:360px;font-size:11px}.IhE_MG_mono{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,monospace!important}.IhE_MG_importRow{border-top:1px solid var(--line);overflow-wrap:anywhere;justify-content:space-between;align-items:center;gap:20px;padding:18px 0;font-size:12px;display:flex}.IhE_MG_importRow p{color:var(--muted)}.IhE_MG_srOnly{clip:rect(0,0,0,0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.IhE_MG_skipLink{z-index:10;background:#fff;padding:12px;position:fixed;top:0;left:240px;transform:translateY(-150%)}.IhE_MG_skipLink:focus{transform:translateY(0)}@media (width<=1150px){.IhE_MG_page{grid-template-columns:200px minmax(0,1fr)}.IhE_MG_sidebar{padding-inline:12px}.IhE_MG_shell{padding-inline:28px}.IhE_MG_contentGrid{grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr)}.IhE_MG_metric{padding:18px}.IhE_MG_metric>strong{font-size:28px}.IhE_MG_providerLayout{grid-template-columns:210px minmax(0,1fr)}}@media (width<=900px){.IhE_MG_contentGrid{grid-template-columns:1fr}.IhE_MG_metrics{gap:10px}.IhE_MG_metric{padding:14px}.IhE_MG_metricLabel{font-size:11px}.IhE_MG_metricLabel svg{display:none}.IhE_MG_statusGrid,.IhE_MG_providerLayout{grid-template-columns:1fr}.IhE_MG_providerPicker{border-right:0;border-bottom:1px solid var(--line)}.IhE_MG_providerList{max-height:180px}.IhE_MG_notice{flex-direction:column;align-items:flex-start}}@media (width<=680px){.IhE_MG_page{display:block}.IhE_MG_sidebar{height:auto;padding:18px 16px 0;position:static}.IhE_MG_brand{padding:0 0 18px;font-size:19px}.IhE_MG_brandMark{width:30px;height:34px;font-size:20px}.IhE_MG_navLabel{display:none}.IhE_MG_navigation{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;display:grid}.IhE_MG_navigation a{border-radius:5px 5px 0 0;flex-direction:column;flex-shrink:0;justify-content:center;gap:6px;padding:10px 3px;font-size:10px}.IhE_MG_navigation svg{width:15px}.IhE_MG_navigation .IhE_MG_navActive{box-shadow:inset 0 -3px #a9d3b7}.IhE_MG_sidebarFoot{flex-wrap:wrap;align-items:center;gap:15px;padding:8px 0;display:flex}.IhE_MG_backLink{padding:0;font-size:11px}.IhE_MG_identity{display:none}.IhE_MG_signOut{margin-left:auto}.IhE_MG_shell{padding:0 18px}.IhE_MG_topbar{min-height:54px}.IhE_MG_header{padding:24px 0 20px}.IhE_MG_title{font-size:28px}.IhE_MG_headerMark{display:none}.IhE_MG_sectionHeading{flex-wrap:wrap;align-items:flex-start;gap:12px}.IhE_MG_metrics{grid-template-columns:1fr;gap:10px}.IhE_MG_metric{grid-template-columns:1fr auto;align-items:center;gap:8px;padding:16px 18px;display:grid}.IhE_MG_metric>strong{grid-area:1/2/3;margin:0;font-size:24px}.IhE_MG_metric>small{grid-column:1}.IhE_MG_metric small span{display:none}.IhE_MG_card,.IhE_MG_helpCard,.IhE_MG_providerEditor{padding:20px}.IhE_MG_fieldGrid{grid-template-columns:1fr}.IhE_MG_editorHeading{flex-wrap:wrap}.IhE_MG_toolbar>.IhE_MG_input,.IhE_MG_search{width:100%;max-width:none}.IhE_MG_tabs{gap:0}.IhE_MG_tabs button{padding:11px 9px;font-size:11px}.IhE_MG_sectionHint{text-align:left}.IhE_MG_table td,.IhE_MG_table th{padding:12px}.IhE_MG_table{min-width:560px}.IhE_MG_importRow{flex-direction:column;align-items:flex-start}.IhE_MG_skipLink{left:16px}}.IhE_MG_contextGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.IhE_MG_contextCard{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;padding:26px;box-shadow:0 2px 3px #182e2610}.IhE_MG_contextCard h3{color:var(--ink);margin:0;font-size:16px;font-weight:600}.IhE_MG_contextCard p:not(.IhE_MG_sectionKicker){color:var(--muted);margin:8px 0 0;font-size:12px;line-height:1.55}.IhE_MG_fieldError{color:#9b3c32;font-size:11px;font-weight:500;line-height:1.5}.IhE_MG_input[aria-invalid=true]{background:#fffaf8;border-color:#bb5f4c}.IhE_MG_toggleField{color:#3f5449;cursor:pointer;align-items:flex-start;gap:11px;display:flex}.IhE_MG_toggleField input{accent-color:#276e53;width:17px;height:17px;margin:1px 0 0}.IhE_MG_toggleField span{flex-direction:column;gap:4px;display:flex}.IhE_MG_toggleField strong{font-size:12px}.IhE_MG_toggleField small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.IhE_MG_contextCardWide{grid-column:1/-1}.IhE_MG_actionGroups{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px;display:grid}.IhE_MG_actionGroups .IhE_MG_checkboxGroup{max-height:none;margin:0}.IhE_MG_actionGroups .IhE_MG_checkLabel{align-items:flex-start}.IhE_MG_modeChoices{border:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0 0;padding:0;display:grid}.IhE_MG_modeChoice{border:1px solid var(--line);cursor:pointer;background:#fafcf9;border-radius:7px;align-items:flex-start;gap:10px;min-width:0;padding:14px;display:flex}.IhE_MG_modeChoice:has(input:checked){background:#eef6ef;border-color:#9fc5ae}.IhE_MG_modeChoice input{accent-color:#276e53;width:16px;height:16px;margin:1px 0 0}.IhE_MG_modeChoice span{flex-direction:column;gap:4px;min-width:0;display:flex}.IhE_MG_modeChoice strong{color:#314d40;font-size:12px}.IhE_MG_modeChoice small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.IhE_MG_accessGroups{gap:16px;margin-top:18px;display:grid}.IhE_MG_actionGroup{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;margin:0;padding:0;overflow:hidden}.IhE_MG_actionGroup>legend{border-bottom:1px solid var(--line);color:#4b6555;background:#f9fbf8;width:100%;padding:14px 18px;font-size:12px;font-weight:600}.IhE_MG_actionRow{border-bottom:1px solid #edf0ec;justify-content:space-between;align-items:center;gap:18px;min-width:0;padding:15px 18px;display:flex}.IhE_MG_actionGroup .IhE_MG_actionRow:last-child{border-bottom:0}.IhE_MG_actionInfo{flex-direction:column;flex:1;gap:5px;min-width:0;display:flex}.IhE_MG_actionInfo strong{color:#314b3e;font-size:12px;font-weight:600}.IhE_MG_actionInfo small{color:var(--muted);font-size:10px}.IhE_MG_stateChoices{flex-wrap:wrap;flex:none;justify-content:flex-end;gap:6px;display:flex}.IhE_MG_actionControls{flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;display:flex}.IhE_MG_stateChoice{color:#52685d;cursor:pointer;white-space:nowrap;background:#fff;border:1px solid #d8e2dc;border-radius:5px;align-items:center;gap:5px;padding:6px 8px;font-size:10px;font-weight:500;display:inline-flex}.IhE_MG_stateChoice:has(input:checked){color:#286047;background:#eaf5ed;border-color:#8fb8a0}.IhE_MG_stateChoice input{accent-color:#276e53;width:13px;height:13px;margin:0}.IhE_MG_protectedBadge{color:#8b5f2d;white-space:nowrap;background:#fbf1df;border-radius:5px;flex:none;padding:6px 9px;font-size:10px;font-weight:600}.IhE_MG_unavailableBadge{color:#8b4b42;white-space:nowrap;background:#fceee8;border-radius:5px;padding:5px 8px;font-size:10px;font-weight:600}@media (width<=900px){.IhE_MG_contextGrid,.IhE_MG_actionGroups,.IhE_MG_modeChoices{grid-template-columns:1fr}.IhE_MG_actionRow{flex-direction:column;align-items:flex-start}.IhE_MG_stateChoices,.IhE_MG_actionControls{justify-content:flex-start}}@media (width<=680px){.IhE_MG_contextCard{padding:20px}.IhE_MG_navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}";
+		const tagId$5 = "dsh-soc-agent-client/AdminConsole.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$5) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$6;
-			tag.textContent = css$6;
+			tag.dataset.pluginCss = tagId$5;
+			tag.textContent = css$5;
 			document.head.appendChild(tag);
 		}
 		var AdminConsole_module_css_default = {
@@ -264,42 +264,6 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/SplunkZimbraOverlay.module.css.mjs
-		const css$5 = "._3bvj8q_form button:focus-visible,._3bvj8q_input:focus-visible{outline:2px solid var(--dsw-alias-border-l4);outline-offset:2px}._3bvj8q_loading{color:var(--dsw-alias-label-secondary);text-align:center;padding:24px}._3bvj8q_form{flex-direction:column;gap:14px;font-size:13px;line-height:20px;display:flex}._3bvj8q_description,._3bvj8q_status{color:var(--dsw-alias-label-secondary);margin:0}._3bvj8q_status{background:var(--dsw-alias-bg-layer-1);border-radius:8px;padding:8px 10px}._3bvj8q_section{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;flex-direction:column;gap:8px;margin:0;padding:12px;display:flex}._3bvj8q_section h3{margin:0 0 2px;font-size:14px;font-weight:500;line-height:22px}._3bvj8q_row{grid-template-columns:118px minmax(0,1fr) auto;align-items:center;gap:8px;display:grid}._3bvj8q_row label{color:var(--dsw-alias-label-secondary)}._3bvj8q_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);min-width:0;height:32px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 9px}._3bvj8q_input::placeholder{color:var(--dsw-alias-label-tertiary)}._3bvj8q_textarea{box-sizing:border-box;resize:vertical;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:100%;min-height:96px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:9px}._3bvj8q_fieldLabel{color:var(--dsw-alias-label-secondary)}._3bvj8q_rule{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_run{border-bottom:1px solid var(--dsw-alias-border-l1);justify-content:space-between;align-items:center;gap:8px;padding:8px 0;display:flex}._3bvj8q_run:last-child{border-bottom:0}._3bvj8q_actions{flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;display:flex}._3bvj8q_primaryButton,._3bvj8q_secondaryButton,._3bvj8q_deleteButton{min-height:30px;font:inherit;cursor:pointer;border-radius:15px;padding:0 10px;font-size:12px}._3bvj8q_primaryButton{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border:0}._3bvj8q_primaryButton:hover{background:var(--dsw-alias-button-primary-hover)}._3bvj8q_secondaryButton,._3bvj8q_deleteButton{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);background:0 0}._3bvj8q_secondaryButton:hover,._3bvj8q_deleteButton:hover{background:var(--dsw-alias-interactive-bg-hover)}._3bvj8q_deleteButton{border-radius:14px;min-height:28px}._3bvj8q_account{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-direction:column;gap:8px;padding:10px;display:flex}._3bvj8q_connectedAccount{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;display:flex}._3bvj8q_accountIdentity{flex-direction:column;gap:2px;min-width:0;display:flex}._3bvj8q_accountMeta{overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}._3bvj8q_accountActions{flex-wrap:wrap;align-items:center;gap:8px;display:flex}._3bvj8q_testResult{overflow-wrap:anywhere;min-width:0;min-height:30px;color:var(--dsw-alias-label-secondary);align-items:center;display:inline-flex}._3bvj8q_testOk{color:var(--dsw-alias-state-success-primary)}._3bvj8q_testFail{color:var(--dsw-alias-state-error-primary)}@media (width<=520px){._3bvj8q_row{grid-template-columns:1fr auto}._3bvj8q_row label{grid-column:1/-1}}";
-		const tagId$5 = "dsh-soc-agent-client/SplunkZimbraOverlay.module.css";
-		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$5) + "]") === null) {
-			const tag = document.createElement("style");
-			tag.dataset.plugin = "dsh-soc-agent-client";
-			tag.dataset.pluginCss = tagId$5;
-			tag.textContent = css$5;
-			document.head.appendChild(tag);
-		}
-		var SplunkZimbraOverlay_module_css_default = {
-			"account": "_3bvj8q_account",
-			"accountActions": "_3bvj8q_accountActions",
-			"accountIdentity": "_3bvj8q_accountIdentity",
-			"accountMeta": "_3bvj8q_accountMeta",
-			"actions": "_3bvj8q_actions",
-			"connectedAccount": "_3bvj8q_connectedAccount",
-			"deleteButton": "_3bvj8q_deleteButton",
-			"description": "_3bvj8q_description",
-			"fieldLabel": "_3bvj8q_fieldLabel",
-			"form": "_3bvj8q_form",
-			"input": "_3bvj8q_input",
-			"loading": "_3bvj8q_loading",
-			"primaryButton": "_3bvj8q_primaryButton",
-			"row": "_3bvj8q_row",
-			"rule": "_3bvj8q_rule",
-			"run": "_3bvj8q_run",
-			"secondaryButton": "_3bvj8q_secondaryButton",
-			"section": "_3bvj8q_section",
-			"status": "_3bvj8q_status",
-			"testFail": "_3bvj8q_testFail",
-			"testOk": "_3bvj8q_testOk",
-			"testResult": "_3bvj8q_testResult",
-			"textarea": "_3bvj8q_textarea"
-		};
-		//#endregion
 		//#region src/client/settings-common.ts
 		const CHANNEL$1 = "/soc-agent-config";
 		async function rpc(connection, name, payload = {}) {
@@ -367,6 +331,50 @@ window.__ModuleLoader__.load({
 		function apiValue(response) {
 			if (!response.result.ok) throw new Error(response.result.error?.message || "The request could not be completed.");
 			return response.result.value;
+		}
+		async function describeSettings(connection) {
+			const view = apiValue(await connection.api.settings.describe({}));
+			return {
+				namespaces: new Map(view.namespaces.map((namespace) => [namespace.ns, namespace])),
+				writable: view.writable
+			};
+		}
+		function useStatus() {
+			const [message, setMessage] = (0, react.useState)(null);
+			const [busy, setBusy] = (0, react.useState)(false);
+			async function run(operation) {
+				setBusy(true);
+				setMessage(null);
+				try {
+					await operation();
+				} catch (error) {
+					setMessage({
+						kind: "error",
+						text: errorText(error)
+					});
+				} finally {
+					setBusy(false);
+				}
+			}
+			return {
+				message,
+				setMessage,
+				busy,
+				run
+			};
+		}
+		function StatusNotice({ message, onRetry }) {
+			if (!message) return null;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
+				role: message.kind === "error" ? "alert" : "status",
+				children: message.text
+			}), message.kind === "error" && onRetry ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+				className: AdminConsole_module_css_default.button,
+				type: "button",
+				onClick: () => void onRetry(),
+				children: "Retry"
+			}) : null] });
 		}
 		function serviceReady(service) {
 			return service?.status === "ready" || service?.configured === true || service?.available === true;
@@ -871,16 +879,14 @@ window.__ModuleLoader__.load({
 			const [timeEnabled, setTimeEnabled] = (0, react.useState)(true);
 			const [timeSeconds, setTimeSeconds] = (0, react.useState)("0");
 			const [validation, setValidation] = (0, react.useState)({});
-			const [message, setMessage] = (0, react.useState)(null);
 			const [loading, setLoading] = (0, react.useState)(true);
-			const [busy, setBusy] = (0, react.useState)(false);
+			const { message, setMessage, busy, run } = useStatus();
 			const load = (0, react.useCallback)(async () => {
 				setLoading(true);
 				setMessage(null);
 				setValidation({});
 				try {
-					const view = apiValue(await connection.api.settings.describe({}));
-					const namespaces = new Map(view.namespaces.map((namespace) => [namespace.ns, namespace]));
+					const { namespaces, writable } = await describeSettings(connection);
 					const background = namespaces.get(BACKGROUND_SETTINGS_NAMESPACE);
 					const time = namespaces.get(TIME_SETTINGS_NAMESPACE);
 					if (!background || !time) throw new Error("Agent context settings are unavailable.");
@@ -889,7 +895,7 @@ window.__ModuleLoader__.load({
 					setData({
 						background,
 						time,
-						writable: view.writable
+						writable
 					});
 					setBackgroundEnabled(backgroundValue.enabled !== false);
 					setBackgroundPrompts(String(backgroundValue.repeatEveryUserPrompts ?? 5));
@@ -910,10 +916,8 @@ window.__ModuleLoader__.load({
 			async function save(event) {
 				event.preventDefault();
 				if (!data?.writable || loading) return;
-				setBusy(true);
-				setMessage(null);
 				setValidation({});
-				try {
+				return run(async () => {
 					let repeatEveryUserPrompts;
 					let seconds;
 					const nextValidation = {};
@@ -972,14 +976,7 @@ window.__ModuleLoader__.load({
 						kind: "success",
 						text: "Agent context settings saved."
 					});
-				} catch (saveError) {
-					setMessage({
-						kind: "error",
-						text: errorText(saveError)
-					});
-				} finally {
-					setBusy(false);
-				}
+				});
 			}
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
 				className: AdminConsole_module_css_default.section,
@@ -999,13 +996,9 @@ window.__ModuleLoader__.load({
 							children: "Changes apply live to existing and new sessions."
 						})]
 					}),
-					loading && !data ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					loading ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", {
 						className: AdminConsole_module_css_default.loadingInline,
-						children: "Loading agent context…"
-					}) : null,
-					loading && data ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-						className: AdminConsole_module_css_default.loadingInline,
-						children: "Refreshing agent context…"
+						children: [data ? "Refreshing" : "Loading", " agent context…"]
 					}) : null,
 					data ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
 						onSubmit: save,
@@ -1113,16 +1106,10 @@ window.__ModuleLoader__.load({
 									]
 								})]
 							}),
-							message ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-								className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
-								role: message.kind === "error" ? "alert" : "status",
-								children: message.text
-							}), message.kind === "error" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								className: AdminConsole_module_css_default.button,
-								type: "button",
-								onClick: () => void load(),
-								children: "Retry"
-							}) : null] }) : null,
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StatusNotice, {
+								message,
+								onRetry: load
+							}),
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 								className: AdminConsole_module_css_default.actions,
 								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -1133,16 +1120,10 @@ window.__ModuleLoader__.load({
 								})
 							})
 						]
-					}) : message ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-						className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
-						role: "alert",
-						children: message.text
-					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-						className: AdminConsole_module_css_default.button,
-						type: "button",
-						onClick: () => void load(),
-						children: "Retry"
-					})] }) : null
+					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StatusNotice, {
+						message,
+						onRetry: load
+					})
 				]
 			});
 		}
@@ -1156,16 +1137,14 @@ window.__ModuleLoader__.load({
 			const [data, setData] = (0, react.useState)(null);
 			const [mode, setMode] = (0, react.useState)("soc");
 			const [actionStates, setActionStates] = (0, react.useState)({});
-			const [message, setMessage] = (0, react.useState)(null);
 			const [loading, setLoading] = (0, react.useState)(true);
-			const [busy, setBusy] = (0, react.useState)(false);
+			const { message, setMessage, busy, run } = useStatus();
 			const load = (0, react.useCallback)(async () => {
 				setLoading(true);
 				setMessage(null);
 				try {
-					const [described, catalogValue] = await Promise.all([connection.api.settings.describe({}), rpc(connection, "get-admin-action-catalog")]);
-					const view = apiValue(described);
-					const actionApproval = new Map(view.namespaces.map((namespace) => [namespace.ns, namespace])).get(ACTION_APPROVAL_SETTINGS_NAMESPACE);
+					const [{ namespaces, writable }, catalogValue] = await Promise.all([describeSettings(connection), rpc(connection, "get-admin-action-catalog")]);
+					const actionApproval = namespaces.get(ACTION_APPROVAL_SETTINGS_NAMESPACE);
 					const catalog = objectValue(catalogValue);
 					const tools = validCatalog(Array.isArray(catalog.tools) ? catalog.tools : catalog.actions);
 					if (!actionApproval || tools.length === 0) throw new Error("Access & approvals settings are unavailable.");
@@ -1179,7 +1158,7 @@ window.__ModuleLoader__.load({
 					setData({
 						actionApproval,
 						tools,
-						writable: view.writable
+						writable
 					});
 					setMode(saved.mode === "full" ? "full" : "soc");
 					setActionStates(normalizedStates);
@@ -1198,9 +1177,7 @@ window.__ModuleLoader__.load({
 			async function save(event) {
 				event.preventDefault();
 				if (!data?.writable || loading) return;
-				setBusy(true);
-				setMessage(null);
-				try {
+				return run(async () => {
 					const actionApproval = apiValue(await connection.api.settings.mutate({
 						ns: data.actionApproval.ns,
 						ops: [{
@@ -1222,14 +1199,7 @@ window.__ModuleLoader__.load({
 						kind: "success",
 						text: "Access & approvals settings saved."
 					});
-				} catch (saveError) {
-					setMessage({
-						kind: "error",
-						text: errorText(saveError)
-					});
-				} finally {
-					setBusy(false);
-				}
+				});
 			}
 			const groups = data ? [...new Set(data.tools.map((tool) => tool.group))] : [];
 			const stateLabel = {
@@ -1255,13 +1225,9 @@ window.__ModuleLoader__.load({
 							children: "Changes apply live to existing and new sessions."
 						})]
 					}),
-					loading && !data ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					loading ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", {
 						className: AdminConsole_module_css_default.loadingInline,
-						children: "Loading access controls…"
-					}) : null,
-					loading && data ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-						className: AdminConsole_module_css_default.loadingInline,
-						children: "Refreshing access controls…"
+						children: [data ? "Refreshing" : "Loading", " access controls…"]
 					}) : null,
 					data ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
 						onSubmit: save,
@@ -1372,16 +1338,10 @@ window.__ModuleLoader__.load({
 									})]
 								}, group))
 							}),
-							message ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-								className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
-								role: message.kind === "error" ? "alert" : "status",
-								children: message.text
-							}), message.kind === "error" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								className: AdminConsole_module_css_default.button,
-								type: "button",
-								onClick: () => void load(),
-								children: "Retry"
-							}) : null] }) : null,
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StatusNotice, {
+								message,
+								onRetry: load
+							}),
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 								className: AdminConsole_module_css_default.actions,
 								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -1392,16 +1352,10 @@ window.__ModuleLoader__.load({
 								})
 							})
 						]
-					}) : message ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-						className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
-						role: "alert",
-						children: message.text
-					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-						className: AdminConsole_module_css_default.button,
-						type: "button",
-						onClick: () => void load(),
-						children: "Retry"
-					})] }) : null
+					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StatusNotice, {
+						message,
+						onRetry: load
+					})
 				]
 			});
 		}
@@ -1414,12 +1368,8 @@ window.__ModuleLoader__.load({
 				setLoading(true);
 				setError("");
 				try {
-					const [described, providerResponse] = await Promise.all([connection.api.settings.describe({}), connection.api.llm.providers({})]);
-					const settingsView = apiValue(described);
-					const providerView = apiValue(providerResponse);
-					const settings = settingsView.namespaces;
-					const providers = providerView.providers;
-					const namespaces = new Map(settings.map((namespace) => [namespace.ns, namespace]));
+					const [{ namespaces, writable }, providerResponse] = await Promise.all([describeSettings(connection), connection.api.llm.providers({})]);
+					const providers = apiValue(providerResponse).providers;
 					const refs = [...new Set(providers.map((provider) => {
 						return deriveCredentialRef(provider, providerProfile(namespaces.get(provider.settingsNs), provider));
 					}))];
@@ -1437,12 +1387,12 @@ window.__ModuleLoader__.load({
 								credentialRef,
 								credential: credentialMap.get(credentialRef),
 								configured: Boolean(namespace) && (provider.settingsPath.length === 0 || pathValue(namespace?.value, provider.settingsPath) !== void 0),
-								writable: Boolean(namespace) && settingsView.writable,
+								writable: Boolean(namespace) && writable,
 								modelCount: modelIds(profile).length
 							};
 						}),
 						piAiNamespace: namespaces.get("llm-pi-ai"),
-						writable: settingsView.writable
+						writable
 					});
 				} catch (loadError) {
 					setError(errorText(loadError));
@@ -1565,8 +1515,7 @@ window.__ModuleLoader__.load({
 			const [models, setModels] = (0, react.useState)(initialModels.join("\n"));
 			const [secret, setSecret] = (0, react.useState)("");
 			const [discovered, setDiscovered] = (0, react.useState)([]);
-			const [message, setMessage] = (0, react.useState)(null);
-			const [busy, setBusy] = (0, react.useState)(false);
+			const { message, setMessage, busy, run } = useStatus();
 			const isCustomProvider = provider.declared === true;
 			const canEditProtocol = provider.settingsNs === "llm-pi-ai" && isCustomProvider;
 			const canRemoveProvider = provider.declared === true && Boolean(namespace) && provider.settingsPath.length > 0;
@@ -1576,9 +1525,7 @@ window.__ModuleLoader__.load({
 			}
 			async function save() {
 				if (!namespace || !row.writable) return;
-				setBusy(true);
-				setMessage(null);
-				try {
+				return run(async () => {
 					const ops = [];
 					if (canEditProtocol && displayName.trim() !== stringValue(profile.displayName)) ops.push(displayName.trim() ? {
 						op: "set",
@@ -1634,39 +1581,21 @@ window.__ModuleLoader__.load({
 						text: "Provider settings saved."
 					});
 					await onChanged();
-				} catch (saveError) {
-					setMessage({
-						kind: "error",
-						text: errorText(saveError)
-					});
-				} finally {
-					setBusy(false);
-				}
+				});
 			}
 			async function removeCredential() {
 				if (!row.credential?.configured || !row.credential.writable) return;
-				setBusy(true);
-				setMessage(null);
-				try {
+				return run(async () => {
 					apiValue(await connection.api.credentials.unset({ ref: row.credentialRef }));
 					setMessage({
 						kind: "success",
 						text: "Credential removed."
 					});
 					await onChanged();
-				} catch (removeError) {
-					setMessage({
-						kind: "error",
-						text: errorText(removeError)
-					});
-				} finally {
-					setBusy(false);
-				}
+				});
 			}
 			async function discover() {
-				setBusy(true);
-				setMessage(null);
-				try {
+				return run(async () => {
 					const result = apiValue(await connection.api.llm.discoverModels({
 						settingsNs: provider.settingsNs,
 						provider: provider.provider,
@@ -1679,14 +1608,7 @@ window.__ModuleLoader__.load({
 						kind: "info",
 						text: result.models.length ? "Choose a model to add it to the provider." : "No models were discovered."
 					});
-				} catch (discoverError) {
-					setMessage({
-						kind: "error",
-						text: errorText(discoverError)
-					});
-				} finally {
-					setBusy(false);
-				}
+				});
 			}
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
 				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -1820,11 +1742,7 @@ window.__ModuleLoader__.load({
 						})]
 					}) : null]
 				}),
-				message ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-					className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
-					role: message.kind === "error" ? "alert" : "status",
-					children: message.text
-				}) : null,
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StatusNotice, { message }),
 				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: AdminConsole_module_css_default.actions,
 					children: [
@@ -1918,8 +1836,7 @@ window.__ModuleLoader__.load({
 			const [model, setModel] = (0, react.useState)("");
 			const [secret, setSecret] = (0, react.useState)("");
 			const [savedRoute, setSavedRoute] = (0, react.useState)("");
-			const [message, setMessage] = (0, react.useState)(null);
-			const [busy, setBusy] = (0, react.useState)(false);
+			const { message, setMessage, busy, run } = useStatus();
 			const normalizedRoute = route.trim().toLowerCase();
 			const routeTaken = providers.some((row) => row.provider.provider === normalizedRoute);
 			const routeValid = PROVIDER_ROUTE_PATTERN.test(normalizedRoute);
@@ -1927,9 +1844,7 @@ window.__ModuleLoader__.load({
 			const credentialRef = `${normalizedRoute.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}_API_KEY`;
 			async function save() {
 				if (!namespace || !canSave) return;
-				setBusy(true);
-				setMessage(null);
-				try {
+				return run(async () => {
 					if (savedRoute && savedRoute !== normalizedRoute) throw new Error("The route cannot be changed after saving.");
 					if (!savedRoute) {
 						apiValue(await connection.api.settings.mutate({
@@ -1960,14 +1875,7 @@ window.__ModuleLoader__.load({
 					});
 					await onChanged();
 					onCreated(normalizedRoute);
-				} catch (saveError) {
-					setMessage({
-						kind: "error",
-						text: errorText(saveError)
-					});
-				} finally {
-					setBusy(false);
-				}
+				});
 			}
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
 				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -2082,11 +1990,7 @@ window.__ModuleLoader__.load({
 						})
 					]
 				}),
-				message ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-					className: `${AdminConsole_module_css_default.message} ${AdminConsole_module_css_default[message.kind]}`,
-					role: message.kind === "error" ? "alert" : "status",
-					children: message.text
-				}) : null,
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StatusNotice, { message }),
 				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					className: AdminConsole_module_css_default.actions,
 					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -3389,100 +3293,6 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
-		//#region src/client/SplunkSettings.ts
-		function SplunkSettings({ connection }) {
-			const [settings, setSettings] = (0, react.useState)(null);
-			const [status, setStatus] = (0, react.useState)("Loading…");
-			const [test, setTest] = (0, react.useState)("");
-			const [testState, setTestState] = (0, react.useState)("idle");
-			const load = (0, react.useCallback)(async () => {
-				try {
-					setSettings(await rpc(connection, "get-settings"));
-					setStatus("");
-				} catch (error) {
-					setStatus(errorText(error));
-				}
-			}, [connection]);
-			(0, react.useEffect)(() => {
-				load();
-			}, [load]);
-			async function testSplunk() {
-				setTestState("checking");
-				setTest("Checking…");
-				try {
-					await rpc(connection, "test-splunk");
-					setTestState("success");
-					setTest("Connection verified");
-				} catch (error) {
-					setTestState("error");
-					setTest(errorText(error));
-				}
-			}
-			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
-			const ready = testState === "success" || testState !== "error" && settings.services?.splunk?.status === "ready";
-			const label = testState === "checking" ? "Checking…" : testState === "success" ? "Connected" : testState === "error" ? "Unavailable" : ready ? "Configured" : "Not configured";
-			return react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Splunk"), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, label), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Configuration is managed by the server environment."), react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => {
-					testSplunk();
-				}
-			}, "Check connection"), test ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.status,
-				role: "status"
-			}, test) : null, status ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.status,
-				role: "status"
-			}, status) : null);
-		}
-		//#endregion
-		//#region src/client/SubscriptionServerSettings.ts
-		function SubscriptionServerSettings({ connection }) {
-			const [settings, setSettings] = (0, react.useState)(null);
-			const [status, setStatus] = (0, react.useState)("Loading…");
-			const [test, setTest] = (0, react.useState)("");
-			const [testState, setTestState] = (0, react.useState)("idle");
-			const load = (0, react.useCallback)(async () => {
-				try {
-					setSettings(await rpc(connection, "get-settings"));
-					setStatus("");
-				} catch (error) {
-					setStatus(errorText(error));
-				}
-			}, [connection]);
-			(0, react.useEffect)(() => {
-				load();
-			}, [load]);
-			async function testConnection() {
-				setTestState("checking");
-				setTest("Checking…");
-				try {
-					await rpc(connection, "test-subscription-server");
-					setTestState("success");
-					setTest("Connection verified");
-				} catch (error) {
-					setTestState("error");
-					setTest(errorText(error));
-				}
-			}
-			if (!settings) return react.default.createElement("div", { className: SplunkZimbraOverlay_module_css_default.loading }, status);
-			const ready = testState === "success" || testState !== "error" && settings.services?.subscription_server?.status === "ready";
-			const label = testState === "checking" ? "Checking…" : testState === "success" ? "Connected" : testState === "error" ? "Unavailable" : ready ? "Configured" : "Not configured";
-			return react.default.createElement("section", { className: SplunkZimbraOverlay_module_css_default.section }, react.default.createElement("h3", null, "Subscription server"), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, label), react.default.createElement("p", { className: SplunkZimbraOverlay_module_css_default.description }, "Configuration is managed by the server environment."), react.default.createElement("button", {
-				className: SplunkZimbraOverlay_module_css_default.secondaryButton,
-				type: "button",
-				onClick: () => {
-					testConnection();
-				}
-			}, "Check connection"), test ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.status,
-				role: "status"
-			}, test) : null, status ? react.default.createElement("p", {
-				className: SplunkZimbraOverlay_module_css_default.status,
-				role: "status"
-			}, status) : null);
-		}
-		//#endregion
 		//#region src/client/index.ts
 		const inject = [
 			"slots",
@@ -3562,8 +3372,6 @@ window.__ModuleLoader__.load({
 		//#endregion
 		exports.AdminConsole = AdminConsole;
 		exports.EmailDraftToolview = EmailDraftToolview;
-		exports.SplunkSettings = SplunkSettings;
-		exports.SubscriptionServerSettings = SubscriptionServerSettings;
 		exports.apply = apply;
 		exports.inject = inject;
 		return module.exports;

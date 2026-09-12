@@ -2,8 +2,9 @@
 
 Python MCP backend for the Zimbra and subscription tools used by the SOC Agent.
 Splunk is connected separately through the official `splunk_mcp` bridge. See
-the [project structure](../../../docs/PROJECT_STRUCTURE.md) for workspace
-commands and dependency boundaries.
+the [repository guide](../../../README.md) for workspace commands and the
+[shortening-plan implementation report](../../../docs/SHORTENING_PLAN_IMPLEMENTATION.md)
+for the current refactors and dependency boundaries.
 
 ```bash
 cp .env.example .env
@@ -50,10 +51,10 @@ Set `SPLUNK_VERIFY_SSL=false` only while a self-signed chain cannot be
 installed in the machine trust store. That exception is scoped to this MCP
 connection and does not disable TLS checks process-wide.
 
-The `soc_agent` MCP server does not register Splunk tools. The existing Python
-Splunk modules remain available to the separate admin/compatibility paths, but
-an official MCP rejection is surfaced and is never silently retried through
-REST. No Splunk write tool or REST mutation method is exposed to the SOC Agent.
+The `soc_agent` MCP server does not register Splunk tools. The admin connection
+check probes `splunk_get_info` through the same official bridge configuration.
+The retired Python Splunk APIs and REST fallback are no longer shipped. No
+Splunk write tool or REST mutation method is exposed to the SOC Agent.
 
 Remove either official MCP setting and restart the host to disable the direct
 bridge. The `soc_agent` MCP server continues to expose only Zimbra and
@@ -81,20 +82,19 @@ with up to four connections per store, a five-second connection/pool wait and
 a 15-second statement timeout. `APP_POSTGRES_POOL=false` restores per-call
 connections. Deployment configuration changes require a host/backend restart.
 
-See the [implementation and validation report](../../../docs/PERFORMANCE_REDESIGN_IMPLEMENTATION.md)
-for measured offline results, remaining work and rollout steps.
+See the [implementation and validation report](../../../docs/SHORTENING_PLAN_IMPLEMENTATION.md)
+for the completed refactors, recorded checks, remaining work, and rollout implications.
 
-Persistent CSV lookup and legacy REST implementations remain admin/compatibility
-code only; they are not registered on the `soc_agent` MCP server.
-
-Legacy REST compatibility components retain local resource settings for
-admission, lookback, runtime, concurrency, dispatch rate, and weighted query
-budget when used by admin/compatibility paths. Direct official MCP reads rely
-on provider-side guardrails. Keep these controls layered with Splunk role-level controls such as
+Direct official MCP reads rely on provider-side guardrails. Keep these controls
+layered with Splunk role-level controls such as
 `srchJobsQuota`, `cumulativeSrchJobsQuota`, `srchDiskQuota`, `srchMaxTime`, and
 allowed/disallowed indexes; the MCP server does not modify Splunk
 authorization. Result limits and the 20,000-character budget control returned
 data, not the amount of work Splunk performs.
+
+Legacy REST credentials, planner, lookup, query-policy, and resource-admission
+settings are ignored. Readiness requires the official MCP endpoint and token;
+REST-only deployments must configure both before Splunk tools are available.
 
 The web UI authenticates users directly against the configured Zimbra server.
 The PostgreSQL-backed application session stores the authenticated Zimbra token

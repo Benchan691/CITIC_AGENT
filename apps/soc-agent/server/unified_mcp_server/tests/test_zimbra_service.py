@@ -1,11 +1,13 @@
 import pytest
 
-import unified_mcp_server.zimbra_service as module
+import unified_mcp_server.zimbra.mail.service as module
 from unified_mcp_server.config import ZimbraSettings
 from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.account_store import AccountStore
 from unified_mcp_server.auth import ZimbraIdentity
 from unified_mcp_server.zimbra_service import ZimbraService, _upstream_error
+from unified_mcp_server.zimbra.filters.service import ZimbraFilterService
+import unified_mcp_server.zimbra.filters.service as filter_module
 
 
 def settings(**overrides):
@@ -84,6 +86,47 @@ async def test_identity_bound_service_uses_server_token_and_rejects_account_sele
     assert captured == {"host": "mail.example.com", "token": "server-token"}
     assert result["account"]["email"] == "a***@example.com"
     assert result["account_id"] == "authenticated"
+
+
+@pytest.mark.asyncio
+async def test_mail_and_filters_keep_identities_isolated_without_legacy_storage(monkeypatch, tmp_path):
+    legacy_file = tmp_path / "accounts.enc"
+    legacy_file.write_bytes(b"must never be decrypted")
+    configured = settings(accounts_file=str(legacy_file), key_file=str(tmp_path / "missing.key"))
+    calls = []
+    for target in (module, filter_module):
+        monkeypatch.setattr(target, "zimbra_login", lambda *_: pytest.fail("must use the authenticated token"))
+    monkeypatch.setattr(module, "zimbra_list_folders", lambda host, token, **kw: calls.append(token) or [])
+    monkeypatch.setattr(filter_module, "zimbra_get_filter_rules", lambda host, token, **kw: calls.append(token) or [])
+
+    for user in ("alice", "bob"):
+        identity = ZimbraIdentity(user, f"{user}@example.com", f"token-{user}", f"session-{user}")
+        for service, operation in (
+            (ZimbraService(configured, identity=identity), "list_folders"),
+            (ZimbraFilterService(configured, identity=identity), "list_email_filters"),
+        ):
+            with pytest.raises(ServiceError) as error:
+                await getattr(service, operation)("legacy")
+            assert error.value.code == "account_selection_disabled"
+            result = await getattr(service, operation)()
+            assert result["account"]["email"] == f"{user[0]}***@example.com"
+    assert calls == ["token-alice", "token-alice", "token-bob", "token-bob"]
+    assert not (tmp_path / "missing.key").exists()
+
+
+@pytest.mark.asyncio
+async def test_signature_draft_keeps_authenticated_identity(monkeypatch):
+    identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
+    monkeypatch.setattr(module, "zimbra_login", lambda *_: pytest.fail("must use the authenticated token"))
+    monkeypatch.setattr(module, "zimbra_list_signatures", lambda host, token, **kw: [
+        {"id": "1", "name": "Work", "text": "SOC analyst", "html": "<p>SOC analyst</p>"},
+    ])
+    draft = await ZimbraService(settings(), identity=identity).use_signature_on_email(
+        "recipient@example.com", "Update", "Reviewed", "1",
+    )
+    assert draft["draft"]["body"] == "Reviewed\n\nSOC analyst"
+    assert draft["draft"]["account_id"] == "authenticated"
+    assert draft["draft"]["signature"] == {"id": "1", "name": "Work"}
 
 
 

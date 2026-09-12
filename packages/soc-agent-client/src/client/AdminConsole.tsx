@@ -126,6 +126,36 @@ function apiValue<T>(response: { result: { ok: boolean; value?: T; error?: { mes
   return response.result.value as T
 }
 
+async function describeSettings(connection: any) {
+  const view = apiValue<{ namespaces: SettingsNamespaceView[]; writable: boolean }>(await connection.api.settings.describe({}))
+  return { namespaces: new Map(view.namespaces.map((namespace) => [namespace.ns, namespace])), writable: view.writable }
+}
+
+function useStatus() {
+  const [message, setMessage] = useState<StatusMessage | null>(null)
+  const [busy, setBusy] = useState(false)
+  async function run(operation: () => Promise<void>) {
+    setBusy(true)
+    setMessage(null)
+    try {
+      await operation()
+    } catch (error) {
+      setMessage({ kind: 'error', text: errorText(error) })
+    } finally {
+      setBusy(false)
+    }
+  }
+  return { message, setMessage, busy, run }
+}
+
+function StatusNotice({ message, onRetry }: { message: StatusMessage | null; onRetry?: () => Promise<void> }) {
+  if (!message) return null
+  return <>
+    <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p>
+    {message.kind === 'error' && onRetry ? <button className={styles.button} type="button" onClick={() => void onRetry()}>Retry</button> : null}
+  </>
+}
+
 function serviceReady(service: ServiceStatus | undefined): boolean {
   return service?.status === 'ready' || service?.configured === true || service?.available === true
 }
@@ -432,25 +462,21 @@ function AgentContextSettings({ connection }: { connection: any }) {
   const [timeEnabled, setTimeEnabled] = useState(true)
   const [timeSeconds, setTimeSeconds] = useState('0')
   const [validation, setValidation] = useState<{ background?: string; time?: string }>({})
-  const [message, setMessage] = useState<StatusMessage | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
+  const { message, setMessage, busy, run } = useStatus()
 
   const load = useCallback(async () => {
     setLoading(true)
     setMessage(null)
     setValidation({})
     try {
-      const view = apiValue<{ namespaces: SettingsNamespaceView[]; writable: boolean }>(
-        await connection.api.settings.describe({}),
-      )
-      const namespaces = new Map(view.namespaces.map((namespace) => [namespace.ns, namespace]))
+      const { namespaces, writable } = await describeSettings(connection)
       const background = namespaces.get(BACKGROUND_SETTINGS_NAMESPACE)
       const time = namespaces.get(TIME_SETTINGS_NAMESPACE)
       if (!background || !time) throw new Error('Agent context settings are unavailable.')
       const backgroundValue = objectValue(background.value)
       const timeValue = objectValue(time.value)
-      setData({ background, time, writable: view.writable })
+      setData({ background, time, writable })
       setBackgroundEnabled(backgroundValue.enabled !== false)
       setBackgroundPrompts(String(backgroundValue.repeatEveryUserPrompts ?? 5))
       setTimeEnabled(timeValue.enabled !== false)
@@ -469,10 +495,8 @@ function AgentContextSettings({ connection }: { connection: any }) {
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!data?.writable || loading) return
-    setBusy(true)
-    setMessage(null)
     setValidation({})
-    try {
+    return run(async () => {
       let repeatEveryUserPrompts: number | undefined
       let seconds: number | undefined
       const nextValidation: { background?: string; time?: string } = {}
@@ -511,11 +535,7 @@ function AgentContextSettings({ connection }: { connection: any }) {
       const time = apiValue<SettingsNamespaceView>(timeResponse)
       setData({ ...data, background, time })
       setMessage({ kind: 'success', text: 'Agent context settings saved.' })
-    } catch (saveError) {
-      setMessage({ kind: 'error', text: errorText(saveError) })
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   return (
@@ -527,8 +547,7 @@ function AgentContextSettings({ connection }: { connection: any }) {
         </div>
         <span className={styles.sectionHint}>Changes apply live to existing and new sessions.</span>
       </div>
-      {loading && !data ? <p className={styles.loadingInline}>Loading agent context…</p> : null}
-      {loading && data ? <p className={styles.loadingInline}>Refreshing agent context…</p> : null}
+      {loading ? <p className={styles.loadingInline}>{data ? 'Refreshing' : 'Loading'} agent context…</p> : null}
       {data ? (
         <form onSubmit={save}>
           <div className={styles.contextGrid}>
@@ -592,18 +611,12 @@ function AgentContextSettings({ connection }: { connection: any }) {
             </article>
 
           </div>
-          {message ? <>
-            <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p>
-            {message.kind === 'error' ? <button className={styles.button} type="button" onClick={() => void load()}>Retry</button> : null}
-          </> : null}
+          <StatusNotice message={message} onRetry={load} />
           <div className={styles.actions}>
             <button className={`${styles.button} ${styles.primary}`} type="submit" disabled={!data.writable || busy || loading}>{busy ? 'Saving…' : 'Save agent context'}</button>
           </div>
         </form>
-      ) : message ? <>
-        <p className={`${styles.message} ${styles[message.kind]}`} role="alert">{message.text}</p>
-        <button className={styles.button} type="button" onClick={() => void load()}>Retry</button>
-      </> : null}
+      ) : <StatusNotice message={message} onRetry={load} />}
     </section>
   )
 }
@@ -620,20 +633,17 @@ function AccessApprovalsSettings({ connection }: { connection: any }) {
   const [data, setData] = useState<AccessApprovalData | null>(null)
   const [mode, setMode] = useState<SocActionMode>('soc')
   const [actionStates, setActionStates] = useState<Record<string, SocActionState>>({})
-  const [message, setMessage] = useState<StatusMessage | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
+  const { message, setMessage, busy, run } = useStatus()
 
   const load = useCallback(async () => {
     setLoading(true)
     setMessage(null)
     try {
-      const [described, catalogValue] = await Promise.all([
-        connection.api.settings.describe({}),
+      const [{ namespaces, writable }, catalogValue] = await Promise.all([
+        describeSettings(connection),
         rpc(connection, 'get-admin-action-catalog'),
       ])
-      const view = apiValue<{ namespaces: SettingsNamespaceView[]; writable: boolean }>(described)
-      const namespaces = new Map(view.namespaces.map((namespace) => [namespace.ns, namespace]))
       const actionApproval = namespaces.get(ACTION_APPROVAL_SETTINGS_NAMESPACE)
       const catalog = objectValue(catalogValue)
       const entries = Array.isArray(catalog.tools) ? catalog.tools : catalog.actions
@@ -649,7 +659,7 @@ function AccessApprovalsSettings({ connection }: { connection: any }) {
           const state = isActionState(configured) ? configured : defaultToolState(tool)
           return [tool.name, state]
         })) as Record<string, SocActionState>
-      setData({ actionApproval, tools, writable: view.writable })
+      setData({ actionApproval, tools, writable })
       setMode(saved.mode === 'full' ? 'full' : 'soc')
       setActionStates(normalizedStates)
     } catch (loadError) {
@@ -666,9 +676,7 @@ function AccessApprovalsSettings({ connection }: { connection: any }) {
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!data?.writable || loading) return
-    setBusy(true)
-    setMessage(null)
-    try {
+    return run(async () => {
       const response = await connection.api.settings.mutate({
         ns: data.actionApproval.ns,
         ops: [
@@ -680,11 +688,7 @@ function AccessApprovalsSettings({ connection }: { connection: any }) {
       const actionApproval = apiValue<SettingsNamespaceView>(response)
       setData({ ...data, actionApproval })
       setMessage({ kind: 'success', text: 'Access & approvals settings saved.' })
-    } catch (saveError) {
-      setMessage({ kind: 'error', text: errorText(saveError) })
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   const groups = data ? [...new Set(data.tools.map((tool) => tool.group))] : []
@@ -703,8 +707,7 @@ function AccessApprovalsSettings({ connection }: { connection: any }) {
         </div>
         <span className={styles.sectionHint}>Changes apply live to existing and new sessions.</span>
       </div>
-      {loading && !data ? <p className={styles.loadingInline}>Loading access controls…</p> : null}
-      {loading && data ? <p className={styles.loadingInline}>Refreshing access controls…</p> : null}
+      {loading ? <p className={styles.loadingInline}>{data ? 'Refreshing' : 'Loading'} access controls…</p> : null}
       {data ? (
         <form onSubmit={save}>
           <article className={styles.contextCard}>
@@ -754,18 +757,12 @@ function AccessApprovalsSettings({ connection }: { connection: any }) {
             ))}
           </div>
 
-          {message ? <>
-            <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p>
-            {message.kind === 'error' ? <button className={styles.button} type="button" onClick={() => void load()}>Retry</button> : null}
-          </> : null}
+          <StatusNotice message={message} onRetry={load} />
           <div className={styles.actions}>
             <button className={`${styles.button} ${styles.primary}`} type="submit" disabled={!data.writable || busy || loading}>{busy ? 'Saving…' : 'Save access settings'}</button>
           </div>
         </form>
-      ) : message ? <>
-        <p className={`${styles.message} ${styles[message.kind]}`} role="alert">{message.text}</p>
-        <button className={styles.button} type="button" onClick={() => void load()}>Retry</button>
-      </> : null}
+      ) : <StatusNotice message={message} onRetry={load} />}
     </section>
   )
 }
@@ -780,16 +777,13 @@ function ProviderSettings({ connection }: { connection: any }) {
     setLoading(true)
     setError('')
     try {
-      const [described, providerResponse] = await Promise.all([
-        connection.api.settings.describe({}),
+      const [{ namespaces, writable }, providerResponse] = await Promise.all([
+        describeSettings(connection),
         connection.api.llm.providers({}),
       ])
-      const settingsView = apiValue<{ namespaces: SettingsNamespaceView[]; writable: boolean }>(described)
       const providerView = apiValue<{ providers: ConfigurableProviderView[] }>(providerResponse)
-      const settings = settingsView.namespaces
       const providers = providerView.providers
 
-      const namespaces = new Map(settings.map((namespace) => [namespace.ns, namespace]))
       const refs = [...new Set(providers.map((provider) => {
         const profile = providerProfile(namespaces.get(provider.settingsNs), provider)
         return deriveCredentialRef(provider, profile)
@@ -809,11 +803,11 @@ function ProviderSettings({ connection }: { connection: any }) {
           credentialRef,
           credential,
           configured,
-          writable: Boolean(namespace) && settingsView.writable,
+          writable: Boolean(namespace) && writable,
           modelCount: modelIds(profile).length,
         }
       })
-      setData({ providers: rows, piAiNamespace: namespaces.get('llm-pi-ai'), writable: settingsView.writable })
+      setData({ providers: rows, piAiNamespace: namespaces.get('llm-pi-ai'), writable })
     } catch (loadError) {
       setError(errorText(loadError))
     } finally {
@@ -898,8 +892,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
   const [models, setModels] = useState(initialModels.join('\n'))
   const [secret, setSecret] = useState('')
   const [discovered, setDiscovered] = useState<DiscoveredModelView[]>([])
-  const [message, setMessage] = useState<StatusMessage | null>(null)
-  const [busy, setBusy] = useState(false)
+  const { message, setMessage, busy, run } = useStatus()
   const isCustomProvider = provider.declared === true
   const canEditProtocol = provider.settingsNs === 'llm-pi-ai' && isCustomProvider
   const canRemoveProvider = provider.declared === true && Boolean(namespace) && provider.settingsPath.length > 0
@@ -911,9 +904,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
 
   async function save() {
     if (!namespace || !row.writable) return
-    setBusy(true)
-    setMessage(null)
-    try {
+    return run(async () => {
       const ops: SettingsPathOpView[] = []
       if (canEditProtocol && displayName.trim() !== stringValue(profile.displayName)) {
         ops.push(displayName.trim() ? { op: 'set', path: [...provider.settingsPath, 'displayName'], value: displayName.trim() } : { op: 'unset', path: [...provider.settingsPath, 'displayName'] })
@@ -939,32 +930,20 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
       setSecret('')
       setMessage({ kind: 'success', text: 'Provider settings saved.' })
       await onChanged()
-    } catch (saveError) {
-      setMessage({ kind: 'error', text: errorText(saveError) })
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   async function removeCredential() {
     if (!row.credential?.configured || !row.credential.writable) return
-    setBusy(true)
-    setMessage(null)
-    try {
+    return run(async () => {
       apiValue(await connection.api.credentials.unset({ ref: row.credentialRef }))
       setMessage({ kind: 'success', text: 'Credential removed.' })
       await onChanged()
-    } catch (removeError) {
-      setMessage({ kind: 'error', text: errorText(removeError) })
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   async function discover() {
-    setBusy(true)
-    setMessage(null)
-    try {
+    return run(async () => {
       const result = apiValue<{ models: DiscoveredModelView[] }>(await connection.api.llm.discoverModels({
         settingsNs: provider.settingsNs,
         provider: provider.provider,
@@ -974,11 +953,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
       }))
       setDiscovered(result.models)
       setMessage({ kind: 'info', text: result.models.length ? 'Choose a model to add it to the provider.' : 'No models were discovered.' })
-    } catch (discoverError) {
-      setMessage({ kind: 'error', text: errorText(discoverError) })
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   return (
@@ -1045,7 +1020,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
         ) : null}
       </div>
 
-      {message ? <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p> : null}
+      <StatusNotice message={message} />
       <div className={styles.actions}>
         <button className={`${styles.button} ${styles.primary}`} type="button" onClick={() => void save()} disabled={!row.writable || busy}>{busy ? 'Saving…' : 'Save provider'}</button>
         {row.credential?.configured ? <button className={styles.button} type="button" onClick={() => void removeCredential()} disabled={!row.credential.writable || busy}>Remove credential</button> : null}
@@ -1097,8 +1072,7 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
   const [model, setModel] = useState('')
   const [secret, setSecret] = useState('')
   const [savedRoute, setSavedRoute] = useState('')
-  const [message, setMessage] = useState<StatusMessage | null>(null)
-  const [busy, setBusy] = useState(false)
+  const { message, setMessage, busy, run } = useStatus()
 
   const normalizedRoute = route.trim().toLowerCase()
   const routeTaken = providers.some((row) => row.provider.provider === normalizedRoute)
@@ -1108,9 +1082,7 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
 
   async function save() {
     if (!namespace || !canSave) return
-    setBusy(true)
-    setMessage(null)
-    try {
+    return run(async () => {
       if (savedRoute && savedRoute !== normalizedRoute) throw new Error('The route cannot be changed after saving.')
       if (!savedRoute) {
         apiValue(await connection.api.settings.mutate({
@@ -1135,11 +1107,7 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
       setMessage({ kind: 'success', text: 'Custom provider saved.' })
       await onChanged()
       onCreated(normalizedRoute)
-    } catch (saveError) {
-      setMessage({ kind: 'error', text: errorText(saveError) })
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   return (
@@ -1186,7 +1154,7 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
           <small className={styles.fieldHint}>Stored securely under a provider-derived credential name.</small>
         </label>
       </div>
-      {message ? <p className={`${styles.message} ${styles[message.kind]}`} role={message.kind === 'error' ? 'alert' : 'status'}>{message.text}</p> : null}
+      <StatusNotice message={message} />
       <div className={styles.actions}>
         <button className={`${styles.button} ${styles.primary}`} type="button" onClick={() => void save()} disabled={!canSave || busy}>{busy ? 'Saving…' : savedRoute ? 'Save credential' : 'Add provider'}</button>
       </div>

@@ -3,17 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from os import environ
 from pathlib import Path
-from typing import Any
 from urllib.parse import urlsplit
 
 from .env_loader import workspace_root
 from .postgres_store import PostgresStore
-from .splunk.query_policy import QueryPolicyConfig
-from .splunk.search.resource_policy import SearchResourceConfig
-from .splunk.security_queue.model import SecurityQueueConfig
 
 
 def redact_endpoint(value: str, *, allow_bare_host: bool = False) -> str:
@@ -107,25 +103,6 @@ def _preferred(env: Mapping[str, str], primary: str, legacy: str) -> str:
     return primary if _value(env, primary) else legacy
 
 
-def _policy_decision(env: Mapping[str, str], name: str, default: str = "require_approval") -> str:
-    value = _value(env, name, default).lower()
-    if value not in {"allow", "require_approval", "deny"}:
-        raise ValueError(f"{name} must be allow, require_approval, or deny")
-    return value
-
-
-def _restricted_decision(env: Mapping[str, str]) -> str:
-    value = _value(env, "SPLUNK_SEARCH_RESTRICTED_DECISION", "deny").lower()
-    if value not in {"deny", "require_approval"}:
-        raise ValueError("SPLUNK_SEARCH_RESTRICTED_DECISION must be deny or require_approval")
-    return value
-
-
-def _policy_macros(env: Mapping[str, str]) -> tuple[str, ...]:
-    raw = _value(env, "SPLUNK_POLICY_TRUSTED_MACROS")
-    return tuple(item.strip() for item in raw.split(",") if item.strip())
-
-
 def _storage_path(env: Mapping[str, str], name: str, default: str) -> str:
     value = _value(env, name, default)
     if value.startswith(".data/"):
@@ -137,49 +114,15 @@ def _storage_path(env: Mapping[str, str], name: str, default: str) -> str:
 
 @dataclass(frozen=True)
 class SplunkSettings:
-    host: str
-    port: int
-    username: str
-    password: str
+    """Status for the official MCP bridge; Python does not run Splunk tools."""
+
+    mcp_endpoint: str
     token: str
-    verify_ssl: bool
-    request_timeout: int
-    job_timeout: int
-    max_events: int
-    risk_tolerance: int
-    safe_timerange: str
-    sanitize_output: bool
-    detection_app: str = "search"
-    detection_owner: str = "nobody"
-    search_planner_enabled: bool = False
-    search_reuse_ttl_seconds: int = 300
-    evidence_store_path: str = ""
-    lookup_app: str = "search"
-    lookup_owner: str = "nobody"
-    rule_lookup_name: str = "Ruleset.csv"
-    customer_lookup_name: str = "Customer_Information.csv"
-    fix_source_lookup_name: str = "Fix_Source_Type.csv"
-    lookup_max_bytes: int = 5_000_000
-    lookup_max_rows: int = 50_000
-    lookup_max_columns: int = 100
-    url: str = ""
-    query_policy: QueryPolicyConfig = field(default_factory=QueryPolicyConfig)
-    search_resource: SearchResourceConfig = field(default_factory=SearchResourceConfig)
-    security_queue: SecurityQueueConfig = field(default_factory=SecurityQueueConfig)
-    search_planner_max_refinements: int = 0
+    verify_ssl: bool = True
     allow_insecure_http: bool = False
-    # When configured, supported read operations use Splunk's official MCP
-    # Server. The REST URL remains available only for bounded read
-    # compatibility operations that the official server does not expose.
-    mcp_endpoint: str = ""
+    sanitize_output: bool = True
 
     def __post_init__(self) -> None:
-        _validate_http_endpoint(
-            self.url or self.host,
-            "SPLUNK_URL" if self.url else "SPLUNK_HOST",
-            allow_bare_host=not bool(self.url),
-            allow_insecure_http=self.allow_insecure_http,
-        )
         _validate_http_endpoint(
             self.mcp_endpoint,
             "SPLUNK_MCP_ENDPOINT",
@@ -188,35 +131,16 @@ class SplunkSettings:
 
     @property
     def configured(self) -> bool:
-        if self.mcp_endpoint:
-            return bool(self.token)
-        return bool(self.host and (self.token or (self.username and self.password)))
+        return bool(self.mcp_endpoint and self.token)
 
     @property
     def missing(self) -> list[str]:
-        if self.mcp_endpoint:
-            return [] if self.token else ["SPLUNK_TOKEN"]
-        missing = [] if self.host else ["SPLUNK_HOST or SPLUNK_MCP_ENDPOINT"]
-        if not self.token and not (self.username and self.password):
-            missing.append("SPLUNK_TOKEN or SPLUNK_USERNAME/SPLUNK_PASSWORD")
-        return missing
-
-    def client_config(self) -> dict[str, object]:
-        return {
-            "splunk_url": self.url,
-            "splunk_host": self.host,
-            "splunk_port": self.port,
-            "splunk_username": self.username,
-            "splunk_password": self.password,
-            "splunk_token": self.token,
-            "verify_ssl": self.verify_ssl,
-            "allow_insecure_http": self.allow_insecure_http,
-            "request_timeout": self.request_timeout,
-            "job_timeout": self.job_timeout,
-            "splunk_mcp_endpoint": self.mcp_endpoint,
-            "splunk_lookup_app": self.lookup_app,
-            "splunk_lookup_owner": self.lookup_owner,
-        }
+        return [
+            name for name, value in (
+                ("SPLUNK_MCP_ENDPOINT", self.mcp_endpoint),
+                ("SPLUNK_TOKEN", self.token),
+            ) if not value
+        ]
 
 
 @dataclass(frozen=True)
@@ -352,136 +276,12 @@ class ServerSettings:
         if transport not in {"stdio", "sse", "streamable-http"}:
             raise ValueError("MCP_TRANSPORT must be stdio, sse, or streamable-http")
 
-        splunk_verify_name = _preferred(env, "SPLUNK_VERIFY_SSL", "VERIFY_SSL")
-        splunk_max_name = _preferred(env, "SPLUNK_MAX_EVENTS", "SPL_MAX_EVENTS_COUNT")
-        splunk_risk_name = _preferred(env, "SPLUNK_RISK_TOLERANCE", "SPL_RISK_TOLERANCE")
-        splunk_safe_name = _preferred(env, "SPLUNK_SAFE_TIMERANGE", "SPL_SAFE_TIMERANGE")
-        splunk_sanitize_name = _preferred(env, "SPLUNK_SANITIZE_OUTPUT", "SPL_SANITIZE_OUTPUT")
-        query_policy = QueryPolicyConfig(
-            short_search_seconds=_integer(env, "SPLUNK_POLICY_SHORT_SEARCH_SECONDS", 86_400, 1, 31_536_000),
-            normal_search_seconds=_integer(env, "SPLUNK_POLICY_NORMAL_SEARCH_SECONDS", 604_800, 1, 31_536_000),
-            very_long_search_seconds=_integer(env, "SPLUNK_POLICY_VERY_LONG_SEARCH_SECONDS", 2_592_000, 1, 31_536_000),
-            wildcard_index_decision=_policy_decision(env, "SPLUNK_POLICY_WILDCARD_INDEX"),
-            no_index_decision=_policy_decision(env, "SPLUNK_POLICY_NO_INDEX"),
-            long_raw_decision=_policy_decision(env, "SPLUNK_POLICY_LONG_RAW"),
-            very_long_decision=_policy_decision(env, "SPLUNK_POLICY_VERY_LONG"),
-            all_time_decision=_policy_decision(env, "SPLUNK_POLICY_ALL_TIME"),
-            expensive_command_decision=_policy_decision(env, "SPLUNK_POLICY_EXPENSIVE_COMMAND"),
-            subsearch_decision=_policy_decision(env, "SPLUNK_POLICY_SUBSEARCH"),
-            nested_subsearch_decision=_policy_decision(env, "SPLUNK_POLICY_NESTED_SUBSEARCH"),
-            unresolved_macro_decision=_policy_decision(env, "SPLUNK_POLICY_UNRESOLVED_MACRO"),
-            unparseable_time_decision=_policy_decision(env, "SPLUNK_POLICY_UNPARSEABLE_TIME"),
-            max_subsearch_depth=_integer(env, "SPLUNK_POLICY_MAX_SUBSEARCH_DEPTH", 1, 1, 16),
-            trusted_macros=_policy_macros(env),
-        )
-        search_resource = SearchResourceConfig(
-            global_concurrency=_integer(env, "SPLUNK_SEARCH_GLOBAL_CONCURRENCY", 8, 1, 64),
-            per_principal_concurrency=_integer(
-                env, "SPLUNK_SEARCH_PER_PRINCIPAL_CONCURRENCY", 2, 1, 16
-            ),
-            queue_timeout_seconds=float(
-                _integer(env, "SPLUNK_SEARCH_QUEUE_TIMEOUT_SECONDS", 5, 0, 300)
-            ),
-            max_jobs_per_minute=_integer(env, "SPLUNK_SEARCH_MAX_JOBS_PER_MINUTE", 20, 1, 10_000),
-            budget_per_minute=_integer(env, "SPLUNK_SEARCH_BUDGET_PER_MINUTE", 20, 1, 100_000),
-            max_runtime_low=_integer(env, "SPLUNK_SEARCH_MAX_RUNTIME_LOW", 30, 1, 3_600),
-            max_runtime_medium=_integer(env, "SPLUNK_SEARCH_MAX_RUNTIME_MEDIUM", 60, 1, 3_600),
-            max_runtime_high=_integer(env, "SPLUNK_SEARCH_MAX_RUNTIME_HIGH", 120, 1, 3_600),
-            max_lookback_low=_integer(env, "SPLUNK_SEARCH_MAX_LOOKBACK_LOW", 86_400, 1, 31_536_000),
-            max_lookback_medium=_integer(
-                env, "SPLUNK_SEARCH_MAX_LOOKBACK_MEDIUM", 604_800, 1, 31_536_000
-            ),
-            max_lookback_high=_integer(
-                env, "SPLUNK_SEARCH_MAX_LOOKBACK_HIGH", 2_592_000, 1, 31_536_000
-            ),
-            max_results_low=_integer(env, "SPLUNK_SEARCH_MAX_RESULTS_LOW", 100, 1, 100_000),
-            max_results_medium=_integer(env, "SPLUNK_SEARCH_MAX_RESULTS_MEDIUM", 500, 1, 100_000),
-            max_results_high=_integer(env, "SPLUNK_SEARCH_MAX_RESULTS_HIGH", 1_000, 1, 100_000),
-            backtest_concurrency=_integer(env, "SPLUNK_SEARCH_BACKTEST_CONCURRENCY", 1, 1, 16),
-            restricted_decision=_restricted_decision(env),
-        )
-        # Automatic planner refinements default to zero: refinements are an
-        # explicit opt-in after the schema mappings are verified.
-        search_planner_max_refinements = _integer(
-            env, "SPLUNK_SEARCH_PLANNER_MAX_REFINEMENTS", 0, 0, 5
-        )
-        security_queue = SecurityQueueConfig(
-            max_backend_pages_per_request=_integer(
-                env, "SECURITY_QUEUE_MAX_BACKEND_PAGES_PER_REQUEST", 10, 1, 100
-            ),
-            max_backend_records_per_request=_integer(
-                env, "SECURITY_QUEUE_MAX_BACKEND_RECORDS_PER_REQUEST", 1_000, 1, 100_000
-            ),
-            standard_concurrency=_integer(env, "SECURITY_QUEUE_STANDARD_CONCURRENCY", 5, 1, 32),
-        )
-        splunk_host = (
-            _value(env, "SPLUNK_HOST_FOR_DOCKER")
-            if _value(env, "RUNNING_INSIDE_DOCKER") == "1"
-            else _value(env, "SPLUNK_HOST")
-        )
-        splunk_allow_insecure_http = _boolean(env, "SPLUNK_ALLOW_INSECURE_HTTP", False)
-        splunk_mcp_endpoint = _value(env, "SPLUNK_MCP_ENDPOINT")
-        splunk_url = _value(env, "SPLUNK_URL")
-        splunk_port = 8089
-        if splunk_url:
-            _validate_http_endpoint(
-                splunk_url,
-                "SPLUNK_URL",
-                allow_insecure_http=splunk_allow_insecure_http,
-            )
-            parsed_splunk_url = urlsplit(splunk_url)
-            splunk_host = parsed_splunk_url.hostname or splunk_host
-            splunk_port = parsed_splunk_url.port or splunk_port
-        if splunk_mcp_endpoint:
-            _validate_http_endpoint(
-                splunk_mcp_endpoint,
-                "SPLUNK_MCP_ENDPOINT",
-                allow_insecure_http=splunk_allow_insecure_http,
-            )
-        if not splunk_url and splunk_host:
-            splunk_port = _integer(env, "SPLUNK_PORT", 8089, 1, 65535)
-            scheme = _value(env, "SPLUNK_SCHEME", "https").lower()
-            if scheme not in {"http", "https"}:
-                raise ValueError("SPLUNK_SCHEME must be http or https")
-            splunk_url = f"{scheme}://{splunk_host}:{splunk_port}"
-            _validate_http_endpoint(
-                splunk_url,
-                "SPLUNK_URL",
-                allow_insecure_http=splunk_allow_insecure_http,
-            )
         splunk = SplunkSettings(
-            host=splunk_host,
-            port=splunk_port,
-            username=_value(env, "SPLUNK_USERNAME"),
-            password=_value(env, "SPLUNK_PASSWORD"),
+            mcp_endpoint=_value(env, "SPLUNK_MCP_ENDPOINT"),
             token=_value(env, "SPLUNK_TOKEN"),
-            verify_ssl=_boolean(env, splunk_verify_name, True),
-            request_timeout=_integer(env, "SPLUNK_REQUEST_TIMEOUT", 30, 1, 600),
-            job_timeout=_integer(env, "SPLUNK_JOB_TIMEOUT", 120, 1, 3600),
-            max_events=_integer(env, splunk_max_name, 1000, 1, 100000),
-            risk_tolerance=_integer(env, splunk_risk_name, 75, 0, 100),
-            safe_timerange=_value(env, splunk_safe_name, "24h"),
-            sanitize_output=_boolean(env, splunk_sanitize_name, True),
-            detection_app=_value(env, "SPLUNK_DETECTION_APP", "search"),
-            detection_owner=_value(env, "SPLUNK_DETECTION_OWNER", "nobody"),
-            search_planner_enabled=_boolean(env, "SPLUNK_SEARCH_PLANNER_ENABLED", False),
-            search_reuse_ttl_seconds=_integer(env, "SPLUNK_SEARCH_REUSE_TTL_SECONDS", 300, 0, 3600),
-            evidence_store_path=_value(env, "SOC_EVIDENCE_STORE"),
-            lookup_app=_value(env, "SPLUNK_LOOKUP_APP") or "search",
-            lookup_owner=_value(env, "SPLUNK_LOOKUP_OWNER") or "nobody",
-            rule_lookup_name=_value(env, "SPLUNK_RULE_LOOKUP_NAME", "Ruleset.csv"),
-            customer_lookup_name=_value(env, "SPLUNK_CUSTOMER_LOOKUP_NAME", "Customer_Information.csv"),
-            fix_source_lookup_name=_value(env, "SPLUNK_FIX_SOURCE_LOOKUP_NAME", "Fix_Source_Type.csv"),
-            lookup_max_bytes=_integer(env, "SPLUNK_LOOKUP_MAX_BYTES", 5_000_000, 1, 50_000_000),
-            lookup_max_rows=_integer(env, "SPLUNK_LOOKUP_MAX_ROWS", 50_000, 1, 1_000_000),
-            lookup_max_columns=_integer(env, "SPLUNK_LOOKUP_MAX_COLUMNS", 100, 1, 1_000),
-            url=splunk_url,
-            query_policy=query_policy,
-            search_resource=search_resource,
-            security_queue=security_queue,
-            search_planner_max_refinements=search_planner_max_refinements,
-            allow_insecure_http=splunk_allow_insecure_http,
-            mcp_endpoint=splunk_mcp_endpoint,
+            verify_ssl=_boolean(env, "SPLUNK_VERIFY_SSL", True),
+            allow_insecure_http=_boolean(env, "SPLUNK_ALLOW_INSECURE_HTTP", False),
+            sanitize_output=_boolean(env, "SPLUNK_SANITIZE_OUTPUT", True),
         )
         zimbra_host = _value(env, "ZIMBRA_HOST")
         zimbra_allow_insecure_http = _boolean(env, "ZIMBRA_ALLOW_INSECURE_HTTP", False)
@@ -531,7 +331,7 @@ class ServerSettings:
         )
         return cls(
             name=_value(env, "MCP_SERVER_NAME", "SOC Agent MCP"),
-            description=_value(env, "MCP_SERVER_DESCRIPTION", "SOC Agent investigation tools for Splunk and Zimbra"),
+            description=_value(env, "MCP_SERVER_DESCRIPTION", "SOC Agent tools for Zimbra and subscriptions"),
             transport=transport,
             host=_value(env, "MCP_HOST", _value(env, "HOST", "127.0.0.1")),
             port=_integer(env, _preferred(env, "MCP_PORT", "PORT"), 8050, 1, 65535),
@@ -557,25 +357,10 @@ class ServerSettings:
             "server": {"name": self.name, "transport": self.transport},
             "splunk": {
                 "configured": self.splunk.configured,
-                "host": redact_endpoint(self.splunk.host, allow_bare_host=True),
-                "port": self.splunk.port,
                 "verify_ssl": self.splunk.verify_ssl,
                 "allow_insecure_http": self.splunk.allow_insecure_http,
-                "max_events": self.splunk.max_events,
-                "risk_tolerance": self.splunk.risk_tolerance,
                 "sanitize_output": self.splunk.sanitize_output,
-                "detection_app": self.splunk.detection_app,
-                "lookup_app": self.splunk.lookup_app,
-                "lookup_owner": self.splunk.lookup_owner,
-                "lookup_max_bytes": self.splunk.lookup_max_bytes,
-                "lookup_max_rows": self.splunk.lookup_max_rows,
-                "lookup_max_columns": self.splunk.lookup_max_columns,
-                "query_policy": self.splunk.query_policy.to_dict(),
-                "search_resource": self.splunk.search_resource.to_dict(),
-                "security_queue": self.splunk.security_queue.to_dict(),
-                "search_planner_max_refinements": self.splunk.search_planner_max_refinements,
-                "search_planner_enabled": self.splunk.search_planner_enabled,
-                "official_mcp_enabled": bool(self.splunk.mcp_endpoint and self.splunk.token),
+                "official_mcp_enabled": self.splunk.configured,
                 "official_mcp_endpoint": redact_endpoint(self.splunk.mcp_endpoint),
             },
             "zimbra": {

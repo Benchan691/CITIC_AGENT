@@ -12,6 +12,10 @@ server, and pinned harness source.
 - `skills` — SOC operating playbooks
 - `docs` — project structure and operating notes
 
+See the [shortening-plan implementation report](docs/SHORTENING_PLAN_IMPLEMENTATION.md)
+for the completed refactors, measured source reduction, validation results,
+compatibility decisions, and deployment implications.
+
 ## First-time setup
 
 From the repository root, run:
@@ -52,6 +56,16 @@ Splunk MCP read tools directly as `mcp__splunk_mcp__...`. The bridge uses
 Streamable HTTP, forwards the bearer token, and registers only query, instance,
 index, metadata, knowledge-object, saved-search, alert, fired-alert, and
 throttle reads. It is disabled unless both settings are present.
+
+Setup and `./setup.sh --check` require this official MCP connection. The admin
+**Check connection** action reads `splunk_get_info` through the agent's bridge.
+HTTPS and certificate verification are enabled by default; private HTTP
+deployments require `SPLUNK_ALLOW_INSECURE_HTTP=true`. A certificate exception
+with `SPLUNK_VERIFY_SSL=false` applies only to this Splunk connection.
+
+The retired Python Splunk APIs, REST authentication, planner, lookup, and local
+query-policy settings are no longer used. Existing REST-only deployments must
+add the official endpoint and bearer token before Splunk tools become available.
 
 Official reads do not enter the harness approval or local query-admission
 flow. Splunk MCP Server applies its own query guardrails and result cap. The

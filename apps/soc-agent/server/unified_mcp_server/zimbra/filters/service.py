@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from unified_mcp_server.blocking_io import run_blocking
 from unified_mcp_server.request_context import remaining_seconds
 import hashlib
@@ -21,7 +20,7 @@ from unified_mcp_server.zimbra import (
     zimbra_login,
     zimbra_modify_filter_rules,
 )
-from unified_mcp_server.zimbra_service import _upstream_error
+from ..errors import _upstream_error
 
 from ..core.service import ZimbraCore
 from .model import EmailFilter, serialize_filter_rules
@@ -45,7 +44,7 @@ SIZE_RE = re.compile(r"^\d+(?:[KMG])?$", re.IGNORECASE)
 DATE_RE = re.compile(r"^\d+$")
 
 
-class ZimbraFilterService:
+class ZimbraFilterService(ZimbraCore):
     def __init__(
         self,
         settings: ZimbraSettings,
@@ -53,8 +52,9 @@ class ZimbraFilterService:
         core: ZimbraCore | None = None,
         identity: ZimbraIdentity | None = None,
     ) -> None:
-        self.core = core or ZimbraCore(settings, accounts, identity)
-        self.settings = self.core.settings
+        if core is not None:
+            settings, accounts, identity = core.settings, core.accounts, core.identity
+        super().__init__(settings, accounts, identity)
 
     @staticmethod
     def _fingerprint(rules: list[EmailFilter]) -> str:
@@ -95,7 +95,7 @@ class ZimbraFilterService:
 
     async def _run(self, function, *args, **kwargs):
         try:
-            return await run_blocking(function, *args, principal=self.core.identity.user_id if self.core.identity else "legacy", **kwargs)
+            return await run_blocking(function, *args, principal=self.identity.user_id if self.identity else "legacy", **kwargs)
         except ServiceError:
             raise
         except ValueError as exc:
@@ -104,12 +104,6 @@ class ZimbraFilterService:
             raise ServiceError("invalid_input", str(exc)) from exc
         except Exception as exc:
             raise _upstream_error(exc) from exc
-
-    def _config(self, account: StoredAccount) -> dict[str, object]:
-        return self.core.client_config(account)
-
-    def _resolve_account(self, account_id: str) -> StoredAccount:
-        return self.core.resolve_account(account_id)
 
     def _read_filters_with_token(self, token: str) -> list[EmailFilter]:
         elements = zimbra_get_filter_rules(
@@ -139,9 +133,9 @@ class ZimbraFilterService:
     async def _login(self, account: StoredAccount) -> str:
         if not self.settings.host:
             raise ConfigurationError("Zimbra", ["ZIMBRA_HOST"])
-        if self.core.identity is not None:
-            return self.core.identity.zimbra_token
-        return await self._run(zimbra_login, self._config(account))
+        if self.identity is not None:
+            return self.identity.zimbra_token
+        return await self._run(zimbra_login, self.client_config(account))
 
     async def _read_filters(
         self,
@@ -168,7 +162,7 @@ class ZimbraFilterService:
         )
 
     async def list_email_filters(self, account_id: str = "", include_details: bool = False) -> dict[str, Any]:
-        account = self._resolve_account(account_id)
+        account = self.resolve_account(account_id)
         rules = await self._read_filters(account)
         filters = [
             rule.to_dict() if include_details else {
@@ -192,7 +186,7 @@ class ZimbraFilterService:
         name = name.strip()
         if not name:
             raise ServiceError("invalid_input", "name cannot be empty")
-        account = self._resolve_account(account_id)
+        account = self.resolve_account(account_id)
         rules = await self._read_filters(account)
         _, rule = self._find(rules, name)
         return {"account_id": account.id, "account": account.agent_dict(), "filter": rule.to_dict(), "fingerprint": self._fingerprint(rules)}
@@ -300,7 +294,7 @@ class ZimbraFilterService:
     async def validate_email_filter(self, payload: dict[str, Any], account_id: str = "") -> dict[str, Any]:
         if not isinstance(payload, dict):
             raise ServiceError("invalid_input", "rule must be an object")
-        account = self._resolve_account(account_id)
+        account = self.resolve_account(account_id)
         token = await self._login(account)
         current, folders = await self._read_filters_and_folders(account, token)
         try:
@@ -322,7 +316,7 @@ class ZimbraFilterService:
     async def preview_email_filter_update(self, name: str, payload: dict[str, Any], account_id: str = "") -> dict[str, Any]:
         if not isinstance(payload, dict):
             raise ServiceError("invalid_input", "rule must be an object")
-        account = self._resolve_account(account_id)
+        account = self.resolve_account(account_id)
         token = await self._login(account)
         current, folders = await self._read_filters_and_folders(account, token)
         index, existing = self._find(current, name.strip())
@@ -390,7 +384,7 @@ class ZimbraFilterService:
             raise ServiceError("invalid_input", "rule must be an object")
         self._require_write()
         self._require_expected(expected_fingerprint)
-        account = self._resolve_account(account_id)
+        account = self.resolve_account(account_id)
         token = await self._login(account)
         current, folders = await self._read_filters_and_folders(account, token)
         try:
@@ -418,7 +412,7 @@ class ZimbraFilterService:
             raise ServiceError("invalid_input", "rule must be an object")
         self._require_write()
         self._require_expected(expected_fingerprint)
-        account = self._resolve_account(account_id)
+        account = self.resolve_account(account_id)
         token = await self._login(account)
         current, folders = await self._read_filters_and_folders(account, token)
         index, existing = self._find(current, name.strip())
@@ -450,7 +444,7 @@ class ZimbraFilterService:
             raise ServiceError("invalid_input", "name cannot be empty")
         self._require_write()
         self._require_expected(expected_fingerprint)
-        account = self._resolve_account(account_id)
+        account = self.resolve_account(account_id)
         token = await self._login(account)
         current = await self._read_filters(account, token)
         index, removed = self._find(current, name)
@@ -471,7 +465,7 @@ class ZimbraFilterService:
             return await self.update_email_filter(name, {"enabled": True}, expected_fingerprint, account_id)
         self._require_write()
         self._require_expected(expected_fingerprint)
-        account = self._resolve_account(account_id)
+        account = self.resolve_account(account_id)
         token = await self._login(account)
         current = await self._read_filters(account, token)
         index, existing = self._find(current, name.strip())
@@ -491,7 +485,7 @@ class ZimbraFilterService:
     async def reorder_email_filter(self, name: str, order: int, expected_fingerprint: str, account_id: str = "") -> dict[str, Any]:
         self._require_write()
         self._require_expected(expected_fingerprint)
-        account = self._resolve_account(account_id)
+        account = self.resolve_account(account_id)
         token = await self._login(account)
         current, folders = await self._read_filters_and_folders(account, token)
         index, rule = self._find(current, name.strip())

@@ -29,7 +29,7 @@ from .postgres_store import PostgresAccountStore, PostgresStore
 from .responses import failure, success
 from .request_context import operation_budget, operation_context
 from .blocking_io import run_blocking
-from .zimbra_service import ZimbraService
+from .zimbra.core.service import _EmptyAccountStore
 from .zimbra.mail.service import ZimbraMailService
 from .zimbra.mail.tools import register_tools as register_mail_tools
 from .zimbra.filters.service import ZimbraFilterService
@@ -62,7 +62,7 @@ class McpFailureEnvelope(Exception):
 @dataclass
 class Runtime:
     settings: ServerSettings
-    zimbra: ZimbraService
+    zimbra: ZimbraMailService
     email_subscriptions: EmailSubscriptionService
     zimbra_filters: ZimbraFilterService | None = None
     postgres: PostgresStore | None = None
@@ -143,23 +143,8 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
     postgres_store = PostgresStore.from_env()
     settings = settings or ServerSettings.from_env()
 
-    # Normal operation never reads or writes the legacy stored-account table.
-    # A no-op adapter keeps the compatibility service constructors simple while
-    # ensuring an MCP caller cannot select a persisted mailbox credential.
-    class EmptyAccountStore:
-        def list(self):
-            return []
-
-        def list_agent(self):
-            return []
-
-        def count(self):
-            return 0
-
-        def get(self, _account_id):
-            return None
-
-    account_store = EmptyAccountStore()
+    # Authenticated requests never load or select legacy stored credentials.
+    account_store = _EmptyAccountStore()
 
     @asynccontextmanager
     async def server_lifespan(_):

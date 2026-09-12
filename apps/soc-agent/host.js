@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { runPythonCommand } from './python-command.js'
 import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -8,6 +8,7 @@ import { renderWorkspaceContext } from '@deepseek-ai/dsh-agent-instructions'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG } from './policy.js'
 import { runAuthCommand } from './ownership.js'
+import { testOfficialSplunkConnection } from './splunk-bridge.js'
 import { installInvestigationProjection } from './investigation.js'
 
 export const name = 'soc-agent-host'
@@ -427,76 +428,21 @@ function adminFailureMessage(command, stderr = '') {
 const ADMIN_COMMAND_TIMEOUT_MS = Number(process.env.SOC_AUTH_COMMAND_TIMEOUT_MS ?? 185_000)
 
 function runAdmin(command, arg, payload, signal) {
-  return new Promise((resolvePromise, rejectPromise) => {
-    const args = ['run', 'python', '-m', 'unified_mcp_server.admin_cli', command]
-    if (arg !== undefined && arg !== '') args.push(arg)
-    const child = spawn('uv', args, {
-      cwd: serverRoot(),
-      env: (() => {
-        const environment = { ...process.env, MCP_SERVER_ROOT: workspaceRoot() }
-        delete environment.SOC_ADMIN_EMAIL
-        delete environment.SOC_ADMIN_PASSWORD
-        return environment
-      })(),
-    })
-    let stdout = ''
-    let stderr = ''
-    let settled = false
-    const timeoutTimer = setTimeout(() => {
-      if (settled) return
-      settled = true
-      child.kill('SIGTERM')
-      rejectPromise(new Error(`admin_operation_timeout: The "${command}" operation exceeded ${Math.round(ADMIN_COMMAND_TIMEOUT_MS / 1000)} seconds.`))
-    }, ADMIN_COMMAND_TIMEOUT_MS)
-    timeoutTimer.unref?.()
-    const abort = () => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeoutTimer)
-      child.kill('SIGTERM')
-      rejectPromise(new Error('attachment_conversion_cancelled'))
-    }
-    if (signal?.aborted) {
-      abort()
-      return
-    }
-    signal?.addEventListener('abort', abort, { once: true })
-    child.stdout.on('data', chunk => { stdout += String(chunk) })
-    child.stderr.on('data', chunk => { stderr += String(chunk) })
-    child.on('error', error => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeoutTimer)
-      rejectPromise(new Error(adminFailureMessage(command)))
-    })
-    child.on('close', code => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeoutTimer)
-      signal?.removeEventListener('abort', abort)
-      if (code !== 0) {
-        if (command === 'convert-attachment') {
-          try {
-            const failure = JSON.parse(stderr.trim())
-            if (failure?.code && failure?.message) {
-              rejectPromise(new Error(`${failure.code}: ${failure.message}`))
-              return
-            }
-          } catch { /* map malformed converter failures below */ }
-          rejectPromise(new Error('attachment_conversion_failed: The attachment conversion failed.'))
-          return
-        }
-        rejectPromise(new Error(adminFailureMessage(command, stderr)))
-        return
+  return runPythonCommand({
+    module: 'unified_mcp_server.admin_cli', command, arg, payload, signal,
+    timeoutMs: ADMIN_COMMAND_TIMEOUT_MS,
+    mapError(kind, stderr, error) {
+      if (kind === 'timeout') return new Error(`admin_operation_timeout: The "${command}" operation exceeded ${Math.round(ADMIN_COMMAND_TIMEOUT_MS / 1000)} seconds.`)
+      if (kind === 'abort') return new Error('attachment_conversion_cancelled')
+      if (kind === 'parse') return error
+      if (kind === 'exit' && command === 'convert-attachment') {
+        const failure = parseAdminFailure(stderr)
+        return new Error(failure
+          ? `${failure.code}: ${failure.message}`
+          : 'attachment_conversion_failed: The attachment conversion failed.')
       }
-      try {
-        resolvePromise(stdout.trim() ? JSON.parse(stdout) : {})
-      } catch (error) {
-        rejectPromise(error)
-      }
-    })
-    if (payload !== undefined) child.stdin.end(JSON.stringify(payload))
-    else child.stdin.end()
+      return new Error(adminFailureMessage(command, stderr))
+    },
   })
 }
 
@@ -552,7 +498,7 @@ async function handleEndpoint(endpoint, payload, signal, ctx) {
       const session = requireUser(ctx)
       return ok(await runAuthCommand('list-signatures', { session_id: session.id }))
     }
-    case 'test-splunk': requireAdmin(ctx); return ok(await runAdmin('test-splunk'))
+    case 'test-splunk': requireAdmin(ctx); return ok(await testOfficialSplunkConnection(ctx, signal))
     case 'test-subscription-server': requireAdmin(ctx); return ok(await runAdmin('test-subscription-server'))
     case 'convert-attachment': {
       requireAdmin(ctx)

@@ -11,8 +11,10 @@
     "cordis.patch.yml",
     "host.js",
     "splunk-bridge.js",
+    "tool-inventory.js",
     "auth-host.js",
     "ownership.js",
+    "python-command.js",
     "policy.js"
   ],
   "exports": {

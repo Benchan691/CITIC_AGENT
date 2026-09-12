@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { resolveOfficialSplunkConfig } from '../splunk-bridge.js'
 
 test('Harness patch enables the filesystem skill and plan review layers', () => {
   const productRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -67,16 +68,16 @@ test('SOC profile disables native shell and permission controls', () => {
 test('SOC profile exposes only allowlisted official Splunk reads when configured', () => {
   const productRoot = fileURLToPath(new URL('..', import.meta.url))
   const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
-  const bridge = readFileSync(join(productRoot, 'splunk-bridge.js'), 'utf8')
   assert.match(patch, /- id: splunk-official-mcp\n\s+name: dsh-soc-agent\/splunk-bridge/)
-  assert.match(bridge, /transport: 'streamable-http'/)
-  assert.match(bridge, /Authorization: `Bearer \$\{token\}`/)
-  assert.match(bridge, /verifyTls/)
-  assert.match(bridge, /if \(!endpoint \|\| !token\) return undefined/)
+  assert.equal(resolveOfficialSplunkConfig({}, '/missing'), undefined)
+  const config = resolveOfficialSplunkConfig({ SPLUNK_MCP_ENDPOINT: 'https://splunk.test/mcp', SPLUNK_TOKEN: 'test-token' }, '/missing')
+  assert.equal(config.transport, 'streamable-http')
+  assert.equal(config.headers.Authorization, 'Bearer test-token')
+  assert.equal(config.verifyTls, true)
   for (const name of ['splunk_run_query', 'splunk_get_indexes', 'splunk_get_metadata', 'splunk_get_knowledge_objects', 'splunk_run_saved_search', 'splunk_list_fired_alerts']) {
-    assert.match(bridge, new RegExp(`'${name}'`))
+    assert.ok(config.allowedToolNames.includes(name))
   }
-  assert.doesNotMatch(bridge, /splunk_(create|update|delete|write)_/)
+  assert.ok(config.allowedToolNames.every(name => !/splunk_(create|update|delete|write)_/.test(name)))
 })
 
 test('soc_agent MCP allowlist contains only Zimbra and subscription tools', () => {

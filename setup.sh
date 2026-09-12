@@ -341,17 +341,9 @@ is_nonempty() {
 
 is_bool_value() {
   case "${1,,}" in
-    1|y|yes|true|on|0|n|no|false|off) return 0 ;;
+    1|yes|true|on|0|no|false|off) return 0 ;;
   esac
   REASON="must be true or false"
-  return 1
-}
-
-is_http_scheme() {
-  case "${1,,}" in
-    http|https) return 0 ;;
-  esac
-  REASON="must be http or https"
   return 1
 }
 
@@ -361,26 +353,39 @@ is_http_url() {
   return 1
 }
 
+is_mcp_endpoint() {
+  is_http_url "$1" || return 1
+  local authority="${1#*://}" port authority_pattern='^([a-zA-Z0-9._-]+|\[[0-9a-fA-F:.]+\])(:([0-9]+))?$'
+  authority="${authority%%/*}"
+  REASON="must be an HTTP(S) URL without credentials, a query, or a fragment"
+  case "$1" in *'?'*|*'#'*|*'\'*) return 1 ;; esac
+  [[ "$authority" =~ $authority_pattern ]] || return 1
+  port="${BASH_REMATCH[3]-}"
+  if [ -n "$port" ]; then
+    port="${port#"${port%%[!0]*}"}"
+    if [ -z "$port" ] || [ "${#port}" -gt 5 ] || [ "$port" -gt 65535 ]; then return 1; fi
+  fi
+  # Setup permits skipping unavailable prerequisites. The authority check above
+  # still works then; the runtime applies its full URL parser before connecting.
+  command -v node >/dev/null 2>&1 || return 0
+  if node - "$1" <<'NODE'
+try {
+  const url = new URL(process.argv[2]);
+  if (!url.hostname || url.username || url.password || url.search || url.hash) process.exit(1);
+} catch { process.exit(1); }
+NODE
+  then return 0; fi
+  return 1
+}
+
 is_pg_uri() {
   if [[ "$1" =~ ^postgres(ql)?://[^[:space:]]+$ ]]; then return 0; fi
   REASON="must look like postgresql://user:password@host:5432/dbname"
   return 1
 }
 
-is_host_or_url() {
-  case "$1" in
-    *://*) is_http_url "$1"; return $? ;;
-    *)
-      if [[ "$1" =~ ^[^[:space:]]+$ ]]; then return 0; fi
-      REASON="must be a hostname (splunk.example.com) or a full http(s):// URL"
-      return 1
-      ;;
-  esac
-}
-
-is_port() {
-  if [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]; then return 0; fi
-  REASON="must be a TCP port between 1 and 65535"
+is_true() {
+  case "${1,,}" in 1|yes|true|on) return 0 ;; esac
   return 1
 }
 
@@ -394,10 +399,66 @@ pg_reachable() {
 
 declare -A VALUES=()
 
-ask_value() { # $1=key $2=label $3=validator $4=default $5=secret(anything)
-  local key="$1" label="$2" validator="$3" default="${4-}" secret="${5-}" input
+# name | label | validator | default | secret | enabled-by | HTTP opt-in
+# These definitions drive prompting, --check, writing, and the redacted summary.
+SETUP_FIELDS=()
+declare -A FIELD_LABEL=() FIELD_VALIDATOR=() FIELD_DEFAULT=() FIELD_SECRET=() FIELD_ENABLED=() FIELD_HTTP=()
+while IFS='|' read -r key label validator default secret enabled http; do
+  SETUP_FIELDS+=("$key")
+  FIELD_LABEL[$key]="$label"; FIELD_VALIDATOR[$key]="$validator"
+  FIELD_DEFAULT[$key]="$default"; FIELD_SECRET[$key]="$secret"
+  FIELD_ENABLED[$key]="$enabled"; FIELD_HTTP[$key]="$http"
+done <<'FIELDS'
+APP_POSTGRES_URI|PostgreSQL URI|is_pg_uri||secret||
+APP_SETTINGS_ENCRYPTION_KEY|Settings encryption key|is_nonempty||secret||
+SOC_ADMIN_EMAIL|Admin console email|is_nonempty||||
+SOC_ADMIN_PASSWORD|Admin console password|is_nonempty||secret||
+SPLUNK_VERIFY_SSL|Verify Splunk TLS certificate|is_bool_value|true|||
+SPLUNK_ALLOW_INSECURE_HTTP|Allow Splunk over plain HTTP|is_bool_value|false|||
+SPLUNK_MCP_ENDPOINT|Official Splunk MCP endpoint|is_mcp_endpoint||||SPLUNK_ALLOW_INSECURE_HTTP
+SPLUNK_TOKEN|Splunk MCP bearer token|is_nonempty||secret||
+SPLUNK_SANITIZE_OUTPUT|Sanitize Splunk results|is_bool_value|true|||
+ZIMBRA_VERIFY_SSL|Verify Zimbra TLS certificate|is_bool_value|true|||
+ZIMBRA_ALLOW_INSECURE_HTTP|Allow Zimbra over plain HTTP|is_bool_value|false|||
+ZIMBRA_HOST|Zimbra server URL|is_http_url||||ZIMBRA_ALLOW_INSECURE_HTTP
+SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP|Allow subscription server over plain HTTP|is_bool_value|false|||
+SUBSCRIPTION_SERVER_URL|Subscription server URL|is_http_url||||SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP
+SUBSCRIPTION_SERVER_USER|Subscription server username|is_nonempty||||
+SUBSCRIPTION_SERVER_PASSWORD|Subscription server password|is_nonempty||secret||
+MARKITDOWN_LLM_ENABLED|Enable MarkItDown LLM/OCR conversion|is_bool_value|false|||
+MARKITDOWN_LLM_API_KEY|MarkItDown LLM API key|is_nonempty||secret|MARKITDOWN_LLM_ENABLED|
+MARKITDOWN_LLM_MODEL|MarkItDown LLM model|is_nonempty|||MARKITDOWN_LLM_ENABLED|
+FIELDS
+unset key label validator default secret enabled http
+
+parameter_value() {
+  local key="$1" value
+  if [ -n "${VALUES[$key]+x}" ]; then printf '%s' "${VALUES[$key]}"; return; fi
+  value="$(lookup "$key")"
+  printf '%s' "${value:-${FIELD_DEFAULT[$key]}}"
+}
+
+parameter_enabled() {
+  local enabled="${FIELD_ENABLED[$1]}"
+  [ -z "$enabled" ] || is_true "$(parameter_value "$enabled")"
+}
+
+validate_parameter() {
+  local key="$1" value="$2" allow_name="${FIELD_HTTP[$1]}"
+  "${FIELD_VALIDATOR[$key]}" "$value" || return 1
+  if [ -n "$allow_name" ] && [[ "$value" == http://* ]] && ! is_true "$(parameter_value "$allow_name")"; then
+    REASON="uses http:// but $allow_name is not true"
+    return 1
+  fi
+}
+
+ask_parameter() {
+  local key="$1" label="${FIELD_LABEL[$1]}" secret="${FIELD_SECRET[$1]}" default input
+  default="$(parameter_value "$key")"
   while :; do
-    if [ -n "$secret" ] && [ -n "$default" ]; then
+    if [ "$key" = APP_SETTINGS_ENCRYPTION_KEY ] && [ -z "$default" ]; then
+      printf '%s [press Enter to generate a secure key]: ' "$label" >&2
+    elif [ -n "$secret" ] && [ -n "$default" ]; then
       printf '%s [press Enter to keep the existing value]: ' "$label" >&2
     elif [ -n "$default" ]; then
       printf '%s [%s]: ' "$label" "$default" >&2
@@ -410,28 +471,17 @@ ask_value() { # $1=key $2=label $3=validator $4=default $5=secret(anything)
     else
       IFS= read -r input || exit 1
     fi
-    input="${input%$'\r'}"
-    if [ -z "$input" ]; then input="$default"; fi
-    if "$validator" "$input"; then
-      VALUES["$key"]="$(trim "$input")"
+    input="$(trim "${input%$'\r'}")"
+    input="${input:-$default}"
+    if [ "$key" = APP_SETTINGS_ENCRYPTION_KEY ] && [ -z "$input" ]; then input="$(generate_key)"; fi
+    if validate_parameter "$key" "$input"; then
+      if [ "${FIELD_VALIDATOR[$key]}" = is_bool_value ]; then
+        if is_true "$input"; then input=true; else input=false; fi
+      fi
+      VALUES[$key]="$input"
       return 0
     fi
     printf '%s  invalid: %s. Please type it again.%s\n' "$Y" "$REASON" "$N" >&2
-  done
-}
-
-ask_bool() { # $1=key $2=label $3=default(true|false)
-  local key="$1" label="$2" def="$3" input
-  while :; do
-    printf '%s [true/false, default %s]: ' "$label" "$def" >&2
-    IFS= read -r input || exit 1
-    input="${input%$'\r'}"
-    input="$(trim "${input:-$def}")"
-    case "${input,,}" in
-      1|y|yes|true|on)  VALUES["$key"]=true;  return 0 ;;
-      0|n|no|false|off) VALUES["$key"]=false; return 0 ;;
-    esac
-    printf '%s  Please answer true or false.%s\n' "$Y" "$N" >&2
   done
 }
 
@@ -502,181 +552,23 @@ run_prereq_checks() {
 # ---------------------------------------------------------- parameters ---
 
 collect_parameters() {
-  echo "${B}Required parameters${N} ${D}(Enter keeps the value shown in brackets)${N}"
+  echo "${B}Required parameters${N} ${D}(Enter keeps the current value)${N}"
   echo
-
-  # -- PostgreSQL ---------------------------------------------------------
-  local cur answer
-  cur="$(lookup APP_POSTGRES_URI)"
-  while :; do
-    ask_value APP_POSTGRES_URI "PostgreSQL URI" is_pg_uri "$cur"
-    if pg_reachable "${VALUES[APP_POSTGRES_URI]}"; then
-      break
-    fi
-    warn "psql could not connect to that URI within 5s."
-    printf 'Type %sr%s to re-enter the URI, or %sk%s to keep it anyway: ' "$B" "$N" "$B" "$N" >&2
-    IFS= read -r answer || exit 1
-    if [ "${answer%$'\r'}" = "k" ]; then break; fi
-  done
-
-  # -- Settings encryption key -------------------------------------------
-  cur="$(lookup APP_SETTINGS_ENCRYPTION_KEY)"
-  if [ -z "$cur" ]; then
-    printf 'APP_SETTINGS_ENCRYPTION_KEY [press Enter to auto-generate a secure key]: ' >&2
-    local input
-    IFS= read -rs input || exit 1
-    printf '\n' >&2
-    input="${input%$'\r'}"
-    if [ -n "$(trim "$input")" ]; then
-      VALUES[APP_SETTINGS_ENCRYPTION_KEY]="$(trim "$input")"
-    else
-      VALUES[APP_SETTINGS_ENCRYPTION_KEY]="$(generate_key)"
-      info "generated a new encryption key (it encrypts settings stored in PostgreSQL)"
-    fi
-  else
-    ask_value APP_SETTINGS_ENCRYPTION_KEY "APP_SETTINGS_ENCRYPTION_KEY" is_nonempty "$cur" secret
-  fi
-
-  # -- Admin console -------------------------------------------------------
-  # The Node host reads these values from the server .env. They are not
-  # forwarded to Python child processes and are never part of public status.
-  cur="$(lookup SOC_ADMIN_EMAIL)"
-  ask_value SOC_ADMIN_EMAIL "Admin console email" is_nonempty "$cur"
-  cur="$(lookup SOC_ADMIN_PASSWORD)"
-  ask_value SOC_ADMIN_PASSWORD "Admin console password" is_nonempty "$cur" secret
-
-  # -- Splunk connection ---------------------------------------------------
-  local cur_host cur_url default_splunk
-  cur_host="$(lookup SPLUNK_HOST)"
-  cur_url="$(lookup SPLUNK_URL)"
-  if [ -n "$cur_url" ]; then default_splunk="$cur_url"; else default_splunk="$cur_host"; fi
-  while :; do
-    printf 'Splunk connection (hostname, or full URL like https://splunk.example.com:8089)'
-    if [ -n "$default_splunk" ]; then printf ' [%s]' "$default_splunk"; fi
-    printf ': ' >&2
-    IFS= read -r input || exit 1
-    input="${input%$'\r'}"
-    if [ -z "$input" ]; then input="$default_splunk"; fi
-    if [ -z "$input" ]; then
-      printf '%s  A Splunk host or URL is required. Please type it again.%s\n' "$Y" "$N" >&2
-      continue
-    fi
-    case "$input" in
-      *://*)
-        if is_http_url "$input"; then
-          VALUES[SPLUNK_URL]="$input"; VALUES[SPLUNK_HOST]=""; VALUES[SPLUNK_PORT]=""
-          break
-        fi
-        printf '%s  invalid: %s. Please type it again.%s\n' "$Y" "$REASON" "$N" >&2
-        ;;
-      *)
-        if is_host_or_url "$input"; then
-          VALUES[SPLUNK_HOST]="$input"; VALUES[SPLUNK_URL]=""
-          break
-        fi
-        printf '%s  invalid: %s. Please type it again.%s\n' "$Y" "$REASON" "$N" >&2
-        ;;
-    esac
-  done
-
-  # Splunk port: only relevant for the plain-host form without an embedded port.
-  if [ -n "${VALUES[SPLUNK_HOST]-}" ]; then
-    cur="$(lookup SPLUNK_SCHEME)"
-    ask_value SPLUNK_SCHEME "Splunk URL scheme" is_http_scheme "${cur:-https}"
-    cur="$(lookup SPLUNK_PORT)"
-    ask_value SPLUNK_PORT "Splunk management port" is_port "${cur:-8089}"
-  fi
-
-  # The direct official MCP bridge is optional. When configured, it is the
-  # primary read path and requires SPLUNK_TOKEN below.
-  cur="$(lookup SPLUNK_MCP_ENDPOINT)"
-  while :; do
-    printf 'Official Splunk MCP endpoint (leave blank to keep legacy REST reads only)'
-    if [ -n "$cur" ]; then printf ' [%s]' "$cur"; fi
-    printf ': ' >&2
-    IFS= read -r input || exit 1
-    input="${input%$'\r'}"
-    if [ -z "$input" ]; then input="$cur"; fi
-    if [ -z "$input" ] || is_http_url "$input"; then
-      VALUES[SPLUNK_MCP_ENDPOINT]="$(trim "$input")"
-      break
-    fi
-    printf '%s  invalid: %s. Please type it again.%s\n' "$Y" "$REASON" "$N" >&2
-  done
-
-  # Splunk credentials: the official MCP endpoint requires a bearer token;
-  # legacy REST can use either that token or username/password.
-  if [ -n "${VALUES[SPLUNK_MCP_ENDPOINT]-}" ] && [ -z "$(lookup SPLUNK_TOKEN)" ]; then
-    ask_value SPLUNK_TOKEN "Splunk MCP bearer token" is_nonempty "" secret
-    VALUES[SPLUNK_USERNAME]=""; VALUES[SPLUNK_PASSWORD]=""
-  elif [ -n "$(lookup SPLUNK_TOKEN)" ]; then
-    ok "Splunk token found (SPLUNK_TOKEN)"
-    VALUES[SPLUNK_TOKEN]="$(lookup SPLUNK_TOKEN)"
-    VALUES[SPLUNK_USERNAME]=""; VALUES[SPLUNK_PASSWORD]=""
-  elif [ -n "$(lookup SPLUNK_USERNAME)" ] && [ -n "$(lookup SPLUNK_PASSWORD)" ]; then
-    ok "Splunk basic auth found (SPLUNK_USERNAME / SPLUNK_PASSWORD)"
-    VALUES[SPLUNK_USERNAME]="$(lookup SPLUNK_USERNAME)"
-    VALUES[SPLUNK_PASSWORD]="$(lookup SPLUNK_PASSWORD)"
-    VALUES[SPLUNK_TOKEN]=""
-  else
+  local key answer
+  for key in "${SETUP_FIELDS[@]}"; do
+    parameter_enabled "$key" || continue
     while :; do
-      printf 'Splunk authentication — enter %s1%s for a session token, %s2%s for username/password: ' "$B" "$N" "$B" "$N" >&2
+      ask_parameter "$key"
+      if [ "$key" != APP_POSTGRES_URI ] || pg_reachable "${VALUES[$key]}"; then break; fi
+      warn "psql could not connect to that URI within 5s."
+      printf 'Type r to re-enter the URI, or k to keep it anyway: ' >&2
       IFS= read -r answer || exit 1
-      case "${answer%$'\r'}" in
-        1)
-          ask_value SPLUNK_TOKEN "Splunk token" is_nonempty "" secret
-          VALUES[SPLUNK_USERNAME]=""; VALUES[SPLUNK_PASSWORD]=""
-          break
-          ;;
-        2)
-          ask_value SPLUNK_USERNAME "Splunk username" is_nonempty ""
-          ask_value SPLUNK_PASSWORD "Splunk password" is_nonempty "" secret
-          VALUES[SPLUNK_TOKEN]=""
-          break
-          ;;
-        *) printf '%s  Please answer 1 or 2.%s\n' "$Y" "$N" >&2 ;;
-      esac
+      if [ "${answer%$'\r'}" = k ]; then break; fi
     done
-  fi
-
-  cur="$(lookup SPLUNK_VERIFY_SSL)"
-  ask_bool SPLUNK_VERIFY_SSL "Verify Splunk TLS certificate" "${cur:-true}"
-  cur="$(lookup SPLUNK_ALLOW_INSECURE_HTTP)"
-  ask_bool SPLUNK_ALLOW_INSECURE_HTTP "Allow Splunk over plain HTTP" "${cur:-false}"
-
-  # -- Zimbra ---------------------------------------------------------------
-  cur="$(lookup ZIMBRA_HOST)"
-  ask_value ZIMBRA_HOST "Zimbra server URL" is_http_url "$cur"
+  done
   case "${VALUES[ZIMBRA_HOST]}" in
     *example.com*) warn "ZIMBRA_HOST still looks like a placeholder — set your real Zimbra server before going live." ;;
   esac
-  cur="$(lookup ZIMBRA_VERIFY_SSL)"
-  ask_bool ZIMBRA_VERIFY_SSL "Verify Zimbra TLS certificate" "${cur:-true}"
-  cur="$(lookup ZIMBRA_ALLOW_INSECURE_HTTP)"
-  ask_bool ZIMBRA_ALLOW_INSECURE_HTTP "Allow Zimbra over plain HTTP" "${cur:-false}"
-
-  # -- Subscription webserver ----------------------------------------------
-  cur="$(lookup SUBSCRIPTION_SERVER_URL)"
-  ask_value SUBSCRIPTION_SERVER_URL "Subscription server URL" is_http_url "$cur"
-  cur="$(lookup SUBSCRIPTION_SERVER_USER)"
-  ask_value SUBSCRIPTION_SERVER_USER "Subscription server username" is_nonempty "$cur"
-  cur="$(lookup SUBSCRIPTION_SERVER_PASSWORD)"
-  ask_value SUBSCRIPTION_SERVER_PASSWORD "Subscription server password" is_nonempty "$cur" secret
-
-  cur="$(lookup SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP)"
-  ask_bool SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP "Allow subscription server over plain HTTP" "${cur:-false}"
-
-  # -- MarkItDown -----------------------------------------------------------
-  # Local conversion is the default. The optional LLM/OCR path is a server
-  # deployment setting, not a Harness provider credential.
-  cur="$(lookup MARKITDOWN_LLM_ENABLED)"
-  ask_bool MARKITDOWN_LLM_ENABLED "Enable MarkItDown LLM/OCR conversion" "${cur:-false}"
-  if [ "${VALUES[MARKITDOWN_LLM_ENABLED]}" = true ]; then
-    cur="$(lookup MARKITDOWN_LLM_API_KEY)"
-    ask_value MARKITDOWN_LLM_API_KEY "MarkItDown LLM API key" is_nonempty "$cur" secret
-    cur="$(lookup MARKITDOWN_LLM_MODEL)"
-    ask_value MARKITDOWN_LLM_MODEL "MarkItDown LLM model" is_nonempty "$cur"
-  fi
   echo
 }
 
@@ -752,16 +644,7 @@ write_files() {
     info "seeded $SERVER_ENV from .env.example"
   fi
 
-  upsert_env_file "$SERVER_ENV" \
-    SOC_ADMIN_EMAIL SOC_ADMIN_PASSWORD \
-    APP_POSTGRES_URI APP_SETTINGS_ENCRYPTION_KEY \
-    SPLUNK_URL SPLUNK_HOST SPLUNK_PORT SPLUNK_SCHEME \
-    SPLUNK_MCP_ENDPOINT SPLUNK_TOKEN SPLUNK_USERNAME SPLUNK_PASSWORD SPLUNK_VERIFY_SSL \
-    SPLUNK_ALLOW_INSECURE_HTTP \
-    ZIMBRA_HOST ZIMBRA_VERIFY_SSL ZIMBRA_ALLOW_INSECURE_HTTP \
-    MARKITDOWN_LLM_ENABLED MARKITDOWN_LLM_API_KEY MARKITDOWN_LLM_MODEL \
-    SUBSCRIPTION_SERVER_URL SUBSCRIPTION_SERVER_USER SUBSCRIPTION_SERVER_PASSWORD \
-    SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP
+  upsert_env_file "$SERVER_ENV" "${SETUP_FIELDS[@]}"
 
   if [ ! -f "$HARNESS_ENV" ]; then
     printf '# Loaded by the DeepSeek Harness boot when `pnpm dsh web` runs from\n# vendor/deepseek-harness (cwd .env layer). Managed by setup.sh.\n' > "$HARNESS_ENV"
@@ -1263,41 +1146,15 @@ ensure_soc_bundle() {
 
 # ------------------------------------------------------------ reporting ---
 
-mask() { # $1=value
-  local v="$1"
-  if [ -z "$v" ]; then printf '(empty)'
-  elif [ "${#v}" -le 8 ]; then printf '****'
-  else printf '%s…(%s chars)' "${v:0:4}" "${#v}"
-  fi
-}
-
 summary() {
   echo "${B}Setup complete — written values${N}"
-  printf '  %-32s %s\n' "SOC_ADMIN_EMAIL" "${VALUES[SOC_ADMIN_EMAIL]}"
-  printf '  %-32s %s\n' "APP_POSTGRES_URI" "${VALUES[APP_POSTGRES_URI]}"
-  printf '  %-32s %s\n' "APP_SETTINGS_ENCRYPTION_KEY" "$(mask "${VALUES[APP_SETTINGS_ENCRYPTION_KEY]}")"
-  if [ -n "${VALUES[SPLUNK_URL]-}" ]; then
-    printf '  %-32s %s\n' "Splunk URL" "${VALUES[SPLUNK_URL]}"
-  else
-    printf '  %-32s %s:%s\n' "Splunk" "${VALUES[SPLUNK_HOST]}" "${VALUES[SPLUNK_PORT]}"
-  fi
-  if [ -n "${VALUES[SPLUNK_TOKEN]-}" ]; then
-    printf '  %-32s %s\n' "Splunk auth" "token $(mask "${VALUES[SPLUNK_TOKEN]}")"
-  else
-    printf '  %-32s %s / %s\n' "Splunk auth" "${VALUES[SPLUNK_USERNAME]}" "$(mask "${VALUES[SPLUNK_PASSWORD]}")"
-  fi
-  printf '  %-32s %s\n' "SPLUNK_VERIFY_SSL" "${VALUES[SPLUNK_VERIFY_SSL]}"
-  printf '  %-32s %s\n' "SPLUNK_ALLOW_INSECURE_HTTP" "${VALUES[SPLUNK_ALLOW_INSECURE_HTTP]}"
-  printf '  %-32s %s\n' "ZIMBRA_HOST" "${VALUES[ZIMBRA_HOST]}"
-  printf '  %-32s %s\n' "ZIMBRA_VERIFY_SSL" "${VALUES[ZIMBRA_VERIFY_SSL]}"
-  printf '  %-32s %s\n' "ZIMBRA_ALLOW_INSECURE_HTTP" "${VALUES[ZIMBRA_ALLOW_INSECURE_HTTP]}"
-  printf '  %-32s %s\n' "MARKITDOWN_LLM_ENABLED" "${VALUES[MARKITDOWN_LLM_ENABLED]}"
-  if [ "${VALUES[MARKITDOWN_LLM_ENABLED]}" = true ]; then
-    printf '  %-32s %s\n' "MARKITDOWN_LLM_MODEL" "${VALUES[MARKITDOWN_LLM_MODEL]}"
-  fi
-  printf '  %-32s %s\n' "SUBSCRIPTION_SERVER_URL" "${VALUES[SUBSCRIPTION_SERVER_URL]}"
-  printf '  %-32s %s / %s\n' "Subscription auth" "${VALUES[SUBSCRIPTION_SERVER_USER]}" "$(mask "${VALUES[SUBSCRIPTION_SERVER_PASSWORD]}")"
-  printf '  %-32s %s\n' "SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP" "${VALUES[SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP]}"
+  local key value
+  for key in "${SETUP_FIELDS[@]}"; do
+    [ -n "${VALUES[$key]+x}" ] || continue
+    value="${VALUES[$key]}"
+    if [ -n "${FIELD_SECRET[$key]}" ]; then value='[set]'; fi
+    printf '  %-40s %s\n' "$key" "$value"
+  done
   echo
   echo "${B}Files written${N}"
   echo "  $SERVER_ENV          (Python MCP server; chmod 600)"
@@ -1320,44 +1177,22 @@ summary() {
 
 # ------------------------------------------------------------- check mode ---
 
-effective_splunk_endpoint() {
-  local url host scheme port
-  url="$(lookup SPLUNK_URL)"
-  if [ -n "$url" ]; then
-    printf '%s' "$url"
-    return 0
-  fi
-  host="$(lookup SPLUNK_HOST)"
-  if [ "$(lookup RUNNING_INSIDE_DOCKER)" = "1" ] && [ -n "$(lookup SPLUNK_HOST_FOR_DOCKER)" ]; then
-    host="$(lookup SPLUNK_HOST_FOR_DOCKER)"
-  fi
-  [ -n "$host" ] || return 0
-  scheme="$(lookup SPLUNK_SCHEME)"
-  port="$(lookup SPLUNK_PORT)"
-  printf '%s://%s:%s' "${scheme:-https}" "$host" "${port:-8089}"
-}
-
-check_boolean_parameter() {
-  local name="$1" value
-  value="$(lookup "$name")"
-  if is_bool_value "$value"; then
-    ok "$name"
-    return 0
-  fi
-  bad "$name must be true or false"
-  return 1
-}
-
-check_http_policy() {
-  local label="$1" endpoint="$2" allow_name="$3" allow_value="$4"
-  if [[ "$endpoint" == http://* ]]; then
-    case "${allow_value,,}" in
-      1|y|yes|true|on) ok "$label allows plain HTTP ($allow_name=true)"; return 0 ;;
-    esac
-    bad "$label uses http:// but $allow_name is not true"
-    return 1
-  fi
-  return 0
+check_parameters() {
+  local key value fails=0
+  for key in "${SETUP_FIELDS[@]}"; do
+    parameter_enabled "$key" || continue
+    value="$(parameter_value "$key")"
+    if validate_parameter "$key" "$value"; then
+      ok "$key"
+      if [ "$key" = APP_POSTGRES_URI ] && ! pg_reachable "$value"; then
+        warn "APP_POSTGRES_URI is set but psql cannot connect within 5s"
+      fi
+    else
+      bad "$key: $REASON"
+      fails=$((fails+1))
+    fi
+  done
+  return "$fails"
 }
 
 run_check_mode() {
@@ -1371,91 +1206,7 @@ run_check_mode() {
   echo
   echo "${B}Parameters${N} ${D}(environment > apps/soc-agent/server/.env > vendor/deepseek-harness/.env > .env.example)${N}"
 
-  local v splunk_url splunk_host splunk_endpoint markitdown_enabled
-  v="$(lookup APP_POSTGRES_URI)"
-  if is_pg_uri "$v"; then
-    if pg_reachable "$v"; then ok "APP_POSTGRES_URI (and psql can connect)"
-    else warn "APP_POSTGRES_URI is set but psql cannot connect within 5s"; fi
-  else bad "APP_POSTGRES_URI missing or invalid"; fails=$((fails+1)); fi
-
-  if [ -n "$(lookup APP_SETTINGS_ENCRYPTION_KEY)" ]; then ok "APP_SETTINGS_ENCRYPTION_KEY"
-  else bad "APP_SETTINGS_ENCRYPTION_KEY missing"; fails=$((fails+1)); fi
-
-  if [ -n "$(lookup SOC_ADMIN_EMAIL)" ] && [ -n "$(lookup SOC_ADMIN_PASSWORD)" ]; then
-    ok "SOC_ADMIN_EMAIL / SOC_ADMIN_PASSWORD"
-  else
-    bad "SOC_ADMIN_EMAIL / SOC_ADMIN_PASSWORD missing"
-    fails=$((fails+1))
-  fi
-
-  splunk_url="$(lookup SPLUNK_URL)"
-  splunk_host="$(lookup SPLUNK_HOST)"
-  if [ "$(lookup RUNNING_INSIDE_DOCKER)" = "1" ] && [ -n "$(lookup SPLUNK_HOST_FOR_DOCKER)" ]; then
-    splunk_host="$(lookup SPLUNK_HOST_FOR_DOCKER)"
-  fi
-  if { [ -n "$splunk_url" ] && is_http_url "$splunk_url"; } || { [ -z "$splunk_url" ] && is_host_or_url "$splunk_host"; }; then
-    ok "Splunk host/URL"
-  else
-    bad "SPLUNK_URL / SPLUNK_HOST missing or invalid"
-    fails=$((fails+1))
-  fi
-  if [ -z "$splunk_url" ]; then
-    v="$(lookup SPLUNK_SCHEME)"
-    if is_http_scheme "$v"; then ok "SPLUNK_SCHEME"
-    else bad "SPLUNK_SCHEME must be http or https"; fails=$((fails+1)); fi
-    v="$(lookup SPLUNK_PORT)"
-    if is_port "$v"; then ok "SPLUNK_PORT"
-    else bad "SPLUNK_PORT missing or invalid"; fails=$((fails+1)); fi
-  fi
-
-  v="$(lookup SPLUNK_MCP_ENDPOINT)"
-  if [ -n "$v" ]; then
-    if is_http_url "$v"; then ok "SPLUNK_MCP_ENDPOINT"
-    else bad "SPLUNK_MCP_ENDPOINT is not an http(s) URL"; fails=$((fails+1)); fi
-    if [ -n "$(lookup SPLUNK_TOKEN)" ]; then ok "Splunk MCP bearer token"
-    else bad "SPLUNK_TOKEN is required with SPLUNK_MCP_ENDPOINT"; fails=$((fails+1)); fi
-    if check_http_policy "Splunk MCP" "$v" SPLUNK_ALLOW_INSECURE_HTTP "$(lookup SPLUNK_ALLOW_INSECURE_HTTP)"; then :; else fails=$((fails+1)); fi
-  elif [ -n "$(lookup SPLUNK_TOKEN)" ] || { [ -n "$(lookup SPLUNK_USERNAME)" ] && [ -n "$(lookup SPLUNK_PASSWORD)" ]; }; then
-    ok "Splunk credentials (token or username/password)"
-  else bad "SPLUNK_TOKEN or SPLUNK_USERNAME+SPLUNK_PASSWORD missing"; fails=$((fails+1)); fi
-
-  for v in SPLUNK_VERIFY_SSL SPLUNK_ALLOW_INSECURE_HTTP ZIMBRA_VERIFY_SSL ZIMBRA_ALLOW_INSECURE_HTTP SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP; do
-    if check_boolean_parameter "$v"; then :; else fails=$((fails+1)); fi
-  done
-  splunk_endpoint="$(effective_splunk_endpoint)"
-  if check_http_policy "Splunk" "$splunk_endpoint" SPLUNK_ALLOW_INSECURE_HTTP "$(lookup SPLUNK_ALLOW_INSECURE_HTTP)"; then :; else fails=$((fails+1)); fi
-
-  v="$(lookup ZIMBRA_HOST)"
-  if is_http_url "$v"; then ok "ZIMBRA_HOST"
-  else bad "ZIMBRA_HOST missing or not an http(s) URL"; fails=$((fails+1)); fi
-  if check_http_policy "Zimbra" "$v" ZIMBRA_ALLOW_INSECURE_HTTP "$(lookup ZIMBRA_ALLOW_INSECURE_HTTP)"; then :; else fails=$((fails+1)); fi
-
-  v="$(lookup SUBSCRIPTION_SERVER_URL)"
-  if is_http_url "$v"; then ok "SUBSCRIPTION_SERVER_URL"
-  else bad "SUBSCRIPTION_SERVER_URL missing or not an http(s) URL"; fails=$((fails+1)); fi
-  if check_http_policy "Subscription server" "$v" SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP "$(lookup SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP)"; then :; else fails=$((fails+1)); fi
-  if [ -n "$(lookup SUBSCRIPTION_SERVER_USER)" ] && [ -n "$(lookup SUBSCRIPTION_SERVER_PASSWORD)" ]; then
-    ok "Subscription server credentials"
-  else bad "SUBSCRIPTION_SERVER_USER / SUBSCRIPTION_SERVER_PASSWORD missing"; fails=$((fails+1)); fi
-
-  markitdown_enabled="$(lookup MARKITDOWN_LLM_ENABLED)"
-  case "${markitdown_enabled,,}" in
-    1|y|yes|true|on)
-      if [ -n "$(lookup MARKITDOWN_LLM_API_KEY)" ] && [ -n "$(lookup MARKITDOWN_LLM_MODEL)" ]; then
-        ok "MarkItDown LLM/OCR configuration"
-      else
-        bad "MARKITDOWN_LLM_API_KEY and MARKITDOWN_LLM_MODEL are required when MarkItDown LLM/OCR is enabled"
-        fails=$((fails+1))
-      fi
-      ;;
-    0|n|no|false|off|'')
-      ok "MarkItDown local conversion"
-      ;;
-    *)
-      bad "MARKITDOWN_LLM_ENABLED must be true or false"
-      fails=$((fails+1))
-      ;;
-  esac
+  if check_parameters; then :; else fails=$((fails+$?)); fi
 
   echo
   echo "${B}Harness build & profile${N}"
