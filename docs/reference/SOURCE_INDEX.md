@@ -1,6 +1,7 @@
 # Source index
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](../zh/reference/SOURCE_INDEX.md)
 
 **Who this is for:** developers locating code and identifying the symbols that cross boundaries.
 

@@ -1,6 +1,7 @@
 # Data store catalog
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](../zh/reference/DATA_STORE_CATALOG.md)
 > Sources: `unified_mcp_server/migrations/*.sql`, `unified_mcp_server/schema.py` (migration runner), `unified_mcp_server/postgres_store.py`, `apps/soc-agent/ownership.js` (`SocStateStore.ensureSchema` → Python migrations), `unified_mcp_server/account_store.py`, `host.js`/`ownership.js` (workspace paths), `.gitignore`. The retained SQLite evidence store was removed with the Splunk stack this round.
 
 **Who this is for:** operators (backup/retention), developers (where state lives), and security reviewers (what is sensitive and how it is protected).

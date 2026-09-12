@@ -1,6 +1,7 @@
 # Configuration
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](zh/CONFIGURATION.md)
 
 **Who this is for:** operators deploying or reconfiguring the system, and developers tracing where a value comes from.
 

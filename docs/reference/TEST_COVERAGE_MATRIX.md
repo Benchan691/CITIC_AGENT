@@ -1,6 +1,7 @@
 # Test coverage matrix
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](../zh/reference/TEST_COVERAGE_MATRIX.md)
 > Sources: `apps/soc-agent/tests/` (**11 files, 35 tests**), `packages/soc-agent-client/tests/` (**5 files, 12 tests**), `apps/soc-agent/server/unified_mcp_server/tests/` (**10 test files + `__init__.py`, 39 test functions**). Counts derived by enumeration at this commit. Previous round (`b26d55d`): 27 JS / 9 TS / 75 Python — the Python reduction is the deleted Splunk stack's tests, not lost coverage of live code.
 
 **Who this is for:** developers changing behavior (which tests must move with the change), and reviewers judging which claims have test evidence.

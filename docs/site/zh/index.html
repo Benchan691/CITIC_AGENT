@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>首页 — CITIC SOC Agent 文档</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到正文</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent 文档</a>
+    <nav class="site-nav" aria-label="主导航"><a href="index.html" aria-current="page">首页</a><a href="getting-started.html">开始</a><a href="architecture.html">架构</a><a href="flows.html">流程与界面</a><a href="mcp-tooling.html">工具</a><a href="security.html">安全</a><a href="development.html">开发</a><a href="operations.html">运维</a><a href="reference.html">参考</a><a href="troubleshooting.html">排障</a><a href="../index.html" lang="en" hreflang="en">English</a></nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="面包屑"><ol><li><a href="index.html">首页</a></li><li aria-current="page">首页</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>首页</h1>
+      <blockquote class="meta">核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 文档核对日期 2026-09-12。<br>对应英文页：<a href="../index.html" lang="en">../index.html</a>；Markdown 权威源：<a href="../../zh/README.md">zh/README.md</a>（如存在）。</blockquote>
+
+<h2 id="summary">一屏系统摘要</h2>
+<div class="table-wrap"><table><tbody>
+<tr><th scope="row">这是什么？</th><td>带工具调用 AI 的网页版安全运营调查助手；一个 Node 宿主进程 + Python 子进程。</td></tr>
+<tr><th scope="row">谁在用？</th><td>经认证的 SOC 分析师与管理员（独立静态管理员登录）。</td></tr>
+<tr><th scope="row">两个 MCP 服务器</th><td><code>soc_agent</code> — 本地 Python stdio 服务器，28 个 Zimbra/订阅工具；<code>splunk_mcp</code> — 到外部官方 Splunk MCP 端点的客户端桥接，13 个只读工具。</td></tr>
+<tr><th scope="row">安全模型</th><td>仅允许列表内工具；默认只读；每工具 ask/auto/disabled；Full access vs SOC mode；邮件仅经界面 Send 确认投递；harness shell/文件系统工具禁用。</td></tr>
+<tr><th scope="row">持久化</th><td>PostgreSQL（会话、归属、加密配置）、<code>.data/soc-workspaces/</code> 按用户工作区、被跟踪的 <code>lib/</code> 生成产物。</td></tr>
+</tbody></table></div>
+<h2 id="diagram">最精简架构图（节点可点击）</h2>
+<figure><span class="svg-inline"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 470" class="diagram" role="img" aria-labelledby="t d">
+<title id="t">System context diagram</title>
+<desc id="d">Analysts and administrators connect over HTTPS to the SOC Agent 系统, which talks to Zimbra, an external official Splunk MCP 服务器, a subscription service, PostgreSQL, and an LLM 提供商. Splunk access is read-only over an authenticated bridge.</desc>
+<style>a[data-否de] rect, a[data-否de] ellipse { transition: stroke-width .15s; } a[data-否de]:hover rect, a[data-否de]:hover ellipse, a[data-否de]:focus rect, a[data-否de]:focus ellipse { stroke-width: 3; }</style><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker></defs>
+<rect width="940" height="470" fill="#ffffff"/>
+<a href="flows.html#authflow" data-否de="a" style="cursor:pointer"><ellipse cx="76.3" cy="85" rx="46.3" ry="25" fill="#e0e7ff" stroke="#3730a3" stroke-width="1.5"/><text x="76.3" y="82.5" text-anchor="middle" font-size="12.5" fill="#1f2937">SOC 分析师</text><text x="76.3" y="97.5" text-anchor="middle" font-size="12.5" fill="#1f2937">（Zimbra 身份）</text></a><a href="security.html#auth" data-否de="ad" style="cursor:pointer"><ellipse cx="59.8" cy="245" rx="29.799999999999997" ry="25" fill="#e0e7ff" stroke="#3730a3" stroke-width="1.5"/><text x="59.8" y="242.5" text-anchor="middle" font-size="12.5" fill="#1f2937">管理员</text><text x="59.8" y="257.5" text-anchor="middle" font-size="12.5" fill="#1f2937">（静态凭据）</text></a><a href="architecture.html#containers" data-否de="s" style="cursor:pointer"><rect x="300" y="130" width="240" height="120" rx="8" fill="#eef2ff" stroke="#4338ca" stroke-width="1.5"/><text x="420" y="180" text-anchor="middle" font-size="12.5" fill="#1f2937">SOC Agent 系统</text><text x="420" y="195" text-anchor="middle" font-size="12.5" fill="#1f2937">Node 宿主 +</text><text x="420" y="210" text-anchor="middle" font-size="12.5" fill="#1f2937">Python 服务</text></a><a href="operations.html#data" data-否de="z" style="cursor:pointer"><rect x="680" y="30" width="92.6" height="50" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/><text x="726.3" y="52.5" text-anchor="middle" font-size="12.5" fill="#1f2937">Zimbra</text><text x="726.3" y="67.5" text-anchor="middle" font-size="12.5" fill="#1f2937">邮件与身份（SOAP）</text></a><a href="mcp-tooling.html#servers" data-否de="sp" style="cursor:pointer"><rect x="680" y="120" width="112.39999999999999" height="50" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/><text x="736.2" y="142.5" text-anchor="middle" font-size="12.5" fill="#1f2937">外部官方</text><text x="736.2" y="157.5" text-anchor="middle" font-size="12.5" fill="#1f2937">Splunk MCP 服务器</text></a><a href="mcp-tooling.html#servers" data-否de="su" style="cursor:pointer"><rect x="680" y="210" width="59.599999999999994" height="50" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/><text x="709.8" y="232.5" text-anchor="middle" font-size="12.5" fill="#1f2937">订阅</text><text x="709.8" y="247.5" text-anchor="middle" font-size="12.5" fill="#1f2937">web 服务</text></a><a href="operations.html#data" data-否de="p" style="cursor:pointer"><rect x="680" y="300" width="86" height="35" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="1.5"/><text x="723" y="322.5" text-anchor="middle" font-size="12.5" fill="#1f2937">PostgreSQL</text></a><a href="security.html#controls" data-否de="l" style="cursor:pointer"><rect x="680" y="390" width="66.19999999999999" height="35" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/><text x="713.1" y="412.5" text-anchor="middle" font-size="12.5" fill="#1f2937">LLM 提供商</text></a><line x1="122.6" y1="85" x2="300" y2="190" stroke="#475569" stroke-width="1.4" marker-end="url(#arr)"/><rect x="162.3" y="128.5" width="98" height="14" fill="#ffffff" opacity="0.92"/><text x="211.3" y="139.5" text-anchor="middle" font-size="10.5" fill="#374151">HTTPS 会话 Cookie</text><line x1="89.6" y1="245" x2="300" y2="190" stroke="#475569" stroke-width="1.4" marker-end="url(#arr)"/><rect x="142.8" y="208.5" width="104" height="14" fill="#ffffff" opacity="0.92"/><text x="194.8" y="219.5" text-anchor="middle" font-size="10.5" fill="#374151">HTTPS 管理员 Cookie</text><line x1="540" y1="190" x2="680" y2="55" stroke="#475569" stroke-width="1.4" marker-end="url(#arr)"/><rect x="576" y="113.5" width="68" height="14" fill="#ffffff" opacity="0.92"/><text x="610" y="124.5" text-anchor="middle" font-size="10.5" fill="#374151">以用户身份 SOAP</text><line x1="540" y1="190" x2="680" y2="145" stroke="#475569" stroke-width="1.4" marker-end="url(#arr)"/><rect x="531" y="158.5" width="158" height="14" fill="#ffffff" opacity="0.92"/><text x="610" y="169.5" text-anchor="middle" font-size="10.5" fill="#374151">streamable HTTP Bearer，只读</text><line x1="540" y1="190" x2="680" y2="235" stroke="#475569" stroke-width="1.4" marker-end="url(#arr)"/><rect x="576" y="203.5" width="68" height="14" fill="#ffffff" opacity="0.92"/><text x="610" y="214.5" text-anchor="middle" font-size="10.5" fill="#374151">HTTPS 服务登录</text><line x1="540" y1="190" x2="680" y2="317.5" stroke="#475569" stroke-width="1.4" marker-end="url(#arr)"/><rect x="582" y="244.75" width="56" height="14" fill="#ffffff" opacity="0.92"/><text x="610" y="255.75" text-anchor="middle" font-size="10.5" fill="#374151">会话/归属/配置</text><line x1="540" y1="190" x2="680" y2="407.5" stroke="#475569" stroke-width="1.4" marker-end="url(#arr)"/><rect x="594" y="289.75" width="32" height="14" fill="#ffffff" opacity="0.92"/><text x="610" y="300.75" text-anchor="middle" font-size="10.5" fill="#374151">模型调用</text></svg></span><figcaption>分析师与管理员连到 SOC Agent 系统；系统连到 Zimbra、外部 Splunk MCP、订阅服务、PostgreSQL 与 LLM 提供商。点击任一节点跳到对应解释。（可编辑源：<a href="../../diagrams/system-context.mmd">system-context.mmd</a>）</figcaption></figure>
+<h2 id="paths">阅读地图</h2>
+<div class="table-wrap"><table><thead><tr><th>你是…</th><th>顺序</th></tr></thead><tbody>
+<tr><td>新用户</td><td>产品概述 → <a href="architecture.html">架构</a> → <a href="flows.html">流程与界面</a></td></tr>
+<tr><td>开发者</td><td><a href="getting-started.html">开始</a> → <a href="development.html">开发</a> → <a href="mcp-tooling.html">工具</a> → <a href="reference.html">参考</a></td></tr>
+<tr><td>运维</td><td><a href="getting-started.html">开始</a> → <a href="operations.html">运维</a> → <a href="troubleshooting.html">排障</a></td></tr>
+<tr><td>安全评审</td><td><a href="security.html">安全与信任</a> → <a href="mcp-tooling.html">工具</a> → <a href="reference.html#trace">可追溯矩阵</a></td></tr>
+</tbody></table></div>
+<h2 id="product">产品概述（十分钟）</h2>
+<p><strong>业务问题：</strong>分析师在 Zimbra 邮件、Splunk 告警与订阅记录之间往返。本产品把三者放进一个聊天窗口：分析师以本人身份登录，智能体经严格允许、默认只读的工具集调查。</p>
+<p><strong>刻意不做：</strong>不自主监控；Splunk 零变更（Splunk 代码已整体移除）；不部署检测；无模型驱动的邮件投递（草稿/转发只生成本地草稿）；不存储邮箱凭据；模型无 shell/文件系统工具。</p>
+<div class="warning"><strong>运维警告。</strong>本文档不授权对 Splunk、Zimbra 或订阅服务的任何运维操作。</div>
+
+    </article>
+    <nav class="pager" aria-label="分页"><span></span><a href="getting-started.html">开始 →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="本页目录"><h2>本页目录</h2><ol><li><a href="#summary">系统摘要</a></li><li><a href="#diagram">架构图</a></li><li><a href="#paths">阅读地图</a></li><li><a href="#product">产品概述</a></li></ol></nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 核对日期 2026-09-12 · Markdown 为权威事实源 · 离线站点 — 无外部请求。<a href="../index.html" lang="en">English version</a></p></div></footer>
+<script src="../script.js" defer></script>
+</body>
+</html>

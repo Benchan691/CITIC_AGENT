@@ -1,0 +1,93 @@
+# 源码索引（中文版）
+
+> **核对基准:** 提交 `56c8dd21492a5c36cb9f3eaa3da01160aba40033`（2026-09-12T07:22:44Z）· 文档核对日期 2026-09-12。
+> 语言 / Language: **中文** · [English](../../reference/SOURCE_INDEX.md)
+
+**本页读者:** 定位代码、识别跨边界符号的开发者。
+
+**读完后你将了解:** 每个被跟踪第一方源文件的一句话用途与重要导出。分类见 [REPOSITORY_MAP.md](REPOSITORY_MAP.md)；职责见 [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md)。本轮删除的文件（Python Splunk 栈、两个客户端状态卡、`hi.txt`）列于 [REPOSITORY_MAP.md](REPOSITORY_MAP.md) "What changed"，其符号有意不在本索引中。
+
+---
+
+## 根目录
+
+| 文件 | 用途 | 关键符号/事实 |
+|---|---|---|
+| `setup.sh` | setup doctor: bootstrap、`--check`、`--plugins` | `run_prereq_checks`、`collect_parameters`、`write_files`、`ensure_python_server`、`ensure_harness_ready`、`ensure_external_plugins`、`ensure_soc_bundle`、`PLUGIN_NAMES`（硬编码 2）；Splunk 参数仅 MCP |
+| `update.sh` | 干净树 ff-only 更新 + `setup.sh --plugins` | 拒绝参数；从不 stash |
+| `requirements.txt` | 外部插件 spec（2 个，数量校验） | `@linxin666/dsh-client-ui-skin-center@^0.2.5`、`github:a179-sanae/dsh-auto-collapse#cd21c04…` |
+| `AGENTS.md` | 智能体强制运行政策 | 身份、隔离、不可信内容、证据、邮件、Splunk、技能清单 |
+| `BACKGROUND.md` | Splunk 参考背景（命名约定；保留客户示例） | 由 `host.js` 背景刷新注入 |
+| `README.md` | 人工概览 | 链接 shortening 实施报告；MCP 必配 |
+| `lefthook.yml` | 全注释示例；无活跃钩子 | — |
+
+## `apps/soc-agent/`
+
+| 文件 | 用途 | 关键导出/符号 |
+|---|---|---|
+| `tool-inventory.js` | 单一运行时无关工具清单 | `OFFICIAL_SPLUNK_TOOL_NAMES`（13 原始）、`TOOL_CATALOG`（26 条）、`SUBSCRIPTION_READ_TOOLS`（3）；头注释 "Draft preparation never delivers mail." |
+| `policy.js` | 派生策略集（导入清单） | `OFFICIAL_SPLUNK_READ_TOOLS`（13）、`READ_ONLY_TOOLS`（30）、`ZIMBRA_READ_TOOLS`（13 派生）、`ACTION_CATALOG`（12 派生）、`ACTION_TOOLS`、`TOOL_CATALOG`（再导出）、`MANAGED_TOOL_NAMES`（25）、`DOMAIN_TOOLS`（42）、`APPROVAL_TOOLS` |
+| `host.js` | 宿主插件: 策略门 + RPC + 背景 + 管理页 | `name 'soc-agent-host'`、`CHANNEL '/soc-agent-config'`、`handleEndpoint`、`requireUser/requireAdmin`、`savedActionPolicy`、`defaultActionState`、`installBackgroundRefresh`、`runAdmin`（→ `runPythonCommand`）、`validateAttachmentPayload`、`CONTROL_TOOLS` |
+| `auth-host.js` | 认证插件装配 | `mcp/request-meta` 钩子（`soc_session_id`、`soc_investigation_id`、`soc_customer_id: ''`、`soc_correlation_id`、`soc_deadline_ms`）、`ctx.provide('socAuth')`、`connectionAuthorization` |
+| `ownership.js` | 认证/归属边界 | `SocAuthService`、`SocStateStore`（`ensureSchema` → Python `schema migrate`、URI 走 stdin）、`createScopedApiProxy`（9 域）、`runAuthCommand`、`startControlChannel`、`resolveAdminCredentials`、`sameSiteRequest`、`isWithinPath`、`userWorkspaceRoot` |
+| `python-command.js` | 共享一次性 Python 运行器 | `pythonEnvironment()`、`runPythonCommand({module, command, arg, payload, timeoutMs, signal, mapError})` |
+| `splunk-bridge.js` | 外部 Splunk MCP 客户端桥 | 从清单导入 `OFFICIAL_SPLUNK_TOOL_NAMES`；`resolveOfficialSplunkConfig`（URL 校验；`serverName: 'splunk_mcp'`）；`testOfficialSplunkConnection`（live `splunk_get_info` 探测、令牌脱敏）；`apply(ctx)` |
+| `investigation.js` | Splunk 输出投影 | `projectOfficialSplunkResult`（50 KB 截断）、`sanitizeSplunkText`（`SPLUNK_SANITIZE_OUTPUT` 退出项）、`installInvestigationProjection` |
+| `cordis.patch.yml` | 产品补丁清单 | 插件启用/禁用名册；`soc-agent-mcp`（28 名原始允许列表、185 000 ms）、`splunk-official-mcp`、`approval policy: ask`、编码工具禁用块、`skill-filesystem.customSkillDirs`、插入五个 SOC 插件 |
+| `package.json` | bundle 清单 | `dsh-soc-agent`；`./tool-inventory`、`./python-command` 等导出 |
+
+## `apps/soc-agent/server/unified_mcp_server/` — 活跃服务器
+
+| 文件 | 用途 | 关键符号 |
+|---|---|---|
+| `server.py` | FastMCP 服务器 + 请求执行（28 工具） | `create_server`、`Runtime`、`_EmptyAccountStore`（自 core 导入）、`execute`、`fresh_runtime`、`McpFailureEnvelope`、三个 `register_*_tools` 调用点、`main` |
+| `config.py` | 设置（env-only） | `ServerSettings.from_env`、精简 `SplunkSettings`（5 字段）、`public_status`（`official_mcp_enabled`）、`ZimbraSettings`、`MarkItDownSettings`、`EmailServerSettings`、`redact_endpoint` |
+| `schema.py` + `migrations/*.sql` | **版本化 SQL 迁移** | `apply_migrations(connection)`（advisory 锁、台账）、独立 `main()`（stdin URI）；`001_initial.sql`、`002_remove_catalog.sql` |
+| `auth.py` | 身份模型 | `ZimbraIdentity`、`identity_for_session`、`public_session` |
+| `request_context.py` | 操作预算/作用域 | `OperationContext`（`evidence_scope`）、`operation_budget`（min 180 s / deadline） |
+| `postgres_store.py` | Postgres 持久化 | `PostgresStore.from_env`（启动 `apply_migrations`）、`create_user_session`、`get_app_session`、加密助手 |
+| `account_store.py` | 遗留本地加密账户 | `AccountStore`（Fernet 文件、`0o600`、原子替换） |
+| `errors.py` / `responses.py` | 错误/信封分类 | `ServiceError(code, message, retryable, details)`、`success`、`failure` |
+| `blocking_io.py` | 有界线程卸载 | `BlockingIO.run`（全局 8 / 每主体 2、`asyncio.shield`）、`run_blocking` |
+| `env_loader.py` | `.env` 加载 + 管理变量剔除 | `load_server_env`、`_NODE_ONLY_ENV_NAMES` |
+| `zimbra_service.py` | Zimbra 域逻辑 | `ZimbraService.create_email_draft`、`send_email`（门）、`move_email`（校验+回滚）、`_upstream_error`、`_HEADER_NAMES`（12）、`_DEFAULT_HEADER_NAMES`（7） |
+| `zimbra/zimbra.py` | SOAP 传输 | `soap_request`、`zimbra_login`、`zimbra_forward_message`（行 240）、`_validate_zimbra_host`、`zimbra_modify_filter_rules` |
+| `zimbra/core/service.py` | 身份绑定 | `ZimbraCore.resolve_account`、`_EmptyAccountStore`（自本轮起供 `server.py` 使用） |
+| `zimbra/mail/{service,tools}.py` | 邮件服务 + 13 工具 | `ZimbraMailService.create_forward_draft`（`forward_message_id` + `forwarded_message`）、`send_email(forward_message_id=…)`、`register_mail_tools` |
+| `zimbra/filters/{model,service,tools}.py` | 过滤器 + 9 工具 | `ZimbraFilterService`（指纹、写门、redirect/discard 门） |
+| `email/{service,tools}.py` | 订阅客户端 + 6 工具 | `EmailSubscriptionService`、`register_email_tools` |
+| `attachment_converter.py` | MarkItDown 转换 | `AttachmentConverter.convert`（LRU 64/4 MB）、`AttachmentConversionLimits`、`_validate_archive_safety` |
+| `control_server.py` | 常驻控制通道 | `ControlServer.serve`、`dispatch_command`、`_expire_session_on_auth_error` |
+| `auth_cli.py` | 认证命令（分发表） | `dispatch_command`: `login`、`logout`、`send-email`（门 + `forward_message_id`）、`list-signatures` |
+| `admin_cli.py` | 管理命令 | `get-settings`、`test-subscription-server`、`convert-attachment`、`migrate`（现执行 `migrate(store)` 应用迁移）；拒绝设置写入/账户/邮件 |
+
+## `packages/soc-agent-client/`
+
+| 文件 | 用途 | 关键符号 |
+|---|---|---|
+| `src/index.ts` | Node 半: 注册设置 schema | `apply` |
+| `src/action-approval-settings.ts` | 共享 schema | `SOC_ACTION_APPROVAL_NAMESPACE`、`SocActionMode/State` |
+| `src/attachment-settings.ts` / `attachment-constants.ts` | 附件限额 schema | 默认 5 / 10 MB / 50 MB / 200 k / 500 k |
+| `src/client/index.ts` | 浏览器挂载 | `/admin` 分支、槽位、`api.folders = undefined`；遗留卡导出已删 |
+| `src/client/AuthGate.tsx` | 登录遮罩 | `readAuth`、`login`、`logout`、30 秒轮询 |
+| `src/client/AdminConsole.tsx` | 管理控制台 | 四页、`useStatus`/`StatusNotice`（重试）、`AccessApprovalsSettings`、`ProviderSettings` |
+| `src/client/SocActionPolicyMenu.tsx` | 会话模式菜单 | Full access / SOC mode |
+| `src/client/actionPolicy.ts` | RPC 助手 | `readActionMode`（失败关闭） |
+| `src/client/EmailDraftToolview.tsx` | 草稿/转发 UI | `parseEnvelope`、状态机、`window.confirm`、`send-email`（要求 `sent === true`）、`data-dshcf-preserve` |
+| `src/client/emailDraft.ts` | 草稿助手 | `ZIMBRA_DRAFT_TOOL_NAME`、`ZIMBRA_FORWARD_DRAFT_TOOL_NAME`、`forward_message_id`、`forwarded_message`、`draftFromForm(form, forwardMessageId?)` |
+| `src/client/markitdownAttachments.ts` 等 | 附件控制器/界面 | `MarkItDownDocumentController`（双 worker + 缓存） |
+| `src/client/{ZimbraSettings,settings-common}.ts` | 共享设置助手（精简） | `CHANNEL`、`rpc`、`TestStatus`。**已删:** `SplunkSettings.ts`、`SubscriptionServerSettings.ts` |
+| `tsdown.config.ts` / `tsconfig.json` | 构建/TS 配置 | `clientBundle(...)` → 被跟踪 `lib/` |
+
+## 技能、补丁、文档
+
+| 文件 | 用途 |
+|---|---|
+| `skills/detection-engineering/SKILL.md` | 只读检测设计流程。**陈旧：** 引用已删除的编译/校验/回测工具 |
+| `skills/false-positive-analysis/SKILL.md` | 告警解释/分类。部分陈旧（`splunk_search` 已删） |
+| `skills/splunk-investigation/SKILL.md` | 基于 `mcp__splunk_mcp__*` 的调查 — 仍有效 |
+| `skills/spl-writing/SKILL.md` | CITIC SPL 编写。**陈旧：** 编译器已删除 |
+| `patches/dsh-auto-collapse@0.1.4.patch` | 英文本地化 + 时长解析 + `data-dshcf-preserve` 豁免 |
+| `docs/GLM_5_3_REPOSITORY_DOCUMENTATION_INSTRUCTIONS.md` | 本文档集的执行简报（勿覆盖） |
+| `docs/SHORTENING_PLAN_IMPLEMENTATION.md` | 维护者的重构实施与验证报告（基线 `d264ca7`） |
+| `docs/zh/**`、`docs/site/zh/**` | 本文档集与站点的中文版（与本页同轮核对） |

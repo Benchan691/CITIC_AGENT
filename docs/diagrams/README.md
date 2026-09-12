@@ -1,6 +1,7 @@
 # Diagrams
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](../zh/diagrams/README.md)
 
 Editable Mermaid sources for every diagram in the documentation set. Each diagram also exists as an accessible offline SVG under [`../site/assets/diagrams/`](../site/assets/) (with `<title>`/`<desc>` and a text alternative on the embedding page). The SVGs are simple generated renderings; the `.mmd` sources are the canonical editable form — re-render or regenerate them whenever the system changes.
 

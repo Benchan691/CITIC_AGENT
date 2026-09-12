@@ -1,6 +1,7 @@
 # Configuration reference
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](../zh/reference/CONFIGURATION_REFERENCE.md)
 > Sources: `apps/soc-agent/server/.env.example` (safe template), `unified_mcp_server/config.py` (`ServerSettings.from_env`), `unified_mcp_server/env_loader.py`, `unified_mcp_server/postgres_store.py`, `apps/soc-agent/splunk-bridge.js`, `apps/soc-agent/ownership.js`, `apps/soc-agent/host.js`, `apps/soc-agent/cordis.patch.yml`, `setup.sh`.
 
 **Who this is for:** operators preparing a deployment and developers tracing where a value comes from.

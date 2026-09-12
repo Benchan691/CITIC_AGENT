@@ -1,6 +1,7 @@
 # MCP tool catalog
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](../zh/reference/MCP_TOOL_CATALOG.md)
 > Generated from authoritative registration evidence: `apps/soc-agent/tool-inventory.js` (the single runtime-independent inventory), `apps/soc-agent/cordis.patch.yml` (raw allowlists), `apps/soc-agent/policy.js` (derived policy sets), `apps/soc-agent/splunk-bridge.js` (bridge), `apps/soc-agent/server/unified_mcp_server/server.py` + tool modules (registrations). Cross-checked by `apps/soc-agent/tests/policy.test.js`, `tests/skills.test.js`, `tests/splunk-bridge.test.js`, and `unified_mcp_server/tests/test_server_tools.py`.
 
 **Who this is for:** developers changing the tool surface, security reviewers tracing what the model can invoke, and anyone debugging "duplicate-looking" tool names.

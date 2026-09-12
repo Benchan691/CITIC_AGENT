@@ -1,6 +1,7 @@
 # Documentation audit
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T15:22:44+08:00 = 2026-09-12T07:22:44Z) · documentation verified 2026-09-12 (second round).
+> 语言 / Language: **English** · [中文版](zh/DOCUMENTATION_AUDIT.md)
 > This page records what was actually done, what could not be done, and what remains uncertain. Nothing here is claimed as passed unless its output confirmed it.
 
 **Verification rounds.** Round 1 verified the documentation set against `b26d55d274cf298a456d84edfbcb42b8dc90134b` (2026-09-11T15:35:35Z). Round 2 (this page) re-verified everything against `56c8dd2` after the maintainer's refactoring commits `d264ca7` (auth error handling), `576c7c9` (docs/instructions), `aac5cda` (Zimbra/subscription tool refactor), and `56c8dd2` (Zimbra email forwarding). The maintainer's own implementation report for that refactor is [SHORTENING_PLAN_IMPLEMENTATION.md](SHORTENING_PLAN_IMPLEMENTATION.md) (baseline `d264ca7`).

@@ -1,6 +1,7 @@
 # Repository map and census
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12 (second verification round; previous round at `b26d55d`).
+> 语言 / Language: **English** · [中文版](../zh/reference/REPOSITORY_MAP.md)
 
 **Who this is for:** developers and reviewers who need to know what every tracked path *is* — canonical source, test, generated output, vendor, integration artifact, or unclassified leftover.
 

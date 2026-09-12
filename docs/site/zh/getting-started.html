@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>快速开始 — CITIC SOC Agent 文档</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到正文</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent 文档</a>
+    <nav class="site-nav" aria-label="主导航"><a href="index.html">首页</a><a href="getting-started.html" aria-current="page">开始</a><a href="architecture.html">架构</a><a href="flows.html">流程与界面</a><a href="mcp-tooling.html">工具</a><a href="security.html">安全</a><a href="development.html">开发</a><a href="operations.html">运维</a><a href="reference.html">参考</a><a href="troubleshooting.html">排障</a><a href="../getting-started.html" lang="en" hreflang="en">English</a></nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="面包屑"><ol><li><a href="index.html">首页</a></li><li aria-current="page">快速开始</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>快速开始</h1>
+      <blockquote class="meta">核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 文档核对日期 2026-09-12。<br>对应英文页：<a href="../getting-started.html" lang="en">../getting-started.html</a>；Markdown 权威源：<a href="../../zh/GETTING_STARTED.md">zh/GETTING_STARTED.md</a>（如存在）。</blockquote>
+
+<h2 id="prereq">前置要求</h2>
+<p>Node <code>^22.19.0</code> 或 <code>&gt;=24</code>；pnpm、uv、Git；Python 3.12（uv 管理）；可达的 PostgreSQL（<code>APP_POSTGRES_URI</code>，缺失则登录失败关闭）。外部服务：Zimbra 主机；<strong>官方 Splunk MCP 端点 + 令牌（必填）</strong>；可选订阅服务；运行时配置的 LLM 密钥。</p>
+<h2 id="modes">五种安装形态</h2>
+<div class="table-wrap"><table><thead><tr><th>场景</th><th>命令</th><th>行为</th></tr></thead><tbody>
+<tr><td>全新安装</td><td><code>bash setup.sh</code>（bootstrap）</td><td>提示仓库 URL/路径/分支；克隆后转入完整安装</td></tr>
+<tr><td>已有 checkout</td><td><code>./setup.sh</code></td><td>交互：检查 → 参数 → env 文件 → Python 环境 → harness 构建 → 插件装配 → 摘要（不启动服务）</td></tr>
+<tr><td>仅审计</td><td><code>./setup.sh --check</code></td><td>只报告；缺项 exit 1；从不写入</td></tr>
+<tr><td>非交互修复</td><td><code>./setup.sh --plugins</code>（+<code>--rebuild</code>）</td><td>重装/修复/重装配；无提示</td></tr>
+<tr><td>更新</td><td><code>./update.sh</code></td><td>拒绝脏树；ff-only；随后 <code>--plugins</code>；手动重启</td></tr>
+</tbody></table></div>
+<h2 id="config">配置准备（安全）</h2>
+<p>setup 写入两个 chmod 600 的 <code>.env</code>；机密静默输入；密钥留空自动生成。必填：<code>SOC_ADMIN_EMAIL/PASSWORD</code>（缺之宿主不启动）、<code>APP_POSTGRES_URI</code> + <code>APP_SETTINGS_ENCRYPTION_KEY</code>（登录）、<code>ZIMBRA_HOST</code>；<strong>官方 Splunk MCP <code>SPLUNK_MCP_ENDPOINT</code> + <code>SPLUNK_TOKEN</code>（setup/检查即要求）</strong>。绝不要把机密粘贴进 shell 命令。</p>
+<h2 id="run">启动与首次验证</h2>
+<pre><code>cd vendor/deepseek-harness
+pnpm dsh web --no-open        # 打开 http://127.0.0.1:3080</code></pre>
+<p>验证顺序：<code>--check</code> 通过 → Sentinel 登录遮罩 → 本人 Zimbra 登录 → 管理端 Connections 的 Splunk/订阅检查 → 分析师读工具自动执行、变更触发审批 → 建草稿观察 Send 门。</p>
+<h2 id="failures">首启常见故障</h2>
+<div class="table-wrap"><table><thead><tr><th>症状</th><th>首查</th></tr></thead><tbody>
+<tr><td>登录总失败</td><td><code>APP_POSTGRES_URI</code> 可达？Zimbra 直连可行？</td></tr>
+<tr><td>无 Splunk 工具</td><td>端点+令牌需齐备（setup 也要求）；日志 "official Splunk MCP bridge disabled"</td></tr>
+<tr><td>Zimbra 工具失效</td><td>Python 拉起失败（致命）；<code>uv sync</code>；加密密钥</td></tr>
+<tr><td>界面陈旧</td><td>被跟踪的 <code>lib/</code> 未重建</td></tr>
+</tbody></table></div>
+
+    </article>
+    <nav class="pager" aria-label="分页"><a href="index.html">← 首页</a><a href="architecture.html">架构 →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="本页目录"><h2>本页目录</h2><ol><li><a href="#prereq">前置</a></li><li><a href="#modes">安装形态</a></li><li><a href="#config">配置</a></li><li><a href="#run">启动验证</a></li><li><a href="#failures">常见故障</a></li></ol></nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 核对日期 2026-09-12 · Markdown 为权威事实源 · 离线站点 — 无外部请求。<a href="../getting-started.html" lang="en">English version</a></p></div></footer>
+<script src="../script.js" defer></script>
+</body>
+</html>

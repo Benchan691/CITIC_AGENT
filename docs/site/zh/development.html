@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>开发与测试 — CITIC SOC Agent 文档</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到正文</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent 文档</a>
+    <nav class="site-nav" aria-label="主导航"><a href="index.html">首页</a><a href="getting-started.html">开始</a><a href="architecture.html">架构</a><a href="flows.html">流程与界面</a><a href="mcp-tooling.html">工具</a><a href="security.html">安全</a><a href="development.html" aria-current="page">开发</a><a href="operations.html">运维</a><a href="reference.html">参考</a><a href="troubleshooting.html">排障</a><a href="../development.html" lang="en" hreflang="en">English</a></nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="面包屑"><ol><li><a href="index.html">首页</a></li><li aria-current="page">开发与测试</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>开发与测试</h1>
+      <blockquote class="meta">核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 文档核对日期 2026-09-12。<br>对应英文页：<a href="../development.html" lang="en">../development.html</a>；Markdown 权威源：<a href="../../zh/DEVELOPMENT.md">zh/DEVELOPMENT.md</a>（如存在）。</blockquote>
+
+<span id="tests"></span>
+<h2 id="commands">工具链与命令</h2>
+<div class="table-wrap"><table><tbody>
+<tr><th>安装/修复</th><td><code>./setup.sh</code> 或 <code>./setup.sh --plugins</code></td></tr>
+<tr><th>宿主 JS 测试（35）</th><td><code>cd apps/soc-agent &amp;&amp; npm test</code></td></tr>
+<tr><th>客户端测试（12）</th><td><code>cd packages/soc-agent-client &amp;&amp; npm test</code></td></tr>
+<tr><th>Python 测试（39）</th><td><code>cd apps/soc-agent/server &amp;&amp; uv sync --extra test &amp;&amp; uv run pytest</code></td></tr>
+<tr><th>重建客户端 bundle</th><td><code>pnpm --filter dsh-soc-agent-client run build</code></td></tr>
+<tr><th>启动应用</th><td><code>cd vendor/deepseek-harness &amp;&amp; pnpm dsh web --no-open</code></td></tr>
+</tbody></table></div>
+<p>无活跃 lint/钩子（<code>lefthook.yml</code> 全注释）— 手动对齐周边风格。全部套件离线运行；无 skip；仓库根无 CI。</p>
+<h2 id="deps">依赖模型与生成边界</h2>
+<p>vendored harness 的工作区<strong>包含本仓库</strong>（workspace:* / link:）。根 <code>requirements.txt</code> 是外部 pnpm 插件清单（与 <code>setup.sh</code> 的 <code>PLUGIN_NAMES</code> 数量校验）；服务器 <code>pyproject.toml</code>/<code>uv.lock</code> 才是 Python 依赖。<code>lib/</code> 是 <span class="badge sensitive">被跟踪的生成产物</span> — 改后重建并一起提交。</p>
+<h2 id="recipe">改一个 MCP 工具 — 六合同步清单</h2>
+<ol>
+<li><code>tool-inventory.js</code> 加名（标签/kind）。</li>
+<li>Python 在对应 <code>register_tools</code> 模块实现（读工具标 <code>readOnlyHint</code>；无 <code>ctx</code>/<code>account_id</code>）。</li>
+<li><code>cordis.patch.yml</code> 原始允许列表。</li>
+<li><code>policy.js</code> 从清单派生 — 分类逻辑不变则无需改。</li>
+<li>双端测试（<code>test_server_tools.py</code> 精确集；<code>policy.test.js</code>/<code>skills.test.js</code> 计数 30/42/12）。</li>
+<li>文档（工具目录、路由页、可追溯矩阵）。</li>
+<li><a href="#gaps">覆盖缺口</a></li></ol>
+<p>vendor 变更经 <code>cordis.patch.yml</code> 行、<code>patches/*.patch</code>、或预设保持可复现 — 绝不编辑 vendored 源码。<strong>Schema 变更</strong>走新的 <code>migrations/NNN_*.sql</code>（advisory 锁、台账）。</p>
+<h2 id="gaps">覆盖缺口</h2>
+    <p>无端到端浏览器测试；转发链路分段测试；SQL 替身运行；<code>setup.sh</code>/<code>update.sh</code> 未测；仓库根无 CI。细节：<a href="../../zh/reference/TEST_COVERAGE_MATRIX.md">测试覆盖矩阵（中文）</a>。</p>
+    </article>
+    <nav class="pager" aria-label="分页"><a href="security.html">← 安全</a><a href="operations.html">运维 →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="本页目录"><h2>本页目录</h2><ol><li><a href="#commands">命令</a></li><li><a href="#deps">依赖模型</a></li><li><a href="#recipe">工具变更清单</a></li><li><a href="#gaps">覆盖缺口</a></li></ol></nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 核对日期 2026-09-12 · Markdown 为权威事实源 · 离线站点 — 无外部请求。<a href="../development.html" lang="en">English version</a></p></div></footer>
+<script src="../script.js" defer></script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 # Glossary
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](../zh/reference/GLOSSARY.md)
 
 One consistent vocabulary for all Markdown pages, diagrams, and the HTML site. Add new terms here first.
 

@@ -1,6 +1,7 @@
 # MCP and tool routing
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](zh/MCP_AND_TOOL_ROUTING.md)
 
 **Who this is for:** anyone who has ever been confused by a tool name here — which, given the naming, is everyone eventually.
 

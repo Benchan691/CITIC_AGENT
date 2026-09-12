@@ -1,6 +1,7 @@
 # CITIC_AGENT documentation
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
+> 语言 / Language: **English** · [中文版](zh/README.md)
 > Evidence for every claim is cited by repository path and symbol. See [reference/TRACEABILITY_MATRIX.md](reference/TRACEABILITY_MATRIX.md).
 
 **Who this page is for:** everyone. It is the entry point and reader map for the whole documentation set.

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>参考 — CITIC SOC Agent 文档</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到正文</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent 文档</a>
+    <nav class="site-nav" aria-label="主导航"><a href="index.html">首页</a><a href="getting-started.html">开始</a><a href="architecture.html">架构</a><a href="flows.html">流程与界面</a><a href="mcp-tooling.html">工具</a><a href="security.html">安全</a><a href="development.html">开发</a><a href="operations.html">运维</a><a href="reference.html" aria-current="page">参考</a><a href="troubleshooting.html">排障</a><a href="../reference.html" lang="en" hreflang="en">English</a></nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="面包屑"><ol><li><a href="index.html">首页</a></li><li aria-current="page">参考</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>参考</h1>
+      <blockquote class="meta">核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 文档核对日期 2026-09-12。<br>对应英文页：<a href="../reference.html" lang="en">../reference.html</a>；Markdown 权威源：<a href="../../zh/DOCUMENTATION_AUDIT.md">zh/DOCUMENTATION_AUDIT.md</a>。</blockquote>
+
+<h2 id="catalogs">目录索引</h2>
+<div class="table-wrap"><table><thead><tr><th>目录（中文版）</th><th>内容</th></tr></thead><tbody>
+<tr><td><a href="../../zh/reference/REPOSITORY_MAP.md">REPOSITORY_MAP.md</a></td><td>每个被跟踪第一方路径的分类（182 个，含 docs 60）与本地-only 路径</td></tr>
+<tr><td><a href="../../zh/reference/COMPONENT_CATALOG.md">COMPONENT_CATALOG.md</a></td><td>16 组件 × 11 字段</td></tr>
+<tr><td><a href="../../zh/reference/SOURCE_INDEX.md">SOURCE_INDEX.md</a></td><td>逐文件用途与关键符号</td></tr>
+<tr><td><a href="../../zh/reference/INTERFACE_CATALOG.md">INTERFACE_CATALOG.md</a></td><td>入口、HTTP 路由、RPC、MCP 边界、控制通道、外部调用、补丁接缝</td></tr>
+<tr><td><a href="../../zh/reference/MCP_TOOL_CATALOG.md">MCP_TOOL_CATALOG.md</a></td><td>28 个 soc_agent 工具、13 桥接读、非工具名、转发流程</td></tr>
+<tr><td><a href="../../zh/reference/CONFIGURATION_REFERENCE.md">CONFIGURATION_REFERENCE.md</a></td><td>每个环境变量与设置命名空间</td></tr>
+<tr><td><a href="../../zh/reference/DATA_STORE_CATALOG.md">DATA_STORE_CATALOG.md</a></td><td>存储与表、键控、加密、保留、备份</td></tr>
+<tr><td><a href="../../zh/reference/TEST_COVERAGE_MATRIX.md">TEST_COVERAGE_MATRIX.md</a></td><td>三套件逐文件 + 漂移栅栏 + 缺口</td></tr>
+<tr><td><a href="../../zh/reference/TRACEABILITY_MATRIX.md">TRACEABILITY_MATRIX.md</a></td><td>36 条论断 → 源码 → 测试 → 页面 → 置信 → 状态</td></tr>
+<tr><td><a href="../../zh/reference/GLOSSARY.md">GLOSSARY.md</a></td><td>统一词汇（中英对照）</td></tr>
+</tbody></table></div>
+<h2 id="keynumbers">本提交关键数字</h2>
+<div class="table-wrap"><table><tbody>
+<tr><th>注册工具</th><td>28（<code>soc_agent</code>）+ 13 只读（<code>splunk_mcp</code>）+ 1 个宿主 <code>skill</code> 工具</td></tr>
+<tr><th>策略集</th><td>30 只读 · 42 域 · 12 审批（变更）</td></tr>
+<tr><th>测试</th><td>35 JS + 12 TS + 39 Python，全部离线，无 skip</td></tr>
+<tr><th>第一方文件</th><td>182（含 60 个 docs）+ 6,970 vendored</td></tr>
+<tr><th>操作预算</th><td>每 MCP 操作 180 秒；传输/管理超时 185 秒</td></tr>
+</tbody></table></div>
+<span id="trace"></span>
+<h2 id="audit">审计</h2>
+<p>验证记录 — 实际运行的命令、排除、矛盾与解决、无法运行的检查、未知项、双语对等结果 — 见 <a href="../../zh/DOCUMENTATION_AUDIT.md">DOCUMENTATION_AUDIT.md（中文）</a> 与 <a href="../../DOCUMENTATION_AUDIT.md">英文版</a>。</p>
+
+    </article>
+    <nav class="pager" aria-label="分页"><a href="operations.html">← 运维</a><a href="troubleshooting.html">排障 →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="本页目录"><h2>本页目录</h2><ol><li><a href="#catalogs">目录索引</a></li><li><a href="#keynumbers">关键数字</a></li><li><a href="#audit">审计</a></li></ol></nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 核对日期 2026-09-12 · Markdown 为权威事实源 · 离线站点 — 无外部请求。<a href="../reference.html" lang="en">English version</a></p></div></footer>
+<script src="../script.js" defer></script>
+</body>
+</html>

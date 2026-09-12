@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>故障排除 — CITIC SOC Agent 文档</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到正文</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent 文档</a>
+    <nav class="site-nav" aria-label="主导航"><a href="index.html">首页</a><a href="getting-started.html">开始</a><a href="architecture.html">架构</a><a href="flows.html">流程与界面</a><a href="mcp-tooling.html">工具</a><a href="security.html">安全</a><a href="development.html">开发</a><a href="operations.html">运维</a><a href="reference.html">参考</a><a href="troubleshooting.html" aria-current="page">排障</a><a href="../troubleshooting.html" lang="en" hreflang="en">English</a></nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="面包屑"><ol><li><a href="index.html">首页</a></li><li aria-current="page">故障排除</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>故障排除</h1>
+      <blockquote class="meta">核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 文档核对日期 2026-09-12。<br>对应英文页：<a href="../troubleshooting.html" lang="en">../troubleshooting.html</a>；Markdown 权威源：<a href="../../zh/TROUBLESHOOTING.md">zh/TROUBLESHOOTING.md</a>。</blockquote>
+
+<h2 id="quick">快速分诊</h2>
+<p>多数故障属于六类：缺环境变量、外部服务不可达、构建陈旧（被跟踪 <code>lib/</code>）、会话过期/被拒、策略拒绝（按设计工作）、或真正被拒的操作。先跑 <code>./setup.sh --check</code>，再看下表。</p>
+<h2 id="areas">症状领域</h2>
+<div class="table-wrap"><table><thead><tr><th>领域</th><th>典型症状</th><th>首选诊断</th></tr></thead><tbody>
+<tr><th>安装/更新</th><td>缺前置；<code>--check</code> exit 1；更新拒绝脏树；Splunk 参数校验失败</td><td>阅读检查输出；<code>git status --porcelain --untracked-files=all</code>；重跑 <code>setup.sh --plugins</code></td></tr>
+<tr><th>认证</th><td>登录总失败；"new device" 提示；管理 RPC 403</td><td><code>--check</code> 的 Postgres 探测；<code>/auth/me</code>、<code>/admin/auth/me</code>；管理员会话在内存（重启登出）</td></tr>
+<tr><th>归属</th><td><code>workspace-invalid-path</code>；跨用户 404/拒绝</td><td>名称规则（单目录名）；归属声明按设计</td></tr>
+<tr><th>MCP 发现</th><td>工具缺失；"撞名"；"disabled by the administrator"</td><td>对照工具目录；启动日志（桥接禁用？）；Access &amp; approvals 状态</td></tr>
+<tr><th>Splunk 桥接</th><td>无工具；TLS 错误；185 秒超时；截断标记</td><td>端点+令牌齐备？<code>SPLUNK_VERIFY_SSL</code>？收窄查询；标记即 50 KB 上限（按设计）</td></tr>
+<tr><th>Zimbra</th><td><code>zimbra_auth_error</code>；<code>query_validation_error</code>；<code>operation_disabled</code>；<code>filter_rules_changed</code></td><td>重登；修查询形式（<code>date:MM/DD/YYYY</code>）；env 门是有意的；刷新指纹重试</td></tr>
+<tr><th>订阅</th><td><code>not_configured</code>；<code>email_server_unavailable</code>；<code>email_server_auth_failed</code></td><td>管理状态检查；修三个 env 变量；查外部服务</td></tr>
+<tr><th>附件</th><td><code>attachment_too_large</code>；<code>attachment_encrypted</code>；截断提示</td><td>限额按设计（默认 10MB/200k，硬顶 100MB/2M）；同步 MarkItDown extras</td></tr>
+<tr><th>数据库</th><td><code>authentication_required</code>；解密 RuntimeError；<code>schema_migration_failed</code></td><td>URI 链；恢复加密密钥；修 URI 后启动重试迁移</td></tr>
+<tr><th>UI/构建</th><td>UI 改动不出现；<code>/admin</code> 503</td><td>重建客户端 bundle；<code>--rebuild</code> 补 harness 产物</td></tr>
+<tr><th>测试</th><td>计数失败；源码护栏失败；schemastery 导入错误；Python 缺模块</td><td>按六合同步清单更新；<code>./setup.sh --plugins</code> / <code>uv sync --extra test</code></td></tr>
+</tbody></table></div>
+<h2 id="escalation">上报证据</h2>
+<p><code>git rev-parse HEAD</code> 与分支、失败命令完整输出、含 <code>soc_correlation_id</code> 的日志行、策略意外时的确切工具名与管理端审批状态。<strong>分享前脱敏凭据与客户数据。</strong></p>
+<p>完整症状表（含处置与验证）：<a href="../../zh/TROUBLESHOOTING.md">TROUBLESHOOTING.md（中文）</a>。</p>
+
+    </article>
+    <nav class="pager" aria-label="分页"><a href="reference.html">← 参考</a><span></span></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="本页目录"><h2>本页目录</h2><ol><li><a href="#quick">快速分诊</a></li><li><a href="#areas">症状领域</a></li><li><a href="#escalation">上报</a></li></ol></nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>核对基准：提交 <code>56c8dd21492a5c36cb9f3eaa3da01160aba40033</code>（2026-09-12T07:22:44Z）· 核对日期 2026-09-12 · Markdown 为权威事实源 · 离线站点 — 无外部请求。<a href="../troubleshooting.html" lang="en">English version</a></p></div></footer>
+<script src="../script.js" defer></script>
+</body>
+</html>
