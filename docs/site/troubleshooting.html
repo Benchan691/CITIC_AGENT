@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troubleshooting — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Start</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="flows.html">Flows</a>
+      <a href="mcp-tooling.html">Tooling</a>
+      <a href="security.html">Security</a>
+      <a href="development.html">Development</a>
+      <a href="operations.html">Operations</a>
+      <a href="reference.html">Reference</a>
+      <a href="troubleshooting.html" aria-current="page">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index.html">Home</a></li><li aria-current="page">Troubleshooting</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>Troubleshooting</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: <a href="../TROUBLESHOOTING.md">TROUBLESHOOTING.md</a> — the Markdown file has the full symptom tables. Never bypass authorization or disable security controls while diagnosing.</blockquote>
+
+      <h2 id="quick">Quick triage</h2>
+      <p>Most failures are one of six things: a missing environment variable, an unreachable external service, a stale build (tracked <code>lib/</code>), a stale/rejected session, a policy denial working as intended, or a genuinely denied operation. Start with <code>./setup.sh --check</code>, then the area below.</p>
+
+      <h2 id="areas">Symptom areas</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Area</th><th scope="col">Classic symptoms</th><th scope="col">First diagnostics</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Setup / updates</th><td>Missing prerequisites; <code>--check</code> exit 1; update refuses dirty tree; stale profile plugins</td><td>Read the checker output; <code>git status --porcelain --untracked-files=all</code>; rerun <code>setup.sh --plugins</code></td></tr>
+          <tr><th scope="row">Authentication</th><td>Login always fails; "new device" message; 403 on admin RPC</td><td>Postgres probe in <code>--check</code>; <code>/auth/me</code>, <code>/admin/auth/me</code>; admin sessions are in-memory (restart logs out)</td></tr>
+          <tr><th scope="row">Ownership</th><td><code>workspace-invalid-path</code>; cross-user 404/denials</td><td>Name rules (single directory name); ownership claims are by design</td></tr>
+          <tr><th scope="row">MCP discovery</th><td>Tool missing; duplicate-looking names; "disabled by the administrator"</td><td>Compare with the tool catalog; check startup log (bridge disabled?); check Access &amp; approvals states</td></tr>
+          <tr><th scope="row">Splunk bridge</th><td>No Splunk tools; TLS errors; 185 s timeouts; truncation marker</td><td>Endpoint+token both set? <code>SPLUNK_VERIFY_SSL</code>? Narrow the query; the marker means the 50 KB cap (by design)</td></tr>
+          <tr><th scope="row">Zimbra</th><td><code>zimbra_auth_error</code>; <code>query_validation_error</code>; <code>operation_disabled</code>; <code>filter_rules_changed</code></td><td>Re-login; fix the query form (<code>date:MM/DD/YYYY</code>); env gates are deliberate; refresh fingerprint and retry</td></tr>
+          <tr><th scope="row">Subscriptions</th><td><code>not_configured</code>; <code>email_server_unavailable</code>; <code>email_server_auth_failed</code></td><td>Admin status check; fix the three env vars; check the external service</td></tr>
+          <tr><th scope="row">Attachments</th><td><code>attachment_too_large</code>; <code>attachment_encrypted</code>; truncation notice</td><td>Limits are by design (10 MB/200 k default, 100 MB/2 M hard); sync MarkItDown extras</td></tr>
+          <tr><th scope="row">Database</th><td><code>authentication_required</code>; decrypt RuntimeError</td><td>URI chain; encryption key restored? (key + DB are backed up together)</td></tr>
+          <tr><th scope="row">UI / build</th><td>UI changes invisible; <code>/admin</code> 503</td><td>Rebuild the client bundle; harness build artifacts via <code>--rebuild</code></td></tr>
+          <tr><th scope="row">Tests</th><td>Count failures; source-guardrail failures</td><td>Expected after tool/UI changes — update code + tests together (six-contract recipe)</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="escalation">Escalation evidence to collect</h2>
+      <p><code>git rev-parse HEAD</code> + branch; the failing command's full output; relevant log lines including <code>soc_correlation_id</code>; for policy surprises, the exact tool name and the admin Access &amp; approvals state. <strong>Redact credentials and customer data before sharing.</strong></p>
+      <p>Full tables with corrective actions and verification steps: <a href="../TROUBLESHOOTING.md">TROUBLESHOOTING.md</a>.</p>
+    </article>
+    <nav class="pager" aria-label="Pagination"><a href="reference.html">← Reference</a><span></span></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol><li><a href="#quick">Quick triage</a></li><li><a href="#areas">Symptom areas</a></li><li><a href="#escalation">Escalation</a></li></ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · offline site — no external requests.</p></div></footer>
+</body>
+</html>

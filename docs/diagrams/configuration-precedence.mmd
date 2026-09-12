@@ -1,0 +1,29 @@
+%% Configuration precedence — sources, defaults, consumers (verified against b26d55d)
+flowchart TD
+    pe["Process environment<br/>(wins)"]
+    se["apps/soc-agent/server/.env (0600)"]
+    we["workspace .env (override)"]
+    he["vendor/deepseek-harness/.env (0600)<br/>only APP_POSTGRES_URI + APP_SETTINGS_ENCRYPTION_KEY"]
+    ex[".env.example — template only"]
+
+    py["Python ServerSettings.from_env<br/>(env-only by design)"]
+    host["Node host: ownership.js / splunk-bridge.js<br/>(env first, then server/.env)"]
+    hs["Harness settings service"]
+    ac[("Postgres app_config (Fernet)<br/>soc-action-approval · soc-background ·<br/>soc-agent-markitdown-attachments · time-context · llm-pi-ai")]
+    admin["Admin console (runtime-editable subset)"]
+    fallback["Fallback chains: APP_POSTGRES_URI→LANGGRAPH→POSTGRES_URI ·<br/>MCP_SERVER_ROOT→MCP_SEVER_ROOT · SPL_*→SPLUNK_*"]
+
+    ex -.->|setup seeds| se
+    pe --> py
+    se --> py
+    we --> py
+    pe --> host
+    se --> host
+    he --> host
+    admin -->|settings.mutate + expectedRevision| ac
+    ac --> hs
+    fallback --> py
+    fallback --> host
+    py --> soca["soc_agent runtime"]
+    host --> gate["policy gate · bridge · auth"]
+    hs --> gate

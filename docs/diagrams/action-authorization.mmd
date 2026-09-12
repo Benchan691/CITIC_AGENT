@@ -1,0 +1,22 @@
+%% Action authorization decision tree (verified against b26d55d)
+flowchart TD
+    call["Model requests tool T"] --> reg{"T registered by raw allowlist?<br/>(cordis.patch.yml / bridge)"}
+    reg -->|no| off["tool does not exist on the agent"]
+    reg -->|yes| dom{"T ∈ DOMAIN_TOOLS ∪ CONTROL_TOOLS?<br/>(host.js tools/pre-execute)"}
+    dom -->|no| deny1["deny: only approved SOC tools"]
+    dom -->|yes| ui{"T = ui-confirmed catalog entry?"}
+    ui -->|yes| hum["human-only path:<br/>draft view → window.confirm → send-email RPC"]
+    ui -->|no| mode{"deployment + session action mode"}
+    mode -->|full access| auto["delegate — every permitted tool runs<br/>(even per-tool 'disabled')"]
+    mode -->|SOC mode| state{"per-tool actionState"}
+    state -->|disabled| deny2["deny: disabled by administrator"]
+    state -->|ask| approval["approval waterfall (fail-closed)<br/>user approves in UI"]
+    state -->|auto| run["execute"]
+    approval -->|approved once| run
+    approval -->|no answer / denied| deny3["deny (fail-closed)"]
+    run --> pygates{"Python-side gates<br/>(ZIMBRA_ALLOW_*, fingerprint, budget)"}
+    pygates -->|blocked| err["structured error envelope"]
+    pygates -->|allowed| done["execute against external system"]
+    hum --> sendgate{"session auth + ZIMBRA_ALLOW_SEND<br/>+ Zimbra sent:true"}
+    sendgate -->|ok| sent["email delivered"]
+    sendgate -->|blocked| failed["failed card / error"]

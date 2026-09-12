@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Start</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="flows.html">Flows</a>
+      <a href="mcp-tooling.html">Tooling</a>
+      <a href="security.html">Security</a>
+      <a href="development.html">Development</a>
+      <a href="operations.html">Operations</a>
+      <a href="reference.html" aria-current="page">Reference</a>
+      <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index.html">Home</a></li><li aria-current="page">Reference</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>Reference catalogs</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: the ten catalogs under <a href="../reference/REPOSITORY_MAP.md">docs/reference/</a> — the Markdown files are the source of truth (this page indexes them; the catalogs are too dense to duplicate here).</blockquote>
+
+      <h2 id="catalogs">Catalog index</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Catalog</th><th scope="col">Contents</th></tr></thead>
+        <tbody>
+          <tr><td><a href="../reference/REPOSITORY_MAP.md">REPOSITORY_MAP.md</a></td><td>Census and classification of every tracked first-party path (160 files) plus local-only paths; <code>hi.txt</code>, retained code, tracked <code>lib/</code></td></tr>
+          <tr><td><a href="../reference/COMPONENT_CATALOG.md">COMPONENT_CATALOG.md</a></td><td>16 components × 11 fields (purpose, entry points, I/O, state, trust, tests, runtime status)</td></tr>
+          <tr><td><a href="../reference/SOURCE_INDEX.md">SOURCE_INDEX.md</a></td><td>Every first-party source file with purpose and key symbols</td></tr>
+          <tr><td><a href="../reference/INTERFACE_CATALOG.md">INTERFACE_CATALOG.md</a></td><td>Entry points, HTTP routes, RPC endpoints, MCP boundaries, control-channel protocol, external calls, patch seams</td></tr>
+          <tr><td><a href="../reference/MCP_TOOL_CATALOG.md">MCP_TOOL_CATALOG.md</a></td><td>All 27 <code>soc_agent</code> tools, 13 <code>splunk_mcp</code> reads, non-tool name shapes, retained-only tools — with policy behavior and tests</td></tr>
+          <tr><td><a href="../reference/CONFIGURATION_REFERENCE.md">CONFIGURATION_REFERENCE.md</a></td><td>Every environment variable and settings namespace: consumer, precedence, sensitivity, validation, fallback chains</td></tr>
+          <tr><td><a href="../reference/DATA_STORE_CATALOG.md">DATA_STORE_CATALOG.md</a></td><td>Stores and tables, keying, encryption, retention, concurrency, backup implications</td></tr>
+          <tr><td><a href="../reference/TEST_COVERAGE_MATRIX.md">TEST_COVERAGE_MATRIX.md</a></td><td>All three suites file-by-file, the namespace drift fence, and coverage gaps</td></tr>
+          <tr><td id="trace"><a href="../reference/TRACEABILITY_MATRIX.md">TRACEABILITY_MATRIX.md</a></td><td>34 major claims → source symbol → test → page → confidence → runtime status (stale-doc detector)</td></tr>
+          <tr><td><a href="../reference/GLOSSARY.md">GLOSSARY.md</a></td><td>One consistent vocabulary for Markdown, diagrams, and this site</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="keynumbers">Key numbers at this commit</h2>
+      <div class="table-wrap"><table>
+        <tbody>
+          <tr><th scope="row">Registered tools</th><td>27 (<code>soc_agent</code>) + 13 read (<code>splunk_mcp</code>) + 1 host <code>skill</code> tool</td></tr>
+          <tr><th scope="row">Policy sets</th><td>29 read-only · 41 domain · 12 approval (mutation) tools</td></tr>
+          <tr><th scope="row">Tests</th><td>27 JS + 9 TS + 75 Python, all offline, no skips</td></tr>
+          <tr><th scope="row">Tracked first-party files</th><td>160 (+6,970 vendored)</td></tr>
+          <tr><th scope="row">Operation budget</th><td>180 s per MCP operation; 185 s transport/admin timeouts</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="audit">Audit</h2>
+      <p>The verification record — commands run, exclusions, contradictions and their resolution, checks that could not run, unknowns, and the Markdown↔HTML parity result — is <a href="../DOCUMENTATION_AUDIT.md">DOCUMENTATION_AUDIT.md</a>.</p>
+    </article>
+    <nav class="pager" aria-label="Pagination"><a href="operations.html">← Operations</a><a href="troubleshooting.html">Next: Troubleshooting →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol><li><a href="#catalogs">Catalog index</a></li><li><a href="#keynumbers">Key numbers</a></li><li><a href="#audit">Audit</a></li></ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · offline site — no external requests.</p></div></footer>
+</body>
+</html>

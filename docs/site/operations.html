@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operations, configuration &amp; data — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Start</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="flows.html">Flows</a>
+      <a href="mcp-tooling.html">Tooling</a>
+      <a href="security.html">Security</a>
+      <a href="development.html">Development</a>
+      <a href="operations.html" aria-current="page">Operations</a>
+      <a href="reference.html">Reference</a>
+      <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index.html">Home</a></li><li aria-current="page">Operations, configuration &amp; data</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>Operations, configuration and data</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: <a href="../DEPLOYMENT_AND_OPERATIONS.md">DEPLOYMENT_AND_OPERATIONS.md</a> + <a href="../CONFIGURATION.md">CONFIGURATION.md</a> + <a href="../DATA_AND_PERSISTENCE.md">DATA_AND_PERSISTENCE.md</a> — the Markdown files are the source of truth.</blockquote>
+
+      <h2 id="lifecycle">Build / test / deploy lifecycle</h2>
+      <figure>
+        <img src="assets/diagrams/build-test-deploy.svg" alt="Lifecycle: canonical sources flow through builds and offline tests into setup wiring and the profile, then deployment; update.sh fast-forwards and re-runs setup." width="980">
+        <figcaption>Lifecycle with fingerprints and the update path. Source: <a href="../diagrams/build-test-deploy.mmd">build-test-deploy.mmd</a>.</figcaption>
+      </figure>
+      <p><strong>Setup doctor stages:</strong> layout guard → prerequisites (node/pnpm/uv) → parameter collection (documented precedence; secrets echoed off) → env files (0600) → <code>uv sync</code> → fingerprint-gated harness install/build (SOC client drift auto-repaired) → plugin add/prune (managed set) → SOC bundle registration + resolution verification → summary (masked values; starts nothing). <code>--check</code> audits everything read-only; <code>--rebuild</code> forces rebuilds.</p>
+      <p><strong>Update:</strong> <code>update.sh</code> refuses arguments and dirty trees, fast-forwards the current branch, runs <code>setup.sh --plugins</code>, and asks you to restart manually. Rollback is a manual <code>git checkout</code> of the previous commit + rerun setup; there is no database backup command — back up PostgreSQL together with <code>APP_SETTINGS_ENCRYPTION_KEY</code>.</p>
+      <p><strong>Health:</strong> <code>./setup.sh --check</code>; admin Connections checks (Splunk, subscription); startup log lines (bridge enabled/disabled; Python spawn is fatal on failure). Correlate logs with <code>soc_correlation_id</code>.</p>
+
+      <h2 id="config">Configuration precedence</h2>
+      <figure>
+        <img src="assets/diagrams/configuration-precedence.svg" alt="Configuration precedence: process environment wins over the server env file, which wins over the workspace env file; admin-editable runtime settings live encrypted in Postgres; fallback chains are explicit." width="960">
+        <figcaption>Sources, consumers, and the runtime-editable subset. Source: <a href="../diagrams/configuration-precedence.mmd">configuration-precedence.mmd</a>.</figcaption>
+      </figure>
+      <p>Required keys by condition: always <code>SOC_ADMIN_EMAIL</code>/<code>SOC_ADMIN_PASSWORD</code>; for login <code>APP_POSTGRES_URI</code> + <code>APP_SETTINGS_ENCRYPTION_KEY</code>; per service <code>ZIMBRA_HOST</code>, <code>SPLUNK_MCP_ENDPOINT</code>+<code>SPLUNK_TOKEN</code> (both or bridge off), <code>SUBSCRIPTION_SERVER_URL/USER/PASSWORD</code>. Secrets never enter shell history, tickets, or docs. Restart rules: env change → host restart; admin-console settings → live; client change → rebuild bundle; patch change → restart (+ setup when wiring affected).</p>
+
+      <h2 id="data">Data and persistence</h2>
+      <p>PostgreSQL is the only durable store that matters: <code>soc_users</code>, <code>soc_app_sessions</code> (Zimbra token Fernet-encrypted; Node reads omit the column), <code>soc_session_revocations</code> (one-shot), ownership claims (<code>soc_workspace_owners</code>, <code>soc_session_owners</code>, <code>soc_folder_owners</code>), encrypted <code>app_config</code>, legacy <code>zimbra_accounts</code>. Working files live under <code>.data/soc-workspaces/&lt;userId&gt;/</code>. Retention: sessions 24 h (lazy deletion); no background sweeper; conversation retention is deployment-defined (unknown). Concurrency: owner-guarded upserts, revision-checked settings, filter fingerprints, bounded thread pool (8 global / 2 per principal).</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Store</th><th scope="col">Kind</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          <tr><td>PostgreSQL</td><td><span class="badge store">store</span></td><td>Node pool max 10; Python pool 1–4, 15 s statement timeout</td></tr>
+          <tr><td>Per-user workspaces</td><td><span class="badge sensitive">sensitive</span></td><td>Path-validated, symlink-safe containment</td></tr>
+          <tr><td><code>server/.env</code>, harness <code>.env</code></td><td><span class="badge sensitive">sensitive</span></td><td>0600; never committed; stripped from Python children (admin vars)</td></tr>
+          <tr><td><code>lib/</code> bundle</td><td><span class="badge decision">generated</span></td><td>Tracked; drift auto-repaired by setup</td></tr>
+          <tr><td>Legacy account file / SQLite evidence store</td><td><span class="badge store">retained</span></td><td>Out of the active path</td></tr>
+        </tbody>
+      </table></div>
+      <p>Variable-by-variable reference: <a href="../reference/CONFIGURATION_REFERENCE.md">CONFIGURATION_REFERENCE.md</a> · store catalog: <a href="../reference/DATA_STORE_CATALOG.md">DATA_STORE_CATALOG.md</a>.</p>
+    </article>
+    <nav class="pager" aria-label="Pagination"><a href="development.html">← Development</a><a href="reference.html">Next: Reference →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol><li><a href="#lifecycle">Lifecycle</a></li><li><a href="#config">Configuration</a></li><li><a href="#data">Data</a></li></ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · offline site — no external requests.</p></div></footer>
+</body>
+</html>

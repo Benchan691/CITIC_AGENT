@@ -1,0 +1,32 @@
+%% Authentication sequence — login, identity, denial paths (verified against b26d55d)
+sequenceDiagram
+    autonumber
+    participant B as Browser
+    participant H as Node host (ownership.js)
+    participant P as auth_cli / control_server
+    participant DB as PostgreSQL
+    participant Z as Zimbra
+
+    B->>H: POST /auth/login {email,password}
+    H->>H: same-site/origin check · JSON ≤32KiB
+    H->>P: runAuthCommand('login')
+    P->>Z: zimbra_login (SOAP)
+    alt invalid credentials
+        Z-->>P: error
+        P-->>H: authentication_failed (generic)
+        H-->>B: 401 invalid email or password
+    else valid credentials
+        Z-->>P: session token
+        P->>DB: create_user_session (encrypt token; revoke other sessions as new_device_login)
+        P-->>H: public_session (no token) + replaced_session_ids
+        H->>H: revoke replaced sessions (abort streams, clear modes)
+        H-->>B: 200 + Set-Cookie soc_session (24h HttpOnly SameSite=Lax)
+    end
+    B->>H: subsequent requests (cookie)
+    H->>H: principal via AsyncLocalStorage; ownership claims checked
+    H->>P: MCP metadata {soc_session_id, soc_investigation_id, soc_customer_id:'', soc_correlation_id, soc_deadline_ms}
+    alt unknown/expired session
+        P-->>H: session_expired / authentication_required (fail closed)
+    end
+    B->>H: POST /auth/logout
+    H->>DB: delete session; unbind agents; clear cookie

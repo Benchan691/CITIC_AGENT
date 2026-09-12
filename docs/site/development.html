@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Development &amp; testing — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Start</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="flows.html">Flows</a>
+      <a href="mcp-tooling.html">Tooling</a>
+      <a href="security.html">Security</a>
+      <a href="development.html" aria-current="page">Development</a>
+      <a href="operations.html">Operations</a>
+      <a href="reference.html">Reference</a>
+      <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index.html">Home</a></li><li aria-current="page">Development &amp; testing</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>Development and testing</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: <a href="../DEVELOPMENT.md">DEVELOPMENT.md</a> + <a href="../TESTING.md">TESTING.md</a> — the Markdown files are the source of truth.</blockquote>
+
+      <h2 id="commands">Toolchain and commands</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Task</th><th scope="col">Command</th></tr></thead>
+        <tbody>
+          <tr><td>Install / repair wiring</td><td><code>./setup.sh</code> or <code>./setup.sh --plugins</code></td></tr>
+          <tr><td>Host JS tests (27)</td><td><code>cd apps/soc-agent &amp;&amp; npm test</code></td></tr>
+          <tr><td>Client TS tests (9)</td><td><code>cd packages/soc-agent-client &amp;&amp; npm test</code></td></tr>
+          <tr><td>Python tests (75)</td><td><code>cd apps/soc-agent/server &amp;&amp; uv sync --extra test &amp;&amp; uv run pytest</code></td></tr>
+          <tr><td>Rebuild client bundle</td><td><code>pnpm --filter dsh-soc-agent-client run build</code></td></tr>
+          <tr><td>Run the app</td><td><code>cd vendor/deepseek-harness &amp;&amp; pnpm dsh web --no-open</code></td></tr>
+        </tbody>
+      </table></div>
+      <p>No active lint/format hooks exist (<code>lefthook.yml</code> is commented examples) — match surrounding style manually. All suites run offline (in-memory doubles, fake transports, local subprocesses); nothing is skipped; no CI exists at the root.</p>
+
+      <h2 id="deps">Dependency model and generated boundary</h2>
+      <p>The vendored harness's pnpm workspace <em>includes this repo</em> — SOC packages resolve via <code>workspace:*</code> and one <code>link:</code>. Two Python dependency files exist by design: root <code>requirements.txt</code> lists <em>external pnpm plugins</em> (count-validated against <code>setup.sh</code>'s hardcoded <code>PLUGIN_NAMES</code>), while the server's <code>pyproject.toml</code>/<code>uv.lock</code> are the real Python dependencies. <code>packages/soc-agent-client/lib/</code> is <span class="badge sensitive">tracked generated output</span> — rebuild after client changes and commit source + bundle together.</p>
+
+      <h2 id="recipe">Adding or changing an MCP tool — six contracts</h2>
+      <ol>
+        <li>Python registration (<code>register_tools</code> module + <code>readOnlyHint</code>; never <code>ctx</code>/<code>account_id</code> params).</li>
+        <li>Raw allowlist entry in <code>cordis.patch.yml</code>.</li>
+        <li>Qualified policy entry in <code>policy.js</code> (read list or <code>ACTION_CATALOG</code>).</li>
+        <li>Client labels/views if the tool needs special presentation.</li>
+        <li>Tests on both tiers (<code>test_server_tools.py</code> exact set; <code>policy.test.js</code>/<code>skills.test.js</code> counts — currently 29/41/12).</li>
+        <li>Documentation (<code>reference/MCP_TOOL_CATALOG.md</code>, routing page, traceability matrix).</li>
+      </ol>
+      <p>Vendor changes stay reproducible: configure via <code>cordis.patch.yml</code> rows, file-level changes via <code>patches/*.patch</code> (+ the pinned spec in <code>requirements.txt</code>), persona via the <code>citic-soc</code> preset — never edit vendored sources.</p>
+
+      <h2 id="tests">What the suites prove</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Suite</th><th scope="col">Proves</th></tr></thead>
+        <tbody>
+          <tr><td>Host JS (27 tests)</td><td>Credential startup requirements, cookie/session lifecycle, cookie-tier segregation, IDOR scoping, workspace containment, event redaction, background cadence, tool-policy verdicts (29/41/12), control-channel no-replay, bridge config/TLS, patch↔policy↔bridge naming pins</td></tr>
+          <tr><td>Client TS (9 tests)</td><td>Fail-closed action-mode RPC, draft field normalization, two-worker conversion (order/cache/retry), admin-console source guardrails (mount gating, write-only credentials)</td></tr>
+          <tr><td>Python (75 tests)</td><td>Exact 27-tool surface (and absence of Splunk/legacy tools), session lifecycle + redaction, config validation/redaction, Zimbra semantics (fingerprint concurrency, gates, verified moves, local-only drafts), subscription client bounds, attachment limits, control protocol, retained Splunk internals</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="gaps">Known coverage gaps</h2>
+      <p>No end-to-end browser tests; draft→UI→send chain tested only in segments; real-SQL behaviors run against doubles; <code>setup.sh</code>/<code>update.sh</code> untested; retained-code non-registration asserted only negatively. Full detail: <a href="../reference/TEST_COVERAGE_MATRIX.md">TEST_COVERAGE_MATRIX.md</a>.</p>
+    </article>
+    <nav class="pager" aria-label="Pagination"><a href="security.html">← Security</a><a href="operations.html">Next: Operations →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol><li><a href="#commands">Commands</a></li><li><a href="#deps">Dependency model</a></li><li><a href="#recipe">Tool change recipe</a></li><li><a href="#tests">Test suites</a></li><li><a href="#gaps">Gaps</a></li></ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · offline site — no external requests.</p></div></footer>
+</body>
+</html>

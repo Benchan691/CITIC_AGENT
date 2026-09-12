@@ -1,0 +1,18 @@
+%% Email draft/send — state machine + sequence (verified against b26d55d)
+stateDiagram-v2
+    [*] --> editing: zimbra_send_email returns LOCAL draft (nothing stored, nothing sent)
+    editing --> editing: user edits fields / add signature (list-signatures)
+    editing --> discarded: discard
+    discarded --> editing: Reopen
+    editing --> sending: validation OK (≥1 To, subject) AND window.confirm('Send this email now?')
+    editing --> failed: validation error (no confirm shown)
+    sending --> sent: send-email RPC → result.sent === true
+    sending --> failed: error / missing sent acknowledgment ("Zimbra did not confirm that the email was sent.")
+    failed --> sending: Retry (confirm again)
+    sent --> [*]
+    note right of sending
+        send-email RPC path (not an MCP tool):
+        host.js requireUser → runAuthCommand('send-email', session_id)
+        → control channel → ZimbraMailService.send_email
+        → gate ZIMBRA_ALLOW_SEND
+    end note

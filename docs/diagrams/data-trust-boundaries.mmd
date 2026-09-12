@@ -1,0 +1,32 @@
+%% Data and trust boundaries — sensitive classes, stores, sanitization (verified against b26d55d)
+flowchart LR
+    subgraph untrusted["Untrusted zones"]
+        mail["Retrieved email / attachments"]
+        spl["Splunk results"]
+        prompt["Prompts"]
+    end
+    subgraph core["Trusted core (Node host)"]
+        authn["auth + scoped API proxy"]
+        gate["tool policy gate"]
+        proj["projection: mask card/SSN · 50KB cap<br/>(splunk_mcp output only)"]
+        attach["attachment converter bounds<br/>(100MB/2M hard caps, archive safety)"]
+    end
+    subgraph stores["Stores"]
+        pg[("PostgreSQL: sessions(encrypted token) · ownership · app_config(Fernet)")]
+        ws[(".data/soc-workspaces/<userId>/")]
+        env[(".env files 0600 — secrets")]
+    end
+    ext["External: Zimbra · Splunk MCP · Subscription · LLM"]
+    model["Model context"]
+
+    mail -->|mailbox tools| proj
+    spl -->|bridge| proj
+    proj --> model
+    attach --> model
+    prompt --> model
+    authn --> pg
+    authn --> ws
+    gate --> model
+    core <--> ext
+    classDef sensitive fill:#fde8e8,stroke:#b91c1c;
+    class pg,env,mail,spl sensitive;

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Start</a>
+      <a href="architecture.html" aria-current="page">Architecture</a>
+      <a href="flows.html">Flows</a>
+      <a href="mcp-tooling.html">Tooling</a>
+      <a href="security.html">Security</a>
+      <a href="development.html">Development</a>
+      <a href="operations.html">Operations</a>
+      <a href="reference.html">Reference</a>
+      <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index.html">Home</a></li><li aria-current="page">Architecture</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>Architecture</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: <a href="../ARCHITECTURE.md">ARCHITECTURE.md</a> — the Markdown file is the source of truth.</blockquote>
+
+      <h2 id="containers">Containers and process boundaries</h2>
+      <figure>
+        <img src="assets/diagrams/runtime-containers.svg" alt="Runtime containers: a browser connects to the Node host, which spawns the Python soc_agent server and control server as stdio children plus one-shot admin CLI processes, uses PostgreSQL, and reaches Zimbra, the subscription service, and the external Splunk MCP server." width="960">
+        <figcaption>Process topology. <span class="badge component">Components</span> are the trusted core; <span class="badge external">external systems</span> are credential-scoped; <span class="badge store">stores</span> persist state. Source: <a href="../diagrams/runtime-containers.mmd">runtime-containers.mmd</a>.</figcaption>
+      </figure>
+      <p>One Node host process (vendored harness web runtime + cordis plugins) serves the browser on port 3080 and spawns: the <code>soc_agent</code> Python MCP server (stdio child, 27 tools, spawn failure fatal), the persistent control server (stdio JSON lines), and one-shot admin CLI children. <strong>Why <code>soc_agent</code> and <code>splunk_mcp</code> must not be collapsed:</strong> the former is a local server executing <em>as the signed-in user</em>; the latter is a client bridge executing <em>with service credentials</em> against an external endpoint — different identity sources, failure modes, and guardrails.</p>
+
+      <h2 id="components">Components</h2>
+      <figure>
+        <img src="assets/diagrams/component-map.svg" alt="Component map linking policy.js, host.js, auth and ownership, the Splunk bridge, and the projection to the Python server modules, the retained unregistered Splunk package, the client bundle, skills, patch manifests, and the vendored harness." width="960">
+        <figcaption>First-party modules and their ownership. The retained Splunk package is flagged sensitive here because it is tested code that is deliberately not registered. Source: <a href="../diagrams/component-map.mmd">component-map.mmd</a>.</figcaption>
+      </figure>
+      <ul>
+        <li><strong>policy.js is the vocabulary</strong> — its frozen sets (29 read-only, 41 domain, 12 approval tools) are referenced by the gate, the UI, and the tests.</li>
+        <li><strong>ownership.js is the largest first-party module</strong> (1,875 lines): auth service plus the scoped API proxy that makes harness APIs per-user safe.</li>
+        <li><strong>The harness is patched, not forked</strong> — <code>cordis.patch.yml</code> toggles upstream plugins; one pnpm file patch (<code>dsh-auto-collapse</code>) exists.</li>
+      </ul>
+
+      <h2 id="codemap">Code map</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Layer</th><th scope="col">Canonical source</th><th scope="col">Generated</th><th scope="col">Tests</th></tr></thead>
+        <tbody>
+          <tr><td>Node plugins</td><td><code>apps/soc-agent/*.js</code></td><td>—</td><td><code>tests/*.test.js</code> (27)</td></tr>
+          <tr><td>Python server</td><td><code>server/unified_mcp_server/**</code></td><td>—</td><td>75 tests</td></tr>
+          <tr><td>Retained Python</td><td><code>unified_mcp_server/splunk/**</code>, <code>splunk_service.py</code></td><td>—</td><td>11 test files (contracts only)</td></tr>
+          <tr><td>Client</td><td><code>packages/soc-agent-client/src/**</code></td><td><code>lib/*</code> (tracked)</td><td>9 tests</td></tr>
+          <tr><td>Vendor</td><td><code>vendor/deepseek-harness/**</code> (0.1.1-rc.2)</td><td>dists (untracked)</td><td>upstream</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="boundaries">Trust boundaries (summary)</h2>
+      <ol>
+        <li>Browser → host: session cookies, same-site checks, fenced routes/upgrades, admin-only privileged APIs.</li>
+        <li>Harness → tools: registry restriction + authoritative <code>tools/pre-execute</code> exact-name allowlist.</li>
+        <li>Host → MCP: raw allowlists per server, per-call metadata, 185 s timeouts.</li>
+        <li>Python → identity: <code>soc_session_id</code> → Postgres session → the user's own Zimbra token; <code>account_id</code> selection rejected; 180 s budget.</li>
+        <li>Output → model: Splunk projection (PII mask, 50 KB), background 64 KiB cap, attachment bounds.</li>
+        <li>Mutation → human: action states + approval; email additionally UI-confirmed.</li>
+        <li>Patch level: model-facing shell/fs/subagent tool families disabled.</li>
+      </ol>
+      <p>Full treatment: <a href="security.html">Security &amp; authentication</a>. Per-file index: <a href="reference.html">Reference</a>.</p>
+    </article>
+    <nav class="pager" aria-label="Pagination"><a href="getting-started.html">← Getting started</a><a href="flows.html">Next: Flows &amp; UI →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol><li><a href="#containers">Containers</a></li><li><a href="#components">Components</a></li><li><a href="#codemap">Code map</a></li><li><a href="#boundaries">Trust boundaries</a></li></ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · offline site — no external requests.</p></div></footer>
+</body>
+</html>

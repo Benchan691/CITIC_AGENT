@@ -1,0 +1,19 @@
+%% Build/test/deploy lifecycle (verified against b26d55d)
+flowchart LR
+    src["Canonical sources<br/>apps/soc-agent · packages/soc-agent-client · skills · patch manifests"]
+    tests["Test suites<br/>node --test ×2 · pytest (offline only)"]
+    build1["tsdown build<br/>→ tracked lib/ (committed)"]
+    build2["pnpm harness build<br/>(fingerprint-gated; --rebuild forces)"]
+    fp[".data/harness-{install,build}.sha256 fingerprints"]
+    setup["setup.sh --plugins<br/>profile wiring: plugin add/prune · patch copy · resolution check"]
+    profile[("~/.dsh/profiles/web<br/>manifest + patches")]
+    deploy["pnpm dsh web --no-open<br/>Node host :3080"]
+    update["update.sh: clean tree → git pull --ff-only → setup.sh --plugins → manual restart"]
+
+    src --> tests --> deploy
+    src --> build1 --> deploy
+    src --> build2
+    fp --> build1
+    fp --> build2
+    build2 --> setup --> profile --> deploy
+    update --> setup

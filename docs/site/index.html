@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="getting-started.html">Start</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="flows.html">Flows</a>
+      <a href="mcp-tooling.html">Tooling</a>
+      <a href="security.html">Security</a>
+      <a href="development.html">Development</a>
+      <a href="operations.html">Operations</a>
+      <a href="reference.html">Reference</a>
+      <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li aria-current="page">Home</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>CITIC SOC Agent documentation</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (branch <code>splunk-offical-mcp</code>, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: <a href="../README.md">README.md</a> + <a href="../PRODUCT_OVERVIEW.md">PRODUCT_OVERVIEW.md</a> — the Markdown files are the source of truth.</blockquote>
+
+      <h2 id="summary">One-screen system summary</h2>
+      <div class="table-wrap"><table>
+        <tbody>
+          <tr><th scope="row">What is it?</th><td>A web-based SOC investigation assistant with tool-using AI, deployed as one Node host process plus Python child processes.</td></tr>
+          <tr><th scope="row">Who uses it?</th><td>Authenticated SOC staff (analysts) and an administrator (separate static admin login).</td></tr>
+          <tr><th scope="row">External systems</th><td>Zimbra (mail, identity), an external official Splunk MCP server, a subscription web service, PostgreSQL, an LLM provider.</td></tr>
+          <tr><th scope="row">Two MCP servers</th><td><code>soc_agent</code> — local Python stdio server, Zimbra + subscription tools only. <code>splunk_mcp</code> — a client bridge to the external official Splunk MCP endpoint, read-only by allowlist.</td></tr>
+          <tr><th scope="row">Safety model</th><td>Allowlisted tools only; read-only by default; per-tool ask/auto-run/disabled states; Full access vs SOC mode; email delivery only via an explicit UI Send confirmation; harness shell/filesystem tools disabled.</td></tr>
+          <tr><th scope="row">Persistence</th><td>PostgreSQL (sessions, ownership, encrypted config), per-user workspaces under <code>.data/soc-workspaces/</code>, optional SQLite evidence store (retained), tracked generated client bundle in <code>lib/</code>.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="diagram">The smallest useful architecture diagram</h2>
+      <figure>
+        <img src="assets/diagrams/system-context.svg" alt="System context diagram: analyst and administrator connect to the SOC Agent system, which connects to Zimbra, the external Splunk MCP server, the subscription service, PostgreSQL, and an LLM provider." width="940">
+        <figcaption>People and external systems around the SOC Agent boundary. Editable source: <a href="../diagrams/system-context.mmd">diagrams/system-context.mmd</a>.</figcaption>
+      </figure>
+
+      <h2 id="paths">Reader map — four fast paths</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">You are…</th><th scope="col">Read in this order</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge actor">New user</span></td><td>Product overview (below) → <a href="architecture.html">Architecture</a> → <a href="flows.html">Flows &amp; UI</a></td></tr>
+          <tr><td><span class="badge component">Developer</span></td><td><a href="getting-started.html">Getting started</a> → <a href="development.html">Development</a> → <a href="mcp-tooling.html">Tooling</a> → <a href="reference.html">Reference</a></td></tr>
+          <tr><td><span class="badge external">Operator</span></td><td><a href="getting-started.html">Getting started</a> → <a href="operations.html">Operations</a> → <a href="troubleshooting.html">Troubleshooting</a></td></tr>
+          <tr><td><span class="badge sensitive">Security reviewer</span></td><td><a href="security.html">Security &amp; trust</a> → <a href="security.html#auth">Authentication</a> → <a href="mcp-tooling.html">Tooling</a> → <a href="reference.html#trace">Traceability matrix</a></td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="product">Product overview in ten minutes</h2>
+      <p><strong>Business problem.</strong> SOC analysts pivot between report emails in Zimbra, detection alerts and telemetry in Splunk, and subscription records. This product puts those behind one chat: the analyst signs in <em>as themselves</em>, and the agent investigates with a strictly allowlisted, read-only-by-default tool set.</p>
+      <p><strong>What the agent can do.</strong> Investigate Splunk through 13 read tools; read the analyst's own mailbox (folders, search, messages, headers, attachment text); draft emails; propose mailbox/subscription mutations that require human approval; and follow four skills (<em>splunk-investigation</em>, <em>false-positive-analysis</em>, <em>detection-engineering</em>, <em>spl-writing</em>).</p>
+      <p><strong>What it deliberately does not do.</strong> No autonomous monitoring; no Splunk mutations (no create/update/enable/disable/delete tool exists); no detection deployment (handoff to a human process only); no model-driven email delivery (the tool builds drafts; only the human Send confirmation delivers); no stored mailbox credentials; no shell/filesystem tools for the model.</p>
+      <div class="warning"><strong>Operational warning.</strong> Nothing in this documentation authorizes action against Splunk, Zimbra, or the subscription service. Investigations are read-only by default; changes follow the documented approval flows.</div>
+
+      <h2 id="index">Page index</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Page</th><th scope="col">Answers</th><th scope="col">Presents (Markdown)</th></tr></thead>
+        <tbody>
+          <tr><td><a href="getting-started.html">Getting started</a></td><td>Prerequisites, safe setup, first verification</td><td><code>GETTING_STARTED.md</code></td></tr>
+          <tr><td><a href="architecture.html">Architecture</a></td><td>Context, containers, components, code map, vendor seams</td><td><code>ARCHITECTURE.md</code></td></tr>
+          <tr><td><a href="flows.html">Flows &amp; UI</a></td><td>End-to-end runtime flows; UI areas and action modes</td><td><code>RUNTIME_FLOWS.md</code>, <code>USER_INTERFACE_AND_ACTION_MODES.md</code></td></tr>
+          <tr><td><a href="mcp-tooling.html">MCP &amp; tool routing</a></td><td>Names, namespaces, allowlists, naming traps</td><td><code>MCP_AND_TOOL_ROUTING.md</code></td></tr>
+          <tr><td><a href="security.html">Security &amp; authentication</a></td><td>Identity, ownership, trust boundaries, residual risks</td><td><code>AUTHENTICATION_AND_OWNERSHIP.md</code>, <code>SECURITY_AND_TRUST_BOUNDARIES.md</code></td></tr>
+          <tr><td><a href="development.html">Development &amp; testing</a></td><td>Layout, toolchain, change recipes; test layers</td><td><code>DEVELOPMENT.md</code>, <code>TESTING.md</code></td></tr>
+          <tr><td><a href="operations.html">Operations, configuration &amp; data</a></td><td>Setup doctor, updates, configuration, data stores</td><td><code>DEPLOYMENT_AND_OPERATIONS.md</code>, <code>CONFIGURATION.md</code>, <code>DATA_AND_PERSISTENCE.md</code></td></tr>
+          <tr><td><a href="reference.html">Reference</a></td><td>Catalogs: repository map, tools, interfaces, traceability, glossary</td><td><code>docs/reference/*.md</code> (10 files)</td></tr>
+          <tr><td><a href="troubleshooting.html">Troubleshooting</a></td><td>Symptom → diagnostic → corrective action</td><td><code>TROUBLESHOOTING.md</code></td></tr>
+          <tr><td><a href="../DOCUMENTATION_AUDIT.md">Documentation audit</a></td><td>Verification record, contradictions, unknowns</td><td><code>DOCUMENTATION_AUDIT.md</code></td></tr>
+        </tbody>
+      </table></div>
+    </article>
+    <nav class="pager" aria-label="Pagination"><span></span><a href="getting-started.html">Next: Getting started →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol>
+        <li><a href="#summary">System summary</a></li>
+        <li><a href="#diagram">Diagram</a></li>
+        <li><a href="#paths">Reader map</a></li>
+        <li><a href="#product">Product overview</a></li>
+        <li><a href="#index">Page index</a></li>
+      </ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · Markdown is the source of truth · offline site — no external requests.</p></div></footer>
+</body>
+</html>

@@ -1,0 +1,19 @@
+%% System context — CITIC SOC Agent (verified against b26d55d)
+%% People and external systems around the SOC Agent system boundary.
+flowchart LR
+    analyst(["SOC analyst<br/>(Zimbra identity)"])
+    admin(["Administrator<br/>(static credentials)"])
+    system[("SOC Agent system<br/>Node host + Python services")]
+    zimbra(["Zimbra<br/>mail + identity (SOAP)"])
+    splunk(["External official<br/>Splunk MCP server"])
+    subs(["Subscription<br/>web service"])
+    pg[("PostgreSQL")]
+    llm(["LLM provider"])
+
+    analyst -->|HTTPS session cookie| system
+    admin -->|HTTPS admin cookie| system
+    system -->|streamable HTTP + Bearer, read-only| splunk
+    system -->|sessions, ownership, encrypted config| pg
+    system -->|SOAP as signed-in user| zimbra
+    system -->|HTTPS service login| subs
+    system -->|model calls| llm

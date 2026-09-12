@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP and tool routing — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Start</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="flows.html">Flows</a>
+      <a href="mcp-tooling.html" aria-current="page">Tooling</a>
+      <a href="security.html">Security</a>
+      <a href="development.html">Development</a>
+      <a href="operations.html">Operations</a>
+      <a href="reference.html">Reference</a>
+      <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index.html">Home</a></li><li aria-current="page">MCP &amp; tool routing</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>MCP and tool routing</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: <a href="../MCP_AND_TOOL_ROUTING.md">MCP_AND_TOOL_ROUTING.md</a> — the Markdown file is the source of truth. Full tables: <a href="../reference/MCP_TOOL_CATALOG.md">reference/MCP_TOOL_CATALOG.md</a>.</blockquote>
+
+      <h2 id="anatomy">Naming anatomy</h2>
+      <p>A fully qualified MCP tool name is <code>mcp__&lt;server&gt;__&lt;raw-tool&gt;</code>. In <code>mcp__splunk_mcp__splunk_run_query</code> the word <em>splunk</em> appears in both portions — one product word in two different layers, still a single server. There are <strong>three identifier layers</strong>: cordis plugin id (<code>splunk-official-mcp</code>) → plugin package (<code>dsh-soc-agent/splunk-bridge</code>) → MCP server namespace (<code>splunk_mcp</code>).</p>
+      <p><strong>Names that are not tools:</strong> <code>ui__soc_agent__send_email</code> (a UI-confirmed catalog entry — the human send path, never model-callable) and <code>skill</code> (an unprefixed host-provided tool).</p>
+      <div class="warning"><strong>Name-vs-behavior traps.</strong> <code>zimbra_send_email</code> does <em>not</em> send — it creates a local draft (classified read-only, labeled "Create email draft"). <code>zimbra_use_signature_on_email</code> also does not send. Retained-only tool names referenced by detection skills (<code>splunk_get_detection</code>, <code>splunk_compile_citic_detection</code>, …) are not registered at this commit.</div>
+
+      <h2 id="routing">Routing layers</h2>
+      <figure>
+        <img src="assets/diagrams/mcp-routing.svg" alt="Routing: raw allowlists feed the two MCP servers; the host policy gate checks exact names, then mode and per-tool state route to deny, approval, or execute; splunk_mcp results pass the projection; the UI-confirmed send is not a tool." width="980">
+        <figcaption>From model request to execution. Source: <a href="../diagrams/mcp-routing.mmd">mcp-routing.mmd</a>.</figcaption>
+      </figure>
+      <ol>
+        <li><strong>Registration:</strong> raw <code>allowedToolNames</code> — exactly 27 for <code>soc_agent</code>, 13 reads for <code>splunk_mcp</code>.</li>
+        <li><strong>Restriction:</strong> the agent's tool set is restricted to <code>DOMAIN_TOOLS ∪ CONTROL_TOOLS</code> (<code>ask_user_question</code>, <code>exit_plan_mode</code>).</li>
+        <li><strong>Enforcement:</strong> <code>tools/pre-execute</code> exact-name gate; mode/state logic; <em>ask</em> verdicts enter the fail-closed approval waterfall.</li>
+        <li><strong>Identity metadata:</strong> <code>soc_session_id</code>, <code>soc_investigation_id</code>, empty <code>soc_customer_id</code>, <code>soc_correlation_id</code>, <code>soc_deadline_ms</code> (now + 180 s).</li>
+        <li><strong>Output:</strong> projection (PII mask + 50 KB truncation) for Splunk results; envelopes for everything else.</li>
+      </ol>
+
+      <h2 id="servers">The two servers</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col"></th><th scope="col">soc_agent</th><th scope="col">splunk_mcp</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">What</th><td>Local Python FastMCP server (stdio child)</td><td>Client bridge to an external official Splunk MCP server</td></tr>
+          <tr><th scope="row">Tools</th><td>27: 12 mail, 9 filters, 6 subscriptions</td><td>13 read tools</td></tr>
+          <tr><th scope="row">Identity</th><td>The signed-in user (Postgres session → their Zimbra token); <code>account_id</code> rejected</td><td>Service token (Bearer) from env</td></tr>
+          <tr><th scope="row">Failure mode</th><td>Spawn failure is fatal (<code>failOnStartupError</code>)</td><td>Disabled when endpoint/token missing; per-call errors otherwise</td></tr>
+          <tr><th scope="row">Guardrails</th><td>Local envelopes + validation + env gates</td><td>Remote server-side; local projection afterwards</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="classes">Read-only vs mutation</h2>
+      <p><strong>Read-only (29):</strong> <code>skill</code> + 13 Splunk reads + 12 Zimbra mail tools (the two draft builders write nothing) + 4 filter reads + 3 subscription reads. <strong>Mutations (12, default <em>ask</em>):</strong> move email, create folder, create/delete signature, five filter writes, three subscription writes — each additionally gated Python-side (<code>ZIMBRA_ALLOW_*</code>, filter fingerprints). <strong>UI-confirmed:</strong> <code>ui__soc_agent__send_email</code> cannot be automated.</p>
+
+      <h2 id="drift">How drift is prevented</h2>
+      <p>Three synchronized inventories — the patch raw allowlist, <code>policy.js</code> qualified sets, and the bridge's raw names — are pinned from both language tiers: <code>test_server_exposes_exact_domain_tool_set</code> ↔ <code>skills.test.js</code> (same 27 names), <code>policy.test.js</code> (29/41/12), <code>splunk-bridge.test.js</code> (read-only bridge). Changing a tool requires the six-contract recipe in <a href="development.html">Development</a>.</p>
+    </article>
+    <nav class="pager" aria-label="Pagination"><a href="flows.html">← Flows &amp; UI</a><a href="security.html">Next: Security →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol><li><a href="#anatomy">Naming anatomy</a></li><li><a href="#routing">Routing layers</a></li><li><a href="#servers">The two servers</a></li><li><a href="#classes">Tool classes</a></li><li><a href="#drift">Drift prevention</a></li></ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · offline site — no external requests.</p></div></footer>
+</body>
+</html>

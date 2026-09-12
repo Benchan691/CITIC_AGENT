@@ -1,0 +1,25 @@
+%% Runtime containers — process topology (verified against b26d55d)
+flowchart TB
+    browser["Browser<br/>(harness web runtime + dsh-soc-agent-client bundle)"]
+    host["Node host process<br/>cordis plugins: auth-host · host · splunk-bridge · mcp-client · connection"]
+    pyagent["Python: soc_agent<br/>unified-mcp-server (stdio)<br/>27 Zimbra/subscription tools"]
+    control["Python: control_server<br/>(persistent JSON-line channel)"]
+    admincli["Python: admin_cli<br/>(one-shot per admin op)"]
+    pg[("PostgreSQL<br/>soc_* tables + app_config")]
+    zimbra(["Zimbra SOAP"])
+    splunk(["External official Splunk MCP<br/>(streamable HTTP)"])
+    subs(["Subscription service"])
+
+    browser -->|"HTTPS /auth /admin /api /soc-agent-config + events WS"| host
+    host -->|"spawn stdio, 27-name allowlist"| pyagent
+    host -->|"spawn stdio JSON lines"| control
+    host -->|"spawn one-shot"| admincli
+    host --> pg
+    pyagent --> zimbra
+    pyagent --> subs
+    pyagent --> pg
+    control --> pg
+    control --> zimbra
+    admincli --> pg
+    host -->|"Bearer token, 13 read tools"| splunk
+    admincli -.->|"test-splunk (retained REST)"| splunk

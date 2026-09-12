@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html" aria-current="page">Start</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="flows.html">Flows</a>
+      <a href="mcp-tooling.html">Tooling</a>
+      <a href="security.html">Security</a>
+      <a href="development.html">Development</a>
+      <a href="operations.html">Operations</a>
+      <a href="reference.html">Reference</a>
+      <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index.html">Home</a></li><li aria-current="page">Getting started</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>Getting started</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: <a href="../GETTING_STARTED.md">GETTING_STARTED.md</a> — the Markdown file is the source of truth (fuller detail there).</blockquote>
+
+      <h2 id="prereq">Prerequisites</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Requirement</th><th scope="col">Version / check</th></tr></thead>
+        <tbody>
+          <tr><td>Node.js</td><td><code>^22.19.0</code> or <code>&gt;=24</code></td></tr>
+          <tr><td>pnpm, uv, Git</td><td>any recent</td></tr>
+          <tr><td>Python</td><td>3.12 (managed by uv)</td></tr>
+          <tr><td>PostgreSQL</td><td>reachable server (<code>APP_POSTGRES_URI</code>) — login fails closed without it</td></tr>
+          <tr><td>External services</td><td>Zimbra host; optional Splunk MCP endpoint + token; optional subscription service; LLM provider key (configured at runtime)</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="modes">The four setup situations</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Situation</th><th scope="col">Command</th><th scope="col">Behavior</th></tr></thead>
+        <tbody>
+          <tr><td>Fresh install (no checkout)</td><td><code>bash setup.sh</code> (bootstrap)</td><td>Prompts for repository URL, install path, branch; clones; re-execs the clone's setup</td></tr>
+          <tr><td>Existing checkout</td><td><code>./setup.sh</code></td><td>Interactive: prereq checks → parameters → env files → Python env → harness build → plugin wiring → bundle registration → summary (starts nothing)</td></tr>
+          <tr><td>Audit only</td><td><code>./setup.sh --check</code></td><td>Report-only; exit 1 when anything is missing/drifted; never writes</td></tr>
+          <tr><td>Non-interactive repair</td><td><code>./setup.sh --plugins</code> (+<code>--rebuild</code>)</td><td>Reinstalls/repairs/rewires; no prompts, no env writing</td></tr>
+          <tr><td>Update</td><td><code>./update.sh</code></td><td>Refuses dirty trees; fast-forward only; then <code>setup.sh --plugins</code>; restart manually</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="config">Configuration preparation (safe)</h2>
+      <p>Setup writes <code>apps/soc-agent/server/.env</code> and <code>vendor/deepseek-harness/.env</code> (both <code>chmod 600</code>), prompts for secrets with echo disabled, and auto-generates the encryption key if left blank. Precedence: <span class="badge component">process env</span> &gt; <span class="badge store">server/.env</span> &gt; template. Required keys: <code>SOC_ADMIN_EMAIL</code>/<code>SOC_ADMIN_PASSWORD</code> (host refuses to start without them), <code>APP_POSTGRES_URI</code> + <code>APP_SETTINGS_ENCRYPTION_KEY</code> (login), <code>ZIMBRA_HOST</code>. The Splunk bridge enables only when <code>SPLUNK_MCP_ENDPOINT</code> <strong>and</strong> <code>SPLUNK_TOKEN</code> are both set.</p>
+      <div class="warning"><strong>Never paste real secrets into shell commands</strong> (shell history) or tickets. Use the prompts or edit the 0600 files.</div>
+
+      <h2 id="run">Development startup and first verification</h2>
+      <pre><code>cd vendor/deepseek-harness
+pnpm dsh web --no-open        # then open http://127.0.0.1:3080</code></pre>
+      <ol>
+        <li><code>./setup.sh --check</code> — exits 0 only when everything is healthy.</li>
+        <li>Open the app: the <strong>Sentinel login</strong> overlay must cover the shell until you sign in.</li>
+        <li>Sign in with your <em>own</em> Zimbra credentials (not the admin pair); a private workspace appears under <code>.data/soc-workspaces/&lt;userId&gt;/</code>.</li>
+        <li>Admin console (<code>/admin</code>) → Connections: run the Splunk / subscription checks (status only; config stays in the server env).</li>
+        <li>As analyst: ask for mail folders or Splunk indexes (read tools auto-run in SOC mode); a mutation tool triggers an approval request.</li>
+        <li>Create a draft and observe the card — sending is gated behind the explicit Send confirmation.</li>
+      </ol>
+
+      <h2 id="failures">Common first-run failures</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Symptom</th><th scope="col">First thing to check</th></tr></thead>
+        <tbody>
+          <tr><td>Setup lists missing prerequisites</td><td>Install Node/pnpm/uv; rerun</td></tr>
+          <tr><td>Login always fails</td><td><code>APP_POSTGRES_URI</code> reachable? Zimbra accepts those credentials directly?</td></tr>
+          <tr><td>Zimbra tools absent/dead</td><td>Python server spawn (fatal by design), <code>uv sync</code>, encryption key</td></tr>
+          <tr><td>No Splunk tools</td><td>Bridge intentionally disabled — endpoint + token both required</td></tr>
+          <tr><td>Admin login rejects</td><td>Env credentials at host start; admin sessions are in-memory (restart logs admins out)</td></tr>
+          <tr><td>UI looks stale after client edits</td><td>Tracked <code>lib/</code> bundle not rebuilt</td></tr>
+        </tbody>
+      </table></div>
+      <p>More: <a href="troubleshooting.html">Troubleshooting</a>. Configuration detail: <a href="operations.html">Operations &amp; configuration</a>.</p>
+    </article>
+    <nav class="pager" aria-label="Pagination"><a href="index.html">← Home</a><a href="architecture.html">Next: Architecture →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol><li><a href="#prereq">Prerequisites</a></li><li><a href="#modes">Setup modes</a></li><li><a href="#config">Configuration</a></li><li><a href="#run">Startup &amp; verification</a></li><li><a href="#failures">First-run failures</a></li></ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · offline site — no external requests.</p></div></footer>
+</body>
+</html>

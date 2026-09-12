@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security &amp; authentication — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Start</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="flows.html">Flows</a>
+      <a href="mcp-tooling.html">Tooling</a>
+      <a href="security.html" aria-current="page">Security</a>
+      <a href="development.html">Development</a>
+      <a href="operations.html">Operations</a>
+      <a href="reference.html">Reference</a>
+      <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index.html">Home</a></li><li aria-current="page">Security &amp; authentication</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>Security and authentication</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: <a href="../AUTHENTICATION_AND_OWNERSHIP.md">AUTHENTICATION_AND_OWNERSHIP.md</a> + <a href="../SECURITY_AND_TRUST_BOUNDARIES.md">SECURITY_AND_TRUST_BOUNDARIES.md</a> — the Markdown files are the source of truth.</blockquote>
+
+      <h2 id="auth">Two principals, two stores</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col"></th><th scope="col">Analyst</th><th scope="col">Administrator</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Verified by</th><td>Zimbra (via Python SOAP login)</td><td>Static <code>SOC_ADMIN_EMAIL/PASSWORD</code>, timing-safe compare, required at startup</td></tr>
+          <tr><th scope="row">Cookie</th><td><code>soc_session</code> — 24 h, HttpOnly, SameSite=Lax</td><td><code>soc_admin_session</code> — 8 h, in-memory (restart logs out)</td></tr>
+          <tr><th scope="row">Store</th><td>Postgres <code>soc_app_sessions</code>, Zimbra token Fernet-encrypted (Node reads omit the column)</td><td>In-memory Map keyed by SHA-256(token)</td></tr>
+          <tr><th scope="row">Replacement</th><td>Single-device: new login revokes others (<code>new_device_login</code>, one-shot notice)</td><td>—</td></tr>
+        </tbody>
+      </table></div>
+      <p><strong>Identity authority.</strong> The authenticated server-side identity is authoritative: prompts and retrieved content cannot change the user. Every MCP call carries <code>soc_session_id</code> etc.; the Python server resolves it to the user's own Zimbra token and rejects <code>account_id</code> selection (<code>account_selection_disabled</code>). <strong>Ownership</strong> is enforced by Postgres claims plus a scoped API proxy over nine API domains (11 cross-user mutations denied in tests), with workspace paths contained under <code>.data/soc-workspaces/&lt;userId&gt;/</code> against traversal and symlink escape. Event streams are filtered and redacted per user (credential-reference events become generic, foreign sessions dropped).</p>
+
+      <h2 id="decision">Action authorization</h2>
+      <figure>
+        <img src="assets/diagrams/action-authorization.svg" alt="Decision tree: registration, host allowlist, mode and per-tool state, approval, Python gates, and the human-only email send path." width="960">
+        <figcaption>Every tool call must pass each gate. Source: <a href="../diagrams/action-authorization.mmd">action-authorization.mmd</a>.</figcaption>
+      </figure>
+
+      <h2 id="data">Data and trust boundaries</h2>
+      <figure>
+        <img src="assets/diagrams/data-trust-boundaries.svg" alt="Untrusted retrieved mail and Splunk content crosses projection and conversion bounds before reaching the model; sensitive stores are Postgres, per-user workspaces, and env files; external systems receive credential-scoped calls." width="980">
+        <figcaption>Sensitive classes <span class="badge sensitive">red</span> never persist outside their stores; retrieved content is evidence, not instructions. Source: <a href="../diagrams/data-trust-boundaries.mmd">data-trust-boundaries.mmd</a>.</figcaption>
+      </figure>
+
+      <h2 id="controls">Control inventory (evidence class)</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Control</th><th scope="col">Evidence</th></tr></thead>
+        <tbody>
+          <tr><td>Zimbra-backed login, generic failures, no echo</td><td>Test evidence (<code>auth.test.js</code>, <code>test_auth.py</code>)</td></tr>
+          <tr><td>Admin/user cookie segregation; privileged APIs admin-only</td><td>Test evidence</td></tr>
+          <tr><td>IDOR scoping, workspace containment, server-generated session ids</td><td>Test evidence</td></tr>
+          <tr><td>Exact-name tool allowlist at three layers; deny unknown</td><td>Test evidence (<code>policy.test.js</code> denies <code>bash</code> explicitly)</td></tr>
+          <tr><td>Model-facing shell/fs/subagent tools disabled; skills dir confined</td><td>Test evidence (<code>skills.test.js</code>)</td></tr>
+          <tr><td>Splunk output projection (PII mask, 50 KB)</td><td>Test evidence (<code>investigation.test.js</code>)</td></tr>
+          <tr><td>Send path: draft-only tool + UI confirm + service gate + <code>sent:true</code></td><td>Documented; the dialog itself is a UI-level control</td></tr>
+          <tr><td>Read-only Splunk boundary</td><td>Compositional (allowlist + policy + remote guardrails) — no protocol filter</td></tr>
+          <tr><td>Customer data separation</td><td>Operational assumption (<code>AGENTS.md</code>)</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="residual">Residual risks and recommendations</h2>
+      <ol>
+        <li><strong>Read-only Splunk is compositional</strong> — keep the naming-fence tests as release gates.</li>
+        <li><strong>Send confirmation is UI-level</strong> — server enforces auth + gate + acknowledgment but no confirmation token; product decision if the threat model requires one.</li>
+        <li><strong>CSRF posture</strong> relies on SameSite/Origin checks + fencing; consider explicit tokens if third-party origins appear.</li>
+        <li><strong>Retained Splunk code</strong> is one registration away from live; treat <code>test_server_tools.py</code> as a gate.</li>
+        <li><strong>No CI at repo root</strong> — the guards run only if someone runs them; wire CI.</li>
+        <li><strong>Tracked generated bundle</strong> and the unclassified <code>hi.txt</code> — see the audit.</li>
+      </ol>
+      <p>Claim-level mapping: <a href="reference.html#trace">Traceability matrix</a>.</p>
+    </article>
+    <nav class="pager" aria-label="Pagination"><a href="mcp-tooling.html">← MCP &amp; tool routing</a><a href="development.html">Next: Development →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol><li><a href="#auth">Principals</a></li><li><a href="#decision">Authorization</a></li><li><a href="#data">Trust boundaries</a></li><li><a href="#controls">Controls</a></li><li><a href="#residual">Residual risks</a></li></ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · offline site — no external requests.</p></div></footer>
+</body>
+</html>

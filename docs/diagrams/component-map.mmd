@@ -1,0 +1,36 @@
+%% Component map — first-party modules and ownership (verified against b26d55d)
+flowchart TB
+    subgraph host["apps/soc-agent (Node plugins)"]
+        policy["policy.js<br/>single tool catalog<br/>29 read · 41 domain · 12 mutation"]
+        hostjs["host.js<br/>tools/pre-execute gate · /soc-agent-config RPC<br/>background refresh · admin surface"]
+        auth["auth-host.js + ownership.js<br/>sessions · scoped API proxy · control channel"]
+        bridge["splunk-bridge.js<br/>splunk_mcp client (13 reads)"]
+        inv["investigation.js<br/>Splunk output projection"]
+    end
+    subgraph python["apps/soc-agent/server/unified_mcp_server"]
+        server["server.py<br/>FastMCP · 27 tools · 180s budget"]
+        mail["zimbra/ mail+filters"]
+        subsm["email/ subscriptions"]
+        stores["postgres_store · config · auth"]
+        retained["splunk/ (34 files) · splunk_service.py<br/>RETAINED — not registered"]
+    end
+    subgraph client["packages/soc-agent-client"]
+        ui["client components<br/>AuthGate · AdminConsole · Draft · PolicyMenu"]
+        lib["lib/ tracked generated bundle"]
+    end
+    skills["skills/ (4 SKILL.md)"]
+    patch["cordis.patch.yml + patches/"]
+    vendor["vendor/deepseek-harness<br/>(cordis loader · tools registry · approval · web)"]
+
+    patch --> vendor
+    hostjs --> policy
+    hostjs --> inv
+    auth -->|"mcp/request-meta"| server
+    hostjs -->|"deny/ask/delegate"| server
+    server --> mail & subsm
+    server --> stores
+    bridge -->|"registers 13 read tools"| vendor
+    skills -->|"skill-filesystem customSkillDirs"| vendor
+    ui --> lib --> vendor
+    hostjs --> vendor
+    auth --> vendor

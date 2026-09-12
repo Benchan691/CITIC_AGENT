@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runtime flows &amp; UI — CITIC SOC Agent documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="inner">
+    <a class="site-title" href="index.html">CITIC SOC Agent docs</a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Start</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="flows.html" aria-current="page">Flows</a>
+      <a href="mcp-tooling.html">Tooling</a>
+      <a href="security.html">Security</a>
+      <a href="development.html">Development</a>
+      <a href="operations.html">Operations</a>
+      <a href="reference.html">Reference</a>
+      <a href="troubleshooting.html">Troubleshooting</a>
+    </nav>
+  </div>
+</header>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index.html">Home</a></li><li aria-current="page">Flows &amp; UI</li></ol></nav>
+<div class="layout">
+  <main id="main">
+    <article class="page">
+      <h1>Runtime flows and the user interface</h1>
+      <blockquote class="meta">Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · documentation verified 2026-09-12.<br>Presents: <a href="../RUNTIME_FLOWS.md">RUNTIME_FLOWS.md</a> + <a href="../USER_INTERFACE_AND_ACTION_MODES.md">USER_INTERFACE_AND_ACTION_MODES.md</a> — the Markdown files are the source of truth.</blockquote>
+      <p>Every flow crosses the same four checkpoints: the browser (convenience), the scoped host boundary (session/ownership), the tool policy gate (allowlist + mode + per-tool state + approval), and the Python/external boundary (identity + budget + upstream gates).</p>
+
+      <h2 id="authflow">Login and identity</h2>
+      <p><code>POST /auth/login</code> → same-site check → Python verifies credentials against <strong>Zimbra</strong> → Postgres session created with a Fernet-encrypted Zimbra token (24 h) → <code>soc_session</code> cookie (HttpOnly, SameSite=Lax). A new login revokes the user's other sessions (single-device policy). Failure modes: generic 401 (no password echo), <code>session_expired</code> (lazy deletion), upstream token death → <code>zimbra_auth_error</code> deletes the session and forces re-login.</p>
+      <figure>
+        <img src="assets/diagrams/authentication-sequence.svg" alt="Authentication sequence from login through Zimbra verification and Postgres session creation to cookie issuance, with denial paths." width="960">
+        <figcaption>Sequence with denial paths. Source: <a href="../diagrams/authentication-sequence.mmd">authentication-sequence.mmd</a>.</figcaption>
+      </figure>
+
+      <h2 id="splunkflow">A read-only Splunk request</h2>
+      <p>The model calls <code>mcp__splunk_mcp__splunk_*</code> → host gate (read tool, auto by default) → bridge over streamable HTTP with a Bearer token (185 s timeout) → the external server applies its own guardrails → the result is sanitized (card/SSN masked) and truncated to 50 KB by the projection before entering model context. With no endpoint/token the bridge is disabled at startup and the tools never register.</p>
+
+      <h2 id="emailflow">Email draft → review → explicit Send</h2>
+      <figure>
+        <img src="assets/diagrams/email-draft-send.svg" alt="State machine: the tool returns a local draft, the user edits, confirmation gates sending, and only a Zimbra sent acknowledgment marks success; failures offer retry, discards offer reopen." width="980">
+        <figcaption>The draft lifecycle. Source: <a href="../diagrams/email-draft-send.mmd">email-draft-send.mmd</a>.</figcaption>
+      </figure>
+      <p><code>zimbra_send_email</code> builds a <strong>local draft only</strong> — nothing stored, nothing sent, no send tool exists for the model. Delivery happens exclusively through the draft card: validation (≥1 To recipient, subject) → <code>window.confirm('Send this email now?')</code> → <code>send-email</code> RPC → control channel → <code>ZimbraMailService.send_email</code> (gate <code>ZIMBRA_ALLOW_SEND</code>) → success only on <code>result.sent === true</code>. A lost response after transmission surfaces as <em>operation_outcome_unknown</em> and is never replayed.</p>
+
+      <h2 id="modes">Full access vs SOC mode</h2>
+      <p>Deployment default lives in encrypted settings (<code>soc-action-approval</code>); a signed-in user can override it per session from the composer menu. <strong>Full access</strong> runs every permitted tool directly (even ones marked <em>disabled</em>); <strong>SOC mode</strong> honors each tool's ask/auto-run/disabled state (defaults: mutations ask, reads auto). Modes never expand the allowlist — unknown names are always denied. Session overrides are in-memory and cleared on logout, revocation, or host restart.</p>
+
+      <h2 id="ui">UI areas</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Area</th><th scope="col">Component</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Sign-in gate</td><td><code>AuthGate</code></td><td>Full-screen "Sentinel login" overlay; polls <code>/auth/me</code> every 30 s; password cleared after success <em>and</em> failure</td></tr>
+          <tr><td>Action-mode menu</td><td><code>SocActionPolicyMenu</code></td><td>Full access / SOC mode; adopts the server-confirmed value; fails closed on malformed responses</td></tr>
+          <tr><td>Draft card</td><td><code>EmailDraftToolview</code></td><td>States editing → sending → sent/failed/discarded; signature merge; explicit confirmation</td></tr>
+          <tr><td>Attachments</td><td><code>MarkItDown*</code></td><td>Picker + limits (5 files / 10 MB / 50 MB / 200 k / 500 k chars defaults); two conversion workers; truncation notice</td></tr>
+          <tr><td>Admin console</td><td><code>AdminConsole</code> at <code>/admin</code></td><td>Connections (status only) · Agent context (BACKGROUND cadence) · Access &amp; approvals (per-tool checklist) · AI providers (write-only keys)</td></tr>
+        </tbody>
+      </table></div>
+      <p><strong>Convenience vs enforcement:</strong> the UI never enforces. The Send confirmation dialog is a UI control; the server enforces authentication, the send gate, and Zimbra's acknowledgment. Action modes and per-tool states are enforced server-side by <code>tools/pre-execute</code>.</p>
+      <p>Decision tree: <a href="security.html#decision">Action authorization diagram</a>.</p>
+    </article>
+    <nav class="pager" aria-label="Pagination"><a href="architecture.html">← Architecture</a><a href="mcp-tooling.html">Next: MCP &amp; tool routing →</a></nav>
+  </main>
+  <aside class="toc">
+    <nav aria-label="On this page"><h2>On this page</h2>
+      <ol><li><a href="#authflow">Login &amp; identity</a></li><li><a href="#splunkflow">Splunk request</a></li><li><a href="#emailflow">Email draft/send</a></li><li><a href="#modes">Action modes</a></li><li><a href="#ui">UI areas</a></li></ol>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer"><div class="inner"><p>Verified against commit <code>b26d55d274cf298a456d84edfbcb42b8dc90134b</code> (2026-09-11T15:35:35Z) · verified 2026-09-12 · offline site — no external requests.</p></div></footer>
+</body>
+</html>
