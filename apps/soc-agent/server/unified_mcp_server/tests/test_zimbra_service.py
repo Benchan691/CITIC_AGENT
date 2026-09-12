@@ -1,6 +1,9 @@
 import pytest
+import xml.etree.ElementTree as ET
 
+import unified_mcp_server.auth_cli as auth_cli
 import unified_mcp_server.zimbra.mail.service as module
+import unified_mcp_server.zimbra.zimbra as transport
 from unified_mcp_server.config import ZimbraSettings
 from unified_mcp_server.errors import ServiceError
 from unified_mcp_server.account_store import AccountStore
@@ -206,6 +209,117 @@ def test_create_email_draft_is_local_and_structured(monkeypatch):
     assert draft["draft"]["cc"] == ["cc@example.com"]
     assert draft["draft"]["bcc"] == ["bcc@example.com"]
     assert draft["draft"]["account_id"] == "legacy"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("note, body_format, plain_note, html_note", [
+    ("Review <this> & reply", "text", "Review <this> & reply", "Review &lt;this&gt; &amp; reply"),
+    ("<p>Review &amp; reply</p>", "html", "Review & reply", "<p>Review &amp; reply</p>"),
+    ("", "text", "", ""),
+])
+async def test_forward_draft_then_confirmed_send_uses_package_and_preserves_attachments(
+    monkeypatch, note, body_format, plain_note, html_note,
+):
+    identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
+    service = ZimbraService(settings(), identity=identity)
+    requests = []
+    original = "Original content " + "x" * 20_000
+    source_xml = f'''<GetMsgResponse xmlns="urn:zimbraMail"><m id="42">
+      <su>Incident update</su><e t="f" a="sender@example.com"/><e t="t" a="analyst@example.com"/>
+      <mp ct="multipart/mixed"><mp ct="text/plain" body="1"><content>{original}</content></mp>
+      <mp ct="text/html" body="1"><content>&lt;p&gt;Original HTML&lt;/p&gt;</content></mp>
+      <mp part="2" filename="report.pdf" ct="application/pdf" cd="attachment" s="10"/></mp>
+      </m></GetMsgResponse>'''
+
+    def fake_soap(host, body, auth_token="", **options):
+        assert host == "mail.example.com"
+        assert auth_token == "server-token"
+        assert options["verify_ssl"] is True
+        request = ET.fromstring(body)
+        requests.append(request)
+        if request.tag.endswith("GetMsgRequest"):
+            assert request.find("{*}m").get("id") == "42"
+            return ET.fromstring(source_xml)
+        assert request.tag.endswith("SendMsgRequest")
+        return ET.fromstring('<SendMsgResponse xmlns="urn:zimbraMail"><m id="99"/></SendMsgResponse>')
+
+    monkeypatch.setattr(transport, "soap_request", fake_soap)
+    monkeypatch.setattr(module, "zimbra_login", lambda *_: pytest.fail("must use the authenticated token"))
+    draft = (await service.create_forward_draft(
+        "42", ["to@example.com"], note, cc=["cc@example.com"], bcc=["bcc@example.com"],
+    ))["draft"]
+    assert len(requests) == 1 and requests[0].tag.endswith("GetMsgRequest")
+    assert draft["body"] == note
+    assert draft["subject"] == "Fwd: Incident update"
+    assert draft["forward_message_id"] == "42"
+    assert draft["account_id"] == "authenticated"
+    assert draft["forwarded_message"]["body_truncated"] is True
+    assert len(draft["forwarded_message"]["body"]) == 20_000
+    assert draft["forwarded_message"]["attachments"][0]["filename"] == "report.pdf"
+
+    # Exercise the same private command as the confirmed UI, with the editable note only.
+    monkeypatch.setattr(auth_cli, "_service", lambda payload: service)
+    result = await auth_cli.dispatch_command("send-email", {
+        **{key: draft[key] for key in ("to", "cc", "bcc", "subject", "body", "forward_message_id")},
+        "body_format": body_format, "session_id": "app-session",
+    })
+    assert result["sent"] is True and result["message_id"] == "99"
+    assert [request.tag.rsplit("}", 1)[-1] for request in requests] == [
+        "GetMsgRequest", "GetMsgRequest", "SendMsgRequest",
+    ]
+    message = requests[-1].find("{*}m")
+    assert message.attrib == {"origid": "42", "rt": "w"}
+    assert message.find("{*}su").text == "Fwd: Incident update"
+    assert [(item.get("t"), item.get("a")) for item in message.findall("{*}e")] == [
+        ("t", "to@example.com"), ("c", "cc@example.com"), ("b", "bcc@example.com"),
+    ]
+    assert message.find("{*}attach/{*}mp").attrib == {"mid": "42", "part": "2"}
+    parts = {part.get("ct"): part.findtext("{*}content") for part in message.findall(".//{*}mp") if part.find("{*}content") is not None}
+    assert parts["text/plain"].startswith(plain_note)
+    assert original in parts["text/plain"]
+    assert parts["text/html"].startswith(html_note)
+    assert "<p>Original HTML</p>" in parts["text/html"]
+    assert parts["text/plain"].count("---------- Forwarded message ----------") == 1
+
+
+@pytest.mark.asyncio
+async def test_forward_validation_and_send_gate_run_before_network(monkeypatch):
+    monkeypatch.setattr(transport, "soap_request", lambda *a, **kw: pytest.fail("invalid request must not contact Zimbra"))
+    identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
+    service = ZimbraService(settings(), identity=identity)
+    for invalid_id in ("", "other-mailbox:42", "42,43", "-1", "0"):
+        with pytest.raises(ServiceError) as error:
+            await service.create_forward_draft(invalid_id, ["to@example.com"])
+        assert error.value.code == "invalid_input"
+        with pytest.raises(ServiceError) as error:
+            await service.send_email(["to@example.com"], "Fwd: subject", "", forward_message_id=invalid_id)
+        assert error.value.code == "invalid_input"
+    with pytest.raises(ServiceError) as error:
+        await service.create_forward_draft("42", ["invalid-recipient"])
+    assert error.value.code == "invalid_input"
+    with pytest.raises(ServiceError) as error:
+        await service.send_email(["to@example.com"], "Fwd: subject", "", "another-account", forward_message_id="42")
+    assert error.value.code == "account_selection_disabled"
+    service.settings = settings(allow_send=False)
+    with pytest.raises(ServiceError) as error:
+        await service.send_email(["to@example.com"], "Fwd: subject", "", forward_message_id="42")
+    assert error.value.code == "operation_disabled"
+
+
+@pytest.mark.asyncio
+async def test_forward_missing_source_and_failed_delivery_never_report_success(monkeypatch):
+    identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
+    service = ZimbraService(settings(), identity=identity)
+    monkeypatch.setattr(module, "zimbra_get_message", lambda *a, **kw: None)
+    with pytest.raises(ServiceError) as error:
+        await service.create_forward_draft("42", ["to@example.com"])
+    assert error.value.code == "not_found"
+    monkeypatch.setattr(transport, "soap_request", lambda *a, **kw: ET.fromstring(
+        '<GetMsgResponse xmlns="urn:zimbraMail"><m id="42"><su>Subject</su></m></GetMsgResponse>'
+        if "GetMsgRequest" in a[1] else '<SendMsgResponse xmlns="urn:zimbraMail"/>',
+    ))
+    with pytest.raises(ServiceError):
+        await service.send_email(["to@example.com"], "Fwd: Subject", "", forward_message_id="42")
 
 
 

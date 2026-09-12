@@ -203,6 +203,7 @@
           - zimbra_get_email_headers
           - zimbra_get_attachment_text
           - zimbra_send_email
+          - zimbra_forward_email
           - zimbra_use_signature_on_email
           - zimbra_move_email
           - zimbra_list_email_filters

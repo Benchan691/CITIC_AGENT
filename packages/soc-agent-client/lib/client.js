@@ -2224,17 +2224,19 @@ window.__ModuleLoader__.load({
 		//#endregion
 		//#region src/client/emailDraft.ts
 		const ZIMBRA_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_send_email";
+		const ZIMBRA_FORWARD_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_forward_email";
 		const ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_use_signature_on_email";
 		function parseRecipientText(value) {
 			return [...new Set(value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean))];
 		}
-		function draftFromForm(fields) {
+		function draftFromForm(fields, forwardMessageId) {
 			return {
 				to: parseRecipientText(fields.to),
 				cc: parseRecipientText(fields.cc),
 				bcc: parseRecipientText(fields.bcc),
 				subject: fields.subject.trim(),
-				body: fields.body
+				body: fields.body,
+				...forwardMessageId === void 0 ? {} : { forward_message_id: forwardMessageId }
 			};
 		}
 		//#endregion
@@ -2358,8 +2360,10 @@ window.__ModuleLoader__.load({
 					[field]: event.target.value
 				}));
 			};
+			const forwardMessageId = envelope?.draft.forward_message_id;
+			const forwardedMessage = envelope?.draft.forwarded_message;
 			const submit = async () => {
-				const draft = draftFromForm(fields);
+				const draft = draftFromForm(fields, forwardMessageId);
 				if (draft.to.length === 0) {
 					setSendError("Add at least one To recipient.");
 					return;
@@ -2368,7 +2372,7 @@ window.__ModuleLoader__.load({
 					setSendError("Subject cannot be empty.");
 					return;
 				}
-				if (typeof window !== "undefined" && !window.confirm("Send this email now?")) return;
+				if (typeof window !== "undefined" && !window.confirm(forwardMessageId ? "Forward this email with the original message and all its attachments now?" : "Send this email now?")) return;
 				setStatus("sending");
 				setSendError(null);
 				try {
@@ -2428,7 +2432,7 @@ window.__ModuleLoader__.load({
 					className: EmailDraftToolview_module_css_default.header,
 					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: EmailDraftToolview_module_css_default.title,
-						children: "Email draft"
+						children: forwardMessageId ? "Forward email" : "Email draft"
 					}) })
 				}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: EmailDraftToolview_module_css_default.content,
@@ -2467,7 +2471,7 @@ window.__ModuleLoader__.load({
 							className: EmailDraftToolview_module_css_default.field,
 							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 								className: EmailDraftToolview_module_css_default.label,
-								children: "Body"
+								children: forwardMessageId ? "Your message (optional)" : "Body"
 							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
 								className: EmailDraftToolview_module_css_default.textarea,
 								"aria-label": "Body",
@@ -2475,6 +2479,31 @@ window.__ModuleLoader__.load({
 								onChange: update("body"),
 								maxLength: 18e3
 							})]
+						}),
+						forwardMessageId && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: EmailDraftToolview_module_css_default.field,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									className: EmailDraftToolview_module_css_default.label,
+									children: "Original message and all attachments will be included."
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", { children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: forwardedMessage?.subject || "Original message" }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+										forwardedMessage?.from,
+										" ",
+										forwardedMessage?.date
+									] }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+										className: EmailDraftToolview_module_css_default.textarea,
+										"aria-label": "Original message preview",
+										value: forwardedMessage?.body || "",
+										readOnly: true
+									}),
+									forwardedMessage?.body_truncated && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: "Preview shortened; the full original message will be forwarded." })
+								] }),
+								forwardedMessage?.attachments?.map((attachment) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: attachment.filename || "Unnamed attachment" }, attachment.part))
+							]
 						}),
 						sendError && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							className: `${EmailDraftToolview_module_css_default.message} ${EmailDraftToolview_module_css_default.error}`,
@@ -2599,7 +2628,11 @@ window.__ModuleLoader__.load({
 			inject: ["slots", "connection"],
 			apply(ctx) {
 				const connection = ctx.get("connection");
-				for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
+				for (const key of [
+					ZIMBRA_DRAFT_TOOL_NAME,
+					ZIMBRA_FORWARD_DRAFT_TOOL_NAME,
+					ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME
+				]) ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
 					name: "tool.call.toolview",
 					key,
 					inject: () => ({ connection })

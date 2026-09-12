@@ -21,7 +21,7 @@ MCP (Model Context Protocol) is how the harness gives the AI model tools. A *ser
 | What it is | Local Python MCP **server** (FastMCP), spawned as a stdio child | A **client bridge** (`splunk-bridge.js`) to an external official Splunk MCP server |
 | Where the code lives | `apps/soc-agent/server/unified_mcp_server/` | `apps/soc-agent/splunk-bridge.js` (client side only) |
 | Transport | stdio (`uv run unified-mcp-server`) | streamable HTTP + `Authorization: Bearer` |
-| Tools | 27 (Zimbra mail/filters + subscriptions) | 13 read tools |
+| Tools | 28 (Zimbra mail/filters + subscriptions) | 13 read tools |
 | Identity | The signed-in user (Postgres session → their Zimbra token) | Service token from env |
 | Failure mode | Spawn failure is fatal (`failOnStartupError: true`) | Disabled silently when endpoint/token missing; connection errors surface per call |
 | Guardrails | Local envelope + validation; upstream Zimbra | **Remote** server-side guardrails; local projection afterwards |
@@ -51,6 +51,7 @@ mcp__ splunk_mcp __ splunk_run_query
 
 1. **`zimbra_send_email` does not send.** It builds a local draft (docstring: "Build a local draft without contacting or writing to Zimbra"), is classified *read-only*, and is labeled "Create email draft" in the UI. Actual delivery = draft view → `window.confirm` → `send-email` host RPC → control channel → `ZimbraMailService.send_email` (gated by `ZIMBRA_ALLOW_SEND`). No model-callable tool sends email.
 2. **`zimbra_use_signature_on_email` also does not send** — it produces an editable draft with the signature merged.
+   **`zimbra_forward_email` creates a local forward draft** after reading one source message. Its body is the analyst's note; the original content and attachments are added by the existing `zimbra-client` package only after explicit UI Send through the same private `send-email` command.
 3. **`preview_subscription` and `validate_email_filter` are read tools** that compute proposed changes without writing.
 4. **Retained tool names in skills.** `detection-engineering`/`spl-writing` reference `splunk_get_detection`, `splunk_compile_citic_detection`, `splunk_backtest_detection`, `splunk_validate_detection` — those exist only in the retained (unregistered) Python implementation at this commit. See [DOCUMENTATION_AUDIT.md](DOCUMENTATION_AUDIT.md).
 
@@ -60,7 +61,7 @@ mcp__ splunk_mcp __ splunk_run_query
 
 Source: [diagrams/mcp-routing.mmd](diagrams/mcp-routing.mmd).
 
-1. **Registration (raw allowlists).** `cordis.patch.yml` gives each server `allowedToolNames`: the exact 27 for `soc_agent` and the bridge exposes exactly `OFFICIAL_SPLUNK_TOOL_NAMES` (13). `dsh-mcp-client` registers nothing outside them (`allowedToolNames` filtering, `mcp-discovery.test.js`).
+1. **Registration (raw allowlists).** `cordis.patch.yml` gives each server `allowedToolNames`: the exact 28 for `soc_agent` and the bridge exposes exactly `OFFICIAL_SPLUNK_TOOL_NAMES` (13). `dsh-mcp-client` registers nothing outside them (`allowedToolNames` filtering, `mcp-discovery.test.js`).
 2. **Restriction (agent tool set).** On `agent/created`, `host.js` calls `tools.restrict({allow: [...DOMAIN_TOOLS, ...CONTROL_TOOLS]})` — best-effort, because MCP tools may still be registering.
 3. **Enforcement (authoritative gate).** `tools/pre-execute` (global): exact string membership in `DOMAIN_TOOLS ∪ CONTROL_TOOLS` or deny ("This harness exposes only approved Splunk, Zimbra, and subscription tools."). Then mode/state: `full` → delegate everything; `soc` → per-tool `ask|auto|disabled` (defaults: mutations `ask`, reads `auto`). `ask` verdicts enter the harness approval waterfall (fail-closed — no answer, no run).
 4. **Identity metadata.** For both server names, `mcp/request-meta` attaches `soc_session_id`, `soc_investigation_id`, `soc_customer_id: ''`, `soc_correlation_id`, `soc_deadline_ms` (now + 180 s). The empty customer id is intentionally *not* a selector — identity is server-side only.
@@ -68,7 +69,7 @@ Source: [diagrams/mcp-routing.mmd](diagrams/mcp-routing.mmd).
 
 ## 4. Read-only vs mutation classification
 
-- **Read-only (`READ_ONLY_TOOLS`, 29):** `skill` + 13 Splunk reads + 12 Zimbra mail tools *as registered for reading* (including the two draft builders) + 4 filter reads/validators + 3 subscription reads. Note the subtlety: `zimbra_send_email` sits in the read list **because it writes nothing** — its label, not its name, tells the truth.
+- **Read-only (`READ_ONLY_TOOLS`, 30):** `skill` + 13 Splunk reads + 9 Zimbra mail reads/draft builders + 4 filter reads/validators + 3 subscription reads. `zimbra_send_email` and `zimbra_forward_email` are read-classified because they create local drafts and never deliver mail.
 - **Mutations (`ACTION_CATALOG`, 12):** Zimbra `move_email`, folder create, signature create/delete, the five filter writes, and the three subscription writes. All default to `ask`; all additionally gated Python-side by env flags (`ZIMBRA_ALLOW_*`) and, for filters, by `expected_fingerprint` optimistic concurrency.
 - **`APPROVAL_TOOLS` = `ACTION_TOOLS`** and `ALWAYS_ASK_ACTION_TOOLS` is empty — the per-tool state map (admin "Access & approvals") is the single place defaults are overridden.
 - **UI-confirmed:** `ui__soc_agent__send_email` renders with an "Explicit confirmation" badge and cannot be automated.

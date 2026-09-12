@@ -23,6 +23,7 @@ export const TOOL_CATALOG = Object.freeze([
   { name: 'mcp__soc_agent__zimbra_get_email_headers', group: 'Zimbra', label: 'Read email headers', kind: 'read' },
   { name: 'mcp__soc_agent__zimbra_get_attachment_text', group: 'Zimbra', label: 'Read attachment text', kind: 'read' },
   { name: 'mcp__soc_agent__zimbra_send_email', group: 'Zimbra', label: 'Create email draft', kind: 'read' },
+  { name: 'mcp__soc_agent__zimbra_forward_email', group: 'Zimbra', label: 'Forward email (draft)', kind: 'read' },
   { name: 'mcp__soc_agent__zimbra_list_signatures', group: 'Zimbra', label: 'List signatures', kind: 'read' },
   { name: 'mcp__soc_agent__zimbra_use_signature_on_email', group: 'Zimbra', label: 'Create signed email draft', kind: 'read' },
   { name: 'mcp__soc_agent__zimbra_list_email_filters', group: 'Zimbra', label: 'List email filters', kind: 'read' },

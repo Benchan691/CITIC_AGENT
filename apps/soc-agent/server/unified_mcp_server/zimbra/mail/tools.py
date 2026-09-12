@@ -90,6 +90,22 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
             create_draft,
         )
 
+    @server.tool(annotations={"readOnlyHint": True})
+    async def zimbra_forward_email(
+        ctx: Context,
+        message_id: str,
+        to: list[str],
+        body: str = "",
+        subject: str = "",
+        cc: list[str] | None = None,
+        bcc: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Prepare a browser-editable forward draft from one message in your mailbox. Body is an optional note; the original message and its attachments are included automatically when the user confirms Send. Never sends or saves to Zimbra."""
+        return await execute(
+            ctx, "zimbra", "create_forward_draft",
+            lambda: get_runtime(ctx).zimbra_mail.create_forward_draft(message_id, to, body, subject, cc, bcc),
+        )
+
     @server.tool()
     async def zimbra_use_signature_on_email(
         ctx: Context,

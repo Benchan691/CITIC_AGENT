@@ -8,6 +8,7 @@ import { rpc } from './settings-common.ts'
 import {
   draftFromForm,
   ZIMBRA_DRAFT_TOOL_NAME,
+  ZIMBRA_FORWARD_DRAFT_TOOL_NAME,
   ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME,
   type EmailDraftFields,
   type EmailDraftFormFields,
@@ -17,6 +18,7 @@ export {
   draftFromForm,
   parseRecipientText,
   ZIMBRA_DRAFT_TOOL_NAME,
+  ZIMBRA_FORWARD_DRAFT_TOOL_NAME,
   ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME,
 } from './emailDraft.ts'
 export type { EmailDraftFields, EmailDraftFormFields } from './emailDraft.ts'
@@ -140,8 +142,11 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
     setFields(current => ({ ...current, [field]: event.target.value }))
   }
 
+  const forwardMessageId = envelope?.draft.forward_message_id
+  const forwardedMessage = envelope?.draft.forwarded_message
+
   const submit = async () => {
-    const draft = draftFromForm(fields)
+    const draft = draftFromForm(fields, forwardMessageId)
     if (draft.to.length === 0) {
       setSendError('Add at least one To recipient.')
       return
@@ -150,7 +155,9 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
       setSendError('Subject cannot be empty.')
       return
     }
-    if (typeof window !== 'undefined' && !window.confirm('Send this email now?')) return
+    if (typeof window !== 'undefined' && !window.confirm(forwardMessageId
+      ? 'Forward this email with the original message and all its attachments now?'
+      : 'Send this email now?')) return
     setStatus('sending')
     setSendError(null)
     try {
@@ -213,7 +220,7 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
     <section className={css.card} data-dshcf-preserve="true" aria-label="Editable Zimbra email draft">
       <div className={css.header}>
         <div>
-          <div className={css.title}>Email draft</div>
+          <div className={css.title}>{forwardMessageId ? 'Forward email' : 'Email draft'}</div>
         </div>
       </div>
       <div className={css.content}>
@@ -228,9 +235,23 @@ export function EmailDraftToolview({ block, connection }: EmailDraftProps) {
             <input className={css.input} aria-label="Subject" value={fields.subject} onChange={update('subject')} maxLength={998} />
           </label>
           <label className={css.field}>
-            <span className={css.label}>Body</span>
+            <span className={css.label}>{forwardMessageId ? 'Your message (optional)' : 'Body'}</span>
             <textarea className={css.textarea} aria-label="Body" value={fields.body} onChange={update('body')} maxLength={18_000} />
           </label>
+          {forwardMessageId && (
+            <div className={css.field}>
+              <div className={css.label}>Original message and all attachments will be included.</div>
+              <details>
+                <summary>{forwardedMessage?.subject || 'Original message'}</summary>
+                <div>{forwardedMessage?.from} {forwardedMessage?.date}</div>
+                <textarea className={css.textarea} aria-label="Original message preview" value={forwardedMessage?.body || ''} readOnly />
+                {forwardedMessage?.body_truncated && <div>Preview shortened; the full original message will be forwarded.</div>}
+              </details>
+              {forwardedMessage?.attachments?.map(attachment => (
+                <div key={attachment.part}>{attachment.filename || 'Unnamed attachment'}</div>
+              ))}
+            </div>
+          )}
           {sendError && <div className={`${css.message} ${css.error}`} role="alert">{sendError}</div>}
           {signaturePanel && (
             <div className={css.signaturePanel}>
@@ -278,7 +299,7 @@ export const emailDraftToolview = {
   inject: ['slots', 'connection'],
   apply(ctx: Context): void {
     const connection = ctx.get('connection') as ConnectionHandle
-    for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) {
+    for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_FORWARD_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) {
       ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
         name: 'tool.call.toolview',
         key,

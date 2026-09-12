@@ -1,6 +1,7 @@
 import html
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
 from zimbra_client import ZimbraClient
@@ -223,6 +224,38 @@ def zimbra_send_message(
         bcc=bcc,
         subject=str(subject),
         **kwargs,
+    )
+    return {"message_id": result.message_id}
+
+
+class _PlainText(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.parts = []
+
+    def handle_data(self, data):
+        self.parts.append(data)
+
+
+def zimbra_forward_message(
+    host, token, message_id, recipients, subject, body, *, cc=None, bcc=None,
+    body_format="text", verify_ssl=True, timeout=60, allow_insecure_http=False,
+):
+    if body_format not in {"text", "html"}:
+        raise ValueError("body_format must be text or html")
+    # The package emits both MIME alternatives; include the note in both.
+    text_body = str(body)
+    html_body = html.escape(text_body).replace("\n", "<br>\n")
+    if body_format == "html":
+        parser = _PlainText()
+        parser.feed(text_body)
+        text_body, html_body = " ".join(parser.parts), str(body)
+    result = _token_client(
+        host, token, verify_ssl=verify_ssl, timeout=timeout,
+        allow_insecure_http=allow_insecure_http,
+    ).forward_message(
+        message_id, to=recipients, cc=cc, bcc=bcc, subject=subject,
+        text=text_body, html=html_body,
     )
     return {"message_id": result.message_id}
 

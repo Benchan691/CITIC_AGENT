@@ -10,6 +10,7 @@ from typing import Any
 from unified_mcp_server.zimbra import (
     download_attachment,
     zimbra_create_folder,
+    zimbra_forward_message,
     zimbra_get_message,
     zimbra_get_message_headers,
     zimbra_create_signature,
@@ -48,6 +49,12 @@ _DEFAULT_HEADER_NAMES = (
     "Authentication-Results", "Received-SPF", "DKIM-Signature",
 )
 _INVALID_DATE_ALIAS = re.compile(r"(?:^|(?<=[\s(-]))d\s*:\s*(?P<value>[^\s()]+)", re.IGNORECASE)
+
+
+def _forward_message_id(value: str) -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"[1-9][0-9]*", value.strip()):
+        raise ServiceError("invalid_input", "message_id must be a numeric ID from your own Zimbra mailbox")
+    return value.strip()
 
 
 def _validate_search_query(query: str) -> None:
@@ -379,6 +386,33 @@ class ZimbraMailService(ZimbraCore):
             "editable_fields": ["to", "cc", "bcc", "subject", "body"],
         }
 
+    async def create_forward_draft(
+        self,
+        message_id: str,
+        to: list[str] | str,
+        body: str = "",
+        subject: str = "",
+        cc: list[str] | str | None = None,
+        bcc: list[str] | str | None = None,
+    ) -> dict[str, Any]:
+        """Read one source message and prepare a local draft; never send or save it."""
+        message_id = _forward_message_id(message_id)
+        result = self.create_email_draft(to, subject or "Fwd:", body, cc, bcc)
+        source = await self.get_email(message_id)
+        if not subject:
+            original_subject = str(source.get("subject", "")).strip()
+            result["draft"]["subject"] = (
+                original_subject if original_subject.lower().startswith("fwd:")
+                else f"Fwd: {original_subject}".strip()
+            )
+        result["draft"]["forward_message_id"] = message_id
+        result["draft"]["forwarded_message"] = {
+            key: source[key] for key in (
+                "subject", "from", "to", "cc", "date", "body", "body_type", "body_truncated", "attachments",
+            ) if key in source
+        }
+        return result
+
     async def send_email(
         self,
         to: list[str] | str,
@@ -389,6 +423,7 @@ class ZimbraMailService(ZimbraCore):
         cc: list[str] | str | None = None,
         bcc: list[str] | str | None = None,
         body_format: str = "text",
+        forward_message_id: str | None = None,
     ) -> dict[str, Any]:
         if not self.settings.allow_send:
             raise ServiceError(
@@ -398,6 +433,8 @@ class ZimbraMailService(ZimbraCore):
         body_format = str(body_format or "").strip().lower()
         if body_format not in {"text", "html"}:
             raise ServiceError("invalid_input", "body_format must be text or html")
+        if forward_message_id is not None:
+            forward_message_id = _forward_message_id(forward_message_id)
         recipients = self._recipients(to, "to")
         carbon_copy = self._recipients(cc, "cc")
         blind_carbon_copy = self._recipients(bcc, "bcc")
@@ -414,6 +451,7 @@ class ZimbraMailService(ZimbraCore):
             carbon_copy,
             blind_carbon_copy,
             body_format,
+            forward_message_id,
         )
         return {
             "sent": True,
@@ -508,8 +546,17 @@ class ZimbraMailService(ZimbraCore):
         cc: list[str],
         bcc: list[str],
         body_format: str,
+        forward_message_id: str | None = None,
     ) -> dict[str, Any]:
         token = self._token(account)
+        if forward_message_id is not None:
+            return zimbra_forward_message(
+                self.settings.host, token, forward_message_id, recipients, subject, body,
+                cc=cc, bcc=bcc, body_format=body_format,
+                verify_ssl=self.settings.verify_ssl,
+                timeout=remaining_seconds(self.settings.timeout),
+                allow_insecure_http=self.settings.allow_insecure_http,
+            )
         return zimbra_send_message(
             self.settings.host,
             token,

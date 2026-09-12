@@ -4,8 +4,8 @@ import { ACTION_CATALOG, apply, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS, T
 import { ACTION_TOOLS } from '../policy.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 29)
-  assert.equal(DOMAIN_TOOLS.size, 41)
+  assert.equal(READ_ONLY_TOOLS.length, 30)
+  assert.equal(DOMAIN_TOOLS.size, 42)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
@@ -62,6 +62,7 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_list_email_filters' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_preview_email_filter_update' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_send_email' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_forward_email' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_list_signatures' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__zimbra_use_signature_on_email' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.equal((await preExecute({ name: 'mcp__soc_agent__zimbra_create_folder' }, () => ({ kind: 'delegate' }))).kind, 'ask')
