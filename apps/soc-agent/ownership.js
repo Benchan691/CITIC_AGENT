@@ -1232,7 +1232,7 @@ export function createScopedApiProxy(api, auth) {
       if (property === 'respond') {
         return async message => {
           const session = current()
-          if (!session) return { ok: false, error: { code: 'authentication-required', message: 'authentication required' } }
+          if (!session) return { ok: false, error: { code: 'authentication-required', message: 'authentication required', details: {} } }
           if (message?.result?.ok && message.result.value?.sessionId
             && !(await ownsSession(message.result.value.sessionId, session.userId))) {
             return { accepted: false, reason: 'not-pending' }

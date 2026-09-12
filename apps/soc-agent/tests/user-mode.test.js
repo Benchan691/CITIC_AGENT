@@ -21,7 +21,16 @@ test('user modes are authenticated, isolated, enforced, and revoked on logout', 
   const a = { id: 'login-a' }, b = { id: 'login-b' }
   const agent = { id: 'chat-a' }
   const execute = () => handlers.get('tools/pre-execute')({ name: 'mcp__soc_agent__zimbra_move_email', agent }, () => ({ kind: 'delegate' }))
-  assert.equal((await rpc('set-action-mode', { mode: 'full' })).ok, false)
+  assert.deepEqual((await rpc('set-action-mode', { mode: 'full' })).error, {
+    code: 'authentication-required',
+    message: 'authentication required',
+    details: {},
+  })
+  assert.deepEqual((await rpc('get-admin-action-catalog', {})).error, {
+    code: 'admin-authentication-required',
+    message: 'administrator authentication required',
+    details: {},
+  })
   await auth.storage.run(a, async () => {
     auth.bindAgentSession('chat-a')
     assert.equal((await execute()).kind, 'ask')

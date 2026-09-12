@@ -59,6 +59,8 @@ describe('transportError', () => {
 describe('rpcErrorSchema', () => {
   it('accepts every code branch with its required details', () => {
     expect(rpcErrorSchema.parse({ code: 'bad-request', message: 'm', details: { issues: [] } }).code).toBe('bad-request')
+    expect(rpcErrorSchema.parse({ code: 'authentication-required', message: 'm', details: {} }).code).toBe('authentication-required')
+    expect(rpcErrorSchema.parse({ code: 'admin-authentication-required', message: 'm', details: {} }).code).toBe('admin-authentication-required')
     expect(rpcErrorSchema.parse({ code: 'cancelled', message: 'm', details: {} }).code).toBe('cancelled')
     expect(rpcErrorSchema.parse({ code: 'session-not-found', message: 'm', details: { sessionId: 's' } }).code).toBe('session-not-found')
     expect(rpcErrorSchema.parse({ code: 'session-conflict', message: 'm', details: { sessionId: 's', requestedCwd: '/a', existingCwd: '/b' } }).code).toBe('session-conflict')
