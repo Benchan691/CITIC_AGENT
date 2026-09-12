@@ -1,6 +1,6 @@
 # Configuration reference
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 > Sources: `apps/soc-agent/server/.env.example` (safe template), `unified_mcp_server/config.py` (`ServerSettings.from_env`), `unified_mcp_server/env_loader.py`, `unified_mcp_server/postgres_store.py`, `apps/soc-agent/splunk-bridge.js`, `apps/soc-agent/ownership.js`, `apps/soc-agent/host.js`, `apps/soc-agent/cordis.patch.yml`, `setup.sh`.
 
 **Who this is for:** operators preparing a deployment and developers tracing where a value comes from.
@@ -21,8 +21,10 @@
 
 Fallback chains exactly as coded:
 - Storage URI: `APP_POSTGRES_URI` → `LANGGRAPH_POSTGRES_URI` → `POSTGRES_URI` (`postgres_store.py`, `ownership.js`, `cordis.patch.yml` env).
-- Server root: `DSH_SOC_AGENT_SERVER` → `<bundle>/server`; workspace root: `MCP_SERVER_ROOT` → legacy misspelling `MCP_SEVER_ROOT` → derived from `process.cwd()`.
+- Server root: `DSH_SOC_AGENT_SERVER` → `<bundle>/server`; workspace root: `MCP_SERVER_ROOT` → legacy misspelling `MCP_SEVER_ROOT` (still honored by `python-command.js` and `config.py _storage_path`).
 - Bridge config: `process.env` → `server/.env` (`splunk-bridge.js deploymentValues`).
+
+**Schema migrations are not environment-driven:** the Node host's `ensureSchema` (and the admin `migrate` RPC) invoke `uv run python -m unified_mcp_server.schema migrate` and pass the resolved PostgreSQL URI **as JSON over stdin** — deliberately, because loading `.env` in that child "could override that target and initialize a different database" (`schema.py`).
 
 ## 2. Node host / auth variables
 
@@ -38,27 +40,21 @@ Fallback chains exactly as coded:
 | `DSH_SOC_AGENT_SERVER` | `host.js`, `ownership.js`, bridge | Override Python server root | Optional | `/opt/CITIC_AGENT/apps/soc-agent/server` | `<bundle>/server` | — | Path |
 | `MCP_SERVER_ROOT` | patch env, `host.js workspaceRoot` | Workspace root (`.data/`, `skills/` anchor) | Set by patch | repo root | `MCP_SEVER_ROOT` fallback → cwd-derived | — | Path |
 
-## 3. Splunk — active bridge variables
+## 3. Splunk — official MCP bridge variables (the only Splunk configuration left)
+
+Setup and `./setup.sh --check` **require** this connection. `SplunkSettings` now contains exactly these five fields.
 
 | Variable | Consumer | Purpose | Required when | Safe example shape | Default | Sensitivity | Validation |
 |---|---|---|---|---|---|---|---|
-| `SPLUNK_MCP_ENDPOINT` | `splunk-bridge.js` | External official Splunk MCP server URL (streamable HTTP) | With `SPLUNK_TOKEN`, to enable the bridge | `https://splunk-mcp.example.test/mcp` | unset → bridge disabled (logged) | Endpoint | Non-empty; used verbatim as transport URL |
-| `SPLUNK_TOKEN` | `splunk-bridge.js` | Bearer token for the bridge | With endpoint | *(service token)* | — | **Secret** | Non-empty; sent as `Authorization: Bearer` |
-| `SPLUNK_VERIFY_SSL` | `splunk-bridge.js` | TLS verification | Optional | `true` | `true` (verified unless `0/false/no/off`) | — | Boolean-ish regex |
+| `SPLUNK_MCP_ENDPOINT` | `splunk-bridge.js`, `config.py` | External official Splunk MCP server URL (streamable HTTP) | Always (setup/check fail without it, with `SPLUNK_TOKEN`) | `https://splunk-mcp.example.test/mcp` | unset → bridge disabled + setup failure | Endpoint | HTTP(S) only; **no embedded credentials, query parameters, or fragments** (`splunk-bridge.js` URL validation) |
+| `SPLUNK_TOKEN` | `splunk-bridge.js`, `config.py` | Bearer token for the bridge | With endpoint | *(service token)* | — | **Secret** | Non-empty; sent as `Authorization: Bearer`; redacted from connection-test errors |
+| `SPLUNK_VERIFY_SSL` | `splunk-bridge.js`, `config.py` | TLS verification | Optional | `true` | `true` | — | Boolean; certificate exception applies only to this Splunk connection |
+| `SPLUNK_ALLOW_INSECURE_HTTP` | `splunk-bridge.js`, `config.py` | Opt-in for plain-HTTP endpoints | Only for `http://` endpoints | `false` | `false` | — | Required `true` for `http:` URLs (bridge refuses otherwise) |
+| `SPLUNK_SANITIZE_OUTPUT` | `investigation.js`, `config.py` | Disable card/SSN output masking | Optional | `true` | `true` (disabled by `0/false/no/off`) | — | Boolean-ish regex |
 
-## 4. Splunk — retained configuration (parsed, validated, hashed, but no runtime service)
+## 4. Retired Splunk configuration (removed this round)
 
-`SplunkSettings` (`config.py`) still parses and validates these; `Runtime.config_revision` hashes them, `admin_cli test-splunk` uses the legacy REST client, but **no Splunk tool is registered on `soc_agent`**. Legacy aliases via `_preferred`: `VERIFY_SSL`→`SPLUNK_VERIFY_SSL`, `SPL_MAX_EVENTS_COUNT`→`SPLUNK_MAX_EVENTS`, `SPL_RISK_TOLERANCE`→`SPLUNK_RISK_TOLERANCE`, `SPL_SAFE_TIMERANGE`→`SPLUNK_SAFE_TIMERANGE`, `SPL_SANITIZE_OUTPUT`→`SPLUNK_SANITIZE_OUTPUT`.
-
-| Group | Variables |
-|---|---|
-| Connection | `SPLUNK_URL` (authoritative; scheme/port extracted) or `SPLUNK_HOST`+`SPLUNK_PORT`+`SPLUNK_SCHEME`; `SPLUNK_HOST_FOR_DOCKER` + `RUNNING_INSIDE_DOCKER`; `SPLUNK_USERNAME`, `SPLUNK_PASSWORD`, `SPLUNK_TOKEN`, `SPLUNK_VERIFY_SSL`, `SPLUNK_ALLOW_INSECURE_HTTP`, `SPLUNK_MCP_ENDPOINT` (retained field; the *bridge* reads it independently) |
-| Behavior | `SPLUNK_REQUEST_TIMEOUT`, `SPLUNK_JOB_TIMEOUT`, `SPLUNK_MAX_EVENTS`, `SPLUNK_RISK_TOLERANCE`, `SPLUNK_SAFE_TIMERANGE`, `SPLUNK_SANITIZE_OUTPUT` (also read live by `investigation.js`), `SPLUNK_DETECTION_APP`, `SPLUNK_DETECTION_OWNER`, `SPLUNK_SEARCH_PLANNER_ENABLED`, `SPLUNK_SEARCH_PLANNER_MAX_REFINEMENTS`, `SPLUNK_SEARCH_REUSE_TTL_SECONDS` |
-| Lookups | `SPLUNK_LOOKUP_APP`, `SPLUNK_LOOKUP_OWNER`, `SPLUNK_LOOKUP_RULE_LOOKUP_NAME` (default `Ruleset.csv`), `SPLUNK_LOOKUP_CUSTOMER_LOOKUP_NAME`, `SPLUNK_LOOKUP_FIX_SOURCE_LOOKUP_NAME`, `SPLUNK_LOOKUP_MAX_BYTES`, `SPLUNK_LOOKUP_MAX_ROWS`, `SPLUNK_LOOKUP_MAX_COLUMNS` |
-| Query policy | 13 `SPLUNK_POLICY_*` variables (fail-closed decisions `allow|require_approval|deny`) |
-| Resource governance | 14 `SPLUNK_SEARCH_*` variables (bounded: e.g. `SPLUNK_SEARCH_GLOBAL_CONCURRENCY` 1–64, `SPLUNK_SEARCH_PER_PRINCIPAL_CONCURRENCY` 1–16), `SPLUNK_SEARCH_RESTRICTED_DECISION` (`deny|require_approval`) |
-| Security queue | `SECURITY_QUEUE_MAX_BACKEND_PAGES_PER_REQUEST`, `SECURITY_QUEUE_MAX_BACKEND_RECORDS_PER_REQUEST`, `SECURITY_QUEUE_STANDARD_CONCURRENCY` |
-| Evidence store | `SOC_EVIDENCE_STORE` (SQLite path; default `$DSH_HOME/soc-evidence.sqlite3` or `$HOME/.dsh/soc-evidence.sqlite3`) — used by retained `search/evidence_store.py` |
+All legacy Splunk REST variables (`SPLUNK_HOST`, `SPLUNK_HOST_FOR_DOCKER`, `RUNNING_INSIDE_DOCKER`, `SPLUNK_PORT`, `SPLUNK_SCHEME`, `SPLUNK_URL`, `SPLUNK_USERNAME`, `SPLUNK_PASSWORD`), all `SPLUNK_POLICY_*` query-policy variables, all `SPLUNK_SEARCH_*` resource-governance variables, `SPLUNK_LOOKUP_*`, `SPLUNK_DETECTION_*`, `SPLUNK_JOB_TIMEOUT`, `SPLUNK_REQUEST_TIMEOUT`, `SPLUNK_MAX_EVENTS`, `SPLUNK_RISK_TOLERANCE`, `SPLUNK_SAFE_TIMERANGE`, `SECURITY_QUEUE_*`, `SOC_EVIDENCE_STORE`, and their `SPL_*` aliases were **deleted from the codebase** (config.py, `.env.example`, setup.sh). REST-only deployments must add the official endpoint and token before Splunk tools appear. The `SPL_*` → `SPLUNK_*` legacy-alias mechanism is gone with them.
 
 ## 5. Zimbra variables
 
@@ -73,8 +69,8 @@ Fallback chains exactly as coded:
 | `ZIMBRA_ALLOW_FILTER_REDIRECT` / `ZIMBRA_ALLOW_FILTER_DISCARD` | Dangerous filter semantics | `true` | validated per rule |
 | `ZIMBRA_MAX_ATTACHMENT_BYTES` / `ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS` | Attachment limits | 10 MB / 200 000 (hard caps 100 MB / 2 000 000) | — |
 | `ZIMBRA_ALLOW_INSECURE_HTTP` | Allow plain HTTP | false | — |
-| `ZIMBRA_ACCOUNTS_FILE` / `ZIMBRA_ACCOUNTS_KEY_FILE` / `ZIMBRA_ACCOUNTS_KEY` | Legacy local account store paths/key | `.data/zimbra_accounts.enc` / `.key` | Runtime store is neutered (`EmptyAccountStore`); admin/compat only |
-| `ZIMBRA_EMAIL` / `ZIMBRA_PASSWORD` | Legacy single-account credentials | — | Compat only; never used by the normal runtime (`config.py` 512–515) |
+
+*(Removed this round: `ZIMBRA_ACCOUNTS_FILE`, `ZIMBRA_ACCOUNTS_KEY_FILE`, `ZIMBRA_ACCOUNTS_KEY`, and the legacy `ZIMBRA_EMAIL`/`ZIMBRA_PASSWORD` single-account variables no longer appear in the template or `config.py`.)*
 
 ## 6. Subscription service, MarkItDown, server identity
 

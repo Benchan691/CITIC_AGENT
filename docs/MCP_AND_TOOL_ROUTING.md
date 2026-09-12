@@ -1,6 +1,6 @@
 # MCP and tool routing
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** anyone who has ever been confused by a tool name here — which, given the naming, is everyone eventually.
 
@@ -47,13 +47,16 @@ mcp__ splunk_mcp __ splunk_run_query
 | Unprefixed host tool | `skill` | The harness skill-loading tool, in `READ_ONLY_TOOLS`; part of `DOMAIN_TOOLS` |
 | Harness interaction tools | `ask_user_question`, `exit_plan_mode` | Allowed by `host.js CONTROL_TOOLS` alongside `DOMAIN_TOOLS` |
 
+**Single source of truth (new this round).** `apps/soc-agent/tool-inventory.js` exports the entire inventory ("Draft preparation never delivers mail."); `policy.js` derives `READ_ONLY_TOOLS`/`ACTION_CATALOG`/`DOMAIN_TOOLS` from it and `splunk-bridge.js` imports the raw Splunk names. A tool change now starts in one file — drift fails tests or imports rather than relying on review alone.
+
 ### Name-vs-behavior traps (memorize these)
 
 1. **`zimbra_send_email` does not send.** It builds a local draft (docstring: "Build a local draft without contacting or writing to Zimbra"), is classified *read-only*, and is labeled "Create email draft" in the UI. Actual delivery = draft view → `window.confirm` → `send-email` host RPC → control channel → `ZimbraMailService.send_email` (gated by `ZIMBRA_ALLOW_SEND`). No model-callable tool sends email.
 2. **`zimbra_use_signature_on_email` also does not send** — it produces an editable draft with the signature merged.
    **`zimbra_forward_email` creates a local forward draft** after reading one source message. Its body is the analyst's note; the original content and attachments are added by the existing `zimbra-client` package only after explicit UI Send through the same private `send-email` command.
 3. **`preview_subscription` and `validate_email_filter` are read tools** that compute proposed changes without writing.
-4. **Retained tool names in skills.** `detection-engineering`/`spl-writing` reference `splunk_get_detection`, `splunk_compile_citic_detection`, `splunk_backtest_detection`, `splunk_validate_detection` — those exist only in the retained (unregistered) Python implementation at this commit. See [DOCUMENTATION_AUDIT.md](DOCUMENTATION_AUDIT.md).
+4. **`zimbra_forward_email` is also draft-only.** It reads the source message and prepares a forward draft (`forward_message_id` + `forwarded_message` metadata); delivery still goes through the confirmed send path — now with the original message and attachments.
+5. **Skills referencing removed tools.** `detection-engineering`/`spl-writing` (and parts of `false-positive-analysis`) name `splunk_get_detection`, `splunk_compile_citic_detection`, `splunk_backtest_detection`, `splunk_validate_detection`, `splunk_search` — the implementing code was **deleted** this round. See [DOCUMENTATION_AUDIT.md](DOCUMENTATION_AUDIT.md).
 
 ## 3. Routing layers (who checks what)
 
@@ -61,7 +64,7 @@ mcp__ splunk_mcp __ splunk_run_query
 
 Source: [diagrams/mcp-routing.mmd](diagrams/mcp-routing.mmd).
 
-1. **Registration (raw allowlists).** `cordis.patch.yml` gives each server `allowedToolNames`: the exact 28 for `soc_agent` and the bridge exposes exactly `OFFICIAL_SPLUNK_TOOL_NAMES` (13). `dsh-mcp-client` registers nothing outside them (`allowedToolNames` filtering, `mcp-discovery.test.js`).
+1. **Registration (raw allowlists).** `cordis.patch.yml` gives each server `allowedToolNames`: the exact 28 for `soc_agent` and the bridge exposes exactly `OFFICIAL_SPLUNK_TOOL_NAMES` (13) — both sourced from `tool-inventory.js`. `dsh-mcp-client` registers nothing outside them (`allowedToolNames` filtering, `mcp-discovery.test.js`).
 2. **Restriction (agent tool set).** On `agent/created`, `host.js` calls `tools.restrict({allow: [...DOMAIN_TOOLS, ...CONTROL_TOOLS]})` — best-effort, because MCP tools may still be registering.
 3. **Enforcement (authoritative gate).** `tools/pre-execute` (global): exact string membership in `DOMAIN_TOOLS ∪ CONTROL_TOOLS` or deny ("This harness exposes only approved Splunk, Zimbra, and subscription tools."). Then mode/state: `full` → delegate everything; `soc` → per-tool `ask|auto|disabled` (defaults: mutations `ask`, reads `auto`). `ask` verdicts enter the harness approval waterfall (fail-closed — no answer, no run).
 4. **Identity metadata.** For both server names, `mcp/request-meta` attaches `soc_session_id`, `soc_investigation_id`, `soc_customer_id: ''`, `soc_correlation_id`, `soc_deadline_ms` (now + 180 s). The empty customer id is intentionally *not* a selector — identity is server-side only.
@@ -84,8 +87,8 @@ Source: [diagrams/mcp-routing.mmd](diagrams/mcp-routing.mmd).
 
 | Drift risk | Guard |
 |---|---|
-| Python server registers something outside the 27 | `test_server_exposes_exact_domain_tool_set` (exact set; also forbids `ctx`/`account_id` params) |
-| Patch allowlist ≠ Python surface | `skills.test.js` pins the patch's 27-name list; JS and Python pin the **same** list independently |
+| Python server registers something outside the 28 | `test_server_tools.py` (`len(tools) == 28`; also forbids `ctx`/`account_id` params) |
+| Patch allowlist ≠ Python surface | `skills.test.js` pins the patch's 28-name list; JS and Python pin the **same** list independently |
 | Bridge allowlist gains a write tool | `splunk-bridge.test.js` + `skills.test.js` assert no `splunk_(create|update|delete|write)_` and exact read names |
 | Policy sets drift from the catalog | `policy.test.js` pins 29/41/12 and derives `ACTION_TOOLS` from `ACTION_CATALOG` (single source of truth by construction) |
 | Client invents a mode or bypasses the endpoint | `action-policy.test.ts` (exact RPC triple; fail closed) |

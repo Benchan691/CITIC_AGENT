@@ -1,6 +1,6 @@
 # CITIC_AGENT documentation
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 > Evidence for every claim is cited by repository path and symbol. See [reference/TRACEABILITY_MATRIX.md](reference/TRACEABILITY_MATRIX.md).
 
 **Who this page is for:** everyone. It is the entry point and reader map for the whole documentation set.
@@ -20,7 +20,7 @@
 | What is it? | A web-based SOC investigation assistant with tool-using AI, deployed as one Node host process plus Python child processes. |
 | Who uses it? | Authenticated SOC staff (analysts) and an administrator (separate static admin login). |
 | Main external systems | Zimbra (mail, identity), an external official Splunk MCP server, a subscription web service, PostgreSQL. |
-| Two MCP servers | `soc_agent` — local Python stdio server, Zimbra + subscription tools only. `splunk_mcp` — a client-side bridge to the external official Splunk MCP endpoint, read-only by allowlist. |
+| Two MCP servers | `soc_agent` — local Python stdio server, Zimbra + subscription tools only (28 tools incl. forward drafts). `splunk_mcp` — a client-side bridge to the external official Splunk MCP endpoint, read-only by allowlist (13 tools). |
 | Safety model | Allowlisted tools only; read-only by default; per-tool ask/auto-run/disabled states; Full access vs SOC mode; email delivery only via an explicit UI Send confirmation; harness shell/filesystem tools disabled. |
 | Persistence | PostgreSQL (sessions, ownership, encrypted config), per-user workspace directories under `.data/soc-workspaces/`, optional SQLite evidence store, tracked generated client bundle in `lib/`. |
 
@@ -29,7 +29,7 @@
 ```mermaid
 flowchart LR
     A[SOC analyst browser] -->|HTTPS session cookie| B[Node host<br/>harness web server]
-    B -->|stdio, 27 tools| C[Python MCP server<br/>soc_agent]
+    B -->|stdio, 28 tools| C[Python MCP server<br/>soc_agent]
     C -->|SOAP| Z[Zimbra]
     C -->|HTTPS| S[Subscription service]
     B -->|streamable HTTP, 13 read tools| SP[External official<br/>Splunk MCP server]
@@ -68,6 +68,7 @@ Editable source: [diagrams/system-context.mmd](diagrams/system-context.mmd). Ful
 | [DOCUMENTATION_AUDIT.md](DOCUMENTATION_AUDIT.md) | What was verified, what could not be, contradictions, unknowns |
 | [reference/](reference/REPOSITORY_MAP.md) | Repository map, component catalog, source index, interface catalog, MCP tool catalog, configuration reference, data-store catalog, test-coverage matrix, traceability matrix, glossary |
 | [diagrams/](diagrams/README.md) | Editable Mermaid sources for every diagram |
+| [SHORTENING_PLAN_IMPLEMENTATION.md](SHORTENING_PLAN_IMPLEMENTATION.md) | The maintainer's record of the Splunk-stack removal refactor (baseline `d264ca7`) |
 
 ## Evidence in the repository
 

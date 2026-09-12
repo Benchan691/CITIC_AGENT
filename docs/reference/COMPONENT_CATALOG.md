@@ -1,6 +1,6 @@
 # Component catalog
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** developers, reviewers, and security assessors who need each component's responsibility, boundaries, and test coverage at a glance.
 
@@ -12,7 +12,7 @@
 
 ---
 
-Runtime-status legend: **Active** (always on) · **Conditional** (on when configured) · **Admin-only** · **Retained** (present, tested, not registered on the live path) · **Test-only** · **Generated** · **Operational tooling**.
+Runtime-status legend: **Active** (always on) · **Conditional** (on when configured) · **Admin-only** · **Removed** (deleted this round; previously "retained") · **Generated** · **Operational tooling**.
 
 ---
 
@@ -42,15 +42,15 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 
 ## 3. SOC host plugin (`soc-agent-admin-host` → `dsh-soc-agent/host`)
 
-- **Paths:** `apps/soc-agent/host.js`, `apps/soc-agent/policy.js`, `apps/soc-agent/investigation.js`
+- **Paths:** `apps/soc-agent/host.js`, `apps/soc-agent/policy.js`, `apps/soc-agent/tool-inventory.js`, `apps/soc-agent/investigation.js`
 - **Purpose:** the policy and product-RPC brain: exact tool allowlisting, action modes and per-tool states, `/soc-agent-config` endpoints, BACKGROUND.md refresh, Splunk output projection, admin page and admin subprocesses.
-- **Owner/responsibility:** decides allow/deny/ask for every tool call; owns the action catalog vocabulary.
+- **Owner/responsibility:** decides allow/deny/ask for every tool call; owns the action catalog vocabulary (single-sourced in `tool-inventory.js`, imported by policy and bridge alike).
 - **Entry points:** cordis `apply(ctx)`; hooks `tools/pre-execute` (global), `tools/post-execute` (global, from `investigation.js`), `agent/created`, `agent/pre-step` (background); RPC channel `/soc-agent-config`.
 - **Inputs/outputs:** in: tool-call decisions, RPC requests, settings; out: deny/ask/delegate verdicts, admin subprocess spawns (`uv run python -m unified_mcp_server.admin_cli`).
 - **State:** settings key `soc-action-approval` (`{mode, actionStates}`); `soc-background` (`{enabled, repeatEveryUserPrompts}`); reads `BACKGROUND.md` (≤1 MiB source, 64 KiB render).
 - **Trust level:** trusted host boundary — the primary allowlist enforcement point.
 - **Dependencies:** `socAuth` service (from auth-host), harness `settings`, `tools` registry.
-- **Tests:** `policy.test.js` (4 tests incl. exact counts 29/41/12), `background.test.js`, `investigation.test.js`, `user-mode.test.js`.
+- **Tests:** `policy.test.js` (4 tests incl. exact counts **30/42/12**), `background.test.js`, `investigation.test.js`, `user-mode.test.js`.
 - **Runtime status:** Active.
 
 ## 4. Auth host plugin (`soc-agent-auth-host` → `dsh-soc-agent/auth-host`) + ownership boundary
@@ -69,14 +69,14 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 ## 5. Python MCP server (`soc_agent`)
 
 - **Paths:** `apps/soc-agent/server/unified_mcp_server/` (entry `server.py`; package `soc-agent-mcp`; script `unified-mcp-server`)
-- **Purpose:** expose exactly 27 domain tools (12 mail, 9 filters, 6 subscriptions) over MCP stdio, executing with a per-request authenticated identity and one 180-second operation budget.
+- **Purpose:** expose exactly 28 domain tools (13 mail incl. the new `zimbra_forward_email` forward-draft tool, 9 filters, 6 subscriptions) over MCP stdio, executing with a per-request authenticated identity and one 180-second operation budget.
 - **Owner/responsibility:** domain logic for Zimbra and subscriptions; identity resolution (`identity_for_session`); envelope/error taxonomy; no Splunk tools.
 - **Entry points:** spawned by `dsh-mcp-client` per `cordis.patch.yml` (`command: uv, args: ['run','unified-mcp-server']`, `serverName: soc_agent`, raw allowlist of 27, `toolCallTimeoutMs: 185000`, `failOnStartupError: true`).
 - **Inputs/outputs:** in: MCP tool calls with metadata `soc_session_id`/`soc_deadline_ms`/… ; out: `success`/`failure` envelopes; SOAP to Zimbra; HTTPS to subscription service; Postgres reads.
 - **State:** Postgres app sessions (token decryption), LRU 32 identity-bound mail services; **no persisted drafts** (`zimbra_send_email` returns a draft dict, nothing stored).
 - **Trust level:** executes with the authenticated user's Zimbra token; rejects `account_id` selection (`account_selection_disabled`).
 - **Dependencies:** `mcp` (FastMCP), `zimbra-client`, `httpx`, `psycopg[pool]`, `cryptography`, `markitdown`.
-- **Tests:** 23 Python test files / 75 tests, incl. `test_server_tools.py` (exact 27-tool surface).
+- **Tests:** 10 Python test files / 39 tests, incl. `test_server_tools.py` (exact 28-tool surface) and `test_schema.py` (migrations).
 - **Runtime status:** Active (Conditional in the sense that the host fails startup if it cannot spawn when configured — `failOnStartupError`).
 
 ## 6. Zimbra domain services
@@ -103,12 +103,12 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 ## 8. Splunk bridge (`splunk-official-mcp` → `dsh-soc-agent/splunk-bridge`)
 
 - **Paths:** `apps/soc-agent/splunk-bridge.js`
-- **Purpose:** connect to the external official Splunk MCP server and register its tools under the `splunk_mcp` namespace, restricted to 13 read tools.
+- **Purpose:** connect to the external official Splunk MCP server and register its tools under the `splunk_mcp` namespace, restricted to 13 read tools imported from `tool-inventory.js` (shared with policy.js).
 - **Owner/responsibility:** connection + raw allowlist; read-only is by allowlist composition and host policy, not a protocol filter.
-- **Entry points:** `apply(ctx)` → `McpClient.apply(ctx, config)`; disabled (logged, no registration) unless `SPLUNK_MCP_ENDPOINT` **and** `SPLUNK_TOKEN` resolve (env first, then `server/.env`).
+- **Entry points:** `apply(ctx)` → `McpClient.apply(ctx, config)`; endpoint URL is validated (HTTP(S), no credentials/query/fragment; plain HTTP requires `SPLUNK_ALLOW_INSECURE_HTTP=true`); disabled (logged, no registration) unless `SPLUNK_MCP_ENDPOINT` **and** `SPLUNK_TOKEN` resolve (env first, then `server/.env`). **Setup and `--check` require this connection.** Plus `testOfficialSplunkConnection` — the admin connection check now executes a real `splunk_get_info` through the live bridge.
 - **Inputs/outputs:** streamable HTTP + `Authorization: Bearer`; `verifyTls` from `SPLUNK_VERIFY_SSL` (default true); `toolCallTimeoutMs: 185000`; `failOnStartupError: true`.
 - **Trust level:** external service boundary; results cross the investigation projection (sanitize + truncate) before reaching the model.
-- **Tests:** `splunk-bridge.test.js` (2), `skills.test.js` (patch↔bridge consistency).
+- **Tests:** `splunk-bridge.test.js` (4), `skills.test.js` (patch↔bridge consistency).
 - **Runtime status:** Conditional (off when unconfigured).
 
 ## 9. Investigation projection
@@ -132,28 +132,27 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 ## 11. Admin operations path
 
 - **Paths:** `apps/soc-agent/host.js` (`runAdmin`), `unified_mcp_server/admin_cli.py`
-- **Purpose:** admin-only service operations as one-shot subprocesses: `get-settings`, `test-splunk`, `test-subscription-server`, `convert-attachment`, `migrate`. Refuses settings writes, account management, and mail operations by design.
+- **Purpose:** admin-only service operations as one-shot subprocesses (shared `python-command.js` runner): `get-settings`, `test-subscription-server`, `convert-attachment`, `migrate` (now applies the SQL migrations). `test-splunk` moved out of the CLI — the host probes the live bridge directly. Refuses settings writes, account management, and mail operations by design.
 - **Trust level:** RPC endpoints require `requireAdmin`; `SOC_ADMIN_EMAIL`/`SOC_ADMIN_PASSWORD` are stripped from the child environment; failures parsed from stderr JSON, message ≤400 chars, up to 20 `missing_environment_variables` listed; timeout 185 s → SIGTERM.
 - **Tests:** covered indirectly via `policy.test.js` RPC contract and `test_config.py` redaction.
-- **Runtime status:** Active, admin-only. Note: `test-splunk` is the one live reachability of the legacy REST `SplunkService` (`splunk_service.py`).
+- **Runtime status:** Active, admin-only. The legacy REST `SplunkService` reachability is gone — `test-splunk` now means the live official-MCP probe.
 
 ## 12. Persistence layer
 
-- **Paths:** `unified_mcp_server/postgres_store.py`, `unified_mcp_server/account_store.py`, `apps/soc-agent/ownership.js` (`SocStateStore`)
-- **Purpose:** encrypted configuration, authenticated sessions, ownership claims; legacy local account file.
+- **Paths:** `unified_mcp_server/postgres_store.py`, `unified_mcp_server/schema.py` + `migrations/*.sql`, `unified_mcp_server/account_store.py`, `apps/soc-agent/ownership.js` (`SocStateStore`)
+- **Purpose:** encrypted configuration, authenticated sessions, ownership claims; legacy local account file. **Schema is now owned by versioned SQL migrations** applied under an advisory lock (`soc_schema_migrations` ledger); the Node tier contains no DDL — `ensureSchema` shells out to `schema migrate` with the URI on stdin.
 - **Entry points:** `PostgresStore.from_env()`, `SocStateStore` pool (max 10; psycopg pool 1–4, `statement_timeout=15000`).
 - **State:** tables `soc_users`, `soc_app_sessions`, `soc_session_revocations`, `soc_workspace_owners`, `soc_session_owners`, `soc_folder_owners`, `soc_bootstrap`, `app_config` (Fernet-encrypted), `zimbra_accounts` (legacy); local encrypted `AccountStore` JSON (legacy, neutered by `EmptyAccountStore` at runtime).
 - **Trust level:** `APP_SETTINGS_ENCRYPTION_KEY` required when Postgres config is enabled; decrypt failures raise with remediation.
 - **Tests:** `test_postgres_store.py`, `test_account_store.py`, `test_auth.py`.
 - **Runtime status:** Active (Node store optional-degrades without URI; Python store None without URI).
 
-## 13. Retained Splunk implementation (not registered)
+## 13. Removed Splunk implementation
 
-- **Paths:** `unified_mcp_server/splunk/` (34 files), `unified_mcp_server/splunk_service.py`, `unified_mcp_server/detection.py`
-- **Purpose:** previous in-process Splunk implementation: REST client, guardrails, query policy, resource governance, planner/evidence/verifier, CITIC detection compiler, security queue, plus an official-MCP client helper.
-- **Runtime reachability:** **no `register_tools` call site** — none of its ~18 tools are on `soc_agent` (asserted by `test_server_tools.py`). Live reachability is indirect only: `admin_cli test-splunk` → `SplunkService.test_connection`; `detection.py` helpers imported by retained modules. `SOC_EVIDENCE_STORE` (SQLite) belongs to the retained `search/evidence_store.py`.
-- **Tests:** 11 of the 23 Python test files exercise these modules (see [TEST_COVERAGE_MATRIX.md](TEST_COVERAGE_MATRIX.md)).
-- **Runtime status:** Retained (tests + admin connectivity only). Canonical example that "code presence does not prove runtime exposure."
+- **Paths:** none (deleted this round). Previously `unified_mcp_server/splunk/` (34 files), `splunk_service.py`, `detection.py` — the full in-process Splunk implementation (REST client, guardrails, query policy, resource governance, planner/evidence/verifier, CITIC detection compiler, security queue) plus the SQLite evidence store.
+- **What replaced it:** the official-MCP bridge is now the *only* Splunk path; the admin connection check probes it live; `test_server_tools.py` still asserts no `splunk_*` tool on `soc_agent`.
+- **Consequence for skills:** `detection-engineering` and `spl-writing` (and parts of `false-positive-analysis`) reference tools that no longer exist anywhere — recorded as drift in the audit. The CITIC compile/backtest capability is gone from the application entirely; the maintainer's `docs/SHORTENING_PLAN_IMPLEMENTATION.md` records the retirement decision.
+- **Untracked leftovers** (`splunk/`, `catalog/` directories) may remain on disk from earlier checkouts and are safe to delete.
 
 ## 14. Vendored harness integration surface
 
@@ -161,14 +160,14 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 - **Purpose:** agent runtime: cordis plugin loader, tools registry with fail-closed approval, MCP client (stdio + streamable-http, reconnect backoff 500 ms doubling, `allowedToolNames` filter, `toolCallTimeoutMs`), web server/gateway, browser module loader, skills, presets, LLM providers.
 - **Entry points:** `pnpm dsh web --no-open` (port 3080); profile wiring under `~/.dsh/profiles/web`.
 - **Trust level:** trusted host; its patch roster is itself a security control (disables shell/fs/subagent tool families for the model).
-- **Pinning:** vendored directory; outer repo consumed via workspace globs (`../../apps/*`, `../../packages/*`); `schemastery`/`cosmokit` forced to vendored forks via pnpm overrides.
+- **Pinning:** vendored directory; outer repo consumed via workspace globs (`../../apps/*`, `../../packages/*`); `schemastery`/`cosmokit` forced to vendored forks via pnpm overrides. **Changed this round:** `packages/host/apiproxy` declares the structured `authentication-required`/`admin-authentication-required` RPC error codes upstream (with tests).
 - **Tests:** harness-internal (upstream); locally `skills.test.js` pins the patch roster.
 - **Runtime status:** Active (vendored).
 
 ## 15. Setup doctor + updater
 
 - **Paths:** `setup.sh`, `update.sh`, `requirements.txt`
-- **Purpose:** bootstrap/repair/wire everything: prerequisites (node ≥22.19/24, pnpm, uv), parameter collection with documented precedence, `.env` generation (chmod 600), `uv sync`, fingerprint-gated `pnpm install/build`, plugin add/prune, SOC bundle registration, verification. `update.sh` = clean-tree ff-only pull + `setup.sh --plugins`.
+- **Purpose:** bootstrap/repair/wire everything: prerequisites (node ≥22.19/24, pnpm, uv), a single parameter inventory (official Splunk MCP endpoint + token now **required**; REST-only Splunk fields removed), `.env` generation (chmod 600), `uv sync`, fingerprint-gated `pnpm install/build`, plugin add/prune, SOC bundle registration, verification. `update.sh` = clean-tree ff-only pull + `setup.sh --plugins`.
 - **Runtime status:** Operational tooling (operator-run; starts no services).
 
 ## 16. Skills

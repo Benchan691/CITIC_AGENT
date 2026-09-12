@@ -1,6 +1,6 @@
 # Getting started
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this page is for:** developers and operators preparing a working environment for the first time, or auditing an existing one.
 
@@ -24,7 +24,7 @@
 | PostgreSQL | reachable server | `APP_POSTGRES_URI`; app login fails closed without it |
 | openssl (or /dev/urandom) | for key generation | `APP_SETTINGS_ENCRYPTION_KEY` auto-generation |
 
-Services you must provide (external): a Zimbra host, an optional official Splunk MCP endpoint + token, an optional subscription web service, and an LLM provider key configured through the admin console at runtime.
+Services you must provide (external): a Zimbra host, the **official Splunk MCP endpoint + token (required — setup and `--check` fail without them)**, an optional subscription web service, and an LLM provider key configured through the admin console at runtime.
 
 ## 2. The five setup situations
 
@@ -46,7 +46,7 @@ Branch switching: only via `./setup.sh`, only with a **clean working tree** (`gi
 
 - `APP_POSTGRES_URI` (regex-validated, best-effort `psql` probe) and `APP_SETTINGS_ENCRYPTION_KEY` (auto-generated 32-byte hex if blank) — secrets entered with `read -rs`.
 - `SOC_ADMIN_EMAIL` / `SOC_ADMIN_PASSWORD` — the static admin login. These are **Node-host only**; both setup and runtime strip them from every Python child process.
-- Splunk: the official MCP path (`SPLUNK_MCP_ENDPOINT` + `SPLUNK_TOKEN`) — the primary read path — plus retained legacy REST fields (`SPLUNK_URL` or `SPLUNK_HOST`/`SPLUNK_SCHEME`/`SPLUNK_PORT`, auth choice, `SPLUNK_VERIFY_SSL`, `SPLUNK_ALLOW_INSECURE_HTTP`).
+- Splunk: the official MCP connection only — `SPLUNK_MCP_ENDPOINT` + `SPLUNK_TOKEN` are **required**, with `SPLUNK_VERIFY_SSL` (default true) and `SPLUNK_ALLOW_INSECURE_HTTP` (required `true` for `http://` endpoints). All legacy REST Splunk fields were removed from setup this round.
 - Zimbra: `ZIMBRA_HOST`, TLS options.
 - Subscription service: `SUBSCRIPTION_SERVER_URL`, user, password, TLS option.
 - MarkItDown LLM: `MARKITDOWN_LLM_ENABLED` (key+model required when true).
@@ -83,7 +83,7 @@ Never paste real secrets into shell commands (shell history). Prefer the interac
 | `setup.sh` exits listing missing prerequisites | Node/pnpm/uv absent or wrong version | Install per §1; rerun (`skip` is possible but recorded as a warning) |
 | Login always fails | `APP_POSTGRES_URI` unset/wrong (store degrades fail-closed) or Zimbra rejects | Check host logs for `authentication_required`; verify Postgres reachability; try the Zimbra credentials directly |
 | App boots but no Zimbra tools work | Python server failed to spawn (`failOnStartupError`) or `APP_SETTINGS_ENCRYPTION_KEY`/Postgres missing | Node log at startup; `uv sync` in `apps/soc-agent/server`; `./setup.sh --plugins` |
-| No Splunk tools at all | Bridge intentionally disabled — `SPLUNK_MCP_ENDPOINT`/`SPLUNK_TOKEN` not both set | Look for "official Splunk MCP bridge disabled" in the log |
+| Setup/`--check` fails on Splunk, or no Splunk tools at all | The official MCP connection is now **required**; the bridge stays disabled without endpoint + token | Set `SPLUNK_MCP_ENDPOINT` + `SPLUNK_TOKEN` (see [CONFIGURATION.md](CONFIGURATION.md)); look for "official Splunk MCP bridge disabled" in the log |
 | Admin console rejects login | Wrong `SOC_ADMIN_EMAIL`/`SOC_ADMIN_PASSWORD` env at host start; admin sessions are in-memory so host restarts log you out | Restart host after fixing `.env`; re-login |
 | "Stored Zimbra accounts are no longer supported" | Calling a legacy account RPC | Expected refusal; log in with Zimbra instead |
 | Client UI looks stale after editing `packages/soc-agent-client/src` | Tracked `lib/` bundle not rebuilt | `pnpm --filter dsh-soc-agent-client run build` or `./setup.sh --plugins` |

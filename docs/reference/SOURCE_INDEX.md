@@ -1,10 +1,10 @@
 # Source index
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** developers locating code and identifying the symbols that cross boundaries.
 
-**What you will understand:** every tracked first-party source file with a one-line purpose and its important exports. Classification lives in [REPOSITORY_MAP.md](REPOSITORY_MAP.md); responsibilities in [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md). Vendored files are covered as surfaces only ([REPOSITORY_MAP.md](REPOSITORY_MAP.md) §7).
+**What you will understand:** every tracked first-party source file with a one-line purpose and its important exports. Classification lives in [REPOSITORY_MAP.md](REPOSITORY_MAP.md); responsibilities in [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md). Vendored files are covered as surfaces only ([REPOSITORY_MAP.md](REPOSITORY_MAP.md) §7). Files removed in this round (the Python Splunk stack, two client status cards, `hi.txt`) are listed in [REPOSITORY_MAP.md](REPOSITORY_MAP.md) "What changed".
 
 ---
 
@@ -25,11 +25,13 @@
 
 | File | Purpose | Key exports / symbols |
 |---|---|---|
-| `policy.js` | Single tool catalog | `OFFICIAL_SPLUNK_READ_TOOLS` (13), `READ_ONLY_TOOLS` (29), `ZIMBRA_READ_TOOLS`, `ACTION_CATALOG` (12), `ACTION_TOOLS`, `TOOL_CATALOG` (34, incl. `ui__soc_agent__send_email` kind `ui-confirmed`), `MANAGED_TOOL_NAMES`, `ALWAYS_ASK_ACTION_TOOLS` (empty), `DOMAIN_TOOLS`, `APPROVAL_TOOLS` |
-| `host.js` | Host plugin: policy gate + RPC + background + admin page | `name 'soc-agent-host'`, `inject`, `apply(ctx)`, `CHANNEL '/soc-agent-config'`, `handleEndpoint`, `requireUser/requireAdmin`, `savedActionPolicy`, `normalizedActionPolicy`, `defaultActionState`, `policyValue`, `installBackgroundRefresh`, `readBackgroundMessage`, `runAdmin`, `runAuthCommand` passthroughs, `validateAttachmentPayload`, `CONTROL_TOOLS` (`ask_user_question`, `exit_plan_mode`) |
+| `tool-inventory.js` | **Single runtime-independent tool inventory** ("Draft preparation never delivers mail.") | `OFFICIAL_SPLUNK_TOOL_NAMES` (13 raw), `TOOL_CATALOG` (26 entries: 13 Zimbra reads incl. `zimbra_forward_email`, 12 mutations, 1 `ui-confirmed`), `SUBSCRIPTION_READ_TOOLS` (3) |
+| `policy.js` | Derived policy sets (imports the inventory) | `OFFICIAL_SPLUNK_READ_TOOLS` (13 qualified), `READ_ONLY_TOOLS` (30), `ZIMBRA_READ_TOOLS` (13, derived), `ACTION_CATALOG` (12, derived), `ACTION_TOOLS`, `TOOL_CATALOG` (re-export), `MANAGED_TOOL_NAMES` (25), `ALWAYS_ASK_ACTION_TOOLS` (empty), `DOMAIN_TOOLS` (42), `APPROVAL_TOOLS` |
+| `host.js` | Host plugin: policy gate + RPC + background + admin page | `name 'soc-agent-host'`, `inject`, `apply(ctx)`, `CHANNEL '/soc-agent-config'`, `handleEndpoint`, `requireUser/requireAdmin`, `savedActionPolicy`, `normalizedActionPolicy`, `defaultActionState`, `policyValue`, `installBackgroundRefresh`, `readBackgroundMessage`, `runAdmin` (→ `runPythonCommand`), `testOfficialSplunkConnection` for `test-splunk`, `validateAttachmentPayload`, `CONTROL_TOOLS` (`ask_user_question`, `exit_plan_mode`) |
 | `auth-host.js` | Auth plugin wiring | `name 'soc-agent-auth-host'`, `apply(ctx)`, `mcp/request-meta` hook (adds `soc_session_id`, `soc_investigation_id`, `soc_customer_id: ''`, `soc_correlation_id`, `soc_deadline_ms`), `ctx.provide('socAuth')`, `connectionAuthorization.authorizePrivilegedRequest` |
-| `ownership.js` | Auth/ownership boundary | `SocAuthService` (`handleAuthRoute`, `handleAdminAuthRoute`, `registerRoutes`, `installTransport`, `mcpRequestMeta`, `actionMode/setActionMode`, `revokeApplicationSession`, `stopUserChatSessions`, `principalForRequest`, `authorizePrivilegedRequest`, `adminPasswordMatches` via `timingSafeEqual`), `SocStateStore` (`ensureSchema`, `session`, `claimWorkspace/Session/Folder`, `consumeSessionRevocation`, `userSessionIds`), `createScopedApiProxy` (9 domains; `authorize`, `postprocess`, `respond` guard), `runAuthCommand`, `startControlChannel`, `closeAuthControlChannel`, `resolveAdminCredentials`, `resolveApplicationStorageUri`, `sameSiteRequest`, `readJson` (32 KiB), `isWithinPath`, `userWorkspaceRoot` |
-| `splunk-bridge.js` | External Splunk MCP client bridge | `name 'soc-agent-splunk-official-bridge'`, `OFFICIAL_SPLUNK_TOOL_NAMES` (13), `resolveOfficialSplunkConfig` (env → `server/.env`; `SPLUNK_MCP_ENDPOINT`, `SPLUNK_TOKEN`, `SPLUNK_VERIFY_SSL`; `serverName: 'splunk_mcp'`; timeout 185 s; `failOnStartupError`), `apply(ctx)` |
+| `ownership.js` | Auth/ownership boundary | `SocAuthService` (`handleAuthRoute`, `handleAdminAuthRoute`, `registerRoutes`, `installTransport`, `mcpRequestMeta`, `actionMode/setActionMode`, `revokeApplicationSession`, `stopUserChatSessions`, `principalForRequest`, `authorizePrivilegedRequest`, `adminPasswordMatches` via `timingSafeEqual`), `SocStateStore` (`ensureSchema` → Python `schema migrate` with URI on stdin, `session`, `claimWorkspace/Session/Folder`, `consumeSessionRevocation`, `userSessionIds`), `createScopedApiProxy` (9 domains; `authorize`, `postprocess`, `respond` guard), `runAuthCommand`, `startControlChannel`, `closeAuthControlChannel`, `resolveAdminCredentials`, `resolveApplicationStorageUri`, `sameSiteRequest`, `readJson` (32 KiB), `isWithinPath`, `userWorkspaceRoot` |
+| `python-command.js` | Shared one-shot Python runner | `pythonEnvironment()` (strips `SOC_ADMIN_*`; `MCP_SERVER_ROOT`/`MCP_SEVER_ROOT` fallback), `runPythonCommand({module, command, arg, payload, timeoutMs, signal, mapError})` — timeout/abort/exit/parse mapping, stdin JSON payload |
+| `splunk-bridge.js` | External Splunk MCP client bridge | imports `OFFICIAL_SPLUNK_TOOL_NAMES` from `tool-inventory.js`; `resolveOfficialSplunkConfig` (env → `server/.env`; endpoint URL validation — no credentials/query/fragment, plain HTTP needs `SPLUNK_ALLOW_INSECURE_HTTP`; `serverName: 'splunk_mcp'`; timeout 185 s; `failOnStartupError`), `testOfficialSplunkConnection` (live `splunk_get_info` probe, token redaction), `apply(ctx)` |
 | `investigation.js` | Splunk output projection | `projectOfficialSplunkResult` (prefix `mcp__splunk_mcp__splunk_`; 50 000-byte cap; `utf8Prefix`), `sanitizeSplunkText` (CARD/SSN masks; `SPLUNK_SANITIZE_OUTPUT` opt-out), `installInvestigationProjection` (`tools/post-execute`, global) |
 | `cordis.patch.yml` | Product patch manifest | plugin enable/disable roster; `soc-agent-mcp` (27-name raw allowlist, `toolCallTimeoutMs: 185000`), `splunk-official-mcp`, `approval policy: ask`, coding-tool disable block, `skill-filesystem.customSkillDirs`, inserts `soc-agent-auth-host`/`soc-agent-admin-host`/`soc-agent-admin-ui`/`time-context`/`connection` |
 | `package.json` | Bundle manifest | `dsh-soc-agent`; exports `./host`, `./splunk-bridge`, `./auth-host`, `./ownership`, `./policy` |
@@ -38,7 +40,7 @@
 
 | File | Purpose | Key symbols |
 |---|---|---|
-| `server.py` | FastMCP server + request execution | `create_server`, `Runtime` (`create`, `for_identity`, `close`, `config_revision`), `EmptyAccountStore`, `execute`, `fresh_runtime`, `McpFailureEnvelope`, `operation_budget` wiring, `register_mail_tools`/`register_filter_tools`/`register_email_tools` call sites, `main` |
+| `server.py` | FastMCP server + request execution (28 tools) | `create_server`, `Runtime` (`create`, `for_identity`, `close`, `config_revision`), `EmptyAccountStore`, `execute`, `fresh_runtime`, `McpFailureEnvelope`, `operation_budget` wiring, `register_mail_tools`/`register_filter_tools`/`register_email_tools` call sites, `main` |
 | `config.py` | Settings (env-only) | `ServerSettings.from_env`, `public_status`, `public_readiness`, `SplunkSettings` (retained), `ZimbraSettings` (gates), `MarkItDownSettings`, `EmailServerSettings`, `redact_endpoint`, `_validate_http_endpoint`, `_preferred` legacy aliases |
 | `auth.py` | Identity model | `ZimbraIdentity`, `identity_for_session`, `public_session`, `normalize_zimbra_email` |
 | `request_context.py` | Operation budget/scope | `OperationContext` (`evidence_scope`), `operation_budget` (min 180 s / deadline), `remaining_seconds` |
@@ -54,20 +56,14 @@
 | `zimbra/filters/{model,service,tools}.py` | Filters + 9 tools | `ZimbraFilterService` (`_fingerprint`, `_require_expected`, `_require_write`, `_validate` redirect/discard gates, `_lossy_metadata`), `register_filter_tools` |
 | `email/service.py` / `email/tools.py` | Subscription client + 6 tools | `EmailSubscriptionService` (`_login`, `_request` re-login once, `_validate_redirect`), `register_email_tools` |
 | `attachment_converter.py` | MarkItDown conversion | `AttachmentConverter.convert` (LRU 64/4 MB), `AttachmentConversionLimits` (10 MB/200 k defaults; 100 MB/2 M hard), `_validate_archive_safety`, `_validate_structured_text`, `create_markitdown` |
-| `detection.py` | Detection model/validation (active, shared by retained modules) | `DetectionDraft.from_payload`, `validate_detection` (requires `enabled: false`), `without_schedule_metadata`, `canonical_alert_fields`, `is_secret_alert_field` |
+| `schema.py` + `migrations/*.sql` | **Versioned SQL migrations** | `apply_migrations(connection)` (advisory lock, `soc_schema_migrations` ledger, ordered `.sql` execution), standalone `main()` reading `{"uri"}` from stdin; `001_initial.sql` (all tables), `002_remove_catalog.sql` (marker-gated legacy-table drop) |
 | `control_server.py` | Persistent control channel | `ControlServer.serve` (ready handshake, 8 MB lines, 8 concurrent), `dispatch_command` (from `auth_cli`), `_expire_session_on_auth_error` |
 | `auth_cli.py` | Auth commands (and dispatch table) | `dispatch_command`: `login` (`zimbra_login` → `create_user_session` → `public_session` + `replaced_session_ids`), `logout`, `send_email`/`send-email` (gate), `list-signatures`, `command_failure`, `command_runtime` |
 | `admin_cli.py` | Admin commands | `get-settings` (`_public_settings`), `test-splunk` (`SplunkService.test_connection`), `test-subscription-server`, `convert-attachment`, `migrate` (no-op); refuses `update-settings`, account CRUD, mail ops |
-| `splunk_service.py` | Legacy REST Splunk service | `SplunkService` (admin `test-splunk` reachability) |
 
-## `…/unified_mcp_server/splunk/` — retained implementation (34 files)
+## Removed in this round
 
-| Area | Files | Note |
-|---|---|---|
-| Core client/guardrails | `core/{client,guardrails,service}.py`, `guardrails.py`, `spl_risk_rules.py`, `splunk_client.py`, `splunk_service.py`, `query_policy.py`, `official_mcp_client.py` | REST client, SPL risk rules, fail-closed query policy, resource policy; `official_mcp_client` = retained helper for the official endpoint (read-only surface tested) |
-| Search | `search/{service,planner,executor,resource_manager,resource_policy,schema_registry,verifier,lookup,evidence,evidence_store,tools}.py` | admission, planning, evidence (SQLite `SOC_EVIDENCE_STORE`), 9 `splunk_*` tools defined but **unregistered** |
-| Detection | `detection/{model,citic_format,compiler,service,tools}.py` | CITIC production/backtest SPL compiler; 4 tools defined but **unregistered**; shares `detection.py` |
-| Security queue | `security_queue/{model,provider,service,standard_provider,tools}.py` | fired-findings projection; 2 tools defined but **unregistered** |
+`unified_mcp_server/splunk/**` (34 files), `splunk_service.py`, `detection.py`, and 12 Splunk-related test files were deleted (see [REPOSITORY_MAP.md](REPOSITORY_MAP.md) "What changed"). Their symbols are intentionally absent from this index.
 
 ## `packages/soc-agent-client/`
 
@@ -86,7 +82,7 @@
 | `src/client/markitdownAttachments.ts` | Attachment controller | `MarkItDownDocumentController` (`convert` two workers, cache keyed by limits, `release`) |
 | `src/client/MarkItDownDocuments.tsx` / `MarkItDownAttachmentSettings.tsx` | Composer rail + limits card | `openMarkItDownPicker`, `AttachmentSettingsController` (`scope.set/unset`) |
 | `src/client/SocActionApprovalSettings.tsx` | Catalog sanitizer | `validCatalog` |
-| `src/client/{SplunkSettings,SubscriptionServerSettings,ZimbraSettings,settings-common}.ts` | Legacy status cards + shared RPC | `CHANNEL`, `rpc`, `TestStatus` (AdminConsole tested not to import the cards) |
+| `src/client/{ZimbraSettings,settings-common}.ts` | Remaining shared settings helpers (slimmed) + status-only Zimbra card | `CHANNEL`, `rpc`, `TestStatus`. **Removed this round:** `SplunkSettings.ts`, `SubscriptionServerSettings.ts` and their exports (the Splunk status now lives in the AdminConsole Connections page via the live bridge probe) |
 | `src/client/CiticBrand.tsx` | Branding | "Sentinel" mark/wordmark |
 | `tsdown.config.ts` | Build | `clientBundle('dsh-soc-agent-client', ['src/index.ts'])` → tracked `lib/` |
 | `tsconfig.json` | TypeScript config | strict TS for `src/**`; consumed by tsdown and the tsx test loader |

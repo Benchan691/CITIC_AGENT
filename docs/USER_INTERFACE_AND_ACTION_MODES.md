@@ -1,6 +1,6 @@
 # User interface and action modes
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** analysts using the product, admins configuring it, and developers changing the UI.
 
@@ -20,7 +20,7 @@
 | **Brand** | `CiticBrand.tsx` | "Sentinel" mark/wordmark in sidebar and hero (convenience). |
 | **Composer attachments** | `MarkItDownDocuments.tsx` + `markitdownAttachments.ts` | Hidden file picker (also via the `attach-file` command); per-message rail with statuses Queued/Converting…/Ready/error; limits from settings (defaults: 5 files, 10 MB/file, 50 MB total, 200 k chars/file, 500 k total); conversion via `convert-attachment` with **two workers**, order preserved, successes cached per limits; truncated results flagged in the excerpt. |
 | **Action-mode menu** | `SocActionPolicyMenu.tsx` | Composer-left menu offering **Full access** ("Run every permitted tool directly") and **SOC mode** ("Apply each tool's ask, auto-run, or disabled setting"). Reads/writes via `get-action-policy`/`set-action-mode`; server-confirmed value adopted; malformed responses fail closed (no invented mode). Session-scoped: reset to the deployment default on logout or host restart. |
-| **Draft card** | `EmailDraftToolview.tsx` | Renders inside the tool-call block for both draft tools. See §3. |
+| **Draft card** | `EmailDraftToolview.tsx` | Renders inside the tool-call block for the draft **and forward** tools. See §3. |
 | **Sessions/permissions** | Harness shell | The scoped server API makes folders server-owned (`api.folders = undefined` client-side) — session creation lands in the user's server-side workspace. |
 
 ## 2. Admin console (`/admin`)
@@ -29,7 +29,7 @@ Mounted **only** when `window.location.pathname` starts with `/admin` (enforced 
 
 | Page | Controls | Server behavior |
 |---|---|---|
-| **Connections** | Splunk card with *Check* (`test-splunk`), Zimbra/MarkItDown "Environment managed" cards, Subscription card with *Check* (`test-subscription-server`); status pills Checking…/Connected/Unavailable/Configured/Not configured | `get-settings` returns **status only**; "Configuration stays in the server .env file" — no values are editable here |
+| **Connections** | Splunk card with *Check* (`test-splunk` — a **live `splunk_get_info` through the bridge**), Zimbra/MarkItDown "Environment managed" cards, Subscription card with *Check* (`test-subscription-server`); status pills Checking…/Connected/Unavailable/Configured/Not configured; structured status notices (`role=alert`/`status`) with retry | `get-settings` returns **status only** (`official_mcp_enabled` included); "Configuration stays in the server .env file" — no values are editable here |
 | **Agent context** | BACKGROUND.md injection toggle + `repeatEveryUserPrompts` (≥0, default 5); time-context injection toggle + interval | `settings.mutate` on `soc-background`/`time-context` with revision check; live-applied |
 | **Access & approvals** | Deployment mode radios **Full access / SOC mode**; per-tool radio groups **Ask / Run automatically / Disabled** grouped by tool; UI-confirmed entry shows a read-only "Explicit confirmation" badge; disabled tools show "Unavailable" | Writes `soc-action-approval` (`mode` + `actionStates`) with revision check; enforced by `host.js tools/pre-execute`; page hint: "Email delivery still requires the explicit Send confirmation in the draft view" |
 | **AI providers** | Provider picker (listbox) with credential dots and model counts; custom providers (route-validated, immutable route); API key password field ("Stored securely · enter a new key to replace it"); **Discover models** via `llm.discoverModels`; remove = two-step inline confirm | Keys are **write-only** (`credentials.set/unset`; `describe` returns configured/writable booleans only); settings in `llm-pi-ai` namespace |
@@ -42,7 +42,7 @@ Legacy compatibility cards (`SplunkSettings`, `SubscriptionServerSettings`, `Zim
 
 State machine: `editing → sending → sent | failed | discarded` (plus Reopen from discarded, and Retry labeling after a failed send).
 
-1. The model calls `zimbra_send_email` (or `zimbra_use_signature_on_email`) → the **local draft** arrives as the tool result → the card renders an editable form (To/CC/BCC with separator-aware parsing and dedupe; subject ≤998; body ≤18 000; text/HTML body format).
+1. The model calls `zimbra_send_email`, `zimbra_use_signature_on_email`, or **`zimbra_forward_email`** (new: reads the source message, embeds `forward_message_id` and `forwarded_message` metadata — subject/from/date/body/attachments) → the **local draft** arrives as the tool result → the card renders an editable form (To/CC/BCC with separator-aware parsing and dedupe; subject ≤998; body ≤18 000; text/HTML body format). Forward drafts show the original message metadata alongside the note.
 2. **Add signature** loads `list-signatures` and merges the chosen signature above/below the body in the signature's format.
 3. On Send: client validation (≥1 To recipient, non-empty subject) → **`window.confirm('Send this email now?')`** → RPC `send-email` with the exact fields.
 4. The card flips to "Email sent successfully" **only** if the response satisfies `result.sent === true`; anything else becomes a `failed` card with the error in a `role="alert"`. "Zimbra did not confirm that the email was sent." is the explicit failure when the acknowledgment is missing.

@@ -1,4 +1,4 @@
-%% Action authorization decision tree (verified against b26d55d)
+%% Action authorization decision tree (verified against 56c8dd2)
 flowchart TD
     call["Model requests tool T"] --> reg{"T registered by raw allowlist?<br/>(cordis.patch.yml / bridge)"}
     reg -->|no| off["tool does not exist on the agent"]

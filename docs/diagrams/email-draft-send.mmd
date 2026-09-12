@@ -1,4 +1,4 @@
-%% Email draft/send — state machine + sequence (verified against b26d55d)
+%% Email draft/send — state machine + sequence (verified against 56c8dd2)
 stateDiagram-v2
     [*] --> editing: zimbra_send_email returns LOCAL draft (nothing stored, nothing sent)
     editing --> editing: user edits fields / add signature (list-signatures)

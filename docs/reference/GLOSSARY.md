@@ -1,6 +1,6 @@
 # Glossary
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 One consistent vocabulary for all Markdown pages, diagrams, and the HTML site. Add new terms here first.
 
@@ -19,7 +19,7 @@ One consistent vocabulary for all Markdown pages, diagrams, and the HTML site. A
 | Term | Meaning |
 |---|---|
 | **MCP** | Model Context Protocol — the standard by which the harness connects tool servers. Two transports are used here: `stdio` (local child process) and `streamable-http` (HTTP endpoint). |
-| **`soc_agent`** | The local Python MCP server (package `soc-agent-mcp`, script `unified-mcp-server`), exposing exactly 27 Zimbra + subscription tools. |
+| **`soc_agent`** | The local Python MCP server (package `soc-agent-mcp`, script `unified-mcp-server`), exposing exactly 28 Zimbra + subscription tools. |
 | **`splunk_mcp`** | The MCP *server namespace* under which the bridge registers the external official Splunk MCP server's read tools. Not software in this repo — the bridge is the client. |
 | **Raw tool name** | A tool's name inside its server, e.g. `splunk_run_query`. |
 | **Fully qualified tool name** | `mcp__<server>__<raw-tool>`, e.g. `mcp__splunk_mcp__splunk_run_query`. The same word may appear in both portions; that does not imply two servers. |
@@ -66,7 +66,10 @@ One consistent vocabulary for all Markdown pages, diagrams, and the HTML site. A
 | **Scoped API proxy** | `ownership.js createScopedApiProxy` — filters lists and denies cross-user mutations for 9 API domains. |
 | **Workspace** | A per-user directory under `MCP_SERVER_ROOT/.data/soc-workspaces/<userId>/`. "General" is auto-created and protected from rename/delete. |
 | **Settings namespace** | A durable key/value group in `app_config` (e.g. `soc-action-approval`, `soc-background`, `soc-agent-markitdown-attachments`, `time-context`, `llm-pi-ai`). |
-| **Evidence store** | The retained SQLite store (`SOC_EVIDENCE_STORE`) belonging to the unregistered Splunk search implementation. |
+| **Tool inventory** | `apps/soc-agent/tool-inventory.js` — the single runtime-independent source of truth for every tool name; policy sets and the bridge's allowlist are derived from it. |
+| **Schema migrations** | Versioned SQL files (`unified_mcp_server/migrations/*.sql`) applied by `schema.py` under a PostgreSQL advisory lock, with an applied-version ledger (`soc_schema_migrations`). The Node tier contains no DDL. |
+| **Forward draft** | A local, browser-editable draft produced by `zimbra_forward_email` from an existing message (`forward_message_id` + `forwarded_message` metadata). Delivery happens only through the confirmed send path. |
+| **Evidence store** | *Removed this round* — the SQLite store (`SOC_EVIDENCE_STORE`) belonged to the deleted Splunk search implementation; stale files may remain on disk. |
 | **MarkItDown** | The document→Markdown converter library used for attachments (in-memory, bounded). |
 
 ## Deployment and tooling terms
@@ -84,4 +87,4 @@ One consistent vocabulary for all Markdown pages, diagrams, and the HTML site. A
 
 ## Runtime status vocabulary (used everywhere)
 
-**Active** · **Conditional** · **Admin-only** · **Retained** (present + tested, not registered) · **Test-only** · **Generated** · **Legacy** · **Operational tooling** · **Unknown**.
+**Active** · **Conditional** · **Admin-only** · **Removed** (deleted; formerly "retained") · **Test-only** · **Generated** · **Legacy** · **Operational tooling** · **Unknown**.

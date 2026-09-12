@@ -1,6 +1,6 @@
 # Deployment and operations
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** operators deploying, updating, monitoring, and recovering the system.
 
@@ -22,7 +22,7 @@ Single Node host process (vendored harness web runtime) on port 3080, spawning: 
 |---|---|---|
 | Layout guard | Requires `vendor/deepseek-harness`, `apps/soc-agent/server/`, `server/.env.example`, `requirements.txt`, the patch file | none — refuses |
 | Prerequisites | Node `^22.19.0\|>=24`, pnpm, uv (PATH fix for pnpm) | Loops with install hints; `skip` records a warning |
-| Parameter collection | Merges defaults with precedence `.env.example` < harness `.env` < server `.env` < environment; prompts all services; validates Postgres URI (regex + `psql` probe); generates the encryption key if blank | Re-prompts only invalid/missing; existing values become defaults |
+| Parameter collection | One inventory drives prompting/checking: PostgreSQL, admin credentials, encryption key, **official Splunk MCP endpoint + token (required)**, Zimbra, subscription, MarkItDown; validates Postgres URI (regex + `psql` probe); generates the encryption key if blank. Legacy REST Splunk fields removed | Re-prompts only invalid/missing; existing values become defaults |
 | `write_files` | Seeds/upserts `server/.env` (preserves comments; optional keys only when supplied) and harness `.env` (only the two keys); chmod 600; ensures `.gitignore` covers `.env` | Warns when an exported env var differs from the written value (export wins) |
 | `ensure_python_server` | `uv sync --python 3.12` (+ `--extra markitdown-llm` when enabled) | Failure records a warning and continues |
 | `ensure_harness_ready` | Fingerprint-gated `pnpm install --frozen-lockfile` + build (fingerprints: lockfile+package manifests → install; all harness+client sources → build); verifies artifacts (`apps/web/dist/index.html`, `mcp-client/lib/index.js`) | `--rebuild` bypasses fingerprints; SOC client bundle drift (`require` allowlist) triggers client rebuild |
@@ -43,7 +43,7 @@ Canonical sources → (client: tsdown → **tracked** `lib/`; harness: pnpm buil
 - **Start:** `cd vendor/deepseek-harness && pnpm dsh web --no-open` → open `http://127.0.0.1:3080`.
 - **Health checks available:**
   - `./setup.sh --check` — full static audit (run anytime).
-  - Admin console → Connections → *Check* on Splunk / Subscription server (live connectivity via admin CLI; Zimbra/MarkItDown show environment-managed status only).
+  - Admin console → Connections → *Check* on Splunk (a **live `splunk_get_info` call through the bridge**) / Subscription server; Zimbra/MarkItDown show environment-managed status only.
   - Browser `/auth/me` (session probe) and admin `/admin/auth/me`.
   - Startup log lines: bridge enabled/disabled, plugin registration, Python spawn (`failOnStartupError` makes a dead Python fatal at boot).
 - **Restart:** stop the process and start again. Sessions, ownership, settings survive (Postgres). Admin sessions, session action-mode overrides, and in-memory caches do not — by design.

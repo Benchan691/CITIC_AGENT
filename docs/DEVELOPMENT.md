@@ -1,6 +1,6 @@
 # Development
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** developers changing this repository.
 
@@ -28,9 +28,9 @@
 | Task | Command (from repo root unless noted) |
 |---|---|
 | Install everything / repair wiring | `./setup.sh` (interactive) or `./setup.sh --plugins` (non-interactive) |
-| Node tests (host) | `cd apps/soc-agent && npm test` (= `node --test tests/*.test.js`) |
+| Node tests (host, 35) | `cd apps/soc-agent && npm test` (= `node --test tests/*.test.js`) |
 | Client tests | `cd packages/soc-agent-client && npm test` (tsx loader from vendor) |
-| Python tests | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
+| Python tests (39) | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
 | Rebuild client bundle | `pnpm --filter dsh-soc-agent-client run build` (regenerates tracked `lib/`) |
 | Rebuild harness (forced) | `./setup.sh --plugins --rebuild` |
 | Run the app | `cd vendor/deepseek-harness && pnpm dsh web --no-open` (port 3080) |
@@ -59,12 +59,13 @@ Do not edit `vendor/deepseek-harness` sources. Acceptable vendor-tree artifacts,
 
 An MCP tool touches **six contracts**. Miss one and either the tool silently never appears or the tests fail:
 
-1. **Python registration** — implement/extend a `register_tools` module (mail/filters/email) or add a new one and call it from `server.py create_server`; annotate reads with `readOnlyHint`; never expose `ctx`/`account_id`.
-2. **Raw allowlist** — add the raw name to `soc-agent-mcp.allowedToolNames` in `cordis.patch.yml` (the patch also env-configures the server).
-3. **Qualified policy** — add `mcp__soc_agent__<name>` to `policy.js` (`READ_ONLY_TOOLS` for reads or `ACTION_CATALOG` for mutations with label/group) — the derived sets update automatically.
-4. **Client labels/views** — only if the tool needs special presentation (like the draft toolview). Admin checklists render automatically from the catalogs.
-5. **Tests, both tiers** — extend `test_server_tools.py` (exact tool set) and `policy.test.js`/`skills.test.js` counts (currently 29 read / 41 domain / 12 approval — they will change and that is the point).
-6. **Documentation** — update [reference/MCP_TOOL_CATALOG.md](reference/MCP_TOOL_CATALOG.md), [MCP_AND_TOOL_ROUTING.md](MCP_AND_TOOL_ROUTING.md), and the traceability matrix.
+1. **Inventory** — add the name (and label/kind) to `apps/soc-agent/tool-inventory.js` — the single source of truth that policy and the bridge derive from.
+2. **Python registration** — implement the tool in the matching `register_tools` module (mail/filters/email); annotate reads with `readOnlyHint`; never expose `ctx`/`account_id`.
+3. **Raw allowlist** — add the raw name to `soc-agent-mcp.allowedToolNames` in `cordis.patch.yml` (the patch also env-configures the server).
+4. **Qualified policy** — `policy.js` now derives everything from the inventory; add nothing there unless the classification logic itself changes.
+5. **Client labels/views** — only if the tool needs special presentation (like the forward-draft card). Admin checklists render automatically from the catalogs.
+6. **Tests, both tiers** — extend `test_server_tools.py` (exact tool set) and `policy.test.js`/`skills.test.js` counts (currently 30 read / 42 domain / 12 approval — they will change and that is the point).
+7. **Documentation** — update [reference/MCP_TOOL_CATALOG.md](reference/MCP_TOOL_CATALOG.md), [MCP_AND_TOOL_ROUTING.md](MCP_AND_TOOL_ROUTING.md), and the traceability matrix.
 
 For a **Splunk bridge** tool change, additionally: `OFFICIAL_SPLUNK_TOOL_NAMES` in `splunk-bridge.js` (and the external server must actually expose it), noting the projection prefix `mcp__splunk_mcp__splunk_` applies automatically.
 
@@ -74,7 +75,7 @@ For **policy/UI changes**: `policy.js` + `host.js` gate behavior + `AdminConsole
 
 ## 7. Python and TypeScript notes
 
-- **Python:** the request pipeline is `execute()` (correlation id, budget, identity) → service call → `success()/failure()` envelope. Add `ServiceError` codes to the taxonomy rather than inventing shapes; never let third-party exception text reach users. Blocking work goes through `run_blocking` (bounded). Tests use in-memory doubles and fake transports — no live services.
+- **Python:** the request pipeline is `execute()` (correlation id, budget, identity) → service call → `success()/failure()` envelope. **Schema changes** go through a new `migrations/NNN_*.sql` file (advisory-locked, ledger-tracked) — never ad-hoc DDL in Node or Python service code. Add `ServiceError` codes to the taxonomy rather than inventing shapes; never let third-party exception text reach users. Blocking work goes through `run_blocking` (bounded). Tests use in-memory doubles and fake transports — no live services.
 - **TypeScript/React:** components read the `/soc-agent-config` channel via `settings-common.rpc`; settings pages use the harness settings API with `expectedRevision`; CSS modules with `.module.css`; the bundle is a closure factory — do not add bare `require()`s outside the setup allowlist (react, react-dom, cordis, client-ui primitives/runtime) or setup will rebuild/reject.
 
 ## Evidence in the repository

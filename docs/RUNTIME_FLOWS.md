@@ -1,6 +1,6 @@
 # Runtime flows
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this page is for:** developers and reviewers who need to know exactly what happens between "user does X" and "system responds", including the failure branches.
 
@@ -56,10 +56,12 @@ Every API call from the browser passes `createScopedApiProxy`: nine domains (`se
 
 ## 5. MCP server discovery and tool allowlisting
 
-Three layers, in order: (1) **registration** — `dsh-mcp-client` registers only names in the raw `allowedToolNames` (27 for `soc_agent`; 13 for `splunk_mcp`); (2) **restriction** — on `agent/created` the host best-effort restricts the agent's tool set to `DOMAIN_TOOLS ∪ CONTROL_TOOLS`; (3) **enforcement** — `tools/pre-execute` (global) denies any name outside that union, then applies mode/state logic. Late-arriving MCP tools are caught by layer 3 (the comment says exactly that). Tests pin all three layers and the exact counts (29/41/12).
+Three layers, in order: (1) **registration** — `dsh-mcp-client` registers only names in the raw `allowedToolNames` (28 for `soc_agent`; 13 for `splunk_mcp`), all sourced from `tool-inventory.js`; (2) **restriction** — on `agent/created` the host best-effort restricts the agent's tool set to `DOMAIN_TOOLS ∪ CONTROL_TOOLS`; (3) **enforcement** — `tools/pre-execute` (global) denies any name outside that union, then applies mode/state logic. Late-arriving MCP tools are caught by layer 3 (the comment says exactly that). Tests pin all three layers and the exact counts (30/42/12).
 **Evidence:** `cordis.patch.yml`, `host.js apply` + `savedActionPolicy`, `policy.test.js`, `mcp-discovery.test.js`.
 
 ## 6. A read-only Splunk request through `splunk_mcp`
+
+The bridge validates its endpoint URL (HTTP(S) only, no embedded credentials/query/fragment; plain HTTP requires `SPLUNK_ALLOW_INSECURE_HTTP=true`) and now also powers the admin connection check — a live `splunk_get_info` call. Because the connection is required by setup, a missing configuration fails setup/`--check` as well as disabling the bridge.
 
 ```mermaid
 sequenceDiagram
@@ -96,14 +98,14 @@ sequenceDiagram
     participant H as Host RPC (host.js)
     participant C as Control channel
     participant Z as Zimbra
-    M->>S: zimbra_send_email {to,cc,bcc,subject,body}
-    S->>S: validate recipients/subject; build LOCAL draft (no store, no send)
+    M->>S: zimbra_send_email / zimbra_forward_email {to,cc,bcc,subject,body[,message_id]}
+    S->>S: validate; build LOCAL draft (no store, no send); forwards embed forward_message_id + forwarded_message metadata
     S-->>U: tool result {draft…} → editable card (status: editing)
     U->>U: user edits; validation (≥1 To, subject non-empty)
     U->>U: window.confirm('Send this email now?')
     U->>H: rpc /soc-agent-config send-email {to[],cc[],bcc[],subject,body,body_format}
     H->>C: runAuthCommand('send-email', {…, session_id})
-    C->>Z: ZimbraMailService.send_email (gate ZIMBRA_ALLOW_SEND)
+    C->>Z: ZimbraMailService.send_email (gate ZIMBRA_ALLOW_SEND; forward_message_id → zimbra_forward_message with original + attachments)
     Z-->>C: sent
     C-->>H: {sent:true}
     H-->>U: result.sent === true → status 'sent'
@@ -126,7 +128,7 @@ Per tool call: load deployment policy from settings `soc-action-approval`; overl
 
 ## 11. Admin settings, encrypted persistence, validation, redaction
 
-Admin console → RPC (`get-settings`, `test-splunk`, `test-subscription-server`) → `host.js runAdmin` spawns `uv run python -m unified_mcp_server.admin_cli <command>` (child env **without** `SOC_ADMIN_*`; timeout 185 s → SIGTERM) → stdout JSON parsed. `get-settings` returns only redacted statuses (endpoint hosts via `redact_endpoint`, booleans/limits; no secrets/usernames/mailbox identity). Settings changes from the admin UI go through the harness settings API with `expectedRevision` (optimistic concurrency) into Fernet-encrypted `app_config`. Provider API keys are write-only (`credentials.set`; `describe` returns configured/writable booleans only). Validation/test actions never write configuration — `update-settings`/`delete-setting` refuse by design.
+Admin console → RPC (`get-settings`, `test-splunk`, `test-subscription-server`, `migrate`). `test-splunk` executes a **live `splunk_get_info` through the bridge** (`testOfficialSplunkConnection` — 185 s budget, Bearer token redacted from error messages); the other commands spawn one-shot Python children via `python-command.js` (child env **without** `SOC_ADMIN_*`; timeout 185 s → SIGTERM) → stdout JSON parsed. `migrate` applies the SQL schema migrations (URI over stdin). `get-settings` returns only redacted statuses (endpoint hosts via `redact_endpoint`, booleans/limits; no secrets/usernames/mailbox identity). Settings changes from the admin UI go through the harness settings API with `expectedRevision` (optimistic concurrency) into Fernet-encrypted `app_config`. Provider API keys are write-only (`credentials.set`; `describe` returns configured/writable booleans only). Validation/test actions never write configuration — `update-settings`/`delete-setting` refuse by design.
 **Evidence:** `host.js runAdmin/parseAdminFailure`, `admin_cli.py`, `config.py public_status`, `postgres_store.py` encryption; `test_config.py`, `sections.test.ts`.
 
 ## 12. Attachment retrieval, conversion, display, failure

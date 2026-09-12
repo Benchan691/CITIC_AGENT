@@ -1,6 +1,6 @@
 # Interface catalog
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** developers changing a boundary and security reviewers enumerating entry points.
 
@@ -17,9 +17,10 @@ Related: [MCP_TOOL_CATALOG.md](MCP_TOOL_CATALOG.md) (tool-by-tool), [CONFIGURATI
 | Harness web runtime | `cd vendor/deepseek-harness && pnpm dsh web --no-open` (port 3080) | Starts the Node host + web server; loads the web profile plugins (SOC bundle) |
 | `unified-mcp-server` | `uv run unified-mcp-server` (spawned by `dsh-mcp-client` per `cordis.patch.yml`; cwd `apps/soc-agent/server`) | The `soc_agent` stdio MCP server (`server.py main()`) |
 | `unified_mcp_server.control_server` | `uv run python -m unified_mcp_server.control_server` (spawned by `ownership.js startControlChannel`) | Persistent authenticated-operations channel |
-| `unified_mcp_server.auth_cli <command>` | spawned per command when the channel is off/unavailable | One-shot auth operations (`login`, `logout`, `send-email`, `list-signatures`) |
-| `unified_mcp_server.admin_cli <command>` | `uv run python -m unified_mcp_server.admin_cli …` (spawned by `host.js runAdmin`) | One-shot admin operations |
-| `setup.sh [--check|--plugins] [--rebuild]` / `update.sh` | operator | Install/audit/repair/update |
+| `unified_mcp_server.auth_cli <command>` | spawned per command when the channel is off/unavailable (shared `python-command.js` runner) | One-shot auth operations (`login`, `logout`, `send-email` — now forwards `forward_message_id`, `list-signatures`) |
+| `unified_mcp_server.admin_cli <command>` | `uv run python -m unified_mcp_server.admin_cli …` (spawned by `host.js runAdmin` → `python-command.js`) | One-shot admin operations: `get-settings`, `test-subscription-server`, `convert-attachment`, `migrate`. `test-splunk` removed (the bridge probes itself from Node) |
+| `unified_mcp_server.schema migrate` | spawned by `ownership.js ensureSchema` and the admin `migrate` RPC; **PostgreSQL URI passed as JSON over stdin** | Applies pending `migrations/*.sql` under `pg_advisory_xact_lock`; prints `{"migrated": true}` or `schema_migration_failed` |
+| `setup.sh [--check|--plugins]` / `update.sh` | operator | Install/audit/repair/update (Splunk parameters are now MCP-only: endpoint + token are required) |
 
 ## 2. HTTP surface (Node host)
 
@@ -48,7 +49,7 @@ Registered with `authority: 'trusted-host'`; every endpoint re-checks auth (`req
 | `list/add/update/delete/test-account` | — | always refuse — "Stored Zimbra accounts are no longer supported" | legacy stubs |
 | `send-email` | user | `{to[], cc[], bcc[], subject, body, body_format}` → `{sent: true}` required by the UI | `runAuthCommand('send-email', {…, session_id})` |
 | `list-signatures` | user | `{}` → `{signatures: [{id,name,text,html}]}` | `runAuthCommand` |
-| `test-splunk` / `test-subscription-server` | admin | `{}` → status/failure (message prefixed, ≤400 chars, ≤20 missing-env names) | `runAdmin` |
+| `test-splunk` / `test-subscription-server` | admin | `{}` → status/failure. `test-splunk` executes a **live `splunk_get_info` through the bridge** (`testOfficialSplunkConnection`, 185 s budget, Bearer token redacted from errors); subscription check stays an admin-CLI subprocess | `host.js`, `splunk-bridge.js` |
 | `convert-attachment` | admin | `{filename, content_type, data(base64), limits{max_bytes, max_chars}}` → `{text, text_truncated?, …}`; limits: ≤100 MB decoded, ≤2 M chars, filename ≤255 | `validateAttachmentPayload` + admin_cli |
 | `migrate` | admin | `{}` → `{}` | admin_cli no-op |
 
@@ -72,12 +73,12 @@ Registered with `authority: 'trusted-host'`; every endpoint re-checks auth (`req
 |---|---|---|---|
 | Zimbra SOAP (`/service/soap`, upload `?fmt=raw`) | `zimbra.py` via `zimbra-client` | XML over HTTPS (`ZIMBRA_HOST`), per-call session token | `zimbra_auth_error` (deletes app session), `zimbra_tls_error`, `zimbra_connection_error` (retryable), `zimbra_api_error`, `query_validation_error` |
 | Subscription REST (`/login`, `/api/subscriptions[…]`) | `email/service.py` | httpx; form login; ≤5 same-host redirects, no downgrades | `email_server_unavailable` (retryable), `email_server_auth_failed`, `email_server_request_failed` (status only; bodies withheld), `email_server_invalid_response` |
-| Official Splunk MCP | `splunk-bridge.js` | streamable HTTP + Bearer (`SPLUNK_TOKEN`), TLS verified by default | connection/timeout failures logged; startup failure fatal when configured |
-| Splunk REST (retained) | `splunk_service.py` via `SplunkService` | HTTPS; used by admin `test-splunk` only | admin command failure contract |
+| Official Splunk MCP | `splunk-bridge.js` | streamable HTTP + Bearer (`SPLUNK_TOKEN`); endpoint URL validated (no credentials/query/fragment; plain HTTP requires `SPLUNK_ALLOW_INSECURE_HTTP=true`); TLS verified by default; admin probe = real `splunk_get_info` call | connection/timeout failures logged; startup failure fatal when configured |
 
 ## 7. Storage interfaces
 
 - **PostgreSQL** (`SocStateStore`, `PostgresStore`): documented in [DATA_STORE_CATALOG.md](DATA_STORE_CATALOG.md). Errors: decrypt failure raises with remediation; store absence → `authentication_required` fail-closed.
+- **Schema migrations** (`schema.py apply_migrations`): versioned SQL under advisory lock; version ledger in `soc_schema_migrations`; invoked at store startup, via `ensureSchema`, and via the admin `migrate` RPC.
 - **Harness settings API** (`settings.get/mutate`, namespaces + `expectedRevision`): durability for action policy, background cadence, attachment limits, providers.
 - **Credentials API** (`credentials.set/unset/describe`): write-only secret storage; `describe` returns only `configured`/`writable`.
 
@@ -91,4 +92,5 @@ Registered with `authority: 'trusted-host'`; every endpoint re-checks auth (`req
 
 - `apps/soc-agent/cordis.patch.yml`: enables/disables upstream plugin rows, sets `approval.policy: ask`, disables model-facing coding tools, inserts the five SOC plugins, configures both MCP servers (raw allowlists, timeouts), points `skill-filesystem.customSkillDirs` at `<repo>/skills`.
 - `patches/dsh-auto-collapse@0.1.4.patch`: pnpm patch over the upstream UI plugin's built bundle — English localization, English duration parsing, `[data-dshcf-preserve]` rows excluded from auto-collapse (protects the SOC draft card).
+- Upstream schema seam: `packages/host/apiproxy/src/api/rpc.schema.ts` now declares the structured `authentication-required` / `admin-authentication-required` RPC error codes (with tests) — the SOC auth contract is pinned in the vendored API schema too.
 - Preset seam: `vendor/.../agent-presets/citic-soc/agent.cordis.yml` — persona "Sentinel", `instructionFileCandidates` (AGENTS/CLAUDE/BACKGROUND, 64 KiB cap), compaction thresholds (8192/4096/1024), `tool-ask-user`.

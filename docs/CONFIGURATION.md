@@ -1,6 +1,6 @@
 # Configuration
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** operators deploying or reconfiguring the system, and developers tracing where a value comes from.
 
@@ -62,8 +62,8 @@ Source: [diagrams/configuration-precedence.mmd](diagrams/configuration-precedenc
 
 | Service | Key facts |
 |---|---|
-| Splunk (bridge) | Three variables only; `SPLUNK_VERIFY_SSL` default true; timeout 185 s fixed in the bridge |
-| Splunk (retained config) | Fully parsed/validated (`SPLUNK_*` families incl. query policy, resource governance, lookups, security queue) but no runtime service; consumed by `public_status` hashing and admin `test-splunk` |
+| Splunk (bridge) | **Required**: endpoint + token; `SPLUNK_VERIFY_SSL` default true; plain HTTP requires `SPLUNK_ALLOW_INSECURE_HTTP=true`; timeout 185 s fixed in the bridge |
+| Splunk (retained config) | *Removed this round* — the REST/policy/lookup/queue variable families are gone; `SplunkSettings` is just the five bridge fields, and setup/`--check` **require** the connection |
 | Zimbra | Host + TLS + timeout + seven mutation gates (`ZIMBRA_ALLOW_*`) + attachment limits; legacy `ZIMBRA_EMAIL/PASSWORD` and account-file keys are compat-only |
 | Subscription | URL/user/password/timeout/allow-insecure-http; redirect policy hard-coded (≤5, same host, no downgrades) |
 | MarkItDown | Optional LLM/OCR via key+model; built-in conversion always available |

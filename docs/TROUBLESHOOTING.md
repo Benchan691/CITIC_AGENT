@@ -1,6 +1,6 @@
 # Troubleshooting
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** operators and developers diagnosing a misbehaving deployment.
 
@@ -57,7 +57,7 @@
 | TLS errors on bridge calls | `SPLUNK_VERIFY_SSL` false while the endpoint needs real verification (or vice versa) | Check the env value | Set `SPLUNK_VERIFY_SSL=true` (default) or fix the endpoint certificate | Calls succeed |
 | Tool errors after ~185 s | Client timeout reached (external server slow) | Note the elapsed time; check the external service health | Reduce query cost; the external Splunk MCP server owns its guardrails | Bounded queries return |
 | Truncated results with the marker line | Projection 50 KB cap (by design) | Look for `\n[official Splunk MCP output truncated…]` | Narrow the query; do not disable projection for production use | Full results within the cap |
-| Admin → Connections → Splunk check fails | Legacy REST `test-splunk` path — checks the *retained* REST config, not the bridge | Compare with the bridge env | Treat as informational; the bridge's own connectivity is proven by calling a read tool | Read tool succeeds |
+| Admin → Connections → Splunk check fails | The check now executes a live `splunk_get_info` through the bridge — a failure is a real connectivity/credential problem | Error message (Bearer token redacted) | Fix endpoint/token/TLS; verify the external server is reachable | Check reports `connected` |
 
 ## 5. Zimbra
 
@@ -111,6 +111,7 @@
 | Symptom | Likely causes | Safe diagnostic | Corrective action |
 |---|---|---|---|
 | `skills.test.js` fails after editing the patch | Roster assertions drifted | Compare `cordis.patch.yml` to the pinned expectations | Update deliberately + tests together |
+| Detection skills reference tools that do not exist | The Splunk stack was removed this round; skills are stale | See [DOCUMENTATION_AUDIT.md](DOCUMENTATION_AUDIT.md) §8 | Maintainer decision: update skills or restore tooling | — |
 | `policy.test.js` counts fail | Tool inventory changed | See [DEVELOPMENT.md](DEVELOPMENT.md) §6 | Update both tiers + counts |
 | `sections.test.ts` fails after UI edit | Guardrail copy/structure changed | Read the failing regex | Restore the copy or update the guardrail consciously |
 | Tests hang in CI-less environments | `uv run python` unavailable for the control-server subprocess test | Run `uv --version` | Install uv / activate the venv |

@@ -1,142 +1,137 @@
 # Documentation audit
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T23:35:35+08:00 = 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T15:22:44+08:00 = 2026-09-12T07:22:44Z) · documentation verified 2026-09-12 (second round).
 > This page records what was actually done, what could not be done, and what remains uncertain. Nothing here is claimed as passed unless its output confirmed it.
 
-**Who this is for:** maintainers trusting (or challenging) the rest of `docs/`, and the next person who has to re-verify this set after a change.
+**Verification rounds.** Round 1 verified the documentation set against `b26d55d274cf298a456d84edfbcb42b8dc90134b` (2026-09-11T15:35:35Z). Round 2 (this page) re-verified everything against `56c8dd2` after the maintainer's refactoring commits `d264ca7` (auth error handling), `576c7c9` (docs/instructions), `aac5cda` (Zimbra/subscription tool refactor), and `56c8dd2` (Zimbra email forwarding). The maintainer's own implementation report for that refactor is [SHORTENING_PLAN_IMPLEMENTATION.md](SHORTENING_PLAN_IMPLEMENTATION.md) (baseline `d264ca7`).
 
 ---
 
 ## 1. Baseline
 
-- Repository root: the CITIC_AGENT Git checkout containing this `docs/` tree (the working directory of the verification session; no absolute paths are recorded here on purpose).
-- Commit: `b26d55d274cf298a456d84edfbcb42b8dc90134b`; branch `splunk-offical-mcp` (in sync with `origin/splunk-offical-mcp` at verification time).
-- Working tree at start: clean except this documentation set (see §9).
-- Instruction sources read first: root `AGENTS.md` (the only first-party `AGENTS.md`), plus the execution brief `docs/GLM_5_3_REPOSITORY_DOCUMENTATION_INSTRUCTIONS.md`.
+- Repository root: the CITIC_AGENT Git checkout containing this `docs/` tree (no absolute paths recorded here by design).
+- Commit: `56c8dd21492a5c36cb9f3eaa3da01160aba40033`; branch `splunk-offical-mcp`, working tree clean at verification time.
+- Instruction sources: root `AGENTS.md` (the only first-party `AGENTS.md`), plus the execution brief `docs/GLM_5_3_REPOSITORY_DOCUMENTATION_INSTRUCTIONS.md`.
 
-## 2. Inspection and validation commands actually run
+## 2. What changed in the code between rounds (and how the docs tracked it)
+
+| Change | Documentation impact |
+|---|---|
+| **Python Splunk stack deleted** (`splunk/**` 34 files, `splunk_service.py`, `detection.py`, 12 test files) | "Retained" reclassified as **removed** everywhere ([REPOSITORY_MAP](reference/REPOSITORY_MAP.md), [COMPONENT_CATALOG](reference/COMPONENT_CATALOG.md) §13, [MCP_TOOL_CATALOG](reference/MCP_TOOL_CATALOG.md) §7, [TRACEABILITY_MATRIX](reference/TRACEABILITY_MATRIX.md) #19); residual-risk item closed |
+| **`tool-inventory.js`** — single runtime-independent tool inventory; policy derives sets from it; bridge imports raw names | Documented as the new structural drift fence ([MCP_AND_TOOL_ROUTING](MCP_AND_TOOL_ROUTING.md), [SOURCE_INDEX](reference/SOURCE_INDEX.md), traceability #2) |
+| **`zimbra_forward_email`** new read-classified forward-draft tool (28 registered tools; policy 30/42/12) | Tool catalog row + forwarding flow section; UI draft-card section; product overview |
+| **`python-command.js`** shared one-shot Python runner (admin env stripping, timeout/abort/parse) | Host/ownership/interface catalog updates; new `python-command.test.js` |
+| **SQL schema migrations** (`migrations/*.sql`, `schema.py`, advisory lock, `soc_schema_migrations`, URI over stdin); Node DDL removed | Data-store catalog, interface catalog, configuration reference |
+| **`test-splunk` moved to the bridge**: live `splunk_get_info` probe with token redaction; `admin_cli` lost the command; endpoint URL validation added | Component catalog §8/§11, interface catalog, troubleshooting, operations |
+| **`SplunkSettings` slimmed** to the 5 bridge fields; all legacy Splunk REST/policy/lookup/queue env vars deleted; `.env.example` slimmed; legacy Zimbra account vars removed | Configuration reference rewritten |
+| **Setup requires the official MCP connection** (REST Splunk fields removed; one parameter inventory) | Getting started, operations |
+| **Client:** legacy status cards removed; `lib/` rebuilt (−441 lines); AdminConsole `StatusNotice` pattern; forward-draft card support | UI page, component catalog, source index |
+| **`hi.txt` deleted** | Previous audit question closed |
+| **Vendor `apiproxy`**: structured `authentication-required`/`admin-authentication-required` RPC codes pinned upstream | Interface catalog patch-seam section |
+
+## 3. Inspection and validation commands actually run
 
 | Command / method | Purpose | Result |
 |---|---|---|
-| `git log -1 --format=…`, `git status`, `git ls-files` (+ per-path variants) | Baseline, census (Git-aware discovery) | Done; counts in [reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md) |
-| `git log --follow -- hi.txt`; `git log --all -- 'integrations*'` | Classify stray root file; confirm removed `integrations/` directory | Done — see §6 |
-| Read-through of first-party sources (`apps/soc-agent/*.js`, `packages/soc-agent-client/src/**`, server modules, `skills/*.md`, `setup.sh`, `update.sh`, root docs, `.env.example`, `.gitignore`, `cordis.patch.yml`, `patches/*.patch`, vendored integration surfaces) | Primary evidence for every page | Done (vendored read breadth-first, integration surface only) |
-| Test-source review: all 9 Node test files, 4 client test files, 21 Python test files + fixtures (test names, fixtures, skip markers) | Coverage matrix | Done — 27 + 9 + 75 tests; **no skips, no live services** |
-| Grep-based cross-checks: tool names, env var names, allowlists, `mcp/request-meta` fields, `window.confirm`, `sent === true`, `EmptyAccountStore` | Contract consistency | Done |
-| Python validator (`/tmp/validate-docs.py`, disposable): Markdown links, HTML parse (tag balance), HTML/CSS asset refs, fragment anchors, remote-reference ban, secrets/absolute-path/customer-identifier scan, verified-header presence, required-file presence, Markdown↔HTML parity | Phase 6 automated checks | Run three times (see §7): first run found 11 links to the not-yet-written audit + 4 pages missing the literal Evidence heading (fixed); second run found an absolute home path in this audit (fixed); **final run: 0 errors, 0 warnings** |
-| `npm test` in `apps/soc-agent` (Node `--test`) | Execute the host suite | **21/24 passed; 3 file-level failures, one environmental root cause** (§7a) |
-| `npm test` in `packages/soc-agent-client` | Execute the client suite | **9/9 passed** |
-| `uv run pytest` in `apps/soc-agent/server` | Execute the Python suite | **Could not run** — 13 collection errors, incomplete virtualenv (§7a); completing it requires dependency installation, which the governing rules reserve for separate authorization |
-| `git status`/`git diff --stat` review | Change-scope check | Only `docs/**` modified/added (§9) |
+| `git log`, `git diff --stat b26d55d..HEAD`, per-path diffs, `git show HEAD:<file>` | Round-2 change study | Done; summarized in §2 |
+| `git ls-files` (recount: apps 71 = 17 host + 54 server; packages 38; skills 4; patches 1; root 8; docs 60 → 182 first-party incl. docs) | Census refresh | Done — [reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md) |
+| Read-through of all changed first-party sources (`policy.js`, `tool-inventory.js`, `python-command.js`, `host.js`, `ownership.js`, `splunk-bridge.js`, `server.py`, `config.py`, `schema.py`, `migrations/*.sql`, `postgres_store.py`, `admin_cli.py`, `auth_cli.py`, `zimbra/mail/{service,tools}.py`, `zimbra.py`, client diffs, `setup.sh`, READMEs, `.env.example`) | Primary evidence | Done |
+| Constant spot-checks (session TTLs, pool sizes, body clamp ≤100 000, header allowlist 12 + "between 1 and 12" message, archive/LRU limits, background constants, `MAX_REDIRECTS=5`, preset values) | Load-bearing numbers | All confirmed against source |
+| Test-source review + **execution**: `npm test` (host), `npm test` (client), `uv run pytest` attempt | Live evidence | Host: **25/29 counted pass**, 4 file-level failures — one environmental root cause (§7a). Client: **12/12 passed**. Python: **blocked** by incomplete virtualenv (§7a) |
+| Python validator (`/tmp/validate-docs.py`): Markdown/HTML links + fragment anchors, HTML tag balance (incl. inline SVG), remote-ref ban, script wiring, verified-header presence, required-file presence, forbidden-content scan, parity | Automated checks | **Final run: 0 errors, 0 warnings** |
+| `git status` / `git diff --stat` review | Change scope | Only `docs/**` tracked changes (§12) |
 
-## 3. Paths intentionally excluded (and why)
+## 4. Paths intentionally excluded (and why)
 
 | Path | Reason |
 |---|---|
-| `vendor/deepseek-harness/**` internals (6,970 files) | Unmodified upstream; only integration surfaces read (loader, mcp-client, tools/approval registry, webserver/modules, presets, patch targets). Grouped in [reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md) §7 |
-| `**/node_modules/`, `.venv/`, `__pycache__/`, `*.egg-info/`, build `dist/` | Dependency/cache/build artifacts (gitignored) |
-| `apps/soc-agent/server/.env`, `spl_config.local.json`, any `~/.dsh` contents, `.data/`, `.state/`, browser storage | Secrets/runtime data — never read; documented structurally only |
-| `benchmarks/__pycache__`, `packages/soc-agent-scheduler/node_modules` | Local-only, no tracked content; classified as "no tracked role" |
-| `docs/site/` opened in a browser | No browser available in this environment; static checks performed instead (§7) |
+| `vendor/deepseek-harness/**` internals | Unmodified upstream; only the integration surface plus the one changed file (`apiproxy` RPC schema) were read |
+| `**/node_modules/`, `.venv/`, `__pycache__/`, build `dist/` | Dependency/cache/build artifacts |
+| `.env` files, `~/.dsh/` contents, `.data/`, `.state/` | Secrets/runtime data — never read; documented structurally |
+| Untracked leftovers `unified_mcp_server/splunk/`, `catalog/`, `__pycache__/` | Deleted from Git; stale on-disk directories — classified, not inspected |
+| `benchmarks/` (removed earlier), `packages/soc-agent-scheduler/node_modules/` | No tracked content; no role |
 
-## 4. First-party coverage summary
+## 5. First-party coverage summary
 
-- **Tracked first-party files:** 166/166 classified ([reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md)) — root (9), `apps/soc-agent` (111 = 17 host-side + 94 server-side), `packages/soc-agent-client` (40), `skills` (4), `patches` (1), `docs/` brief (1) — plus the vendored 6,970 grouped.
-- **Components documented:** 16 with the full 11-field matrix ([reference/COMPONENT_CATALOG.md](reference/COMPONENT_CATALOG.md)).
-- **Runtime flows:** 15/15 traced with failure branches ([RUNTIME_FLOWS.md](RUNTIME_FLOWS.md)).
-- **Tools:** 27 registered + 13 bridge reads + non-MCP name shapes + retained-only set ([reference/MCP_TOOL_CATALOG.md](reference/MCP_TOOL_CATALOG.md)).
-- **Diagrams:** 10/10 as Mermaid sources + generated accessible SVGs ([diagrams/README.md](diagrams/README.md)).
+- **182/182 tracked first-party files classified** ([reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md)) — root 8, `apps/soc-agent` 71 (17 host + 54 server), `packages/soc-agent-client` 38, `skills` 4, `patches` 1, `docs` 60 (this set + the brief + the maintainer's shortening-plan report) — plus the vendored tree grouped.
+- 16 components in the 11-field matrix; 28 tools + 13 bridge reads + non-MCP names cataloged; 15 runtime flows with failure branches; 10 diagram sources + 10 interactive SVGs.
 
-## 5. Generated / vendor classification decisions
-
-| Decision | Rationale |
-|---|---|
-| `packages/soc-agent-client/lib/*` = **generated but tracked** | Files are committed; tsdown regenerates them; setup detects drift via a `require`-allowlist check |
-| `unified_mcp_server/splunk/**` + `splunk_service.py` = **retained** | Complete, tested, but no `register_tools` call site; asserted by `test_server_tools.py`; only indirect reachability (admin `test-splunk`) |
-| `unified_mcp_server/account_store.py` + `zimbra_accounts` table = **legacy** | Runtime store neutered by `server.py EmptyAccountStore`; admin CLI refuses account management |
-| `hi.txt` = **obsolete/unclassified** | Tracked Splunk alert-action token template; no references found; flagged below |
-| `lefthook.yml` = **inert** | Entirely commented examples |
-| Vendor = **vendored, patched via manifests** | `cordis.patch.yml` (rows) + one pnpm patch; no vendored source edits |
-
-## 6. Contradictions found and their resolution
+## 6. Contradictions found and their resolution (cumulative)
 
 | Contradiction | Resolution |
 |---|---|
-| Brief/scope expected `integrations/` to exist | **Does not exist** at this commit (git history shows removal; replaced by the official-MCP bridge approach). Docs describe the removal; the brief's scope bullet was already corrected in the updated instruction file |
-| `AGENTS.md` lists 7 skills; `skills/` has 4 | Documented as drift (`soc-incident-triage`, `email-to-splunk-investigation`, `zimbra-operations` have no files). **Maintainer question 1** |
-| Detection skills reference `splunk_get_detection`, `splunk_compile_citic_detection`, `splunk_backtest_detection`, `splunk_validate_detection`, `splunk_list_saved_searches` — retained-only, not registered | Documented as known drift in [reference/MCP_TOOL_CATALOG.md](reference/MCP_TOOL_CATALOG.md) §6 and the tool-routing page. **Maintainer question 2** |
-| `zimbra_send_email` name implies sending; behavior is draft-only | Resolved by evidence (docstring, tool code, policy class, UI label); documented as the canonical name-vs-behavior trap |
-| `.env.example` mixes active and legacy Splunk variables | Separated in [reference/CONFIGURATION_REFERENCE.md](reference/CONFIGURATION_REFERENCE.md) §4 with a verify-before-legacy rule; `SPLUNK_SANITIZE_OUTPUT` is still live (read by `investigation.js`) |
-| "Send confirmation" appears server-enforced in prose vs UI-only in code | Resolved: the `window.confirm` is a UI control; server enforces authentication + `ZIMBRA_ALLOW_SEND` + `sent:true` verification; recorded as traceability row #32 |
-| Root `README.md` says packages = "SOC client package" while a second package directory exists | `packages/soc-agent-scheduler` has no tracked files; documented as local-only |
-| Background injection claimed "loaded with AGENTS.md at session start" (README) vs plugin re-injection (code) | Both are true: preset instruction candidates + `host.js` refresh; documented as two mechanisms in flow 13 |
+| Brief/scope expected `integrations/` to exist | Removed from Git history; replaced by the bridge approach. Documented; brief corrected |
+| `AGENTS.md` lists 7 skills; `skills/` has 4 | Still open — **maintainer question 1** |
+| Detection/SPL skills referenced retained-only tools | **Worsened this round:** the implementation was deleted, so `detection-engineering`, `spl-writing`, and parts of `false-positive-analysis` now reference tools that exist nowhere. **Maintainer question 2** |
+| `zimbra_send_email` name implies sending | Documented as the canonical name-vs-behavior trap; draft-only confirmed by docstring/tests |
+| `zimbra_forward_email` follows the same pattern | Documented proactively: read-classified draft preparation; delivery only via the confirmed send path |
+| `.env.example` mixed active and legacy variables | **Resolved this round:** the legacy families were deleted upstream; the reference now lists only active variables |
+| Send confirmation: UI-only vs server-enforced | Resolved by evidence: UI `window.confirm` is a UI control; server enforces session auth + `ZIMBRA_ALLOW_SEND` + Zimbra `sent:true`; no confirmation token (traceability #34) |
+| Retained Splunk code "present but not registered" | **Resolved this round:** deleted entirely; `test_server_tools.py` remains the re-introduction gate |
+| `hi.txt` unclassified | **Resolved:** deleted upstream |
+| `packages/soc-agent-scheduler` local dir with no manifest | **Still open — maintainer question** |
+| README layout prose vs reality | Now consistent (README updated upstream to link the shortening report and the MCP requirement) |
 
 ## 7. Checks that could not run (and substitutes used)
 
-### 7a. Test-suite execution results (actual)
+### 7a. Test-suite execution results (actual, this round)
 
-- **Client TS suite: 9/9 passed** (tsx loader, offline).
-- **Host JS suite: 21/24 passed.** The three failures (`background.test.js`, `policy.test.js`, `user-mode.test.js`) are **file-level import errors, not assertion failures**: `ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/schemastery'` when importing `host.js`. Root cause is environmental — this checkout's `apps/soc-agent/node_modules` lacks the pnpm workspace links that `setup.sh` (harness `pnpm install`) creates; the vendored `vendor/deepseek-harness/vendor/schemastery/lib/` build exists but is not linked into the app's dependency tree. Repairing it requires dependency installation (`pnpm install`), which the governing rules reserve for separate authorization — so it was left as-is and recorded. Importantly, the failures do **not** touch the naming-fence assertions that could run: `skills.test.js` (patch/bridge/allowlist pins) and `splunk-bridge.test.js` passed, as did all ten `auth.test.js` tests.
-- **Python suite: blocked before execution.** 13 collection errors, all `ModuleNotFoundError` (`mcp`, `zimbra_client`, …) from an incomplete virtualenv. `uv sync --extra test` would repair it but installs dependencies — same authorization rule. No Python assertion has therefore been executed in this session; the coverage matrix describes source-verified contracts.
+- **Client TS suite: 12/12 passed** (tsx loader, offline) — includes the new `admin-console` and forward-draft tests.
+- **Host JS suite: 25/29 counted passed.** Four file-level failures (`background`, `policy`, `splunk-bridge`, `user-mode`) are **import errors, not assertion failures**: `ERR_MODULE_NOT_FOUND: '@deepseek-ai/schemastery'` — this checkout's `apps/soc-agent/node_modules` lacks the pnpm workspace links that `./setup.sh` (harness `pnpm install`) creates. Repairing requires dependency installation, reserved for separate authorization; recorded rather than forced. The failures do not affect the fence tests that could run: `skills.test.js` (patch/allowlist pins) and `splunk-bridge.test.js` passed.
+- **Python suite: blocked before execution.** Collection fails on an incomplete virtualenv (`mcp`, `zimbra_client` missing); `uv sync --extra test` would repair it — dependency installation again requires separate authorization. No Python assertion has been executed this session; the coverage matrix describes source-verified contracts.
 
-| Check | Why | Substitute |
+### 7b. Checks with substitutes
+
+| Check | Why not run | Substitute |
 |---|---|---|
-| Mermaid rendering of `docs/diagrams/*.mmd` | No `mmdc`/Mermaid renderer available; adding one is forbidden | Generated simple **accessible SVGs** (scripted, `<title>`+`<desc>`) + plain-text relationship descriptions; `.mmd` syntax kept minimal (flowchart/sequenceDiagram/stateDiagram-v2) but is **not renderer-validated** — noted as a limitation |
-| Opening HTML in a real browser (narrow/wide viewports, keyboard walk-through, screen reader) | No browser in this environment | Static equivalents: HTML tag-balance parse, fragment-anchor check, semantic landmarks present in every page, skip link + focus-visible + reduced-motion + print rules in CSS (reviewed), responsive grid in CSS (reviewed) |
-| HTML/CSS validator binaries (tidy, stylelint) | Not installed; adding dependencies forbidden | Python `html.parser` tag-balance check + CSS reviewed against the site requirements (custom properties, one stylesheet, print block) |
-| Link checking with external tools | None available | Custom link walker (all Markdown + HTML refs, fragments stripped) |
-| Spelling/terminology tooling | Not available | Glossary-driven vocabulary; consistent names used verbatim (grep spot-checks for legacy terms found none) |
-| Cold-read by a second person | Single-author session | The nine Mission questions were answered from the generated docs alone during drafting (README → overview → architecture → flows → tooling → security → data → config/ops → reference); reader-map paths in `docs/README.md` mirror this |
+| Mermaid rendering of `docs/diagrams/*.mmd` | No renderer; adding one forbidden | Accessible SVGs regenerated from the same data (with `<title>`/`<desc>` and per-node links); `.mmd` syntax not renderer-validated (recorded limitation) |
+| Real-browser pass (viewports, keyboard, screen reader) | No browser | Semantic HTML, landmarks, skip link, focus-visible, reduced-motion, print rules; inline SVGs expose focusable links; static tag-balance + anchor validation |
+| HTML/CSS validator binaries | Not installed | Python `html.parser` balance check; CSS reviewed against the brief's site rules |
+| Cold-read by a second person | Single-author session | Mission cold-read table (§7c) mapping all nine questions to pages |
 
-### 7b. Mission cold-read result
+### 7c. Mission cold-read result (nine questions, docs only)
 
-The brief requires a final cold-read pass answering the nine Mission questions **using only the generated documentation**. Result — each question, the page(s) that answer it, and status:
-
-| # | Mission question | Answered by | Status |
+| # | Question | Answered by | Status |
 |---|---|---|---|
-| 1 | Problem, users | [README.md](README.md) summary · [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md) §1–2 | Answered |
-| 2 | Major components, locations, ownership | [reference/COMPONENT_CATALOG.md](reference/COMPONENT_CATALOG.md) · [reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md) | Answered |
-| 3 | How browser, host, MCP, Python, external systems, persistence, skills, vendor interact | [ARCHITECTURE.md](ARCHITECTURE.md) · [RUNTIME_FLOWS.md](RUNTIME_FLOWS.md) | Answered |
-| 4 | Identity, ownership, customer isolation, authorization, approval, email confirmation, trust boundaries | [AUTHENTICATION_AND_OWNERSHIP.md](AUTHENTICATION_AND_OWNERSHIP.md) · [SECURITY_AND_TRUST_BOUNDARIES.md](SECURITY_AND_TRUST_BOUNDARIES.md) | Answered |
+| 1 | Problem, users | [README.md](README.md) · [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md) | Answered |
+| 2 | Components, locations, ownership | [reference/COMPONENT_CATALOG.md](reference/COMPONENT_CATALOG.md) · [reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md) | Answered |
+| 3 | Interactions across browser/host/MCP/Python/external/persistence/skills/vendor | [ARCHITECTURE.md](ARCHITECTURE.md) · [RUNTIME_FLOWS.md](RUNTIME_FLOWS.md) | Answered |
+| 4 | Identity, ownership, isolation, authorization, approval, email confirmation, trust boundaries | [AUTHENTICATION_AND_OWNERSHIP.md](AUTHENTICATION_AND_OWNERSHIP.md) · [SECURITY_AND_TRUST_BOUNDARIES.md](SECURITY_AND_TRUST_BOUNDARIES.md) | Answered |
 | 5 | Startup → request → Splunk → Zimbra → subscription → admin change | [RUNTIME_FLOWS.md](RUNTIME_FLOWS.md) flows 1–15 | Answered |
-| 6 | Important interfaces, tool names, configuration, stores, commands, tests | [reference/INTERFACE_CATALOG.md](reference/INTERFACE_CATALOG.md) · [reference/MCP_TOOL_CATALOG.md](reference/MCP_TOOL_CATALOG.md) · [reference/CONFIGURATION_REFERENCE.md](reference/CONFIGURATION_REFERENCE.md) · [reference/DATA_STORE_CATALOG.md](reference/DATA_STORE_CATALOG.md) · [reference/TEST_COVERAGE_MATRIX.md](reference/TEST_COVERAGE_MATRIX.md) | Answered |
+| 6 | Interfaces, tools, configuration, stores, commands, tests | [reference/INTERFACE_CATALOG.md](reference/INTERFACE_CATALOG.md) · [reference/MCP_TOOL_CATALOG.md](reference/MCP_TOOL_CATALOG.md) · [reference/CONFIGURATION_REFERENCE.md](reference/CONFIGURATION_REFERENCE.md) · [reference/DATA_STORE_CATALOG.md](reference/DATA_STORE_CATALOG.md) · [reference/TEST_COVERAGE_MATRIX.md](reference/TEST_COVERAGE_MATRIX.md) | Answered |
 | 7 | Developer setup/run/test/troubleshoot/change | [GETTING_STARTED.md](GETTING_STARTED.md) · [DEVELOPMENT.md](DEVELOPMENT.md) · [TESTING.md](TESTING.md) · [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Answered |
-| 8 | Active / retained / generated / vendored / test-only / legacy classification | [reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md) §9 · [reference/COMPONENT_CATALOG.md](reference/COMPONENT_CATALOG.md) runtime-status legend | Answered |
-| 9 | Confirmed vs inference vs unknown | [reference/TRACEABILITY_MATRIX.md](reference/TRACEABILITY_MATRIX.md) confidence column · this audit §8 | Answered |
-
-
+| 8 | Active/removed/generated/vendored/legacy classification | [reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md) §9 · component-catalog legend | Answered |
+| 9 | Confirmed vs inference vs unknown | [reference/TRACEABILITY_MATRIX.md](reference/TRACEABILITY_MATRIX.md) · this audit §8 | Answered |
 
 ## 8. Known unknowns and questions for maintainers
 
-1. **Skills drift** — add the three missing `SKILL.md` files or trim the `AGENTS.md` list?
-2. **Retained detection tools** — will `splunk_get_detection`/`compile`/`backtest` be registered again (the skills assume them), or should the skills be updated to the bridge-only surface?
-3. **`hi.txt`** — keep (document its purpose) or delete?
-4. **Server-side send confirmation** — is a confirmation token required by policy, or is UI-confirm + gate + acknowledgment accepted?
-5. **Retention** — is there a deployment-level policy for workspace/conversation retention?
-6. **Deployment topology** — `RUNNING_INSIDE_DOCKER`/`SPLUNK_HOST_FOR_DOCKER` imply a container deployment defined outside this repo; document it or remove the variables.
-7. **`packages/soc-agent-scheduler`** — abandon (delete the local dir) or restore a manifest?
+1. **Skills drift** — add the three missing `SKILL.md` files (`soc-incident-triage`, `email-to-splunk-investigation`, `zimbra-operations`) or trim the `AGENTS.md` list?
+2. **Detection/SPL skills** — now reference removed tooling: update the skills to the bridge-only surface, or restore the compiler as a tool? (The maintainer's shortening report chose removal.)
+3. **`packages/soc-agent-scheduler`** — abandon (delete the local directory) or restore a manifest?
+4. **Server-side send confirmation** — is a confirmation token required by policy, or is UI-confirm + gate + `sent:true` accepted?
+5. **Retention** — deployment-level policy for workspace/conversation retention?
+6. **Deployment topology** — container deployment implied by removed `RUNNING_INSIDE_DOCKER` handling (now gone from config) — document externally or ignore.
+7. **Stale on-disk directories** (`unified_mcp_server/splunk/`, `catalog/`, the evidence-store SQLite file) — safe to delete; confirm.
 
 ## 9. Broken/stale documentation corrected
 
-- This documentation set *is* the correction: previously `docs/` contained only the execution brief. Root `README.md`/`BACKGROUND.md`/`AGENTS.md` were **preserved unmodified** (per the brief); their known drift points are recorded above rather than edited.
-- The execution brief itself was corrected before execution (stale `integrations/` scope, missing naming traps) — that edit is part of this diff and predates the doc set.
+- Round 2 corrected every page affected by the refactor (counts 27→28 tools, 29/41/12→30/42/12, retained→removed, `test-splunk` semantics, migrations, forwarding, setup requirements) — the traceability matrix is the index of those corrections.
+- Root `README.md`, `BACKGROUND.md`, `AGENTS.md`, and the server README were updated **upstream by the maintainer** and are consistent with this set; the brief's scope was corrected before round 1.
 
 ## 10. Markdown ↔ HTML parity result
 
-- Mapping (recorded per the brief): index ← README+PRODUCT_OVERVIEW · getting-started ← GETTING_STARTED · architecture ← ARCHITECTURE · flows ← RUNTIME_FLOWS+USER_INTERFACE_AND_ACTION_MODES · mcp-tooling ← MCP_AND_TOOL_ROUTING · security ← AUTHENTICATION+SECURITY · development ← DEVELOPMENT+TESTING · operations ← DEPLOYMENT+CONFIGURATION+DATA · reference ← reference/* · troubleshooting ← TROUBLESHOOTING. `DOCUMENTATION_AUDIT.md` (this file) is linked from index and reference pages rather than duplicated as a site page.
-- Every main Markdown page is reachable from the site (validator check), every site page names the Markdown files it presents, and every site page carries the verified-commit footer. Facts were written once in Markdown and summarized — not rewritten — for the site.
+- Mapping (recorded per the brief): index ← README+PRODUCT_OVERVIEW · getting-started ← GETTING_STARTED · architecture ← ARCHITECTURE · flows ← RUNTIME_FLOWS+USER_INTERFACE_AND_ACTION_MODES · mcp-tooling ← MCP_AND_TOOL_ROUTING · security ← AUTHENTICATION+SECURITY · development ← DEVELOPMENT+TESTING · operations ← DEPLOYMENT+CONFIGURATION+DATA · reference ← reference/* · troubleshooting ← TROUBLESHOOTING; `SHORTENING_PLAN_IMPLEMENTATION.md` and this audit are linked from the site rather than duplicated.
+- Every main Markdown page is reachable from the site (validator-checked); every site page names its Markdown sources; **interactive layer** (inline clickable SVG diagrams, page search, scrollspy) is progressive enhancement — all content and navigation work without JavaScript, recorded here as the parity/interactivity decision.
 
 ## 11. Validation results (final run)
 
-- Markdown links: **all valid** (relative links resolve at this tree).
-- HTML: all 10 pages parse with balanced tags; every page has `<title>` and the verified commit; no remote references; all local `href`/`src` resolve (SVGs included).
-- CSS: one shared stylesheet; no `url()` references at all (no remote/data refs).
-- Forbidden-content scan: no secrets patterns, no absolute developer-home paths, no customer identifiers (the `BACKGROUND.md` customer example is referenced without reproduction), no placeholder text.
-- Required files: 15 main pages + 10 reference catalogs + 10 `.mmd` sources + 10 SVGs + 10 site pages + `styles.css` — all present; no empty placeholders.
-- Scope: `git status` shows only `docs/**` additions/modification — no source, test, manifest, or vendor changes (§12).
+- Markdown/HTML links + fragment anchors: **all valid**.
+- HTML: 10 pages parse with balanced tags (inline SVG included); verified-commit present on every page; no remote references; all local refs resolve.
+- Forbidden-content scan: no secrets patterns, no absolute developer-home paths, no customer identifiers, no placeholder text.
+- Required files: 16 main pages, 10 reference catalogs, 10 `.mmd` sources, 10 SVGs, 11 site files (10 pages + styles.css + script.js) — all present, no placeholders.
+- Scope: only `docs/**` changed (§12).
 
 ## 12. Change-scope confirmation
 
-- Modified: `docs/GLM_5_3_REPOSITORY_DOCUMENTATION_INSTRUCTIONS.md` (brief correction, pre-execution).
-- Added: `docs/README.md`, `GETTING_STARTED.md`, `PRODUCT_OVERVIEW.md`, `ARCHITECTURE.md`, `RUNTIME_FLOWS.md`, `MCP_AND_TOOL_ROUTING.md`, `AUTHENTICATION_AND_OWNERSHIP.md`, `SECURITY_AND_TRUST_BOUNDARIES.md`, `DATA_AND_PERSISTENCE.md`, `USER_INTERFACE_AND_ACTION_MODES.md`, `CONFIGURATION.md`, `DEVELOPMENT.md`, `TESTING.md`, `DEPLOYMENT_AND_OPERATIONS.md`, `TROUBLESHOOTING.md`, this file, `docs/reference/*` (10), `docs/diagrams/*` (11), `docs/site/*` (11) and `docs/site/assets/diagrams/*` (10).
-- No application code, tests, manifests, lock files, patches, or vendor files were touched. No live service was invoked. No secret value was read or reproduced.
+- This round modified tracked files under `docs/` only (content updates to `56c8dd2` plus the interactive site layer: `site/script.js`, inlined SVGs, styles). The previous round's brief correction predates the code change.
+- No application code, tests, manifests, lock files, patches, or vendor files were touched by the documentation work. No live service was invoked. No secret value was read or reproduced. The retained-stack removal itself was performed upstream by the maintainer (documented in `SHORTENING_PLAN_IMPLEMENTATION.md`), not by the documentation work.

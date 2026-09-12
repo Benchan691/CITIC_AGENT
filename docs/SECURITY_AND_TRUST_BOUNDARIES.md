@@ -1,6 +1,6 @@
 # Security and trust boundaries
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this is for:** security reviewers, penetration testers planning authorized assessments, and maintainers making risk decisions.
 
@@ -67,6 +67,8 @@
 | Email: draft-only tool; UI confirm; service gate; `sent:true` verification | Documented; **UI confirm is a UI-level control** | `EmailDraftToolview.tsx`, `auth_cli.py`, `test_zimbra_service.py` |
 | No Splunk mutation tools (bridge read-only by allowlist; retained modules unregistered) | Documented + test evidence | `test_server_tools.py`, `splunk-bridge.test.js` |
 | Read-only Splunk boundary composition | Documented control | The bridge has no protocol-level write filter — the boundary is the allowlist + policy + remote server (see residual risks) |
+| Splunk endpoint configuration validated (no credentials/query/fragment; plain-HTTP opt-in) | Documented + **test evidence** | `splunk-bridge.test.js` "official configuration requires MCP credentials and explicit plain HTTP opt-in" |
+| Admin connection check redacts the Bearer token from errors | Documented + **test evidence** | `splunk-bridge.test.js` "admin connection check uses the live allowed tool and preserves authorization, errors, and cancellation" |
 
 ### Content handling
 
@@ -109,7 +111,7 @@
 1. **Splunk read-only is compositional, not protocol-enforced.** The bridge would register whatever its allowlist names; if someone added a write name to both the bridge and the patch, only tests and review would catch it. *Recommendation:* keep `skills.test.js`/`splunk-bridge.test.js` as release gates.
 2. **Send confirmation is UI-level.** The server authenticates, gates, and verifies delivery, but does not require a per-send confirmation token; a non-browser client with a valid session could call `send-email` without the dialog. *Recommendation (product decision):* server-side confirmation token if the threat model requires it.
 3. **No CSRF tokens beyond SameSite/Origin checks** on auth routes; other POST routes rely on fencing + JSON content types. *Recommendation:* keep an eye on browser policy changes; consider explicit CSRF tokens for state-changing routes if the deployment adds third-party origins.
-4. **Retained Splunk code is one `register_tools` call away from live.** Its tests prove its contracts, not its absence. *Recommendation:* treat `test_server_tools.py` as a release gate; delete retained code when its history value expires.
+4. **Retained Splunk code — resolved this round.** The whole Python Splunk stack was deleted (recorded in `docs/SHORTENING_PLAN_IMPLEMENTATION.md`); `test_server_tools.py` remains the release gate for re-introduction. The *new* adjacent risk is the **skills drift**: `detection-engineering`/`spl-writing` still instruct workflows whose tools no longer exist.
 5. **No CI at the repo root** — the guards above run only if someone runs them. *Recommendation:* wire the three suites into CI.
 6. **`lib/` is tracked generated output** — a compromised or stale bundle ships silently. Setup's require-allowlist check mitigates; *recommendation:* verify bundle drift in review.
 7. **`hi.txt`** — an unclassified tracked artifact (Splunk alert-action template). *Recommendation:* delete or document it.

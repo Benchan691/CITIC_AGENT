@@ -1,6 +1,6 @@
 # Architecture
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this page is for:** developers and architects who need the real shape of the system — processes, boundaries, ownership, and extension points.
 
@@ -38,9 +38,9 @@ Source: [diagrams/runtime-containers.mmd](diagrams/runtime-containers.mmd).
 | Process | What it is | Started by | Talks to |
 |---|---|---|---|
 | **Node host** (single process) | Vendored harness web runtime + cordis plugins | `pnpm dsh web --no-open` | Browser (HTTP/WS), PostgreSQL (`pg` pool), Python children, external Splunk MCP |
-| **`soc_agent` Python server** | FastMCP stdio server, 27 tools | `dsh-mcp-client` per `cordis.patch.yml` (`uv run unified-mcp-server`, `failOnStartupError: true`) | Zimbra SOAP, subscription REST, PostgreSQL |
+| **`soc_agent` Python server** | FastMCP stdio server, 28 tools | `dsh-mcp-client` per `cordis.patch.yml` (`uv run unified-mcp-server`, `failOnStartupError: true`) | Zimbra SOAP, subscription REST, PostgreSQL |
 | **Control server** (`unified_mcp_server.control_server`) | Persistent JSON-line channel for authenticated ops | `ownership.js startControlChannel` (or one-shot `auth_cli` when `SOC_CONTROL_CHANNEL=off`) | PostgreSQL, Zimbra (send) |
-| **Admin CLI child** (`unified_mcp_server.admin_cli`) | One-shot per admin operation | `host.js runAdmin` | Splunk REST (test), subscription service (test), PostgreSQL |
+| **Admin CLI child** (`unified_mcp_server.admin_cli`) | One-shot per admin operation | `host.js runAdmin` → `python-command.js` | Subscription service (test), PostgreSQL (migrate) |
 | **Browser** | Harness web runtime + the SOC client bundle (`lib/client.js` closure factory loaded via `window.__ModuleLoader__`) | — | Node host only |
 
 Network boundaries: browser↔host (HTTP/WS, cookies), host↔Splunk MCP (outbound HTTPS), Python↔Zimbra/subscription (outbound), everything else is local IPC (stdio pipes) or loopback DB. Process boundary notes: the Python server never receives `SOC_ADMIN_*` env vars (stripped in `env_loader.py`, `childEnvironment()`, and `runAdmin`); the control channel is a private parent-child pipe whose authorization is the `session_id` in each payload.
@@ -77,7 +77,7 @@ flowchart TB
 
 Dependency highlights:
 
-- **policy.js is the vocabulary**: every other component references its frozen sets. The Python server's 27 tools, the patch's raw allowlist, and the bridge's 13 names are three synchronized inventories fenced by tests (`policy.test.js`, `skills.test.js`, `splunk-bridge.test.js`, `test_server_tools.py`).
+- **`tool-inventory.js` is the vocabulary**: a single runtime-independent module exports every tool name; `policy.js` derives its sets from it and the bridge imports its raw names. The Python registration count is pinned to the same inventory by tests (`policy.test.js`, `skills.test.js`, `splunk-bridge.test.js`, `test_server_tools.py`) — drift now fails imports or tests, not just review.
 - **ownership.js is the biggest first-party module** (1,875 lines) because it is both auth service and the scoped API proxy that makes the harness's own APIs per-user safe.
 - **The harness is patched, not forked**: `cordis.patch.yml` toggles upstream plugin rows and inserts the SOC plugins; the only file-level vendor patch is `patches/dsh-auto-collapse@0.1.4.patch` (localization + `data-dshcf-preserve` exclusion used by the draft card).
 
@@ -88,7 +88,7 @@ Dependency highlights:
 | Node plugins | `apps/soc-agent/*.js` | — | `apps/soc-agent/tests/*.test.js` |
 | Wiring | `apps/soc-agent/cordis.patch.yml`, `package.json` | — | `skills.test.js` (patch assertions) |
 | Python server | `apps/soc-agent/server/unified_mcp_server/**` (active: `server.py`, `config.py`, `auth.py`, `request_context.py`, `postgres_store.py`, `errors/responses`, `blocking_io`, `env_loader`, `zimbra/**`, `email/`, `attachment_converter.py`, `control_server.py`, `admin_cli.py`, `auth_cli.py`, `detection.py`) | — | `unified_mcp_server/tests/` (75 tests) |
-| Retained Python | `unified_mcp_server/splunk/**`, `splunk_service.py` (+ `detection.py` shared) | — | 11 test files (contracts of retained code) |
+| Schema | `unified_mcp_server/schema.py`, `migrations/*.sql` | — | `test_schema.py` (3) |
 | Client | `packages/soc-agent-client/src/**` | `packages/soc-agent-client/lib/*` (**tracked**) | `packages/soc-agent-client/tests/*.test.ts` |
 | Skills | `skills/*/SKILL.md` | — | `skills.test.js` content invariants |
 | Vendor | `vendor/deepseek-harness/**` (pinned `0.1.1-rc.2`; workspace includes this repo) | harness build outputs (untracked) | upstream |
@@ -104,6 +104,7 @@ Per-file index: [reference/SOURCE_INDEX.md](reference/SOURCE_INDEX.md).
 5. **Output → model:** Splunk projection (PII mask, 50 KB); tool-result pruner and compaction (upstream, thresholds in the preset); background 64 KiB cap.
 6. **Mutation → human:** action states + approval waterfall; email additionally UI-confirmed.
 7. **Patch-level:** model-facing shell/fs/subagent tool families disabled entirely.
+8. **Configuration:** the official Splunk MCP connection is required — setup and `--check` fail without it, so a misconfigured deployment fails loudly instead of silently losing Splunk tools.
 
 Full threat-oriented treatment: [SECURITY_AND_TRUST_BOUNDARIES.md](SECURITY_AND_TRUST_BOUNDARIES.md).
 

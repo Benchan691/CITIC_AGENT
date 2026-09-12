@@ -1,5 +1,5 @@
 /* CITIC_AGENT documentation site — single shared stylesheet, no JavaScript required.
-   Verified against commit b26d55d274cf298a456d84edfbcb42b8dc90134b (2026-09-12). */
+   Verified against commit 56c8dd21492a5c36cb9f3eaa3da01160aba40033 (2026-09-12). */
 
 :root {
   --c-ink: #1f2937;
@@ -142,4 +142,40 @@ figcaption { font-size: .9rem; color: var(--c-ink-soft); margin-top: .4rem; }
   figure svg { max-height: 18cm; }
   a { color: #000; text-decoration: none; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9pt; }
+}
+
+/* Interactive enhancements (progressive; the site works without them) */
+.search-button {
+  margin-left: auto; border: 1px solid var(--c-line); background: var(--c-surface);
+  color: var(--c-ink-soft); border-radius: .5rem; padding: .25rem .7rem; cursor: pointer;
+  font: inherit; font-size: .88rem;
+}
+.search-button kbd { font-family: var(--mono); font-size: .78rem; border: 1px solid var(--c-line); border-radius: .3rem; padding: 0 .3em; }
+.search-button:hover { background: var(--c-brand-soft); color: var(--c-brand); }
+#search-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 20;
+  display: flex; align-items: flex-start; justify-content: center; padding: 10vh 1rem 1rem;
+}
+#search-overlay[hidden] { display: none; }
+.search-panel { background: var(--c-surface); border-radius: .8rem; width: min(42rem, 100%); box-shadow: 0 20px 60px rgba(15,23,42,.35); overflow: hidden; }
+.search-bar { display: flex; gap: .5rem; padding: .8rem; border-bottom: 1px solid var(--c-line); }
+.search-bar input { flex: 1; font: inherit; padding: .5rem .8rem; border: 1px solid var(--c-line); border-radius: .5rem; }
+.search-close { border: 1px solid var(--c-line); background: var(--c-bg); border-radius: .5rem; cursor: pointer; font: inherit; font-size: .85rem; }
+.search-results { list-style: none; margin: 0; padding: .4rem; max-height: 50vh; overflow: auto; }
+.search-results a { display: block; padding: .5rem .7rem; border-radius: .5rem; text-decoration: none; color: var(--c-ink); }
+.search-results a:hover, .search-results a:focus { background: var(--c-brand-soft); }
+.search-results strong { display: block; color: var(--c-brand); font-size: .95rem; }
+.search-results span { font-size: .85rem; color: var(--c-ink-soft); }
+.search-empty { padding: .6rem .7rem; color: var(--c-ink-soft); font-size: .9rem; }
+
+/* Inline interactive diagrams: links inside SVG participate in tab order */
+.svg-inline { display: block; overflow-x: auto; }
+.svg-inline svg { width: 100%; height: auto; border: 1px solid var(--c-line); border-radius: .6rem; background: #fff; display: block; }
+.svg-inline a { text-decoration: none; }
+.svg-inline a:focus { outline: none; }
+.svg-inline a:focus rect, .svg-inline a:focus ellipse { stroke: var(--c-brand); stroke-width: 3; }
+
+@media print {
+  .search-button, #search-overlay { display: none !important; }
+  .svg-inline svg { border: none; }
 }

@@ -1,6 +1,6 @@
 # Product overview
 
-> **Verified against:** commit `b26d55d274cf298a456d84edfbcb42b8dc90134b` (branch `splunk-offical-mcp`, committed 2026-09-11T15:35:35Z) · documentation verified 2026-09-12.
+> **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 
 **Who this page is for:** everyone — especially non-developers evaluating or onboarding onto the system.
 
@@ -39,8 +39,8 @@ One person can be both, with separate sessions (different cookies, different sto
 ## 4. Non-goals (deliberate, verified in code)
 
 - **No autonomous monitoring.** The agent operates on request only (`AGENTS.md`: no polling, no watching).
-- **No Splunk mutation.** There is no create/update/enable/disable/delete tool for alerts or detections — the bridge allowlist contains only read tools, and the retained in-process Splunk implementation is not registered (`test_server_tools.py`).
-- **No detection deployment.** Even the detection workflow's output is an `enabled: false` definition handed to a human process (`detection.py` hard-requires `enabled: false`).
+- **No Splunk mutation — and no Splunk code.** The bridge allowlist contains only read tools, and the entire in-process Python Splunk stack (client, query policy, detection compiler, security queue) was **removed** this round (`test_server_tools.py` still asserts no `splunk_*` tool).
+- **No detection deployment.** The application never writes detections; the CITIC compiler that previously prepared handoff definitions was removed this round, so detection work now happens entirely outside the application (see the skills' drift note below).
 - **No model-driven email delivery.** `zimbra_send_email` builds a local draft; only the UI's Send confirmation triggers delivery.
 - **No stored mailbox credentials.** The legacy account store is neutered at runtime (`EmptyAccountStore`); the agent uses the authenticated user's own session token.
 - **No shell, filesystem, or coding tools for the model.** The cordis patch disables those plugin families; the model can only use the allowlisted SOC tools.
@@ -55,8 +55,8 @@ See [reference/GLOSSARY.md](reference/GLOSSARY.md) for the full vocabulary (MCP,
 | Capability | Where |
 |---|---|
 | Chat UI with attachments, approvals, action-mode menu | `packages/soc-agent-client` |
-| 27 domain tools (Zimbra 21, subscriptions 6) | `apps/soc-agent/server/unified_mcp_server/` |
-| 13 read-only Splunk tools (external endpoint) | `apps/soc-agent/splunk-bridge.js` |
+| 28 domain tools (Zimbra 22 incl. forward drafts, subscriptions 6) | `apps/soc-agent/server/unified_mcp_server/` |
+| 13 read-only Splunk tools (external endpoint; required configuration) | `apps/soc-agent/splunk-bridge.js` |
 | Authentication, ownership isolation, event redaction | `apps/soc-agent/auth-host.js`, `ownership.js` |
 | Tool allowlist + action policy | `apps/soc-agent/policy.js`, `host.js` |
 | Admin console (status, context, approvals, providers) | `AdminConsole.tsx` served at `/admin` |
@@ -77,14 +77,14 @@ Details and residual risks: [SECURITY_AND_TRUST_BOUNDARIES.md](SECURITY_AND_TRUS
 ## 8. Current capability vs historical material
 
 - **Current:** everything listed above at the verified commit.
-- **Historical/retained:** the in-process Splunk implementation (`unified_mcp_server/splunk/`) — fully built, tested, not registered; the legacy stored-account feature (refused by the admin CLI and neutered at runtime); the removed `integrations/` directory (replaced by the bridge approach).
-- **Aspirational drift:** `AGENTS.md` names three skills (`soc-incident-triage`, `email-to-splunk-investigation`, `zimbra-operations`) that have no files in `skills/` at this commit. See [DOCUMENTATION_AUDIT.md](DOCUMENTATION_AUDIT.md).
+- **Historical/removed:** the in-process Splunk implementation was deleted this round (recorded in `docs/SHORTENING_PLAN_IMPLEMENTATION.md`); the legacy stored-account feature remains refused by the admin CLI; the removed `integrations/` directory was replaced by the bridge approach.
+- **Aspirational drift:** `AGENTS.md` names three skills (`soc-incident-triage`, `email-to-splunk-investigation`, `zimbra-operations`) that have no files in `skills/`, and the `detection-engineering`/`spl-writing` skills now reference tooling that was removed this round. See [DOCUMENTATION_AUDIT.md](DOCUMENTATION_AUDIT.md).
 
 ## Evidence in the repository
 
 - Workflows and boundaries: root `AGENTS.md`, `BACKGROUND.md`, `skills/*/SKILL.md`
-- Enforcement: `apps/soc-agent/policy.js`, `host.js`, `splunk-bridge.js`, `unified_mcp_server/server.py`
-- Non-goals: `test_server_tools.py` (no Splunk tools), `admin_cli.py` (refusals), `cordis.patch.yml` (disabled tool families)
+- Enforcement: `apps/soc-agent/tool-inventory.js`, `policy.js`, `host.js`, `splunk-bridge.js`, `unified_mcp_server/server.py`
+- Non-goals: `test_server_tools.py` (no Splunk tools), `admin_cli.py` (refusals), `cordis.patch.yml` (disabled tool families), `docs/SHORTENING_PLAN_IMPLEMENTATION.md` (removal record)
 
 ## Unknowns
 
