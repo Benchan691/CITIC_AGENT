@@ -7,7 +7,7 @@
 
 **What you will understand:** the business problem, the intended users, the supported workflows, what the product deliberately does **not** do, and the safety philosophy that shapes every design decision.
 
-**Plain-language summary.** SOC analysts spend their day pivoting between a mailbox full of phishing reports and a Splunk full of security events. The SOC Agent puts both behind one chat: the analyst signs in as themselves, asks for an investigation in plain language, and the agent queries Splunk (read-only) and the analyst's mailbox through a small, explicitly approved tool set. Evidence comes back sanitized and bounded. When action is needed — moving a phishing mail, creating a mailbox rule, drafting a takedown email — the agent proposes it, the analyst approves it, and the system enforces that approval on the server. Emails are only ever sent by a human clicking **Send** in a draft view.
+**Plain-language summary.** SOC analysts spend their day pivoting between a mailbox full of phishing reports and a Splunk full of security events. The SOC Agent puts both behind one chat: the analyst signs in as themselves, asks for an investigation in plain language, and the agent queries Splunk (read-only) and the analyst's mailbox through a small, explicitly approved tool set. Evidence comes back sanitized and bounded. When action is needed — moving a phishing mail, creating a mailbox rule, drafting a takedown email — the agent proposes it, the analyst approves it, and the system enforces that approval on the server. Emails are only ever sent by a human clicking **Send** in a draft view. Its browser UI is modular: the mandatory core and isolated sidebar/workspace remain available while branding, admin, action-policy, attachments, and email-draft features can be selected independently.
 
 **Prerequisites:** none.
 
@@ -55,7 +55,9 @@ See [reference/GLOSSARY.md](reference/GLOSSARY.md) for the full vocabulary (MCP,
 
 | Capability | Where |
 |---|---|
-| Chat UI with attachments, approvals, action-mode menu | `packages/soc-agent-client` |
+| Mandatory browser core (auth gate, `socClient`, policy schema, admin fallback) | `packages/soc-agent-client` |
+| Isolated sidebar and workspace browser/picker | `packages/soc-agent-sidebar`, `packages/soc-agent-workspace` |
+| Selectable browser features (branding, admin, action policy, attachments, email drafts) | `packages/soc-agent-brand`, `packages/soc-agent-admin`, `packages/soc-agent-action-policy`, `packages/soc-agent-attachments`, `packages/soc-agent-email-draft` |
 | 28 domain tools (Zimbra 22 incl. forward drafts, subscriptions 6) | `apps/soc-agent/server/unified_mcp_server/` |
 | 13 read-only Splunk tools (external endpoint; required configuration) | `apps/soc-agent/splunk-bridge.js` |
 | Authentication, ownership isolation, event redaction | `apps/soc-agent/auth-host.js`, `ownership.js` |

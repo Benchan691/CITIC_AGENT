@@ -1,64 +1,161 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { createHash } from 'node:crypto'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { composeEntries, loadOverlayPatches } from '../../../vendor/deepseek-harness/packages/boot/app-boot/lib/index.js'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const read = path => readFileSync(join(repoRoot, path), 'utf8')
 const readJson = path => JSON.parse(read(path))
+const patchPaths = [
+  'vendor/deepseek-harness/packages/bundle/base/cordis.patch.yml',
+  'vendor/deepseek-harness/packages/bundle/web-app/cordis.patch.yml',
+  'apps/soc-agent/cordis.patch.yml',
+]
 
-test('SOC composition disables the upstream shell and enables exactly one isolated sidebar owner', () => {
-  const patch = read('apps/soc-agent/cordis.patch.yml')
-  const app = readJson('apps/soc-agent/package.json')
+function composed(extra = []) {
+  return composeEntries([
+    ...patchPaths.map(path => loadOverlayPatches('SOC composition test', join(repoRoot, path))),
+    extra,
+  ])
+}
 
-  assert.match(patch, /- id: session-folders\n  disabled: true/)
-  assert.match(patch, /- id: ui-sidebar\n  disabled: true/)
-  assert.match(patch, /- id: ui-workspace\n  disabled: true/)
-  assert.match(patch, /- id: soc-agent-sidebar-ui\n\s+name: dsh-soc-agent-sidebar/)
-  assert.match(patch, /- id: soc-agent-workspace-ui\n\s+name: dsh-soc-agent-workspace/)
+function row(rows, id) {
+  const found = rows.find(entry => entry.id === id)
+  assert.ok(found, `composed row exists: ${id}`)
+  return found
+}
 
-  const enabledSidebarRows = [...patch.matchAll(/^\s+- id: [^\n]*sidebar[^\n]*\n(?!\s+disabled: true)[\s\S]*?^\s+name: ([^\n]+)/gm)]
-    .map(match => match[1].trim())
-  assert.deepEqual(enabledSidebarRows, ['dsh-soc-agent-sidebar'])
-  for (const dependency of ['dsh-soc-agent-sidebar', 'dsh-soc-agent-workspace']) {
-    assert.equal(app.dependencies[dependency], 'workspace:*', dependency)
+function walkProductionFiles(root) {
+  const files = []
+  const visit = directory => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (['lib', 'node_modules', 'tests', '__snapshots__', 'dist'].includes(entry.name)) continue
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) visit(path)
+      else if (entry.name === 'package.json' || /\.(?:ts|tsx|js|mjs|cjs)$/u.test(entry.name)) files.push(path)
+    }
   }
+  visit(root)
+  return files
+}
+
+test('real base + web + SOC composition disables official surfaces and enables one replacement owner', () => {
+  const rows = composed()
+  assert.equal(row(rows, 'session-folders').disabled, true)
+  assert.equal(row(rows, 'ui-sidebar').disabled, true)
+  assert.equal(row(rows, 'ui-workspace').disabled, true)
+  assert.equal(row(rows, 'soc-agent-client-core').name, 'dsh-soc-agent-client')
+  assert.equal(row(rows, 'soc-agent-sidebar-ui').name, 'dsh-soc-agent-sidebar')
+  assert.equal(row(rows, 'soc-agent-workspace-ui').name, 'dsh-soc-agent-workspace')
+
+  const optionalRows = [
+    ['soc-agent-brand-ui', 'dsh-soc-agent-brand'],
+    ['soc-agent-admin-ui', 'dsh-soc-agent-admin'],
+    ['soc-agent-action-policy-ui', 'dsh-soc-agent-action-policy'],
+    ['soc-agent-attachments-ui', 'dsh-soc-agent-attachments'],
+    ['soc-agent-email-draft-ui', 'dsh-soc-agent-email-draft'],
+  ]
+  for (const [id, name] of optionalRows) {
+    const feature = row(rows, id)
+    assert.equal(feature.name, name)
+    assert.notEqual(feature.disabled, true, `${name} defaults enabled`)
+  }
+
+  const sidebarOwners = rows.filter(entry =>
+    entry.name === '@deepseek-ai/dsh-client-ui-sidebar' || entry.name === 'dsh-soc-agent-sidebar')
+    .filter(entry => entry.disabled !== true)
+  assert.deepEqual(sidebarOwners.map(entry => entry.name), ['dsh-soc-agent-sidebar'])
 })
 
-test('isolated manifests retain the standard host slots without official implementation dependencies', () => {
-  const sidebar = readJson('packages/soc-agent-sidebar/package.json')
-  const workspace = readJson('packages/soc-agent-workspace/package.json')
-  const client = readJson('packages/soc-agent-client/package.json')
-  const official = /@deepseek-ai\/dsh-client-ui-(?:sidebar|workspace)|dsh-client-ui-(?:sidebar|workspace)/
-
-  assert.equal(sidebar.name, 'dsh-soc-agent-sidebar')
-  assert.equal(workspace.name, 'dsh-soc-agent-workspace')
-  assert.equal(sidebar.types, 'lib/types/index.d.ts')
-  assert.equal(workspace.types, 'lib/types/index.d.ts')
-  assert.ok(read('packages/soc-agent-sidebar/lib/types/client/index.d.ts').length > 0)
-  assert.ok(read('packages/soc-agent-workspace/lib/types/client/index.d.ts').length > 0)
-  assert.ok(sidebar.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-layout'))
-  assert.ok(workspace.dsh.client.inject.includes('dsh-soc-agent-sidebar'))
-  assert.equal(client.devDependencies['dsh-soc-agent-sidebar'], 'workspace:*')
-
-  for (const [name, manifest] of [
-    ['sidebar', sidebar],
-    ['workspace', workspace],
-    ['client', client],
+test('each optional feature can be disabled without disabling core or the isolated surfaces', () => {
+  for (const id of [
+    'soc-agent-brand-ui',
+    'soc-agent-admin-ui',
+    'soc-agent-action-policy-ui',
+    'soc-agent-attachments-ui',
+    'soc-agent-email-draft-ui',
   ]) {
-    assert.doesNotMatch(JSON.stringify(manifest), official, name)
+    const rows = composed([{ id, disabled: true }])
+    assert.equal(row(rows, id).disabled, true, `${id} is independently disabled`)
+    assert.notEqual(row(rows, 'soc-agent-client-core').disabled, true)
+    assert.notEqual(row(rows, 'soc-agent-sidebar-ui').disabled, true)
+    assert.notEqual(row(rows, 'soc-agent-workspace-ui').disabled, true)
   }
 })
 
-test('isolated source preserves the sidebar child slots and workspace registrations', () => {
+test('optional bundles have explicit core edges and own only their declared surfaces', () => {
+  const features = [
+    {
+      directory: 'soc-agent-brand',
+      row: 'soc-agent-brand-ui',
+      markers: ['sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark'],
+    },
+    {
+      directory: 'soc-agent-admin',
+      row: 'soc-agent-admin-ui',
+      markers: ['soc.admin.content'],
+    },
+    {
+      directory: 'soc-agent-action-policy',
+      row: 'soc-agent-action-policy-ui',
+      markers: ['conversation.input.left', 'soc-action-policy'],
+    },
+    {
+      directory: 'soc-agent-attachments',
+      row: 'soc-agent-attachments-ui',
+      markers: ['conversation.input.documents', 'settings.plugin.item', 'attach-file'],
+    },
+    {
+      directory: 'soc-agent-email-draft',
+      row: 'soc-agent-email-draft-ui',
+      markers: ['tool.call.toolview', 'zimbra_send_email'],
+    },
+  ]
+  for (const feature of features) {
+    const manifest = readJson(`packages/${feature.directory}/package.json`)
+    assert.equal(manifest.dependencies?.['dsh-soc-agent-client'], 'workspace:*', `${feature.directory} depends on core`)
+    assert.ok(manifest.dsh?.client?.inject?.includes('dsh-soc-agent-client'), `${feature.directory} declares the core bundle edge`)
+    const packageRoot = join(repoRoot, 'packages', feature.directory)
+    const entrySource = read(`packages/${feature.directory}/src/client/index.ts`)
+    const source = walkProductionFiles(packageRoot)
+      .filter(path => path.includes('/src/'))
+      .map(path => readFileSync(path, 'utf8'))
+      .join('\n')
+    assert.match(entrySource, /export const inject = .*socClient/u, `${feature.directory} injects socClient`)
+    if (feature.directory === 'soc-agent-admin') {
+      assert.match(entrySource, /surface !== 'admin'/u, `${feature.directory} is admin-only`)
+    } else {
+      assert.match(entrySource, /surface !== 'workspace'/u, `${feature.directory} is workspace-only`)
+    }
+    for (const marker of feature.markers) assert.match(source, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${feature.directory} owns ${marker}`)
+    assert.notEqual(row(composed(), feature.row).disabled, true, `${feature.row} defaults enabled`)
+    assert.equal(row(composed([{ id: feature.row, disabled: true }]), feature.row).disabled, true, `${feature.row} can be disabled alone`)
+  }
+})
+
+test('all first-party production source and manifests stay isolated from official sidebar/workspace implementations', () => {
+  const roots = [join(repoRoot, 'apps/soc-agent'), ...readdirSync(join(repoRoot, 'packages'), { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && entry.name.startsWith('soc-agent-'))
+    .map(entry => join(repoRoot, 'packages', entry.name))]
+  const official = /(?:@deepseek-ai\/)?dsh-client-ui-(?:sidebar|workspace)(?:[/'"`]|$)/u
+  const violations = []
+  for (const root of roots) {
+    for (const path of walkProductionFiles(root)) {
+      const source = readFileSync(path, 'utf8')
+      if (official.test(source)) violations.push(relative(repoRoot, path))
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
+test('replacement contracts preserve standard child slots and registrations', () => {
   const sidebar = read('packages/soc-agent-sidebar/src/client/index.ts')
   const sidebarContract = read('packages/soc-agent-sidebar/src/client/contract/slots.ts')
   const workspace = read('packages/soc-agent-workspace/src/client/index.ts')
   const workspaceContract = read('packages/soc-agent-workspace/src/client/contract/slots.ts')
-  const official = /@deepseek-ai\/dsh-client-ui-(?:sidebar|workspace)/
-
-  assert.match(sidebar, /name: 'sidebar'/)
   for (const slot of [
     'sidebar.brand.mark',
     'sidebar.brand.name',
@@ -72,28 +169,14 @@ test('isolated source preserves the sidebar child slots and workspace registrati
   assert.match(workspace, /ctx\.slots\.inject\('sidebar\.workspaces'/)
   assert.match(workspace, /ctx\.slots\.inject\('conversation\.hero\.workspace'/)
   assert.match(workspaceContract, /import type \{\} from 'dsh-soc-agent-sidebar\/client'/)
-
-  for (const [name, source] of [
-    ['sidebar', sidebar],
-    ['sidebar contract', sidebarContract],
-    ['workspace', workspace],
-    ['workspace contract', workspaceContract],
-    ['client index', read('packages/soc-agent-client/src/client/index.ts')],
-    ['client branding', read('packages/soc-agent-client/src/client/CiticBrand.tsx')],
-  ]) {
-    assert.doesNotMatch(source, official, name)
-  }
 })
 
-test('isolated packages keep the checked-in Harness CSS snapshot', () => {
-  const cssPairs = [
-    ['packages/soc-agent-sidebar/src/client/SidebarRoot.module.css', 'vendor/deepseek-harness/packages/client/ui-sidebar/src/client/SidebarRoot.module.css'],
-    ['packages/soc-agent-workspace/src/client/WorkspaceBrowser.module.css', 'vendor/deepseek-harness/packages/client/ui-workspace/src/client/WorkspaceBrowser.module.css'],
-    ['packages/soc-agent-workspace/src/client/WorkspacePicker.module.css', 'vendor/deepseek-harness/packages/client/ui-workspace/src/client/WorkspacePicker.module.css'],
-    ['packages/soc-agent-workspace/src/client/rows/Rows.module.css', 'vendor/deepseek-harness/packages/client/ui-workspace/src/client/rows/Rows.module.css'],
-  ]
-
-  for (const [isolatedPath, officialPath] of cssPairs) {
-    assert.equal(read(isolatedPath), read(officialPath), isolatedPath)
+test('all browser package artifacts have explicit provenance and match their pinned source hashes', () => {
+  for (const packageDir of ['packages/soc-agent-sidebar', 'packages/soc-agent-workspace']) {
+    const manifest = readJson(`${packageDir}/snapshot-baseline.json`)
+    assert.equal(manifest.sourceCommit, '56c8dd2', packageDir)
+    for (const [path, expected] of Object.entries(manifest.files)) {
+      assert.equal(createHash('sha256').update(read(`${packageDir}/${path}`)).digest('hex'), expected, `${packageDir}/${path}`)
+    }
   }
 })

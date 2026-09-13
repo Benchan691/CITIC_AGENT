@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 每个界面区域、每个控件的作用、哪些决策只是便利而哪些有服务端强制，以及 Full access、SOC mode、每工具状态与邮件 Send 确认的精确语义。
 
-**通俗概述。** 浏览器里有两个应用：分析师工作区（登录遮罩、带附件的聊天、动作模式菜单、邮件草稿卡）和 `/admin` 的独立管理控制台（状态、智能体上下文、访问与审批、AI 提供商）。UI 对边界很诚实：只显示状态而不显示机密，禁用服务端禁止的东西，从不把自己当作执行者。
+**通俗概述。** 浏览器里有两个应用：分析师工作区（隔离 SOC 侧栏/工作区、登录遮罩、聊天与可选功能）和 `/admin` 的独立管理控制台。强制 client core 提供认证、`socClient` 契约、action-policy schema 与安全回退；品牌、管理、动作模式、附件和邮件草稿是可独立启用的功能包。UI 对边界很诚实：只显示状态而不显示机密，禁用服务端禁止的东西，从不把自己当作执行者。
 
 **前置要求:** 无；工具名见 [reference/MCP_TOOL_CATALOG.md](../reference/MCP_TOOL_CATALOG.md)。
 
@@ -17,16 +17,16 @@
 
 | 区域 | 组件 | 行为 |
 |---|---|---|
-| **登录门** | `AuthGate.tsx` | 全屏 "Sentinel login" 对话框覆盖 shell（槽位优先级 −100）直至认证；每 30 秒及 focus/visibility 时轮询 `GET /auth/me`；登录失败在 `role="alert"` 中显示 "Invalid email or password."；密码在成功*和*失败后都清空；已认证时显示 `zimbra_email` 与 Logout。服务端强制：无论遮罩与否，路由都被圈栏。 |
-| **品牌** | `CiticBrand.tsx` | 侧栏与首屏的 "Sentinel" 标志/字标（便利项）。 |
-| **输入区附件** | `MarkItDownDocuments.tsx` + `markitdownAttachments.ts` | 隐藏文件选择器（也可经 `attach-file` 命令）；每条消息的附件栏，状态为 Queued/Converting…/Ready/error；限额来自设置（默认 5 个文件、10 MB/文件、50 MB 总量、200 k 字符/文件、500 k 总字符）；经 `convert-attachment` 转换，**两个 worker** 并行、保序、成功结果按限额缓存；截断结果有摘录提示。 |
-| **动作模式菜单** | `SocActionPolicyMenu.tsx` | 输入区左侧菜单：**Full access**（"Run every permitted tool directly"）与 **SOC mode**（"Apply each tool's ask, auto-run, or disabled setting"）。经 `get-action-policy`/`set-action-mode` 读写；采纳服务端确认值；畸形响应失败关闭（绝不自造模式）。会话级：登出或宿主重启后回到部署默认。 |
-| **草稿卡** | `EmailDraftToolview.tsx` | 在工具调用块内渲染，键于草稿**与转发**工具。见 §3。 |
-| **会话/权限** | Harness shell | 服务端受限 API 使文件夹归服务端所有（客户端 `api.folders = undefined`）— 会话创建落在用户的服务端工作区内。 |
+| **登录门** | `packages/soc-agent-client/src/client/core/AuthGate.tsx` | 全屏 "Sentinel login" 对话框覆盖 shell（槽位优先级 −100）直至认证；每 30 秒及 focus/visibility 时轮询 `GET /auth/me`；认证与路由强制由服务端独立执行。 |
+| **品牌** | `packages/soc-agent-brand/src/client/CiticBrand.tsx` | 侧栏与首屏的 "Sentinel" 标志/字标；禁用 brand 行只移除这些贡献。 |
+| **输入区附件** | `packages/soc-agent-attachments/src/client/MarkItDownDocuments.tsx` + `markitdownAttachments.ts` | 文件选择、双 worker 转换、保序/缓存；禁用 attachments 行移除 rail、command、provider 与设置卡，但不删除已保存偏好。 |
+| **动作模式菜单** | `packages/soc-agent-action-policy/src/client/SocActionPolicyMenu.tsx` | 输入区左侧 Full access / SOC mode 菜单；服务端确认值与失败关闭语义不变；policy schema 仍由强制核心注册。 |
+| **草稿卡** | `packages/soc-agent-email-draft/src/client/EmailDraftToolview.tsx` | 在工具调用块内渲染，键于草稿**与转发**工具；可独立禁用。见 §3。 |
+| **会话/权限** | `packages/soc-agent-workspace/src/client/index.ts` + Harness shell | workspace 包在生命周期内使文件夹归服务端所有并在 teardown 恢复原 API 值。 |
 
 ## 2. 管理控制台（`/admin`）
 
-仅当 `window.location.pathname` 以 `/admin` 开头时挂载（源码护栏 `sections.test.ts` 强制）。独立登录（`soc_admin_session`）。页面（hash 路由，惰性挂载）：
+仅当 `window.location.pathname` 以 `/admin` 开头时挂载。强制核心拥有 `/admin` root；可选 `dsh-soc-agent-admin` 填充 `soc.admin.content` 子槽位，禁用时显示 "Administration UI is disabled"，不会回落到普通工作区。独立登录（`soc_admin_session`）。页面（hash 路由，惰性挂载）：
 
 | 页面 | 控件 | 服务端行为 |
 |---|---|---|
@@ -35,7 +35,7 @@
 | **Access & approvals** | 部署模式单选 **Full access / SOC mode**；按工具分组的 **Ask / Run automatically / Disabled** 单选组；UI 确认条目显示只读 "Explicit confirmation" 徽章；禁用工具显示 "Unavailable" | 写 `soc-action-approval`（`mode` + `actionStates`，revision 校验）；由 `host.js tools/pre-execute` 强制；页面提示："Email delivery still requires the explicit Send confirmation in the draft view" |
 | **AI providers** | 提供商选择器（listbox，凭据圆点与模型数）；自定义提供商（路由校验、路由不可变）；API key 密码框（"Stored securely · enter a new key to replace it"）；**Discover models** 经 `llm.discoverModels`；移除 = 两步内联确认 | 密钥**只写**（`credentials.set/unset`；`describe` 只返回 configured/writable 布尔）；设置写入 `llm-pi-ai` 命名空间 |
 
-遗留兼容卡（`SplunkSettings`、`SubscriptionServerSettings`）已在本轮删除；`ZimbraSettings` 静态卡保留；`AdminConsole` 仍被测试约束不得引用已删卡片。
+管理功能是一个整体的可选包；核心回退页在其禁用时仍保留安全边界。抽取后移除的遗留设置模块不被活跃浏览器包导入。
 
 ## 3. 邮件草稿卡与 Send 门
 
@@ -62,7 +62,9 @@
 
 ## 仓库中的证据
 
-- `packages/soc-agent-client/src/client/` — 上述全部组件；`sections.test.ts` 钉住挂载、文案与只写凭据行为。
+- `packages/soc-agent-client/src/client/` — 强制核心契约、认证门与 admin 回退。
+- `packages/soc-agent-brand/`、`soc-agent-admin/`、`soc-agent-action-policy/`、`soc-agent-attachments/`、`soc-agent-email-draft/` — 可独立选择的功能表面。
+- `packages/soc-agent-sidebar/`、`packages/soc-agent-workspace/` — 隔离的标准槽位 owner 与固定样式/布局快照。
 - `apps/soc-agent/host.js`（`get/set` 策略端点、`requireUser/requireAdmin`）、`apps/soc-agent/ownership.js`（会话模式映射）。
 - 图: [diagrams/action-authorization.mmd](../diagrams/action-authorization.mmd)、[diagrams/email-draft-send.mmd](../diagrams/email-draft-send.mmd)；英文站可交互版本见 [site/flows.html](../site/flows.html)。
 

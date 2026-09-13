@@ -40,7 +40,7 @@
           <tr><th scope="row">External systems</th><td>Zimbra (mail, identity), an external official Splunk MCP server, a subscription web service, PostgreSQL, an LLM provider.</td></tr>
           <tr><th scope="row">Two MCP servers</th><td><code>soc_agent</code> — local Python stdio server, Zimbra + subscription tools only. <code>splunk_mcp</code> — a client bridge to the external official Splunk MCP endpoint, read-only by allowlist.</td></tr>
           <tr><th scope="row">Safety model</th><td>Allowlisted tools only; read-only by default; per-tool ask/auto-run/disabled states; Full access vs SOC mode; email delivery only via an explicit UI Send confirmation; harness shell/filesystem tools disabled.</td></tr>
-          <tr><th scope="row">Persistence</th><td>PostgreSQL (sessions, ownership, encrypted config), per-user workspaces under <code>.data/soc-workspaces/</code>, optional SQLite evidence store (retained), tracked generated client bundle in <code>lib/</code>.</td></tr>
+          <tr><th scope="row">Persistence</th><td>PostgreSQL (sessions, ownership, encrypted config), per-user workspaces under <code>.data/soc-workspaces/</code>, optional SQLite evidence store (retained), and eight tracked generated SOC browser bundles in each <code>packages/soc-agent-*/lib/</code>.</td></tr>
         </tbody>
       </table></div>
 

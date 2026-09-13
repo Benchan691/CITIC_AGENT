@@ -7,7 +7,7 @@
 
 **What you will understand:** every UI area, what each control does, which decisions are mere convenience and which are backed by server enforcement, and the exact semantics of Full access, SOC mode, per-tool states, and the email Send confirmation.
 
-**Plain-language summary.** The browser has two apps: the analyst workspace (login overlay, chat with attachments, an action-mode menu, and the email draft card) and the standalone admin console at `/admin` (status, agent context, access & approvals, AI providers). The UI is honest about limits: it shows status without secrets, disables what the server forbids, and never treats itself as the enforcer.
+**Plain-language summary.** The browser has two apps: the analyst workspace (isolated SOC sidebar/workspace, login overlay, chat, and selectable feature plugins) and the standalone admin console at `/admin`. The mandatory client core supplies authentication, the shared `socClient` contract, action-policy schema, and a safe admin fallback; branding, admin UI, action modes, attachments, and email drafts are independently enabled feature plugins. The UI is honest about limits: it shows status without secrets, disables what the server forbids, and never treats itself as the enforcer.
 
 **Prerequisites:** none; tool names from [reference/MCP_TOOL_CATALOG.md](reference/MCP_TOOL_CATALOG.md).
 
@@ -17,16 +17,16 @@
 
 | Area | Component | Behavior |
 |---|---|---|
-| **Sign-in gate** | `AuthGate.tsx` | Full-screen "Sentinel login" dialog rendered above the shell (slot priority −100) until authenticated; polls `GET /auth/me` every 30 s and on focus/visibility change; failed logins show "Invalid email or password." in a `role="alert"`; password field cleared on success *and* failure; authenticated state shows the user's `zimbra_email` with Logout. Server enforcement: all routes are fenced regardless of the overlay. |
-| **Brand** | `CiticBrand.tsx` | "Sentinel" mark/wordmark in sidebar and hero (convenience). |
-| **Composer attachments** | `MarkItDownDocuments.tsx` + `markitdownAttachments.ts` | Hidden file picker (also via the `attach-file` command); per-message rail with statuses Queued/Converting…/Ready/error; limits from settings (defaults: 5 files, 10 MB/file, 50 MB total, 200 k chars/file, 500 k total); conversion via `convert-attachment` with **two workers**, order preserved, successes cached per limits; truncated results flagged in the excerpt. |
-| **Action-mode menu** | `SocActionPolicyMenu.tsx` | Composer-left menu offering **Full access** ("Run every permitted tool directly") and **SOC mode** ("Apply each tool's ask, auto-run, or disabled setting"). Reads/writes via `get-action-policy`/`set-action-mode`; server-confirmed value adopted; malformed responses fail closed (no invented mode). Session-scoped: reset to the deployment default on logout or host restart. |
-| **Draft card** | `EmailDraftToolview.tsx` | Renders inside the tool-call block for the draft **and forward** tools. See §3. |
-| **Sessions/permissions** | Harness shell | The scoped server API makes folders server-owned (`api.folders = undefined` client-side) — session creation lands in the user's server-side workspace. |
+| **Sign-in gate** | `packages/soc-agent-client/src/client/core/AuthGate.tsx` | Full-screen "Sentinel login" dialog rendered above the shell (slot priority −100) until authenticated; polls `GET /auth/me` every 30 s and on focus/visibility change; failed logins show "Invalid email or password." in a `role="alert"`; password field cleared on success *and* failure; authenticated state shows the user's `zimbra_email` with Logout. Server enforcement: all routes are fenced regardless of the overlay. |
+| **Brand** | `packages/soc-agent-brand/src/client/CiticBrand.tsx` | "Sentinel" mark/wordmark in sidebar and hero (convenience); disable the brand row to remove only these contributions. |
+| **Composer attachments** | `packages/soc-agent-attachments/src/client/MarkItDownDocuments.tsx` + `markitdownAttachments.ts` | Hidden file picker (also via the `attach-file` command); per-message rail with statuses Queued/Converting…/Ready/error; limits from settings (defaults: 5 files, 10 MB/file, 50 MB total, 200 k chars/file, 500 k total); conversion via `convert-attachment` with **two workers**, order preserved, successes cached per limits; disabling the plugin removes the rail, command, provider, and settings card without deleting preferences. |
+| **Action-mode menu** | `packages/soc-agent-action-policy/src/client/SocActionPolicyMenu.tsx` | Composer-left menu offering **Full access** ("Run every permitted tool directly") and **SOC mode** ("Apply each tool's ask, auto-run, or disabled setting"). Reads/writes via `get-action-policy`/`set-action-mode`; server-confirmed value adopted; malformed responses fail closed (no invented mode). Session-scoped: reset to the deployment default on logout or host restart. The policy schema remains registered by the mandatory core. |
+| **Draft card** | `packages/soc-agent-email-draft/src/client/EmailDraftToolview.tsx` | Renders inside the tool-call block for the draft **and forward** tools. Disable the plugin to remove only these editable tool views. See §3. |
+| **Sessions/permissions** | `packages/soc-agent-workspace/src/client/index.ts` + harness shell | The isolated workspace plugin makes folders server-owned (`api.folders = undefined` client-side) while it is mounted and restores the original API value during teardown; session creation lands in the user's server-side workspace. |
 
 ## 2. Admin console (`/admin`)
 
-Mounted **only** when `window.location.pathname` starts with `/admin` (enforced by source guardrail `sections.test.ts`). Separate login (`soc_admin_session`). Pages (hash-routed, lazily mounted):
+Mounted **only** when `window.location.pathname` starts with `/admin` (the mandatory core owns the root and falls back safely when the feature is disabled). Separate login (`soc_admin_session`). The optional `dsh-soc-agent-admin` plugin fills the core's `soc.admin.content` child slot with the hash-routed, lazily mounted pages:
 
 | Page | Controls | Server behavior |
 |---|---|---|
@@ -35,7 +35,7 @@ Mounted **only** when `window.location.pathname` starts with `/admin` (enforced 
 | **Access & approvals** | Deployment mode radios **Full access / SOC mode**; per-tool radio groups **Ask / Run automatically / Disabled** grouped by tool; UI-confirmed entry shows a read-only "Explicit confirmation" badge; disabled tools show "Unavailable" | Writes `soc-action-approval` (`mode` + `actionStates`) with revision check; enforced by `host.js tools/pre-execute`; page hint: "Email delivery still requires the explicit Send confirmation in the draft view" |
 | **AI providers** | Provider picker (listbox) with credential dots and model counts; custom providers (route-validated, immutable route); API key password field ("Stored securely · enter a new key to replace it"); **Discover models** via `llm.discoverModels`; remove = two-step inline confirm | Keys are **write-only** (`credentials.set/unset`; `describe` returns configured/writable booleans only); settings in `llm-pi-ai` namespace |
 
-Legacy compatibility cards (`SplunkSettings`, `SubscriptionServerSettings`, `ZimbraSettings`) still exist in the bundle but `AdminConsole` is tested not to import them.
+The admin feature is one optional plugin. Disabling it leaves `/admin` behind the core-owned "Administration UI is disabled" page rather than exposing the regular workspace shell. Legacy settings modules removed during extraction are not imported by the active browser packages.
 
 ## 3. The email draft card and the Send gate
 
@@ -66,7 +66,9 @@ State machine: `editing → sending → sent | failed | discarded` (plus Reopen 
 
 ## Evidence in the repository
 
-- `packages/soc-agent-client/src/client/` — all components listed above; `sections.test.ts` pins mounting, copy, and write-only credential behavior.
+- `packages/soc-agent-client/src/client/` — mandatory core contract, authentication gate, admin fallback, and action-policy schema.
+- `packages/soc-agent-brand/src/client/`, `packages/soc-agent-admin/src/client/`, `packages/soc-agent-action-policy/src/client/`, `packages/soc-agent-attachments/src/client/`, and `packages/soc-agent-email-draft/src/client/` — independently selectable feature surfaces; their tests pin mount ownership, copy, and write-only credential behavior.
+- `packages/soc-agent-sidebar/` and `packages/soc-agent-workspace/` — pinned isolated UI snapshots and standard slot owners.
 - `apps/soc-agent/host.js` (`get/set` policy endpoints, `requireUser/requireAdmin`), `apps/soc-agent/ownership.js` (session mode map).
 - Diagram: [diagrams/action-authorization.mmd](diagrams/action-authorization.mmd).
 

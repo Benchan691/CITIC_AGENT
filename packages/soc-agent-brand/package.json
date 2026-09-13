@@ -1,0 +1,53 @@
+{
+  "name": "dsh-soc-agent-brand",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CITIC/Sentinel branding for the standard Harness sidebar and conversation slots.",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "dsh-soc-agent-client",
+        "dsh-soc-agent-sidebar",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "build": "pnpm run build:types && node ../../vendor/deepseek-harness/node_modules/tsdown/dist/run.mjs",
+    "build:types": "node ../../vendor/deepseek-harness/node_modules/typescript/bin/tsc -p tsconfig.types.json",
+    "test": "../../vendor/deepseek-harness/node_modules/.bin/vitest run --config vitest.config.ts"
+  },
+  "license": "MIT",
+  "dependencies": { "dsh-soc-agent-client": "workspace:*" },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-client-runtime": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "dsh-soc-agent-client": "*",
+    "dsh-soc-agent-sidebar": "*",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-client-runtime": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-conversation": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-slots": "workspace:*",
+    "dsh-soc-agent-client": "workspace:*",
+    "dsh-soc-agent-sidebar": "workspace:*",
+    "@types/node": "^24.13.3",
+    "@types/react": "~18.3.1",
+    "react": "^18.2.0"
+  },
+  "files": ["lib/index.js", "lib/client.js", "lib/client.js.map", "lib/types/**/*.d.ts"]
+}

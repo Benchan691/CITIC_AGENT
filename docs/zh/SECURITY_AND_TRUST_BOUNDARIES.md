@@ -79,7 +79,7 @@
 | 抗指令注入（`AGENTS.md` 模型政策） | 运维假设 | 模型层；无法技术保证 |
 | 工具结果的不可信内容边界 | 文档化控制 | 信封 + 通用 `internal_error`（不泄漏第三方文本） |
 | 背景/指令注入上限（64 KiB 渲染、1 MiB 源） | 文档化 + 测试证据 | `background.test.js` |
-| 附件转换限额 + 归档安全 + 加密文件检测 | 文档化 + 测试证据 | `test_zimbra_service.py`、客户端测试 |
+| 附件转换限额 + 归档安全 + 加密文件检测 | 文档化 + 测试证据 | `test_zimbra_service.py`、SOC 浏览器包测试 |
 | 远端错误体不外泄（订阅）、上游异常文本不外泄（Python） | 文档化 + 测试证据 | `test_email_service.py`、`test_config.py` |
 
 ### 平台

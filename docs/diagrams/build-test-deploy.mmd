@@ -1,8 +1,8 @@
 %% Build/test/deploy lifecycle (verified against 56c8dd2)
 flowchart LR
-    src["Canonical sources<br/>apps/soc-agent · packages/soc-agent-client · skills · patch manifests"]
-    tests["Test suites<br/>node --test ×2 · pytest (offline only)"]
-    build1["tsdown build<br/>→ tracked lib/ (committed)"]
+    src["Canonical sources<br/>apps/soc-agent · packages/soc-agent-* · skills · patch manifests"]
+    tests["Test suites<br/>node --test · package tests · pytest · browser smoke"]
+    build1["Eight tsdown builds<br/>→ tracked lib/ (committed)"]
     build2["pnpm harness build<br/>(fingerprint-gated; --rebuild forces)"]
     fp[".data/harness-{install,build}.sha256 fingerprints"]
     setup["setup.sh --plugins<br/>profile wiring: plugin add/prune · patch copy · resolution check"]

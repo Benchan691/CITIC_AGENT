@@ -10,6 +10,8 @@ import { WorkspacePicker } from '../src/client/WorkspacePicker.tsx'
 async function bench() {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
+  const folders = { list: vi.fn() }
+  const connection = { api: { folders } }
   const create = vi.fn(async (input: { name: string } | { path: string }) => ({
     workspaceId: 'ws-new' as never,
     path: 'name' in input ? `/projects/${input.name}` : input.path,
@@ -17,7 +19,11 @@ async function bench() {
   }))
   const startSession = vi.fn()
   const rename = vi.fn(async () => ({}))
+  const deleteWorkspace = vi.fn(async () => ({}))
+  const insertBefore = vi.fn(async () => ({}))
   const insertSessionBefore = vi.fn(async () => ({}))
+  const archiveSession = vi.fn(async () => ({}))
+  const deleteSession = vi.fn(async () => ({}))
   const open = vi.fn()
   const clear = vi.fn()
   const search = vi.fn(async () => ({
@@ -28,15 +34,18 @@ async function bench() {
   const binding = vi.fn(() => ({ session: { rename: renameSession } }))
   const fork = vi.fn(async () => 'forked' as never)
   ctx.provide('workspaces', {
-    create, startSession, rename, insertSessionBefore,
+    create, startSession, rename, delete: deleteWorkspace, insertBefore, insertSessionBefore,
+    archiveSession,
   } as never)
-  ctx.provide('sessions', { open, clear, search, searchResultLimit: 20, binding, fork } as never)
+  ctx.provide('sessions', { open, clear, search, searchResultLimit: 20, binding, fork, delete: deleteSession } as never)
+  ctx.provide('connection', connection as never)
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
   ctx.provide('locale', locale)
   return {
-    ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, startSession, rename,
-    insertSessionBefore, open, clear, search, renameSession, binding, fork,
+    ctx, slots: ctx.get('slots') as SlotRegistry, locale, connection, folders, create, startSession, rename,
+    deleteWorkspace, insertBefore, insertSessionBefore, archiveSession, deleteSession,
+    open, clear, search, renameSession, binding, fork,
   }
 }
 
@@ -50,7 +59,24 @@ function declare(slots: SlotRegistry, ...names: HoleName[]): () => void {
 
 describe('soc-agent-workspace apply', () => {
   it('declares the services it drives', () => {
-    expect(inject).toEqual(['slots', 'sessions', 'workspaces', 'locale'])
+    expect(inject).toEqual(['slots', 'sessions', 'workspaces', 'locale', 'connection'])
+  })
+
+  it('suppresses the process-global folder API and restores it on teardown', async () => {
+    const b = await bench()
+    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    expect(b.connection.api.folders).toBeUndefined()
+    await fiber.dispose()
+    expect(b.connection.api.folders).toBe(b.folders)
+
+    const second = await bench()
+    const secondFiber = second.ctx.plugin({ inject: [...inject], apply })
+    await secondFiber.await()
+    const replacement = { list: vi.fn() }
+    second.connection.api.folders = replacement
+    await secondFiber.dispose()
+    expect(second.connection.api.folders).toBe(replacement)
   })
 
   it('registers browser and pickers for declarations arriving before or after apply', async () => {
@@ -101,6 +127,14 @@ describe('soc-agent-workspace apply', () => {
     expect(b.fork).toHaveBeenCalledWith({ sessionId: 'session', increaseTitle: true })
     await browser.renameWorkspace('ws' as never, 'renamed')
     expect(b.rename).toHaveBeenCalledWith('ws', 'renamed')
+    await browser.deleteWorkspace('ws' as never)
+    expect(b.deleteWorkspace).toHaveBeenCalledWith('ws')
+    await browser.insertWorkspaceBefore('ws' as never, 'before' as never)
+    expect(b.insertBefore).toHaveBeenCalledWith('ws', 'before')
+    await browser.archiveSession('session' as never)
+    expect(b.archiveSession).toHaveBeenCalledWith('session')
+    await browser.deleteSession('session' as never)
+    expect(b.deleteSession).toHaveBeenCalledWith('session')
     await browser.insertSessionBefore('ws' as never, 's1' as never, 's2' as never)
     expect(b.insertSessionBefore).toHaveBeenCalledWith('ws', 's1', 's2')
     await browser.createWorkspace({ path: '/tmp/browser-project' })

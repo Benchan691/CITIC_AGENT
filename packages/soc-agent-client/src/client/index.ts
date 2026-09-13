@@ -1,100 +1,45 @@
-import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type {} from '@deepseek-ai/dsh-client-ui-commands/client'
-import type {} from 'dsh-soc-agent-sidebar/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import React from 'react'
-import { CiticBrandMark, CiticBrandName } from './CiticBrand.tsx'
-import { AdminConsole } from './AdminConsole.tsx'
-import { AuthGate } from './AuthGate.tsx'
-import { installEmailDraftToolview } from './EmailDraftToolview.tsx'
-import { MarkItDownDocumentController } from './markitdownAttachments.ts'
-import { MarkItDownDocuments, openMarkItDownPicker } from './MarkItDownDocuments.tsx'
-import { AttachmentSettingsController, MarkItDownAttachmentSettingsCard } from './MarkItDownAttachmentSettings.tsx'
-import { SocActionPolicyMenu } from './SocActionPolicyMenu.tsx'
-import { MARKITDOWN_ATTACHMENTS_NAMESPACE } from '../attachment-constants.ts'
+import { AuthGate } from './core/AuthGate.tsx'
+import { AdminUnavailable } from './core/AdminUnavailable.tsx'
+import { createSocClientRuntime, socSurface } from './contract.ts'
 
-export const inject = ['slots', 'connection', 'conversation', 'commandUi', 'settingsScope'] as const
+export type { SocAdminContentOwnerProps, SocAdminRootProps, SocClientRuntime } from './contract.ts'
+export { createSocClientRuntime, socSurface, SOC_CONFIG_CHANNEL } from './contract.ts'
+export type {
+  SocActionApprovalSettings,
+  SocActionMode,
+  SocActionState,
+} from '../core/action-approval-settings.ts'
 
-export { AdminConsole } from './AdminConsole.tsx'
-export { EmailDraftToolview } from './EmailDraftToolview.tsx'
+export const inject = ['slots', 'connection'] as const
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle
   const path = typeof window === 'undefined' ? '' : window.location.pathname
-  if (path === '/admin' || path.startsWith('/admin/')) {
-    // The admin console shadows the shell's root entry at a lower priority.
-    // No conversation, workspace, sidebar, or regular-auth UI is mounted in
-    // this branch; the server still enforces the boundary for every request.
+  const surface = socSurface(path)
+  const socClient = createSocClientRuntime(connection, surface)
+  ctx.provide('socClient', socClient)
+
+  if (surface === 'admin') {
+    // The core owns this root so disabling the optional admin feature never
+    // falls through to the regular workspace shell at /admin.
     ctx.slots.inject('root', () => ctx.slots.register({
       name: 'root',
       priority: -1,
-    }, () => React.createElement(AdminConsole, { connection })))
+      children: {
+        'soc.admin.content': { kind: 'single', scope: 'root' },
+      },
+      inject: () => ({ connection, socClient }),
+    }, AdminUnavailable))
     return
   }
-  // SOC workspaces are the per-user filesystem workspaces guarded by the
-  // server-side ownership proxy. Harness logical folders are process-global,
-  // so keep that optional client surface disabled; WorkspaceRuntime then uses
-  // workspace.* and sessions are created inside the owned workspace.
-  const api = connection.api as { folders?: unknown }
-  api.folders = undefined
-  const documents = new MarkItDownDocumentController(
-    connection,
-    ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }),
-  )
-  const settings = new AttachmentSettingsController(
-    ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }),
-  )
-  ctx.effect(
-    () => ctx.conversation.registerDocumentProvider(documents),
-    'soc-agent: MarkItDown document provider',
-  )
-  ctx.slots.inject('conversation.input.documents', () => ctx.slots.register({
-    name: 'conversation.input.documents',
-    locale: 'conversation',
-  }, props => React.createElement(MarkItDownDocuments, { ...props, controller: documents })))
-  ctx.effect(
-    () => ctx.commandUi.register({
-      name: 'attach-file',
-      description: 'Attach file',
-      available: () => true,
-      ui: {
-        kind: 'action',
-        options: async () => [],
-        onSelect: (_option, session) => {
-          openMarkItDownPicker(session.sessionId)
-        },
-      },
-    }),
-    'soc-agent: MarkItDown file command',
-  )
-  ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
-    name: 'settings.plugin.item',
-    key: MARKITDOWN_ATTACHMENTS_NAMESPACE,
-    inject: () => settings.inject(),
-  }, MarkItDownAttachmentSettingsCard))
-  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
-    name: 'conversation.input.left',
-    id: 'soc-action-policy',
-    priority: -10,
-  }, props => React.createElement(SocActionPolicyMenu, {
-    ...props,
-    connection,
-  })))
+  // Authentication remains mandatory for the regular workspace surface.
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
     id: 'soc-agent-auth-gate',
     priority: -100,
   }, AuthGate))
-  installEmailDraftToolview(ctx)
-  ctx.slots.inject('sidebar.brand.mark', () =>
-    ctx.slots.inject('sidebar.brand.name', () =>
-      ctx.slots.inject('conversation.hero.brand.mark', function* () {
-        yield ctx.slots.register({ name: 'sidebar.brand.mark', priority: -1 }, CiticBrandMark)
-        yield ctx.slots.register({ name: 'sidebar.brand.name', priority: -1 }, CiticBrandName)
-        yield ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -1 }, CiticBrandMark)
-      })))
 }

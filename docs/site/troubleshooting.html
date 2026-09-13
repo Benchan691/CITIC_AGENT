@@ -48,8 +48,8 @@
           <tr><th scope="row">Subscriptions</th><td><code>not_configured</code>; <code>email_server_unavailable</code>; <code>email_server_auth_failed</code></td><td>Admin status check; fix the three env vars; check the external service</td></tr>
           <tr><th scope="row">Attachments</th><td><code>attachment_too_large</code>; <code>attachment_encrypted</code>; truncation notice</td><td>Limits are by design (10 MB/200 k default, 100 MB/2 M hard); sync MarkItDown extras</td></tr>
           <tr><th scope="row">Database</th><td><code>authentication_required</code>; decrypt RuntimeError</td><td>URI chain; encryption key restored? (key + DB are backed up together)</td></tr>
-          <tr><th scope="row">UI / build</th><td>UI changes invisible; <code>/admin</code> 503</td><td>Rebuild the client bundle; harness build artifacts via <code>--rebuild</code></td></tr>
-          <tr><th scope="row">Tests</th><td>Count failures; source-guardrail failures</td><td>Expected after tool/UI changes — update code + tests together (six-contract recipe)</td></tr>
+          <tr><th scope="row">UI / build</th><td>UI changes invisible; <code>/admin</code> 503</td><td>Rebuild the owning SOC browser bundle(s); harness build artifacts via <code>--rebuild</code></td></tr>
+          <tr><th scope="row">Tests</th><td>Count failures; source-guardrail or browser-smoke failures</td><td>Read the failing package/browser output; update code + tests together (six-contract recipe)</td></tr>
         </tbody>
       </table></div>
 

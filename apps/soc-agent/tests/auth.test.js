@@ -465,6 +465,25 @@ test('scoped response handling cannot cancel another user\'s pending request by 
   assert.equal(responses.length, 1)
 })
 
+test('stale owned session deletion removes the orphaned ownership row while preserving the not-found result', async () => {
+  const { auth, store } = authFixture()
+  const api = {
+    sessions: {
+      delete: async request => ({
+        rpcId: request.rpcId,
+        result: { ok: false, error: { code: 'session-not-found', message: 'no session session-a', details: { sessionId: 'session-a' } } },
+      }),
+    },
+  }
+  const result = await createScopedApiProxy(api, auth).sessions.delete({
+    rpcId: 'stale-delete',
+    payload: { sessionId: 'session-a' },
+  })
+  assert.equal(result.result.ok, false)
+  assert.equal(result.result.error.code, 'session-not-found')
+  assert.equal(await store.sessionOwner('session-a'), undefined)
+})
+
 
 
 test('SOC auth plugin gates Harness transport and scopes the shared API proxy', async () => {

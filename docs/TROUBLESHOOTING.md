@@ -102,8 +102,8 @@
 
 | Symptom | Likely causes | Safe diagnostic | Corrective action | Verify |
 |---|---|---|---|---|
-| UI changes don't appear | Tracked `lib/` not rebuilt | Check `lib/client.js` timestamp vs src | `pnpm --filter dsh-soc-agent-client run build`; reload | Change visible |
-| Setup reports SOC client drift | Bundle contains a `require()` outside the allowlist | Read the setup output | Rerun setup (auto-rebuild) | Drift check passes |
+| UI changes don't appear | One of the tracked SOC browser bundles was not rebuilt | Check the owning `packages/soc-agent-*/lib/client.js` artifact vs its source | `./setup.sh --plugins` (or build the owning package); reload | Change visible |
+| Setup reports SOC browser-bundle drift | A bundle contains a `require()` outside the allowlist | Read the setup output for the package name | Rerun setup (auto-rebuilds the eight-package matrix) | Drift check passes |
 | `/admin` returns 503 | Harness frontend index not found (build artifact missing) | `setup.sh --check` build-artifact section | `./setup.sh --plugins --rebuild` | `/admin` serves |
 | App loads but everything fails | Python server dead (spawn failure is fatal — so more likely env/store issues) | Startup logs; `uv run unified-mcp-server` smoke check in `apps/soc-agent/server` | Fix env/uv; restart | Tools respond |
 

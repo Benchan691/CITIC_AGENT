@@ -7,7 +7,7 @@
 
 **What you will understand:** every first-party component described with the same eleven fields — purpose, ownership, entry points, inputs/outputs, state, trust level, dependencies, tests, and runtime status — so components can be compared and change impact can be assessed.
 
-**Plain-language summary.** The system is a set of cooperating components: a browser UI, a Node host running five product plugins over the vendored harness, a Python MCP server child process with Zimbra/subscription tools, a client bridge to an external Splunk MCP server, an authenticated control channel for mail operations, an admin CLI for service operations, and PostgreSQL persistence. Related pages: [REPOSITORY_MAP.md](REPOSITORY_MAP.md) (file classification), [ARCHITECTURE.md](../ARCHITECTURE.md) (how they connect), [TRACEABILITY_MATRIX.md](TRACEABILITY_MATRIX.md) (claim-level evidence).
+**Plain-language summary.** The system is a set of cooperating components: isolated browser surface packages, a mandatory SOC client core plus five selectable feature plugins, a Node host running product plugins over the vendored harness, a Python MCP server child process with Zimbra/subscription tools, a client bridge to an external Splunk MCP server, an authenticated control channel for mail operations, an admin CLI for service operations, and PostgreSQL persistence. Related pages: [REPOSITORY_MAP.md](REPOSITORY_MAP.md) (file classification), [ARCHITECTURE.md](../ARCHITECTURE.md) (how they connect), [TRACEABILITY_MATRIX.md](TRACEABILITY_MATRIX.md) (claim-level evidence).
 
 **Prerequisites:** none.
 
@@ -17,29 +17,26 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 
 ---
 
-## 1. Browser client (analyst UI)
+## 1. SOC browser packages (analyst UI)
 
-- **Paths:** `packages/soc-agent-client/src/client/` (built into tracked `lib/client.js`)
-- **Purpose:** present the chat workspace, login gate, action-mode menu, email draft editing, attachment UX, and branding inside the harness web surface.
-- **Owner/responsibility:** rendering and client-side validation only; it owns no security decision.
-- **Entry points:** mounted by the harness module loader when its `dsh.client` declaration is scanned (`src/client/index.ts` `apply`); `/admin` path mounts the AdminConsole branch.
-- **Inputs/outputs:** harness slots (`shell.overlay`, `conversation.input.*`, `tool.call.toolview`, `settings.plugin.item`); RPC channel `/soc-agent-config`; HTTP `/auth/me|login|logout`; connection APIs (`settings.describe/mutate`, `credentials.*`, `llm.*`).
-- **State:** per-session attachment drafts (in memory); reads settings scopes (`soc-agent-markitdown-attachments`, `soc-action-approval`, `soc-background`, `time-context`).
-- **Trust level:** untrusted client. All enforcement is server-side; the UI is convenience.
-- **Dependencies:** harness client runtime (`@deepseek-ai/dsh-client-connection`, slots, settings); React via the harness bundle.
-- **Tests:** `tests/action-policy.test.ts`, `email-draft-toolview.test.ts`, `markitdownAttachments.test.ts`, `sections.test.ts` (source guardrails).
-- **Runtime status:** Active (built bundle tracked as generated output).
+- **Mandatory core — `packages/soc-agent-client/`:** authentication overlay, `SocClientRuntime`/`socClient` service, action-policy schema, `/admin` root takeover, and safe admin-disabled fallback. It owns no optional feature UI and does not import the isolated or official sidebar/workspace implementations. Tests: `tests/core-contract.test.ts`.
+- **Isolated surfaces — `packages/soc-agent-sidebar/` and `packages/soc-agent-workspace/`:** the only enabled root sidebar owner and the workspace browser/conversation picker. They preserve standard host-facing slots, pinned styling snapshots, search/grouping/reordering and session lifecycle behavior. The workspace package owns the reversible `api.folders` guard. Tests live beside each package; visual baselines are recorded in each `snapshot-baseline.json`.
+- **Selectable features:** `packages/soc-agent-brand/` (sidebar/hero branding), `packages/soc-agent-admin/` (admin console), `packages/soc-agent-action-policy/` (end-user mode menu), `packages/soc-agent-attachments/` (MarkItDown provider, rail, command, settings), and `packages/soc-agent-email-draft/` (editable draft/forward tool views). Each depends on the core and fills only its own slots/commands/settings.
+- **Inputs/outputs:** harness slots and runtime services; SOC RPC channel `/soc-agent-config`; HTTP auth routes; settings, credentials, LLM, connection, conversation, command, and tool-view APIs as needed by each package.
+- **Trust level:** untrusted client. All enforcement is server-side; UI packages are convenience surfaces.
+- **Build/output:** every package has a tracked `lib/client.js` closure-factory artifact; `setup.sh` fingerprints, builds, registers, resolves, and health-checks all eight packages.
+- **Runtime status:** core/sidebar/workspace mandatory; the five feature packages enabled by default and independently disable-able.
 
-## 2. Admin console (browser, `/admin`)
+## 2. Admin console feature (`dsh-soc-agent-admin`, browser `/admin`)
 
-- **Paths:** `packages/soc-agent-client/src/client/AdminConsole.tsx`
+- **Paths:** `packages/soc-agent-admin/src/client/AdminConsole.tsx`, `packages/soc-agent-client/src/client/core/AdminUnavailable.tsx`
 - **Purpose:** standalone administration surface: service status, agent-context settings, access-and-approvals checklist, AI providers with write-only credentials.
-- **Entry points:** `window.location.pathname` `/admin` branch in `src/client/index.ts` (tested by `sections.test.ts`); served by `host.js` route `GET /admin`.
+- **Entry points:** the core owns the `/admin` root and injects the `soc.admin.content` child slot; this feature fills that slot; served by `host.js` route `GET /admin`.
 - **Inputs/outputs:** `/admin/auth/me|login|logout`; RPC `get-settings`, `test-splunk`, `test-subscription-server`, `get-admin-action-catalog`; settings/credentials/LLM APIs.
 - **State:** settings namespaces via `settings.mutate` with `expectedRevision` optimistic concurrency.
 - **Trust level:** admin-authenticated server-side (`requireAdmin` per endpoint); secrets write-only ("Stored securely · enter a new key to replace it").
-- **Tests:** `sections.test.ts` (mount gating, write-only credentials, no legacy cards).
-- **Runtime status:** Active, admin-only.
+- **Tests:** `packages/soc-agent-admin/tests/admin-console.test.ts`, `sections.test.ts` (mounting, write-only credentials, child-slot ownership).
+- **Runtime status:** Active by default, admin-only, independently disable-able; the core fallback remains when disabled.
 
 ## 3. SOC host plugin (`soc-agent-admin-host` → `dsh-soc-agent/host`)
 
@@ -77,7 +74,7 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 - **State:** Postgres app sessions (token decryption), LRU 32 identity-bound mail services; **no persisted drafts** (`zimbra_send_email` returns a draft dict, nothing stored).
 - **Trust level:** executes with the authenticated user's Zimbra token; rejects `account_id` selection (`account_selection_disabled`).
 - **Dependencies:** `mcp` (FastMCP), `zimbra-client`, `httpx`, `psycopg[pool]`, `cryptography`, `markitdown`.
-- **Tests:** 10 Python test files / 39 tests, incl. `test_server_tools.py` (exact 28-tool surface) and `test_schema.py` (migrations).
+- **Tests:** 10 Python test files / 48 tests, incl. `test_server_tools.py` (exact 28-tool surface) and `test_schema.py` (migrations).
 - **Runtime status:** Active (Conditional in the sense that the host fails startup if it cannot spawn when configured — `failOnStartupError`).
 
 ## 6. Zimbra domain services

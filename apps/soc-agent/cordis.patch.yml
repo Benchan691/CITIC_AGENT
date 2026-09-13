@@ -126,8 +126,11 @@
   disabled: false
 - id: client-hmr
   disabled: false
+# The corresponding host runner is disabled for this product, so leave its
+# browser half out too; otherwise fixture and production clients repeatedly
+# attempt an unavailable dynamicCordisRunner RPC during boot.
 - id: cordis-client-runner
-  disabled: false
+  disabled: true
 - id: user-questions
   disabled: false
 - id: plugin-inventory
@@ -242,14 +245,38 @@
     - id: soc-agent-admin-host
       name: dsh-soc-agent/host
       description: Host policy, tool allowlists, and admin RPC for the SOC Agent product.
-    - id: soc-agent-admin-ui
+    - id: soc-agent-client-core
       name: dsh-soc-agent-client
+      disabled: false
+      description: Mandatory SOC client runtime, authentication gate, and policy contract.
     - id: soc-agent-sidebar-ui
       name: dsh-soc-agent-sidebar
+      disabled: false
       description: Isolated SOC sidebar shell and slot contract.
     - id: soc-agent-workspace-ui
       name: dsh-soc-agent-workspace
+      disabled: false
       description: Isolated SOC workspace and session browser.
+    - id: soc-agent-brand-ui
+      name: dsh-soc-agent-brand
+      disabled: false
+      description: Optional CITIC/Sentinel branding for sidebar and conversation surfaces.
+    - id: soc-agent-admin-ui
+      name: dsh-soc-agent-admin
+      disabled: false
+      description: Optional SOC administration console.
+    - id: soc-agent-action-policy-ui
+      name: dsh-soc-agent-action-policy
+      disabled: false
+      description: Optional end-user access-mode selector.
+    - id: soc-agent-attachments-ui
+      name: dsh-soc-agent-attachments
+      disabled: false
+      description: Optional MarkItDown document attachment feature.
+    - id: soc-agent-email-draft-ui
+      name: dsh-soc-agent-email-draft
+      disabled: false
+      description: Optional editable Zimbra email draft tool views.
 
 - id: connection
   name: '@deepseek-ai/dsh-client-connection'

@@ -2,10 +2,11 @@
  * Workspace plugin, browser half. Two registrations: WorkspaceBrowser fills
  * the sidebar shell's `sidebar.workspaces` hole (the whole browsing region),
  * and WorkspacePicker fills the conversation hero's picker hole
- * (`conversation.hero.workspace` — both hero forms). Both read real Host
- * folders through the global useWorkspaces hook. Export discipline follows
+ * (`conversation.hero.workspace`). Both read real Host
+ * the shared workspaces service. Export discipline follows
  * packages/client/AGENTS.md.
  */
+import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -39,7 +40,7 @@ const NS = 'workspace'
  * provides a waitable service. apply therefore depends on each slot
  * declaration through `slots.inject()` instead of assuming order.
  */
-export const inject = ['slots', 'sessions', 'workspaces', 'locale']
+export const inject = ['slots', 'sessions', 'workspaces', 'locale', 'connection']
 
 /**
  * Register the browser and picker once their slot declarations are on the
@@ -49,6 +50,20 @@ export const inject = ['slots', 'sessions', 'workspaces', 'locale']
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'soc-agent-workspace: dictionaries')
+
+  // The Harness workspace manager chooses the process-global `folders` API
+  // when it is present. SOC owns physical workspaces through its regular
+  // sessions/workspaces services, so suppress that capability only for this
+  // plugin's lifetime. The conditional restore is deliberately reversible:
+  // another plugin may have installed a value while this one was active.
+  const api = (ctx.get('connection') as ConnectionHandle).api as { folders?: unknown }
+  ctx.effect(() => {
+    const originalFolders = api.folders
+    api.folders = undefined
+    return () => {
+      if (api.folders === undefined) api.folders = originalFolders
+    }
+  }, 'soc-agent-workspace: disable global folders')
 
   const searchSessions: WorkspaceBrowserInjected['searchSessions'] = async (query, signal) => {
     const result = await ctx.sessions.search(query, signal)

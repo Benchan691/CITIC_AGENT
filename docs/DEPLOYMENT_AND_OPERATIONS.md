@@ -26,9 +26,9 @@ Single Node host process (vendored harness web runtime) on port 3080, spawning: 
 | Parameter collection | One inventory drives prompting/checking: PostgreSQL, admin credentials, encryption key, **official Splunk MCP endpoint + token (required)**, Zimbra, subscription, MarkItDown; validates Postgres URI (regex + `psql` probe); generates the encryption key if blank. Legacy REST Splunk fields removed | Re-prompts only invalid/missing; existing values become defaults |
 | `write_files` | Seeds/upserts `server/.env` (preserves comments; optional keys only when supplied) and harness `.env` (only the two keys); chmod 600; ensures `.gitignore` covers `.env` | Warns when an exported env var differs from the written value (export wins) |
 | `ensure_python_server` | `uv sync --python 3.12` (+ `--extra markitdown-llm` when enabled) | Failure records a warning and continues |
-| `ensure_harness_ready` | Fingerprint-gated `pnpm install --frozen-lockfile` + build (fingerprints: lockfile+package manifests → install; all harness+client sources → build); verifies artifacts (`apps/web/dist/index.html`, `mcp-client/lib/index.js`) | `--rebuild` bypasses fingerprints; SOC client bundle drift (`require` allowlist) triggers client rebuild |
+| `ensure_harness_ready` | Fingerprint-gated `pnpm install --frozen-lockfile` + build (fingerprints: lockfile+package manifests → install; all harness+eight SOC browser-package sources → build); verifies artifacts (`apps/web/dist/index.html`, `mcp-client/lib/index.js`, and every `packages/soc-agent-*/lib/client.js`) | `--rebuild` bypasses fingerprints; any SOC browser bundle drift (`require` allowlist) triggers the browser-package rebuild |
 | `ensure_external_plugins` | Copies the pnpm patch to the profile (byte-compared), edits `pnpm-workspace.yaml` `patchedDependencies`, installs the two `requirements.txt` specs via `pnpm dsh plugin --profile web add`, **prunes stale plugins** outside the managed set, re-verifies deps+bundles | Re-running is the repair; deleting a line in `requirements.txt` propagates removal everywhere on the next run |
-| `ensure_soc_bundle` | Registers `apps/soc-agent` + `packages/soc-agent-client` into the web profile; verifies resolution of `dsh-soc-agent/auth-host`, `dsh-soc-agent/host`, `dsh-soc-agent-client`, `@deepseek-ai/dsh-time-context`, and the external plugins | Re-runnable |
+| `ensure_soc_bundle` | Registers `apps/soc-agent` plus the mandatory core, isolated sidebar/workspace, and five optional SOC browser packages into the web profile; verifies every package resolves alongside `dsh-soc-agent/auth-host`, `dsh-soc-agent/host`, `@deepseek-ai/dsh-time-context`, and the external plugins | Re-runnable |
 | Summary | Prints masked values, files written, warnings, next steps | Starts **nothing** |
 
 `--check` runs the read-only audit (prerequisites, every parameter with precedence, Docker-aware Splunk host, HTTP-policy checks, plugin parse, profile patch/registration, stale plugins, build artifacts, SOC drift, resolution) and exits 1 with a failure count.
@@ -37,7 +37,7 @@ Single Node host process (vendored harness web runtime) on port 3080, spawning: 
 
 ![Build/test/deploy diagram](site/assets/diagrams/build-test-deploy.svg) — source: [diagrams/build-test-deploy.mmd](diagrams/build-test-deploy.mmd).
 
-Canonical sources → (client: tsdown → **tracked** `lib/`; harness: pnpm build → untracked dists) → profile wiring (`~/.dsh/profiles/web`: manifest bundles, patch copy) → runtime (Node host loads profile; spawns Python children). The fingerprints make the lifecycle reproducible: identical inputs skip identical work.
+Canonical sources → (eight SOC browser packages: tsdown → **tracked** `lib/`; harness: pnpm build → untracked dists) → profile wiring (`~/.dsh/profiles/web`: manifest bundles, patch copy) → runtime (Node host loads profile; browser mounts the selected feature plugins; host spawns Python children). The fingerprints make the lifecycle reproducible: identical inputs skip identical work.
 
 ## 4. Startup, restart, health
 
@@ -60,7 +60,7 @@ Canonical sources → (client: tsdown → **tracked** `lib/`; harness: pnpm buil
 |---|---|
 | Bad update | `git reset`/`git checkout` to the previous commit **manually** (update.sh never manipulates history), then `./setup.sh --plugins`; restart |
 | Broken profile wiring | `./setup.sh --plugins` re-adds/prunes/re-verifies the managed plugin set; `--rebuild` forces full harness rebuild |
-| Drifted client bundle | Setup detects and rebuilds it automatically (require-allowlist check) |
+| Drifted SOC browser bundle | Setup detects and rebuilds all affected SOC browser bundles automatically (require-allowlist check) |
 | Failed Python env | `uv sync --python 3.12` in `apps/soc-agent/server`; rerun setup |
 | Bad `.env` edit | Re-run `./setup.sh` (existing values become defaults; only invalid items re-prompt) — or restore from your backup of the 0600 file |
 | Encrypted rows unreadable after key rotation | Restore the previous `APP_SETTINGS_ENCRYPTION_KEY` (the runtime refuses to silently continue; error names the remediation) |

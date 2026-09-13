@@ -2,7 +2,7 @@
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 > 语言 / Language: **English** · [中文版](../zh/reference/TEST_COVERAGE_MATRIX.md)
-> Sources: `apps/soc-agent/tests/` (**11 files, 35 tests**), `packages/soc-agent-client/tests/` (**5 files, 12 tests**), `apps/soc-agent/server/unified_mcp_server/tests/` (**10 test files + `__init__.py`, 39 test functions**). Counts derived by enumeration at this commit. Previous round (`b26d55d`): 27 JS / 9 TS / 75 Python — the Python reduction is the deleted Splunk stack's tests, not lost coverage of live code.
+> Current sources: `apps/soc-agent/tests/` (**11 files, 41 tests**) and `apps/soc-agent/server/unified_mcp_server/tests/` (**10 test files + `__init__.py`, 48 test functions**). The current worktree also carries package-local tests for the mandatory core, isolated surfaces, and five optional browser features, plus browser smoke/screenshot tests. Previous round (`b26d55d`): 27 JS / 9 TS / 75 Python — the Python reduction is the deleted Splunk stack's tests, not lost coverage of live code.
 
 **Who this is for:** developers changing behavior (which tests must move with the change), and reviewers judging which claims have test evidence.
 
@@ -12,7 +12,7 @@
 
 ---
 
-## 1. Node tests — `apps/soc-agent/tests` (`node --test tests/*.test.js`, 11 files / 35 tests)
+## 1. Node tests — `apps/soc-agent/tests` (`node --test tests/*.test.js`, 11 files / 41 tests)
 
 | File | Tests | Behavior covered | Exercised source |
 |---|---|---|---|
@@ -28,17 +28,22 @@
 | `splunk-bridge.test.js` | 4 | Bridge reads deployment config, forwards Bearer auth, allowlists the 13 read names; TLS verified by default; **new:** configuration requires MCP credentials and explicit plain-HTTP opt-in (endpoint URL validation); **new:** admin connection check uses the live allowed tool (`splunk_get_info`) with authorization, error redaction, and cancellation preserved | `splunk-bridge.js` |
 | `user-mode.test.js` | 1 | Action modes are authenticated, per-session isolated, enforced (`full` delegates, `soc` asks), and revoked on logout | `ownership.js`, `host.js` |
 
-## 2. TypeScript tests — `packages/soc-agent-client/tests` (tsx loader, 5 files / 12 tests)
+## 2. SOC browser-package tests — `packages/soc-agent-*/tests`
 
-| File | Tests | Behavior covered |
+| Package | Tests | Behavior covered |
 |---|---|---|
-| `action-policy.test.ts` | 3 | `readActionMode` uses the exact RPC triple; malformed/failed responses reject (never invent a mode); `set-action-mode` sends only `{mode}` and adopts the server-confirmed value |
-| `admin-console.test.ts` | 1 | New: admin console status/notice behavior (structured status messages, retry affordance) |
-| `email-draft-toolview.test.ts` | 3 | Recipient parsing/dedupe/trim; canonical draft fields; **new:** forward-draft field mapping (`forward_message_id`, `forwarded_message` metadata) |
-| `markitdownAttachments.test.ts` | 1 | Two-worker conversion: peak concurrency 2, order preserved, retry after failure, cache reuse, truncation note, `release()` cleanup |
-| `sections.test.ts` | 4 | Source-text guardrails: no scheduled-task UI; admin console uses provider listbox + write-only credentials and never legacy cards/direct settings RPC; access-approvals page keeps required copy and forbids `autoApproveActions`; admin mounted only via the `/admin` path branch |
+| `soc-agent-client` | 5 | Core `SocClientRuntime` contract, `/admin` route selection, RPC forwarding/error handling, mandatory action-policy schema, auth/admin fallback ownership, and no optional UI imports |
+| `soc-agent-sidebar` | 27 | Expanded/collapsed layout, root ownership, standard child slots, branding/workspace/settings/footer interoperability, pinned CSS/DOM invariants |
+| `soc-agent-workspace` | 119 | Workspace browser/picker, search/grouping/tree/reorder, create/delete/rename/fork/archive/session deletion, General clearing, pending/error states, and reversible folders guard |
+| `soc-agent-brand` | 2 | Sidebar and conversation branding contributions |
+| `soc-agent-admin` | 4 | Admin status behavior, credential guardrails, access-policy guardrails, and core-owned child-slot mounting |
+| `soc-agent-action-policy` | 3 | `readActionMode` uses the exact RPC triple; malformed/failed responses reject; server-confirmed mode is adopted |
+| `soc-agent-attachments` | 1 | Two-worker conversion: peak concurrency 2, order preserved, retry after failure, cache reuse, truncation note, `release()` cleanup |
+| `soc-agent-email-draft` | 3 | Recipient parsing/dedupe/trim, canonical draft fields, forward-draft field mapping, send/signature view behavior |
 
-## 3. Python tests — `unified_mcp_server/tests` (`uv run pytest`; `asyncio_mode=auto`, 10 files / 39 tests)
+All eight browser packages build a separate tracked `lib/client.js`; tests import source through the vendored loaders. The app composition test additionally recursively scans first-party source/manifests for official sidebar/workspace imports.
+
+## 3. Python tests — `unified_mcp_server/tests` (`uv run pytest`; `asyncio_mode=auto`, 10 files / 48 tests)
 
 | File | # | Behavior covered |
 |---|---|---|
@@ -64,15 +69,18 @@
 | Bridge allowlist is read-only and matches the inventory | `splunk-bridge.test.js` ↔ `skills.test.js` bridge pins |
 | Bridge endpoint/credential configuration is validated | `splunk-bridge.test.js` "official configuration requires MCP credentials and explicit plain HTTP opt-in" |
 | `allowedToolNames` semantics preserved by the vendored client | `mcp-discovery.test.js` |
-| Client uses only the authorized policy RPC and fails closed | `action-policy.test.ts` |
-| Admin console cannot bypass write-only credentials or mount outside `/admin` | `sections.test.ts` |
+| Client uses only the authorized policy RPC and fails closed | `soc-agent-action-policy/tests/action-policy.test.ts` |
+| Admin console cannot bypass write-only credentials or mount outside `/admin` | `soc-agent-admin/tests/sections.test.ts` |
+| Core owns the admin root and supplies a safe fallback | `soc-agent-client/tests/core-contract.test.ts`, `soc-agent-admin/tests/sections.test.ts` |
+| Official sidebar/workspace are disabled and never imported by first-party code | `apps/soc-agent/tests/sidebar-workspace.test.js` |
+| Browser bundles mount in fixture mode without loader/console/request errors | `apps/soc-agent/tests/browser-smoke.test.mjs` |
 | Setup parameter inventory enforces the official MCP connection | `setup.test.js` |
 
 ## 5. Known coverage gaps (gaps, not proven defects)
 
-1. **No end-to-end browser test.** The React UI is tested via pure helpers, one admin-console status test, and source-text guardrails — rendering/interaction behavior itself is untested.
+1. **Fixture boundary.** Browser smoke and screenshots cover real bundle loading and UI mounting, but use fixture data and intercept authentication; they do not cover live Zimbra, Splunk, subscription, or PostgreSQL behavior.
 2. **Forward end-to-end** (`zimbra_forward_email` → draft card → `send-email` RPC → `zimbra_forward_message` delivery) is tested in segments, not as one integration flow.
 3. **Postgres code paths** run against in-memory SQL doubles; the migration runner is tested directly (`test_schema.py`) but not against a live server in CI-less environments.
-4. **`setup.sh` end-to-end** is untested; only its parameter-inventory logic has unit coverage (`setup.test.js`).
+4. **`setup.sh` behavior** is exercised by requested `--plugins`/`--check` validation and static parameter tests, but there is no hermetic CI fixture for every profile state.
 5. **No CI configuration** at the repo root — suites run manually.
 6. **Skills referencing removed tools** (`detection-engineering`, `spl-writing`, parts of `false-positive-analysis`) have content invariants asserted by `skills.test.js` but their workflows cannot currently execute their named tools.

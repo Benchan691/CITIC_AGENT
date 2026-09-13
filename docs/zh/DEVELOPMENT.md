@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 布局与工具链、工作区/依赖模型、权威源 vs 生成产物的边界、构建/运行/命令、补丁工作流、安全变更清单（含完整的 MCP 工具契约），以及 vendor 变更如何保持可复现。
 
-**通俗概述。** 第一方代码刻意保持精悍：五个 Node 插件文件加两个共享模块、一个 Python 包、一个客户端包。vendored harness 只通过 `cordis.patch.yml` 配置 — 从不编辑；唯一的文件级 vendor 补丁带清单。大部分改动风险是*同步*风险：同一份工具清单现在只有一个来源（`tool-inventory.js`），由测试在两端钉住。
+**通俗概述。** 第一方代码刻意保持精悍：五个 Node 宿主插件、一个 Python 包、八个相互独立的 SOC 浏览器包。vendored harness 只通过 `cordis.patch.yml` 配置 — 从不编辑；唯一的文件级 vendor 补丁带清单。大部分改动风险是*同步*风险：同一份工具清单现在只有一个来源（`tool-inventory.js`），由测试在两端钉住。
 
 **前置要求:** [GETTING_STARTED.md](GETTING_STARTED.md)；文件地图见 [reference/REPOSITORY_MAP.md](../reference/REPOSITORY_MAP.md)。
 
@@ -19,7 +19,7 @@
 |---|---|---|
 | Node 宿主插件 | `apps/soc-agent/*.js` | 纯 ESM，无框架，`node:test` |
 | Python 服务器 | `apps/soc-agent/server/unified_mcp_server/` | Python ≥3.12，uv，pytest（asyncio auto） |
-| 客户端 | `packages/soc-agent-client/src/` | TypeScript + React + CSS modules，tsdown |
+| SOC 浏览器包 | `packages/soc-agent-*/src/` | TypeScript + React + CSS modules，tsdown；必需 core/sidebar/workspace 加可选 feature 插件 |
 | 技能 | `skills/<name>/SKILL.md` | 带 frontmatter 的 Markdown |
 | 装配 | `apps/soc-agent/cordis.patch.yml` | YAML 补丁清单 |
 | Vendor | `vendor/deepseek-harness/` | pnpm monorepo（勿编辑；见 §5） |
@@ -29,10 +29,11 @@
 | 任务 | 命令（除注明外自仓库根） |
 |---|---|
 | 安装全部 / 修复装配 | `./setup.sh`（交互）或 `./setup.sh --plugins`（非交互） |
-| Node 测试（宿主，35） | `cd apps/soc-agent && npm test`（= `node --test tests/*.test.js`） |
-| 客户端测试（12） | `cd packages/soc-agent-client && npm test`（vendored tsx 加载器） |
-| Python 测试（39） | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
-| 重建客户端 bundle | `pnpm --filter dsh-soc-agent-client run build`（重新生成被跟踪的 `lib/`） |
+| Node 测试（宿主） | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent test` |
+| SOC 包测试 | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft test` |
+| Python 测试（48） | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
+| 重建 SOC 浏览器 bundle | `./setup.sh --plugins`（或按 [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) 对每个包执行 `build`） |
+| 浏览器 smoke 与截图 | `cd vendor/deepseek-harness && pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs` |
 | 强制重建 harness | `./setup.sh --plugins --rebuild` |
 | 启动应用 | `cd vendor/deepseek-harness && pnpm dsh web --no-open`（端口 3080） |
 | 审计安装 | `./setup.sh --check` |
@@ -41,10 +42,10 @@ Lint/格式：**没有活跃的 formatter 或 hook** — `lefthook.yml` 全是�
 
 ## 3. 依赖 / 工作区模型
 
-- vendored harness 的 `pnpm-workspace.yaml` **包含本仓库**（`../../apps/*`、`../../packages/*`）— SOC 包是工作区成员，经 `workspace:*`（`dsh-soc-agent` → `dsh-soc-agent-client`、`dsh-agent-instructions`、`dsh-llm`、`schemastery`）和一个 `link:`（`@deepseek-ai/dsh-mcp-client`）解析。
+- vendored harness 的 `pnpm-workspace.yaml` **包含本仓库**（`../../apps/*`、`../../packages/*`）— app 与八个 SOC 浏览器包都是工作区成员。可选浏览器包通过 `workspace:*` 依赖 `dsh-soc-agent-client`；app 也通过 `workspace:*` 使用 SOC 包，并通过一个 `link:` 使用 `@deepseek-ai/dsh-mcp-client`。
 - 两个 Python 依赖声明**各有其职**：根 `requirements.txt` 是 harness profile 的 *外部 pnpm 插件* 清单（不是 Python！），服务器的 `pyproject.toml`/`uv.lock` 才是真正的 Python 依赖。`setup.sh` 以硬编码 `PLUGIN_NAMES` 对两个 spec 做数量校验 — 加插件必须同时改两个文件。
 - Python extras：`markitdown-llm`（可选 OCR）、`test`（pytest）。
-- 生成产物边界：`packages/soc-agent-client/lib/` **被跟踪** — 客户端改动后务必重建，并把源码与 bundle 一起提交（setup 也会自动修复漂移）。
+- 生成产物边界：所有 `packages/soc-agent-*/lib/` 浏览器产物都**被跟踪** — 修改浏览器代码后重建所属包，并把源码与 bundle 一起提交（setup 也会自动修复漂移）。
 
 ## 4. 补丁工作流
 
@@ -76,7 +77,7 @@ Lint/格式：**没有活跃的 formatter 或 hook** — `lefthook.yml` 全是�
 ## 7. Python 与 TypeScript 要点
 
 - **Python:** 请求管线是 `execute()`（关联 id、预算、身份）→ 服务调用 → `success()/failure()` 信封。新增错误请扩展 `ServiceError` 代码分类而非自造形状；绝不让第三方异常文本到达用户。阻塞工作走 `run_blocking`（有界）。**Schema 变更**走新的 `migrations/NNN_*.sql`（advisory 锁、台账跟踪）— 绝不在 Node 或 Python 服务代码里写即兴 DDL。测试用内存替身与假传输 — 无需活服务。
-- **TypeScript/React:** 组件经 `settings-common.rpc` 读取 `/soc-agent-config` 通道；设置页用 harness 设置 API + `expectedRevision`；CSS modules（`.module.css`）；bundle 是闭包工厂 — 不要在 setup 允许列表（react、react-dom、cordis、client-ui 原语/运行时）之外添加裸 `require()`，否则 setup 会重建/拒绝。
+- **TypeScript/React:** 可选 feature 通过 `dsh-soc-agent-client/client` 的 `SocClientRuntime` 使用 `/soc-agent-config`；设置页用 harness 设置 API + `expectedRevision`；CSS modules（`.module.css`）；每个 bundle 都是闭包工厂 — 不要在 setup 允许列表（react、react-dom、cordis、client-ui 原语/运行时）之外添加裸 `require()`，否则 setup 会重建/拒绝。
 
 ## 仓库中的证据
 

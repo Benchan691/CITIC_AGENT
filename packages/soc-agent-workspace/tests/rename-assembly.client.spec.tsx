@@ -32,6 +32,7 @@ beforeEach(() => { localStorage.clear() })
 async function createRuntime(): Promise<SlotTestRuntime> {
   const runtime = await SlotTestRuntime.create()
   runtime.provide('connection', {
+    api: { folders: { list: () => undefined } },
     hostDescription: { getSnapshot: () => undefined, subscribe: () => () => {} },
   })
   const locale = new LocaleRuntime(runtime.ctx)

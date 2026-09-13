@@ -937,6 +937,16 @@ export function createScopedApiProxy(api, auth) {
 
   async function postprocess(domain, method, request, response, target) {
     const session = current()
+    // A Host restart, another tab, or a legacy registry repair can leave an
+    // ownership row for a session that no longer exists in persistence. The
+    // caller is still scoped and authorized here, so remove only this user's
+    // orphaned ownership while preserving the original not-found response.
+    if (domain === 'sessions' && method === 'delete'
+      && response?.result?.ok === false
+      && response?.result?.error?.code === 'session-not-found') {
+      try { await auth.store.deleteSessionOwner(request.payload.sessionId) } catch { /* preserve the Host error */ }
+      auth.unbindAgentSession?.(request.payload.sessionId)
+    }
     if (!session || !okResult(response)) return response
     const value = valueOf(response)
     if (domain === 'workspace') {

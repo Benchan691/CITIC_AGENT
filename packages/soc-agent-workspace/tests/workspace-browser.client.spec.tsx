@@ -1179,6 +1179,36 @@ describe('WorkspaceBrowser', () => {
     await waitFor(() => { expect(screen.queryByRole('dialog', { name: '清除会话' })).toBeNull() })
   })
 
+  it('treats an already-missing General session as cleared without showing an error', async () => {
+    const missing = Object.assign(new Error('session delete failed: session-not-found: no session missing'), {
+      rpcError: { code: 'session-not-found', message: 'no session missing' },
+    })
+    const deleteSession = vi.fn()
+      .mockRejectedValueOnce(missing)
+      .mockResolvedValueOnce(undefined)
+    const b = mount({
+      useSessions: hook(sessionState([summary('live', 2)])),
+      useWorkspaces: hook(workspaceState([workspace('general', ['missing', 'live'], 'General')])),
+      deleteSession,
+    })
+    fireEvent.click(screen.getByText('General'))
+    fireEvent.click(screen.getByRole('button', { name: '文件夹“General”的操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '清除会话' }))
+    fireEvent.click(screen.getByRole<HTMLButtonElement>('button', { name: '清除会话' }))
+
+    await waitFor(() => { expect(deleteSession).toHaveBeenCalledTimes(2) })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe('已清除 2/2 个会话。')
+
+    // The stale ID is no longer part of the captured membership. A refresh
+    // that still reports the live deletion in flight keeps the modal pending;
+    // once the real membership is gone, the modal closes normally.
+    rerender(b, { useWorkspaces: hook(workspaceState([workspace('general', ['live'], 'General')])) })
+    expect(screen.getByRole('dialog', { name: '清除会话' })).toBeTruthy()
+    rerender(b, { useWorkspaces: hook(workspaceState([workspace('general', [], 'General')])) })
+    await waitFor(() => { expect(screen.queryByRole('dialog', { name: '清除会话' })).toBeNull() })
+  })
+
   it('search hides drag affordances (rows are not draggable during search)', () => {
     const sessions = sessionState([summary('needle-a', 2, { displayTitle: 'Needle A' })])
     mount({

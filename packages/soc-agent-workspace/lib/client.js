@@ -2550,7 +2550,8 @@ window.__ModuleLoader__.load({
 			"slots",
 			"sessions",
 			"workspaces",
-			"locale"
+			"locale",
+			"connection"
 		];
 		/**
 		* Register the browser and picker once their slot declarations are on the
@@ -2563,6 +2564,14 @@ window.__ModuleLoader__.load({
 				zh,
 				en
 			}), "soc-agent-workspace: dictionaries");
+			const api = ctx.get("connection").api;
+			ctx.effect(() => {
+				const originalFolders = api.folders;
+				api.folders = void 0;
+				return () => {
+					if (api.folders === void 0) api.folders = originalFolders;
+				};
+			}, "soc-agent-workspace: disable global folders");
 			const searchSessions = async (query, signal) => {
 				const result = await ctx.sessions.search(query, signal);
 				if (!result.ok) throw new Error(result.error.message);

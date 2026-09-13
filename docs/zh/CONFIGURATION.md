@@ -78,7 +78,7 @@ flowchart TD
 |---|---|
 | `.env` 值（任一文件） | 宿主重启（启动时读取环境）；Python 子进程随宿主重启 |
 | 管理控制台设置（`app_config`） | 无 — 实时生效（`applies: 'live'`）；会话动作模式覆盖立即生效 |
-| 客户端源码变更 | `pnpm --filter dsh-soc-agent-client run build`（被跟踪的 `lib/`）+ 浏览器刷新 |
+| 浏览器源码变更 | 重建所属 `dsh-soc-agent-*` 包（或运行 `./setup.sh --plugins`）+ 刷新浏览器 |
 | 技能文件变更 | 新会话（技能按会话加载）— 下次会话验证 |
 | `cordis.patch.yml` 变更 | 宿主重启；涉及 profile 装配时跑 `./setup.sh --plugins` |
 | Harness/vendor 变更 | `./setup.sh --plugins`（指纹门控重建）或 `--rebuild` |

@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 业务问题、目标用户、支持的工作流、产品**刻意不做**什么，以及塑造每个设计决策的安全哲学。
 
-**通俗概述。** SOC 分析师每天要在满屏钓鱼邮件的 Zimbra 和事件如山的 Splunk 之间来回切换。SOC Agent 把两者放进同一个聊天窗口：分析师以本人身份登录，用自然语言发起调查，智能体通过一个小型、明确允许的只读工具集查询 Splunk 和分析师本人的邮箱。证据返回前会做脱敏与限幅。需要动作时 — 移动钓鱼邮件、建邮箱规则、起草处置邮件 — 智能体提出、分析师批准，系统在服务端强制执行该审批。邮件只有人点击草稿视图的 **Send** 才会投递。
+**通俗概述。** SOC 分析师每天要在满屏钓鱼邮件的 Zimbra 和事件如山的 Splunk 之间来回切换。SOC Agent 把两者放进同一个聊天窗口：分析师以本人身份登录，用自然语言发起调查，智能体通过一个小型、明确允许的只读工具集查询 Splunk 和分析师本人的邮箱。证据返回前会做脱敏与限幅。需要动作时 — 移动钓鱼邮件、建邮箱规则、起草处置邮件 — 智能体提出、分析师批准，系统在服务端强制执行该审批。邮件只有人点击草稿视图的 **Send** 才会投递。浏览器界面采用模块化设计：强制核心与隔离的侧栏/工作区始终可用，品牌、管理、动作策略、附件和邮件草稿功能可独立选择。
 
 **前置要求:** 无。
 
@@ -55,7 +55,9 @@
 
 | 能力 | 位置 |
 |---|---|
-| 带附件、审批、动作模式菜单的聊天界面 | `packages/soc-agent-client` |
+| 强制浏览器核心（认证门、`socClient`、策略 schema、管理页回退） | `packages/soc-agent-client` |
+| 隔离侧栏与工作区浏览/选择器 | `packages/soc-agent-sidebar`、`packages/soc-agent-workspace` |
+| 可选浏览器功能（品牌、管理、动作策略、附件、邮件草稿） | `packages/soc-agent-brand`、`packages/soc-agent-admin`、`packages/soc-agent-action-policy`、`packages/soc-agent-attachments`、`packages/soc-agent-email-draft` |
 | 28 个域工具（Zimbra 22 含转发草稿，订阅 6） | `apps/soc-agent/server/unified_mcp_server/` |
 | 13 个只读 Splunk 工具（外部端点；必配） | `apps/soc-agent/splunk-bridge.js` |
 | 认证、归属权隔离、事件脱敏 | `apps/soc-agent/auth-host.js`、`ownership.js` |

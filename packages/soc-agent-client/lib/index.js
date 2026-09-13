@@ -152,9 +152,6 @@ function deepFreeze(value) {
 }
 Service.init;
 //#endregion
-//#region src/attachment-constants.ts
-const MARKITDOWN_ATTACHMENTS_NAMESPACE = "soc-agent-markitdown-attachments";
-//#endregion
 //#region ../../vendor/deepseek-harness/vendor/cosmokit/lib/index.js
 /** Return true when a value is `null` or `undefined`. */
 function isNullable(value) {
@@ -945,16 +942,7 @@ defineMethod("transform", [
 	"preserve"
 ], ({ inner }, isInner) => inner.toString(isInner));
 //#endregion
-//#region src/attachment-settings.ts
-const MarkItDownAttachmentSettingsSchema = Schema.object({
-	maxFiles: Schema.number().step(1).min(1).max(20).default(5),
-	maxBytesPerFile: Schema.number().step(1).min(1).max(1e8).default(1e7),
-	maxTotalBytes: Schema.number().step(1).min(1).max(5e8).default(5e7),
-	maxCharsPerFile: Schema.number().step(1).min(1).max(2e6).default(2e5),
-	maxTotalChars: Schema.number().step(1).min(1).max(5e6).default(5e5)
-});
-//#endregion
-//#region src/action-approval-settings.ts
+//#region src/core/action-approval-settings.ts
 const SOC_ACTION_APPROVAL_NAMESPACE = "soc-action-approval";
 const SocActionApprovalSettingsSchema = Schema.object({
 	mode: Schema.union(["soc", "full"]).default("soc"),
@@ -968,9 +956,8 @@ const SocActionApprovalSettingsSchema = Schema.object({
 //#region src/index.ts
 function apply(ctx) {
 	ctx.inject(["settings"], (settingsCtx) => {
-		settingsCtx.settings.register(settingsNamespace(MARKITDOWN_ATTACHMENTS_NAMESPACE), MarkItDownAttachmentSettingsSchema);
 		settingsCtx.settings.register(settingsNamespace(SOC_ACTION_APPROVAL_NAMESPACE), SocActionApprovalSettingsSchema);
 	});
 }
 //#endregion
-export { apply };
+export { SOC_ACTION_APPROVAL_NAMESPACE, SocActionApprovalSettingsSchema, apply };

@@ -21,7 +21,7 @@
 | **Per-user workspace dirs** | Node host (ownership proxy) | `MCP_SERVER_ROOT/.data/soc-workspaces/<userId>/[general]` | User conversation/working artifacts | Directory = user id | None (fs permissions; user-scoped by proxy) |
 | **Harness state** | Node host | `.data/`, `.state/` (gitignored) | Sessions, presets, telemetry-adjacent state | Harness-internal | Harness-internal |
 | **Setup fingerprints** | `setup.sh` | `.data/harness-{install,build}.sha256` | Content hashes gating install/build | — | — |
-| **Tracked client bundle** | build | `packages/soc-agent-client/lib/` | Browser/Node bundle | — | — |
+| **Tracked SOC browser bundles** | build | `packages/soc-agent-*/lib/` | Browser bundles for the core, isolated surfaces, and optional features | — | — |
 | **Local account file (legacy)** | Python admin/compat | `.data/zimbra_accounts.enc` + `.key` (Fernet; `0o600`; atomic replace) | Stored mailbox credentials | account id | Fernet |
 
 **Postgres tables:** `soc_users`, `soc_app_sessions`, `soc_session_revocations`, `soc_workspace_owners`, `soc_session_owners`, `soc_folder_owners`, `soc_bootstrap` (created by *both* tiers, identical DDL), plus Python-managed `app_config` (encrypted settings) and `zimbra_accounts` (legacy).

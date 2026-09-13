@@ -2,7 +2,7 @@
 
 > **核对基准:** 提交 `56c8dd21492a5c36cb9f3eaa3da01160aba40033`（2026-09-12T07:22:44Z）· 文档核对日期 2026-09-12。
 > 语言 / Language: **中文** · [English](../../reference/TEST_COVERAGE_MATRIX.md)。
-> 来源: `apps/soc-agent/tests/`（**11 文件 35 测试**）、`packages/soc-agent-client/tests/`（**5 文件 12 测试**）、`unified_mcp_server/tests/`（**10 测试文件 + `__init__.py`，39 测试**）。上一轮（`b26d55d`）为 27/9/75 — Python 的缩减是被删 Splunk 栈带走了它自己的测试，不是活跃代码 coverage 的损失。
+> 当前来源: `apps/soc-agent/tests/`（**11 文件 41 测试**）与 `unified_mcp_server/tests/`（**10 测试文件 + `__init__.py`，48 测试**）。当前工作树还包含强制核心、隔离表面、五个可选浏览器包的包内测试，以及浏览器 smoke/screenshot 测试。上一轮（`b26d55d`）为 27/9/75 — Python 的缩减是被删 Splunk 栈带走了它自己的测试，不是活跃代码 coverage 的损失。
 
 **本页读者:** 改动行为的开发者（哪些测试须随行）、判断论断证据的评审者。
 
@@ -10,7 +10,7 @@
 
 ---
 
-## 1. Node 测试 — `apps/soc-agent/tests`（11 文件 / 35 测试）
+## 1. Node 测试 — `apps/soc-agent/tests`（11 文件 / 41 测试）
 
 | 文件 | 数 | 覆盖行为 |
 |---|---|---|
@@ -26,17 +26,22 @@
 | `splunk-bridge.test.js` | 4 | 桥接读部署配置、转发 Bearer、允许列表 = 13 读名；TLS 默认校验；**新:** 配置要求 MCP 凭据与显式明文 HTTP 选择（端点 URL 校验）；**新:** 管理连接检查使用活跃允许工具（`splunk_get_info`）并保留授权、错误脱敏与取消 |
 | `user-mode.test.js` | 1 | 动作模式已认证、按会话隔离、被强制（`full` 放行、`soc` 询问）、登出撤销 |
 
-## 2. TypeScript 测试 — `packages/soc-agent-client/tests`（5 文件 / 12 测试）
+## 2. SOC 浏览器包测试 — `packages/soc-agent-*/tests`
 
-| 文件 | 数 | 覆盖行为 |
+| 包 | 数 | 覆盖行为 |
 |---|---|---|
-| `action-policy.test.ts` | 3 | `readActionMode` 精确 RPC 三元组；畸形/失败响应拒绝（绝不自造模式）；`set-action-mode` 只发 `{mode}` 并采纳服务端确认值 |
-| `admin-console.test.ts` | 1 | 新: 管理控制台状态/提示行为（结构化状态消息、重试） |
-| `email-draft-toolview.test.ts` | 3 | 收件人解析/去重/修剪；规范草稿字段；**新:** 转发草稿字段映射（`forward_message_id`、`forwarded_message`） |
-| `markitdownAttachments.test.ts` | 1 | 双 worker 转换: 峰值并发 2、保序、失败重试、缓存复用、截断注记、`release()` 清理 |
-| `sections.test.ts` | 4 | 源码文本护栏: 无计划任务 UI；管理控制台用 listbox + 只写凭据且无遗留卡/直接 settings RPC；审批页保留必需文案且无 `autoApproveActions`；管理控制台仅经 `/admin` 路径分支挂载 |
+| `soc-agent-client` | 5 | 核心 `SocClientRuntime`、`/admin` 路由、RPC 转发/错误处理、强制 action-policy schema、认证/回退归属与无可选 UI 导入 |
+| `soc-agent-sidebar` | 27 | 展开/收起、root owner、标准子槽位、品牌/工作区/设置/footer 互操作、固定 CSS/DOM 不变量 |
+| `soc-agent-workspace` | 119 | 工作区浏览/选择器、搜索/分组/tree/重排、创建/删除/改名/fork/archive/会话删除、General 清空、挂起/错误状态、可恢复 folders 守卫 |
+| `soc-agent-brand` | 2 | 侧栏与 conversation branding 贡献 |
+| `soc-agent-admin` | 4 | 管理状态、凭据护栏、访问策略护栏、核心子槽位挂载 |
+| `soc-agent-action-policy` | 3 | `readActionMode` 精确 RPC、畸形/失败响应拒绝、采纳服务端确认模式 |
+| `soc-agent-attachments` | 1 | 双 worker 转换、保序、重试、缓存、截断注记、`release()` 清理 |
+| `soc-agent-email-draft` | 3 | 收件人解析/去重、规范草稿字段、转发字段映射、签名/发送视图行为 |
 
-## 3. Python 测试 — `unified_mcp_server/tests`（10 文件 / 39 测试）
+八个浏览器包各自产生被跟踪的 `lib/client.js`；应用装配测试另外递归扫描第一方源码/清单，确保没有官方侧栏/工作区导入。
+
+## 3. Python 测试 — `unified_mcp_server/tests`（10 文件 / 48 测试）
 
 | 文件 | 数 | 覆盖行为 |
 |---|---|---|
@@ -62,15 +67,18 @@
 | 桥接允许列表只读且与清单一致 | `splunk-bridge.test.js` ↔ `skills.test.js` |
 | 桥接端点/凭据配置被校验 | `splunk-bridge.test.js` "official configuration requires MCP credentials…" |
 | vendored 客户端的 `allowedToolNames` 语义保留 | `mcp-discovery.test.js` |
-| 客户端只用授权策略 RPC 且失败关闭 | `action-policy.test.ts` |
-| 管理控制台不能绕过只写凭据或在 `/admin` 之外挂载 | `sections.test.ts` |
+| 客户端只用授权策略 RPC 且失败关闭 | `soc-agent-action-policy/tests/action-policy.test.ts` |
+| 管理控制台不能绕过只写凭据或脱离 `/admin` 核心子槽位挂载 | `soc-agent-admin/tests/sections.test.ts` |
+| 核心拥有 admin root 并提供安全回退 | `soc-agent-client/tests/core-contract.test.ts`、`soc-agent-admin/tests/sections.test.ts` |
+| 官方侧栏/工作区被禁用且第一方代码不导入 | `apps/soc-agent/tests/sidebar-workspace.test.js` |
+| fixture 浏览器加载无 loader/console/请求错误 | `apps/soc-agent/tests/browser-smoke.test.mjs` |
 | setup 参数清单强制官方 MCP 连接 | `setup.test.js` |
 
 ## 5. 已知覆盖缺口（缺口，非已证缺陷）
 
-1. **无端到端浏览器测试**（仅纯助手 + 源码护栏）。
+1. 浏览器 smoke/screenshot 使用 fixture 数据并仅拦截认证；不覆盖真实 Zimbra、Splunk、订阅或 PostgreSQL 行为。
 2. **转发端到端**（`zimbra_forward_email` → 草稿卡 → `send-email` RPC → `zimbra_forward_message` 投递）分段测试，未做一体化。
 3. **Postgres 路径**用内存 SQL 替身；迁移运行器有直接测试但未在无 CI 环境对真库执行。
-4. **`setup.sh` 端到端**未测；仅参数清单逻辑有单元覆盖。
+4. **`setup.sh` 行为**由 `--plugins`/`--check` 验证与参数清单测试覆盖，但没有为每种 profile 状态提供 hermetic CI fixture。
 5. **仓库根无 CI** — 套件需手动运行。
 6. **引用已移除工具的技能**（`detection-engineering`、`spl-writing`、`false-positive-analysis` 部分）有内容断言，但其工作流当前无法执行其命名工具。

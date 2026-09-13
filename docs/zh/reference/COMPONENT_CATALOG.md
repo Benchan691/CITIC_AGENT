@@ -7,33 +7,32 @@
 
 **读完后你将了解:** 每个第一方组件以同样的字段描述 — 目的、归属、入口、输入/输出、状态、信任级、依赖、测试、运行状态 — 便于比较与评估改动影响。
 
-**通俗概述。** 系统是一组协作组件：浏览器 UI、运行五个产品插件的 Node 宿主（基于 vendored harness）、带 Zimbra/订阅工具的 Python MCP 服务器子进程、连到外部 Splunk MCP 服务器的客户端桥接、认证操作控制通道、管理 CLI、PostgreSQL 持久化。相关页: [REPOSITORY_MAP.md](REPOSITORY_MAP.md)（文件分类）、[TRACEABILITY_MATRIX.md](TRACEABILITY_MATRIX.md)（论断级证据）。
+**通俗概述。** 系统是一组协作组件：隔离的浏览器表面包、强制 SOC client core 与五个可选功能包、运行产品插件的 Node 宿主（基于 vendored harness）、带 Zimbra/订阅工具的 Python MCP 服务器子进程、连到外部 Splunk MCP 服务器的客户端桥接、认证操作控制通道、管理 CLI、PostgreSQL 持久化。相关页: [REPOSITORY_MAP.md](REPOSITORY_MAP.md)（文件分类）、[TRACEABILITY_MATRIX.md](TRACEABILITY_MATRIX.md)（论断级证据）。
 
 **运行状态图例:** **活跃** · **条件性**（配置后启用）· **仅管理员** · **已移除**（本轮删除，原"保留"）· **生成** · **运维工具**。
 
 ---
 
-## 1. 浏览器客户端（分析师 UI）
+## 1. SOC 浏览器包（分析师 UI）
 
-- **路径:** `packages/soc-agent-client/src/client/`（构建进被跟踪的 `lib/client.js`）
-- **职责:** 在 harness web 面板内呈现聊天工作区、登录门、动作模式菜单、邮件草稿编辑、附件 UX、品牌。不拥有任何安全决策。
-- **入口:** harness 模块加载器扫描其 `dsh.client` 声明后挂载（`src/client/index.ts` `apply`）；`/admin` 路径挂载 AdminConsole 分支。
-- **输入/输出:** harness 槽位；RPC 通道 `/soc-agent-config`；HTTP `/auth/me|login|logout`；连接 API（`settings.describe/mutate`、`credentials.*`、`llm.*`）。
-- **状态:** 内存中的每会话附件草稿；读设置作用域（`soc-agent-markitdown-attachments`、`soc-action-approval`、`soc-background`、`time-context`）。
+- **强制核心 `packages/soc-agent-client/`:** 认证遮罩、`SocClientRuntime`/`socClient` service、action-policy schema、`/admin` root takeover 与安全回退；不拥有可选功能 UI，也不导入官方或隔离的 sidebar/workspace 实现。
+- **隔离表面 `packages/soc-agent-sidebar/`、`packages/soc-agent-workspace/`:** 唯一启用的 root sidebar owner、工作区浏览/选择器、标准子槽位与固定样式；workspace 包拥有可恢复的 `api.folders` 守卫。
+- **可选包:** `soc-agent-brand`（品牌）、`soc-agent-admin`（管理台）、`soc-agent-action-policy`（用户模式菜单）、`soc-agent-attachments`（MarkItDown）、`soc-agent-email-draft`（草稿/转发 tool view）。各包只拥有自己的槽位、command、provider 或设置。
+- **输入/输出:** harness 槽位与 service、`/soc-agent-config`、认证 HTTP 路由，以及各包需要的 settings/connection/conversation/command/toolview API。
 - **信任级:** 不可信客户端。所有强制在服务端。
-- **测试:** `action-policy.test.ts`、`email-draft-toolview.test.ts`（3，含转发）、`markitdownAttachments.test.ts`、`admin-console.test.ts`、`sections.test.ts`。
-- **运行状态:** 活跃（构建产物作为生成输出被跟踪）。
+- **构建/输出:** 八个包各有被跟踪的 `lib/client.js` 闭包工厂；setup 统一做指纹、构建、注册、解析与健康检查。
+- **运行状态:** core/sidebar/workspace 强制；五个可选包默认启用且可独立禁用。
 
-## 2. 管理控制台（浏览器，`/admin`）
+## 2. 管理控制台功能（`dsh-soc-agent-admin`，浏览器 `/admin`）
 
-- **路径:** `packages/soc-agent-client/src/client/AdminConsole.tsx`
+- **路径:** `packages/soc-agent-admin/src/client/AdminConsole.tsx`、`packages/soc-agent-client/src/client/core/AdminUnavailable.tsx`
 - **职责:** 独立管理面：服务状态、智能体上下文、访问与审批、只写凭据的 AI 提供商。
-- **入口:** `window.location.pathname` 的 `/admin` 分支（`sections.test.ts` 断言）；由 `host.js` 路由 `GET /admin` 服务。
+- **入口:** 核心拥有 `/admin` root 并注入 `soc.admin.content` 子槽位；本功能包填充该槽位；由 `host.js` 路由 `GET /admin` 服务。
 - **输入/输出:** `/admin/auth/me|login|logout`；RPC `get-settings`、`test-splunk`（实时桥接探测）、`test-subscription-server`、`get-admin-action-catalog`；settings/credentials/LLM API。
 - **状态:** 经 `settings.mutate` + `expectedRevision` 乐观并发的设置命名空间。
 - **信任级:** 服务端逐端点要求管理员；机密只写。
-- **测试:** `admin-console.test.ts`、`sections.test.ts`。
-- **运行状态:** 活跃，仅管理员。
+- **测试:** `packages/soc-agent-admin/tests/admin-console.test.ts`、`sections.test.ts`。
+- **运行状态:** 默认活跃、仅管理员、可独立禁用；禁用时保留核心安全回退页。
 
 ## 3. SOC 宿主插件（`soc-agent-admin-host` → `dsh-soc-agent/host`）
 
@@ -65,7 +64,7 @@
 - **输入/输出:** 入：带元数据的 MCP 调用；出：`success`/`failure` 信封；SOAP 到 Zimbra；HTTPS 到订阅；Postgres 读。
 - **状态:** Postgres 应用会话（令牌解密）、LRU 32 的身份绑定邮件服务；**不持久化草稿**。
 - **信任级:** 以认证用户的 Zimbra 令牌执行；拒绝 `account_id` 选择。
-- **测试:** 10 个 Python 测试文件 / 39 测试，含 `test_server_tools.py`（精确 28 工具面）与 `test_schema.py`（迁移）。
+- **测试:** 10 个 Python 测试文件 / 48 测试，含 `test_server_tools.py`（精确 28 工具面）与 `test_schema.py`（迁移）。
 - **运行状态:** 活跃（配置后拉起失败即致命）。
 
 ## 6. Zimbra 域服务

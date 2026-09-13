@@ -13,7 +13,7 @@
 
 | File | Purpose | Key symbols / facts |
 |---|---|---|
-| `setup.sh` | Setup doctor: bootstrap, `--check`, `--plugins`, `--rebuild` | `run_prereq_checks`, `collect_parameters`, `write_files`, `ensure_python_server`, `ensure_harness_ready` (fingerprint-gated; SOC client drift repair), `ensure_external_plugins`, `ensure_soc_bundle`, `PLUGIN_NAMES` (hardcoded 2) |
+| `setup.sh` | Setup doctor: bootstrap, `--check`, `--plugins`, `--rebuild` | `run_prereq_checks`, `collect_parameters`, `write_files`, `ensure_python_server`, `ensure_harness_ready` (fingerprint-gated; eight SOC browser-bundle drift repair), `ensure_external_plugins`, `ensure_soc_bundle`, `SOC_CLIENT_MATRIX`, `PLUGIN_NAMES` (hardcoded 2) |
 | `update.sh` | Clean-tree ff-only update + `setup.sh --plugins` | refuses arguments; never stashes |
 | `requirements.txt` | External plugin specs (2, count-validated) | `@linxin666/dsh-client-ui-skin-center@^0.2.5`, `github:a179-sanae/dsh-auto-collapse#cd21c04…` |
 | `AGENTS.md` | Mandatory agent operating policy | identity, isolation, untrusted content, evidence, email, Splunk, skills list |
@@ -66,27 +66,21 @@
 
 `unified_mcp_server/splunk/**` (34 files), `splunk_service.py`, `detection.py`, and 12 Splunk-related test files were deleted (see [REPOSITORY_MAP.md](REPOSITORY_MAP.md) "What changed"). Their symbols are intentionally absent from this index.
 
-## `packages/soc-agent-client/`
+## `packages/soc-agent-*/` — modular browser packages
 
 | File | Purpose | Key symbols |
 |---|---|---|
-| `src/index.ts` | Node half: register settings schemas | `apply` (namespaces `soc-agent-markitdown-attachments`, `soc-action-approval`) |
-| `src/action-approval-settings.ts` | Shared schema | `SOC_ACTION_APPROVAL_NAMESPACE`, `SocActionMode`, `SocActionState`, `SocActionApprovalSettingsSchema` |
-| `src/attachment-settings.ts` / `attachment-constants.ts` | Attachment limit schema | defaults 5 files / 10 MB / 50 MB / 200 k / 500 k chars |
-| `src/client/index.ts` | Browser mount | `apply(ctx)`; `/admin` branch; slots `shell.overlay` (AuthGate), `conversation.input.left` (SocActionPolicyMenu), `tool.call.toolview` (draft), `settings.plugin.item`; `api.folders = undefined` |
-| `src/client/AuthGate.tsx` | Login overlay | `readAuth` (`GET /auth/me`), `login` (`POST /auth/login`), `logout`; 30 s + focus polling |
-| `src/client/AdminConsole.tsx` | Admin console | `ADMIN_PAGES` (connections / agent-context / access-approvals / providers), `AccessApprovalsSettings` (`settings.mutate` + `get-admin-action-catalog`), `ProviderSettings` (`credentials.set/unset`, `llm.discoverModels`), `ServiceStatusPanel` |
-| `src/client/SocActionPolicyMenu.tsx` | Per-session mode menu | Full access / SOC mode via `readActionMode` |
-| `src/client/actionPolicy.ts` | RPC helper | `readActionMode` (`get-action-policy` / `set-action-mode`; fails closed) |
-| `src/client/EmailDraftToolview.tsx` | Draft UI | `parseEnvelope`, state machine `editing|sending|sent|failed|discarded`, `window.confirm('Send this email now?')`, `send-email` RPC requiring `sent === true`, signature apply, `data-dshcf-preserve` |
-| `src/client/emailDraft.ts` | Draft helpers | `ZIMBRA_DRAFT_TOOL_NAME`, `parseRecipientText`, `draftFromForm` |
-| `src/client/markitdownAttachments.ts` | Attachment controller | `MarkItDownDocumentController` (`convert` two workers, cache keyed by limits, `release`) |
-| `src/client/MarkItDownDocuments.tsx` / `MarkItDownAttachmentSettings.tsx` | Composer rail + limits card | `openMarkItDownPicker`, `AttachmentSettingsController` (`scope.set/unset`) |
-| `src/client/SocActionApprovalSettings.tsx` | Catalog sanitizer | `validCatalog` |
-| `src/client/{ZimbraSettings,settings-common}.ts` | Remaining shared settings helpers (slimmed) + status-only Zimbra card | `CHANNEL`, `rpc`, `TestStatus`. **Removed this round:** `SplunkSettings.ts`, `SubscriptionServerSettings.ts` and their exports (the Splunk status now lives in the AdminConsole Connections page via the live bridge probe) |
-| `src/client/CiticBrand.tsx` | Branding | "Sentinel" mark/wordmark |
-| `tsdown.config.ts` | Build | `clientBundle('dsh-soc-agent-client', ['src/index.ts'])` → tracked `lib/` |
-| `tsconfig.json` | TypeScript config | strict TS for `src/**`; consumed by tsdown and the tsx test loader |
+| `soc-agent-client/src/index.ts` | Mandatory Node half | `apply` registers `soc-action-approval`; no optional feature imports |
+| `soc-agent-client/src/client/contract.ts` | Core browser contract | `SocClientRuntime`, `socClient`, `socSurface`, `SOC_CONFIG_CHANNEL`, `soc.admin.content` declaration |
+| `soc-agent-client/src/client/core/AuthGate.tsx` / `AdminUnavailable.tsx` | Mandatory browser surfaces | auth overlay; core-owned `/admin` root and safe feature-disabled fallback |
+| `soc-agent-sidebar/src/client/` | Isolated sidebar | standard `sidebar` owner, branding/workspace/settings/footer child slots, pinned layout/styles |
+| `soc-agent-workspace/src/client/` | Isolated workspace | workspace browser + conversation picker, search/group/reorder/actions, reversible folders guard |
+| `soc-agent-brand/src/client/` | Optional branding | `CiticBrand` sidebar and conversation hero contributions |
+| `soc-agent-admin/src/client/` | Optional admin UI | `AdminConsole`, RPC helper, `soc.admin.content` child-slot owner |
+| `soc-agent-action-policy/src/client/` | Optional end-user mode selector | `SocActionPolicyMenu`, `readActionMode` / `setActionMode` helper |
+| `soc-agent-attachments/src/client/` | Optional attachments | MarkItDown provider, two-worker controller, composer rail, command, settings card/schema |
+| `soc-agent-email-draft/src/client/` | Optional email draft UI | editable draft/forward tool view, signature helper, `send-email` RPC |
+| each `tsdown.config.ts`, `package.json`, `lib/` | Bundle/build boundary | one tracked `lib/client.js` per package; all eight are registered by `setup.sh` |
 
 ## Skills, patches, docs
 

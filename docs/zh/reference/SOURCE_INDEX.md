@@ -61,23 +61,21 @@
 | `auth_cli.py` | 认证命令（分发表） | `dispatch_command`: `login`、`logout`、`send-email`（门 + `forward_message_id`）、`list-signatures` |
 | `admin_cli.py` | 管理命令 | `get-settings`、`test-subscription-server`、`convert-attachment`、`migrate`（现执行 `migrate(store)` 应用迁移）；拒绝设置写入/账户/邮件 |
 
-## `packages/soc-agent-client/`
+## `packages/soc-agent-*/` — 模块化浏览器包
 
 | 文件 | 用途 | 关键符号 |
 |---|---|---|
-| `src/index.ts` | Node 半: 注册设置 schema | `apply` |
-| `src/action-approval-settings.ts` | 共享 schema | `SOC_ACTION_APPROVAL_NAMESPACE`、`SocActionMode/State` |
-| `src/attachment-settings.ts` / `attachment-constants.ts` | 附件限额 schema | 默认 5 / 10 MB / 50 MB / 200 k / 500 k |
-| `src/client/index.ts` | 浏览器挂载 | `/admin` 分支、槽位、`api.folders = undefined`；遗留卡导出已删 |
-| `src/client/AuthGate.tsx` | 登录遮罩 | `readAuth`、`login`、`logout`、30 秒轮询 |
-| `src/client/AdminConsole.tsx` | 管理控制台 | 四页、`useStatus`/`StatusNotice`（重试）、`AccessApprovalsSettings`、`ProviderSettings` |
-| `src/client/SocActionPolicyMenu.tsx` | 会话模式菜单 | Full access / SOC mode |
-| `src/client/actionPolicy.ts` | RPC 助手 | `readActionMode`（失败关闭） |
-| `src/client/EmailDraftToolview.tsx` | 草稿/转发 UI | `parseEnvelope`、状态机、`window.confirm`、`send-email`（要求 `sent === true`）、`data-dshcf-preserve` |
-| `src/client/emailDraft.ts` | 草稿助手 | `ZIMBRA_DRAFT_TOOL_NAME`、`ZIMBRA_FORWARD_DRAFT_TOOL_NAME`、`forward_message_id`、`forwarded_message`、`draftFromForm(form, forwardMessageId?)` |
-| `src/client/markitdownAttachments.ts` 等 | 附件控制器/界面 | `MarkItDownDocumentController`（双 worker + 缓存） |
-| `src/client/{ZimbraSettings,settings-common}.ts` | 共享设置助手（精简） | `CHANNEL`、`rpc`、`TestStatus`。**已删:** `SplunkSettings.ts`、`SubscriptionServerSettings.ts` |
-| `tsdown.config.ts` / `tsconfig.json` | 构建/TS 配置 | `clientBundle(...)` → 被跟踪 `lib/` |
+| `soc-agent-client/src/index.ts` | 强制 Node 核心 | 注册 `soc-action-approval`；导出 `./client` 契约；不导入可选 UI |
+| `soc-agent-client/src/client/contract.ts` | 核心浏览器契约 | `SocClientRuntime`、`socClient`、`socSurface`、`SOC_CONFIG_CHANNEL`、`soc.admin.content` |
+| `soc-agent-client/src/client/core/` | 强制浏览器 UI | `AuthGate`、核心 `/admin` root 与安全回退 |
+| `soc-agent-sidebar/src/client/` | 隔离侧栏 | 标准 sidebar owner、子槽位、固定布局/样式 |
+| `soc-agent-workspace/src/client/` | 隔离工作区 | 浏览器/选择器、搜索/分组/重排/操作、可恢复 folders 守卫 |
+| `soc-agent-brand/src/client/` | 可选品牌 | 侧栏与 conversation hero 品牌贡献 |
+| `soc-agent-admin/src/client/` | 可选管理 | 通过 `soc.admin.content` 子槽位挂载完整 `/admin` |
+| `soc-agent-action-policy/src/client/` | 可选动作策略 | Full access / SOC mode 菜单与失败关闭 RPC 助手 |
+| `soc-agent-attachments/src/client/` | 可选附件 | MarkItDown provider、双 worker 控制器、rail、command、设置卡/schema |
+| `soc-agent-email-draft/src/client/` | 可选邮件草稿 | 可编辑草稿/转发 tool view、签名与发送助手 |
+| 每个包的 `tsdown.config.ts` / `tsconfig.json` / `lib/` | 构建/TS 配置 | 每个包一个被跟踪 `lib/client.js`，由 setup 统一注册 |
 
 ## 技能、补丁、文档
 

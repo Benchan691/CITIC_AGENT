@@ -1,0 +1,70 @@
+{
+  "name": "dsh-soc-agent-attachments",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Optional MarkItDown document attachment and settings feature.",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "dsh-soc-agent-client",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-commands",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-plugins",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "build": "pnpm run build:types && node ../../vendor/deepseek-harness/node_modules/tsdown/dist/run.mjs",
+    "build:types": "node ../../vendor/deepseek-harness/node_modules/typescript/bin/tsc -p tsconfig.types.json",
+    "test": "node --import ../../vendor/deepseek-harness/node_modules/tsx/dist/esm/index.mjs --test tests/*.test.ts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "dsh-soc-agent-client": "workspace:*",
+    "@deepseek-ai/dsh-settings": "workspace:*",
+    "@deepseek-ai/schemastery": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-connection": "*",
+    "@deepseek-ai/dsh-client-runtime": "*",
+    "@deepseek-ai/dsh-client-ui-commands": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-settings-plugins": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "dsh-soc-agent-client": "*",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:*",
+    "@deepseek-ai/dsh-client-connection": "workspace:*",
+    "@deepseek-ai/dsh-client-runtime": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-commands": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-conversation": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-settings": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-settings-plugins": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-slots": "workspace:*",
+    "dsh-soc-agent-client": "workspace:*",
+    "@deepseek-ai/dsh-settings": "workspace:*",
+    "@deepseek-ai/schemastery": "workspace:*",
+    "@types/node": "^24.13.3",
+    "@types/react": "~18.3.1",
+    "react": "^18.2.0"
+  },
+  "files": ["lib/index.js", "lib/client.js", "lib/client.js.map", "lib/types/**/*.d.ts"]
+}

@@ -26,14 +26,15 @@
 <div class="table-wrap"><table><tbody>
 <tr><th>安装/修复</th><td><code>./setup.sh</code> 或 <code>./setup.sh --plugins</code></td></tr>
 <tr><th>宿主 JS 测试（35）</th><td><code>cd apps/soc-agent &amp;&amp; npm test</code></td></tr>
-<tr><th>客户端测试（12）</th><td><code>cd packages/soc-agent-client &amp;&amp; npm test</code></td></tr>
-<tr><th>Python 测试（39）</th><td><code>cd apps/soc-agent/server &amp;&amp; uv sync --extra test &amp;&amp; uv run pytest</code></td></tr>
-<tr><th>重建客户端 bundle</th><td><code>pnpm --filter dsh-soc-agent-client run build</code></td></tr>
+<tr><th>SOC 浏览器包测试</th><td><code>pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft test</code></td></tr>
+<tr><th>Python 测试（48）</th><td><code>cd apps/soc-agent/server &amp;&amp; uv sync --extra test &amp;&amp; uv run pytest</code></td></tr>
+<tr><th>重建 SOC 浏览器 bundle</th><td><code>pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft run build</code></td></tr>
+<tr><th>浏览器 smoke/截图</th><td><code>cd vendor/deepseek-harness &amp;&amp; pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs</code></td></tr>
 <tr><th>启动应用</th><td><code>cd vendor/deepseek-harness &amp;&amp; pnpm dsh web --no-open</code></td></tr>
 </tbody></table></div>
 <p>无活跃 lint/钩子（<code>lefthook.yml</code> 全注释）— 手动对齐周边风格。全部套件离线运行；无 skip；仓库根无 CI。</p>
 <h2 id="deps">依赖模型与生成边界</h2>
-<p>vendored harness 的工作区<strong>包含本仓库</strong>（workspace:* / link:）。根 <code>requirements.txt</code> 是外部 pnpm 插件清单（与 <code>setup.sh</code> 的 <code>PLUGIN_NAMES</code> 数量校验）；服务器 <code>pyproject.toml</code>/<code>uv.lock</code> 才是 Python 依赖。<code>lib/</code> 是 <span class="badge sensitive">被跟踪的生成产物</span> — 改后重建并一起提交。</p>
+<p>vendored harness 的工作区<strong>包含本仓库</strong>（workspace:* / link:），并解析八个 SOC 浏览器包。根 <code>requirements.txt</code> 是外部 pnpm 插件清单（与 <code>setup.sh</code> 的 <code>PLUGIN_NAMES</code> 数量校验）；服务器 <code>pyproject.toml</code>/<code>uv.lock</code> 才是 Python 依赖。每个 <code>packages/soc-agent-*/lib/</code> 都是 <span class="badge sensitive">被跟踪的生成产物</span> — 改后重建对应包并一起提交。</p>
 <h2 id="recipe">改一个 MCP 工具 — 六合同步清单</h2>
 <ol>
 <li><code>tool-inventory.js</code> 加名（标签/kind）。</li>
@@ -45,7 +46,7 @@
 <li><a href="#gaps">覆盖缺口</a></li></ol>
 <p>vendor 变更经 <code>cordis.patch.yml</code> 行、<code>patches/*.patch</code>、或预设保持可复现 — 绝不编辑 vendored 源码。<strong>Schema 变更</strong>走新的 <code>migrations/NNN_*.sql</code>（advisory 锁、台账）。</p>
 <h2 id="gaps">覆盖缺口</h2>
-    <p>无端到端浏览器测试；转发链路分段测试；SQL 替身运行；<code>setup.sh</code>/<code>update.sh</code> 未测；仓库根无 CI。细节：<a href="../../zh/reference/TEST_COVERAGE_MATRIX.md">测试覆盖矩阵（中文）</a>。</p>
+    <p>浏览器 smoke 使用确定性 fixture 与截图基线；转发链路和 SQL 仍为分段/替身测试；<code>setup.sh</code>/<code>update.sh</code> 仍需部署环境校验；仓库根无 CI。细节：<a href="../../zh/reference/TEST_COVERAGE_MATRIX.md">测试覆盖矩阵（中文）</a>。</p>
     </article>
     <nav class="pager" aria-label="分页"><a href="security.html">← 安全</a><a href="operations.html">运维 →</a></nav>
   </main>

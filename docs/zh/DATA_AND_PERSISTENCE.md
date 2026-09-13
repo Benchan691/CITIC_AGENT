@@ -21,7 +21,7 @@
 | **按用户工作区目录** | Node 宿主（归属代理） | `MCP_SERVER_ROOT/.data/soc-workspaces/<userId>/[general]` | 用户会话/工作工件 | 目录 = 用户 id | 无（文件系统权限；由代理按用户限定） |
 | **Harness 状态** | Node 宿主 | `.data/`、`.state/`（gitignored） | 会话、预设等 | harness 内部 | harness 内部 |
 | **setup 指纹** | `setup.sh` | `.data/harness-{install,build}.sha256` | 门控安装/构建的内容哈希 | — | — |
-| **被跟踪的客户端 bundle** | 构建 | `packages/soc-agent-client/lib/` | 浏览器/Node bundle | — | — |
+| **被跟踪的 SOC 浏览器 bundles** | 构建 | `packages/soc-agent-*/lib/` | core、隔离界面和可选 feature 的浏览器 bundle | — | — |
 | **本地账户文件（遗留）** | Python 管理/兼容 | `.data/zimbra_accounts.enc` + `.key`（Fernet；`0o600`；原子替换） | 存储的邮箱凭据 | 账户 id | Fernet |
 
 **Postgres 表:** `soc_users`、`soc_app_sessions`（含用户/过期索引）、`soc_session_revocations`、`soc_workspace_owners`、`soc_session_owners`（含索引）、`soc_folder_owners`、`soc_bootstrap`、`soc_schema_migrations`（迁移台账）、`app_config`（加密设置）、`zimbra_accounts`（遗留）。`002_remove_catalog.sql` 按标记删除八张遗留目录表。

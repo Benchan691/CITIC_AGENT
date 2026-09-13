@@ -104,8 +104,8 @@
 
 | 症状 | 可能原因 | 安全诊断 | 处置 | 验证 |
 |---|---|---|---|---|
-| UI 改动不出现 | 被跟踪的 `lib/` 未重建 | 对比 `lib/client.js` 时间戳与 src | `pnpm --filter dsh-soc-agent-client run build`；刷新 | 改动可见 |
-| setup 报 SOC 客户端漂移 | bundle 含允许列表之外的 `require()` | 阅读 setup 输出 | 重跑 setup（自动重建） | 漂移检查通过 |
+| UI 改动不出现 | 某个被跟踪的 SOC 浏览器 bundle 未重建 | 对比负责该功能的 `packages/soc-agent-*/lib/client.js` 与源码 | `./setup.sh --plugins`（或重建负责该功能的包）；刷新 | 改动可见 |
+| setup 报 SOC 浏览器 bundle 漂移 | bundle 含允许列表之外的 `require()` | 阅读 setup 输出中的包名 | 重跑 setup（自动重建八包矩阵） | 漂移检查通过 |
 | `/admin` 返回 503 | harness 前端 index 未找到（构建产物缺失） | `setup.sh --check` 构建产物段 | `./setup.sh --plugins --rebuild` | `/admin` 可服务 |
 | 应用加载但全部失效 | Python 服务器死亡（拉起失败致命 — 更可能是 env/存储问题） | 启动日志；在 `apps/soc-agent/server` 冒烟跑 `uv run unified-mcp-server` | 修 env/uv；重启 | 工具响应 |
 

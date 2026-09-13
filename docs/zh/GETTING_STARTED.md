@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 前置要求、四种安装形态、如何安全准备配置、如何启动应用、首次无损验证，以及首启常见故障。
 
-**通俗概述。** 一个脚本 — `setup.sh`（"setup doctor"）— 负责检查前置要求、交互式收集配置（写入两个限权 `.env` 文件）、安装依赖、构建内置 harness，并把 SOC 产品装配进 harness 的 web profile。它不启动任何服务：应用由你用一条命令自行启动。第二个脚本 `update.sh` 在干净的工作树上快进更新并重跑修复/装配流程。
+**通俗概述。** 一个脚本 — `setup.sh`（"setup doctor"）— 负责检查前置要求、交互式收集配置（写入两个限权 `.env` 文件）、安装依赖、构建内置 harness 和八个 SOC 浏览器包，并把 SOC 产品装配进 harness 的 web profile。它不启动任何服务：应用由你用一条命令自行启动。第二个脚本 `update.sh` 在干净的工作树上快进更新并重跑修复/装配流程。
 
 ---
 
@@ -60,7 +60,7 @@ pnpm dsh web --no-open
 
 打开 `http://127.0.0.1:3080`（摘要会打印；远程访问通常用 `ssh -L 3080:127.0.0.1:3080 user@host`）。Node 宿主加载 web profile，拉起 Python `soc_agent` stdio 服务器，并在配置齐全时连接 `splunk_mcp` 桥接。Python 启动失败是致命的（`failOnStartupError: true`）；缺少 Splunk 端点/令牌只会禁用桥接并打一条日志。
 
-客户端改动后的重建：`pnpm --filter dsh-soc-agent-client run build`（或 `./setup.sh --plugins`，它会检测 bundle 漂移并修复）。参见 [DEVELOPMENT.md](DEVELOPMENT.md)。
+浏览器改动后的重建：重建对应的 SOC 包，或运行 `./setup.sh --plugins`，它会检测并修复八个浏览器产物的漂移。参见 [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) 与 [DEVELOPMENT.md](DEVELOPMENT.md)。
 
 ## 5. 首次无损验证
 
@@ -83,7 +83,7 @@ pnpm dsh web --no-open
 | 完全没有 Splunk 工具 | setup/`--check` 现在要求官方 MCP 连接；缺端点+令牌时桥接保持禁用 | 设好 `SPLUNK_MCP_ENDPOINT` + `SPLUNK_TOKEN`（见 [CONFIGURATION.md](CONFIGURATION.md)）；日志中查 "official Splunk MCP bridge disabled" |
 | 管理控制台拒绝登录 | 宿主启动时 `SOC_ADMIN_EMAIL`/`SOC_ADMIN_PASSWORD` 不对；管理员会话在内存中，宿主重启即登出 | 修好 `.env` 后重启宿主；重新登录 |
 | "Stored Zimbra accounts are no longer supported" | 调用了遗留账户 RPC | 预期拒绝；请用 Zimbra 登录 |
-| 修改 `packages/soc-agent-client/src` 后界面陈旧 | 被跟踪的 `lib/` 产物未重建 | `pnpm --filter dsh-soc-agent-client run build` 或 `./setup.sh --plugins` |
+| 修改 `packages/soc-agent-*/src` 后界面陈旧 | 所属的被跟踪 `lib/` 产物未重建 | 重建对应包或运行 `./setup.sh --plugins` |
 | profile 中出现多余/过期插件 | `requirements.txt` 与 profile 漂移 | `./setup.sh --plugins` 会裁剪到受管集合 |
 
 更多内容: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。下一步: [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md)（你刚启动的是什么）、[CONFIGURATION.md](CONFIGURATION.md)（每个变量）、[DEPLOYMENT_AND_OPERATIONS.md](DEPLOYMENT_AND_OPERATIONS.md)（运维生命周期）。
@@ -93,7 +93,7 @@ pnpm dsh web --no-open
 - `setup.sh`（各阶段、各模式、写入文件、`PLUGIN_NAMES`）、`update.sh`、`requirements.txt`
 - `apps/soc-agent/cordis.patch.yml`（`failOnStartupError`、桥接 env）、`apps/soc-agent/splunk-bridge.js`（`resolveOfficialSplunkConfig`）
 - `apps/soc-agent/ownership.js`（缺少管理员凭据即抛错）、`apps/soc-agent/host.js`（`serveAdminPage`）
-- `packages/soc-agent-client/src/client/AuthGate.tsx`（Sentinel 登录）、`apps/soc-agent/server/.env.example`（变量名）
+- `packages/soc-agent-client/src/client/core/AuthGate.tsx`（Sentinel 登录）、`apps/soc-agent/server/.env.example`（变量名）
 - 根目录 `README.md`（启动命令、端口 3080）
 
 ## 假设与未知

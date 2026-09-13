@@ -57,10 +57,10 @@ Bootstrap/repair: schema is `IF NOT EXISTS` at startup (`ensureSchema`); one-tim
 
 | Path | Generated from | Consumer |
 |---|---|---|
-| `packages/soc-agent-client/lib/index.js` | `src/index.ts` (tsdown) | Node half of the plugin (`main`) |
-| `packages/soc-agent-client/lib/client.js` + `.map` | `src/client/**` (tsdown, closure-factory artifact `window.__ModuleLoader__.load({id:"dsh-soc-agent-client", …})`) | Browser module loader |
+| `packages/soc-agent-*/lib/index.js` | each package's `src/index.ts` (tsdown) | Node half of each plugin (`main`) |
+| `packages/soc-agent-*/lib/client.js` + `.map` | each package's browser `src/client/**` (tsdown closure-factory artifact) | Browser module loader; eight independent SOC bundles, with the core contract shared through the `socClient` service |
 
-Drift detection: `setup.sh` checks that every literal `require()` in `lib/client.js` is in an allowlist and rebuilds on violation; `--rebuild` forces regeneration.
+Drift detection: `setup.sh` checks every literal `require()` in all eight SOC browser bundles against the allowlist and rebuilds on violation; `--rebuild` forces regeneration.
 
 ## 5. Transient state (deliberately not persisted)
 

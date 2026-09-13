@@ -26,9 +26,9 @@
 | 参数收集 | 单一清单驱动提示与检查：PostgreSQL、管理员凭据、加密密钥、**官方 Splunk MCP 端点+令牌（必填）**、Zimbra、订阅、MarkItDown；校验 Postgres URI（正则 + `psql` 探测）；留空自动生成加密密钥。传统 REST Splunk 字段已移除 | 仅缺失/非法项重新询问；已有值成为默认 |
 | `write_files` | 播种/更新 `server/.env`（保留注释；可选键仅在有值时写入）与 harness `.env`（仅两个键）；chmod 600；确保 `.gitignore` 覆盖 `.env` | 当 shell 导出值与写入值不同时给出警告（导出优先） |
 | `ensure_python_server` | `uv sync --python 3.12`（启用 LLM 时加 `--extra markitdown-llm`） | 失败记录警告并继续 |
-| `ensure_harness_ready` | 指纹门控的 `pnpm install --frozen-lockfile` + 构建（指纹：锁文件+包清单 → 安装；harness+客户端源 → 构建）；校验产物（`apps/web/dist/index.html`、`mcp-client/lib/index.js`） | `--rebuild` 绕过指纹；SOC 客户端 bundle 漂移（require 允许列表）触发客户端重建 |
+| `ensure_harness_ready` | 指纹门控的 `pnpm install --frozen-lockfile` + 构建（指纹：锁文件+包清单 → 安装；harness+八个 SOC 浏览器包源码 → 构建）；校验 `apps/web/dist/index.html`、`mcp-client/lib/index.js` 与每个 `packages/soc-agent-*/lib/client.js` | `--rebuild` 绕过指纹；任一 SOC 浏览器 bundle 漂移会触发浏览器包重建 |
 | `ensure_external_plugins` | 把 pnpm 补丁复制进 profile（逐字节比较）、编辑 `pnpm-workspace.yaml` 的 `patchedDependencies`、安装 `requirements.txt` 两个 spec（`pnpm dsh plugin --profile web add`）、**清理受管集合之外的过期插件**、复核 deps+bundles | 重跑即修复；从 `requirements.txt` 删除一行会在下次运行传播到所有机器 |
-| `ensure_soc_bundle` | 把 `apps/soc-agent` + `packages/soc-agent-client` 注册进 web profile；校验 `dsh-soc-agent/auth-host`、`dsh-soc-agent/host`、`dsh-soc-agent-client`、`@deepseek-ai/dsh-time-context` 与外部插件的解析 | 可重入 |
+| `ensure_soc_bundle` | 把 `apps/soc-agent`、强制核心、隔离侧栏/工作区及五个可选 SOC 浏览器包注册进 web profile；校验全部包与 `dsh-soc-agent/auth-host`、`dsh-soc-agent/host`、`@deepseek-ai/dsh-time-context` 及外部插件的解析 | 可重入 |
 | 摘要 | 打印掩码值、写入文件、警告、下一步 | **不启动任何服务** |
 
 `--check` 执行只读审计（前置、按优先级的每个参数、Splunk MCP 必配、明文 HTTP 策略、插件解析、profile 补丁/注册、过期插件、构建产物、SOC 漂移、解析）并以失败数 exit 1。
@@ -37,7 +37,7 @@
 
 生命周期图见英文站 [site/operations.html](../site/operations.html)；可编辑源 [diagrams/build-test-deploy.mmd](../diagrams/build-test-deploy.mmd)。
 
-权威源 →（客户端：tsdown → **被跟踪**的 `lib/`；harness：pnpm 构建 → 未跟踪 dist）→ profile 装配（`~/.dsh/profiles/web`：manifest bundle、补丁副本）→ 运行时（Node 宿主加载 profile；拉起 Python 子进程）。指纹让生命周期可复现：相同输入跳过相同工作。
+权威源 →（八个 SOC 浏览器包：tsdown → **被跟踪**的 `lib/`；harness：pnpm 构建 → 未跟踪 dist）→ profile 装配（`~/.dsh/profiles/web`：manifest bundle、补丁副本）→ 运行时（Node 宿主加载 profile；浏览器挂载被选择的功能插件；拉起 Python 子进程）。指纹让生命周期可复现：相同输入跳过相同工作。
 
 ## 4. 启动、重启、健康
 
@@ -60,7 +60,7 @@
 |---|---|
 | 一次糟糕的更新 | **手动** `git reset`/`git checkout` 上一提交（update.sh 从不操纵历史），然后 `./setup.sh --plugins`；重启 |
 | profile 装配损坏 | `./setup.sh --plugins` 重新添加/清理/复核受管插件集合；`--rebuild` 强制完整 harness 重建 |
-| 客户端 bundle 漂移 | setup 检测并自动重建（require 允许列表检查） |
+| SOC 浏览器 bundle 漂移 | setup 检测并自动重建受影响的 SOC 浏览器包（require 允许列表检查） |
 | Python 环境失败 | 在 `apps/soc-agent/server` 执行 `uv sync --python 3.12`；重跑 setup |
 | `.env` 编辑错误 | 重跑 `./setup.sh`（已有值成为默认；仅非法项重问）— 或从你自己的 0600 文件备份恢复 |
 | 密钥轮换后加密行不可读 | 恢复旧的 `APP_SETTINGS_ENCRYPTION_KEY`（运行时拒绝静默继续；错误指明修复方法） |

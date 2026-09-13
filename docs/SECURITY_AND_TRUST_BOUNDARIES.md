@@ -79,7 +79,7 @@
 | Instruction-in-data resistance (`AGENTS.md` model policy) | Operational assumption | Model-level; no technical guarantee possible |
 | Untrusted-content boundary for tool results | Documented control | Envelopes + generic `internal_error` (no third-party text leakage) |
 | Background/background-instruction caps (64 KiB render, 1 MiB source) | Documented + test evidence | `background.test.js` |
-| Attachment conversion bounds + archive safety + encrypted-file detection | Documented + test evidence | `test_zimbra_service.py`, client tests |
+| Attachment conversion bounds + archive safety + encrypted-file detection | Documented + test evidence | `test_zimbra_service.py`, SOC browser-package tests |
 | Remote error bodies withheld (subscription), upstream exception text withheld (Python) | Documented + test evidence | `test_email_service.py`, `test_config.py` |
 
 ### Platform

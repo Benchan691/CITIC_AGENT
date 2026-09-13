@@ -34,8 +34,8 @@
 <tr><th>订阅</th><td><code>not_configured</code>；<code>email_server_unavailable</code>；<code>email_server_auth_failed</code></td><td>管理状态检查；修三个 env 变量；查外部服务</td></tr>
 <tr><th>附件</th><td><code>attachment_too_large</code>；<code>attachment_encrypted</code>；截断提示</td><td>限额按设计（默认 10MB/200k，硬顶 100MB/2M）；同步 MarkItDown extras</td></tr>
 <tr><th>数据库</th><td><code>authentication_required</code>；解密 RuntimeError；<code>schema_migration_failed</code></td><td>URI 链；恢复加密密钥；修 URI 后启动重试迁移</td></tr>
-<tr><th>UI/构建</th><td>UI 改动不出现；<code>/admin</code> 503</td><td>重建客户端 bundle；<code>--rebuild</code> 补 harness 产物</td></tr>
-<tr><th>测试</th><td>计数失败；源码护栏失败；schemastery 导入错误；Python 缺模块</td><td>按六合同步清单更新；<code>./setup.sh --plugins</code> / <code>uv sync --extra test</code></td></tr>
+<tr><th>UI/构建</th><td>UI 改动不出现；<code>/admin</code> 503</td><td>重建对应 SOC 浏览器 bundle；<code>--rebuild</code> 补 harness 产物</td></tr>
+<tr><th>测试</th><td>计数失败；源码护栏或浏览器 smoke 失败；schemastery 导入错误；Python 缺模块</td><td>查看失败的包/浏览器输出；按六合同步清单更新；<code>./setup.sh --plugins</code> / <code>uv sync --extra test</code></td></tr>
 </tbody></table></div>
 <h2 id="escalation">上报证据</h2>
 <p><code>git rev-parse HEAD</code> 与分支、失败命令完整输出、含 <code>soc_correlation_id</code> 的日志行、策略意外时的确切工具名与管理端审批状态。<strong>分享前脱敏凭据与客户数据。</strong></p>

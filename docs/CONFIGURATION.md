@@ -76,7 +76,7 @@ Source: [diagrams/configuration-precedence.mmd](diagrams/configuration-precedenc
 |---|---|
 | `.env` value (either file) | Host restart (env read at startup); Python children restart with the host |
 | Admin-console settings (`app_config`) | Nothing — live-applied (`applies: 'live'` schema), session action-mode overrides take effect immediately |
-| Client source change | `pnpm --filter dsh-soc-agent-client run build` (tracked `lib/`) + browser reload |
+| Browser source change | Rebuild the owning `dsh-soc-agent-*` package (or run `./setup.sh --plugins`) + browser reload |
 | Skill file change | New session (skills are loaded per session) — verify at next session start |
 | `cordis.patch.yml` change | Host restart; run `./setup.sh --plugins` if profile wiring is affected |
 | Harness/vendor change | `./setup.sh --plugins` (fingerprint-gated rebuild) or `--rebuild` |

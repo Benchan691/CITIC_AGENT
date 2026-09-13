@@ -61,6 +61,7 @@ flowchart LR
 | [SECURITY_AND_TRUST_BOUNDARIES.md](SECURITY_AND_TRUST_BOUNDARIES.md) | 威胁视角下的所有控制与残余风险 |
 | [DATA_AND_PERSISTENCE.md](DATA_AND_PERSISTENCE.md) | 存储结构、Schema、加密、保留、数据归属 |
 | [USER_INTERFACE_AND_ACTION_MODES.md](USER_INTERFACE_AND_ACTION_MODES.md) | 界面区域、Full access vs SOC mode、每工具状态、草稿 Send |
+| [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) | 隔离 sidebar/workspace 架构、必需 core、可选 feature 插件、setup、snapshot 与回滚 |
 | [CONFIGURATION.md](CONFIGURATION.md) | 配置来源、优先级、机密、校验 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 布局、工具链、构建、补丁、变更清单 |
 | [TESTING.md](TESTING.md) | 测试分层、运行方式、覆盖地图、缺口 |

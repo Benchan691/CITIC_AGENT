@@ -50,10 +50,10 @@
 
 | 路径 | 生成自 | 消费者 |
 |---|---|---|
-| `packages/soc-agent-client/lib/index.js` | `src/index.ts`（tsdown） | 插件的 Node 半（`main`） |
-| `packages/soc-agent-client/lib/client.js` + `.map` | `src/client/**`（tsdown，闭包工厂工件 `window.__ModuleLoader__.load({id:"dsh-soc-agent-client", …})`） | 浏览器模块加载器 |
+| `packages/soc-agent-*/lib/index.js` | 各包 `src/index.ts`（tsdown） | 各插件的 Node 半（`main`） |
+| `packages/soc-agent-*/lib/client.js` + `.map` | 各包浏览器 `src/client/**`（tsdown 闭包工厂） | 浏览器模块加载器；八个独立 SOC bundle 通过 `socClient` service 共享核心契约 |
 
-漂移检测: `setup.sh` 检查 `lib/client.js` 中每个字面 `require()` 是否在允许列表内，违规即重建；`--rebuild` 强制再生成。
+漂移检测: `setup.sh` 检查八个 SOC 浏览器 bundle 中每个字面 `require()` 是否在允许列表内，违规即重建；`--rebuild` 强制再生成。
 
 ## 5. 瞬时状态（刻意不持久化）
 

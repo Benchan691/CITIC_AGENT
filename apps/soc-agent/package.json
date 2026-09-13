@@ -5,7 +5,8 @@
   "description": "SOC Agent product bundle with Splunk and Zimbra investigation features.",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "test:browser": "cd ../../vendor/deepseek-harness && pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs"
   },
   "files": [
     "cordis.patch.yml",
@@ -34,6 +35,11 @@
     "dsh-soc-agent-sidebar": "workspace:*",
     "dsh-soc-agent-workspace": "workspace:*",
     "dsh-soc-agent-client": "workspace:*",
+    "dsh-soc-agent-brand": "workspace:*",
+    "dsh-soc-agent-admin": "workspace:*",
+    "dsh-soc-agent-action-policy": "workspace:*",
+    "dsh-soc-agent-attachments": "workspace:*",
+    "dsh-soc-agent-email-draft": "workspace:*",
     "pg": "^8.16.3"
   },
   "dsh": {

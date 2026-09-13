@@ -1,11 +1,3 @@
-/**
- * Workspace plugin, browser half. Two registrations: WorkspaceBrowser fills
- * the sidebar shell's `sidebar.workspaces` hole (the whole browsing region),
- * and WorkspacePicker fills the conversation hero's picker hole
- * (`conversation.hero.workspace` — both hero forms). Both read real Host
- * folders through the global useWorkspaces hook. Export discipline follows
- * packages/client/AGENTS.md.
- */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
 import { type WorkspaceKey } from './locales.ts';
 export type { DirectoryFlowOwnerProps, DirectoryFlowSlotName, WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspacePickerInjected, WorkspacePickerProps, } from './contract/slots.ts';

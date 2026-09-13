@@ -2,21 +2,23 @@
   "name": "dsh-soc-agent-client",
   "private": true,
   "version": "0.1.0",
-  "description": "Web settings for SOC Agent Splunk/Zimbra connections.",
+  "description": "Mandatory SOC Agent browser runtime, authentication gate, and policy contract.",
   "type": "module",
   "main": "lib/index.js",
   "files": [
     "lib/index.js",
     "lib/client.js",
-    "lib/client.js.map"
+    "lib/client.js.map",
+    "lib/types/**/*.d.ts"
   ],
   "exports": {
-    ".": "./lib/index.js",
-    "./client": "./lib/client.js",
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "node ../../vendor/deepseek-harness/node_modules/tsdown/dist/run.mjs",
+    "build:types": "node ../../vendor/deepseek-harness/node_modules/typescript/bin/tsc -p tsconfig.types.json",
+    "build": "pnpm run build:types && node ../../vendor/deepseek-harness/node_modules/tsdown/dist/run.mjs",
     "test": "node --import ../../vendor/deepseek-harness/node_modules/tsx/dist/esm/index.mjs --test tests/*.test.ts"
   },
   "dsh": {
@@ -24,11 +26,8 @@
       "inject": [
         "@deepseek-ai/dsh-client-connection",
         "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-client-ui-tool",
-        "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-ui-commands",
-        "@deepseek-ai/dsh-client-ui-settings-plugins"
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-slots"
       ],
       "platform": "web"
     }
@@ -38,24 +37,14 @@
     "@deepseek-ai/dsh-client-connection": "*",
     "@deepseek-ai/dsh-client-runtime": "*",
     "@deepseek-ai/dsh-client-ui-slots": "*",
-    "@deepseek-ai/dsh-client-ui-tool": "*",
-    "@deepseek-ai/dsh-client-ui-settings": "*",
-    "@deepseek-ai/dsh-client-ui-conversation": "*",
-    "@deepseek-ai/dsh-client-ui-commands": "*",
-    "@deepseek-ai/dsh-client-ui-settings-plugins": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
     "react": "^18.2.0"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:*",
     "@deepseek-ai/dsh-client-connection": "workspace:*",
     "@deepseek-ai/dsh-client-runtime": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-conversation": "workspace:*",
-    "dsh-soc-agent-sidebar": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-tool": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-settings": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-commands": "workspace:*",
     "@deepseek-ai/dsh-client-ui-layout": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-settings-plugins": "workspace:*",
     "@deepseek-ai/dsh-client-ui-slots": "workspace:*",
     "@deepseek-ai/dsh-settings": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:*",

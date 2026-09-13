@@ -23,7 +23,7 @@
 | Main external systems | Zimbra (mail, identity), an external official Splunk MCP server, a subscription web service, PostgreSQL. |
 | Two MCP servers | `soc_agent` — local Python stdio server, Zimbra + subscription tools only (28 tools incl. forward drafts). `splunk_mcp` — a client-side bridge to the external official Splunk MCP endpoint, read-only by allowlist (13 tools). |
 | Safety model | Allowlisted tools only; read-only by default; per-tool ask/auto-run/disabled states; Full access vs SOC mode; email delivery only via an explicit UI Send confirmation; harness shell/filesystem tools disabled. |
-| Persistence | PostgreSQL (sessions, ownership, encrypted config), per-user workspace directories under `.data/soc-workspaces/`, optional SQLite evidence store, tracked generated client bundle in `lib/`. |
+| Persistence | PostgreSQL (sessions, ownership, encrypted config), per-user workspace directories under `.data/soc-workspaces/`, optional SQLite evidence store, tracked generated browser bundles in each SOC package's `lib/`. |
 
 ## Smallest useful architecture diagram
 
@@ -61,6 +61,7 @@ Editable source: [diagrams/system-context.mmd](diagrams/system-context.mmd). Ful
 | [SECURITY_AND_TRUST_BOUNDARIES.md](SECURITY_AND_TRUST_BOUNDARIES.md) | Threat-oriented view of every control and residual risk |
 | [DATA_AND_PERSISTENCE.md](DATA_AND_PERSISTENCE.md) | Stores, schemas, encryption, retention, ownership of data |
 | [USER_INTERFACE_AND_ACTION_MODES.md](USER_INTERFACE_AND_ACTION_MODES.md) | UI areas, Full access vs SOC mode, per-tool states, draft Send |
+| [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) | Isolated sidebar/workspace architecture, mandatory core, optional feature plugins, setup, snapshots, and rollback |
 | [CONFIGURATION.md](CONFIGURATION.md) | Configuration sources, precedence, secrets, validation |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Layout, toolchain, builds, patches, change recipes |
 | [TESTING.md](TESTING.md) | Test layers, how to run, coverage map, gaps |

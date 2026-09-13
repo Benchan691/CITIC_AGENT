@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 系统的四个层级（上下文 → 容器 → 组件 → 代码地图），每条进程与信任边界的位置，vendored harness 如何被打补丁，以及数据跨越每条边界时发生了什么。
 
-**通俗概述。** 一个 Node 进程在内置 harness 上向浏览器提供 UI 并承载五个产品插件。它把 Python MCP 服务器作为 stdio 子进程拉起（`soc_agent`），可选地作为客户端连到外部官方 Splunk MCP 服务器（`splunk_mcp`），经该 Python 子进程以 SOAP 访问 Zimbra、以 HTTPS 访问订阅服务，并把身份/归属/配置持久化到 PostgreSQL。模型的每一次工具调用都要过两道过滤 — harness 注册表与 SOC 宿主策略 — 变更类操作还需人工审批。
+**通俗概述。** 一个 Node 进程在内置 harness 上向浏览器提供 UI 并承载 SOC 产品插件。浏览器侧拆成强制核心、隔离侧栏/工作区，以及五个可独立选择的功能插件；官方侧栏/工作区插件被禁用，但其源码保持冻结。它把 Python MCP 服务器作为 stdio 子进程拉起（`soc_agent`），可选地作为客户端连到外部官方 Splunk MCP 服务器（`splunk_mcp`），经该 Python 子进程以 SOAP 访问 Zimbra、以 HTTPS 访问订阅服务，并把身份/归属/配置持久化到 PostgreSQL。模型的每一次工具调用都要过两道过滤 — harness 注册表与 SOC 宿主策略 — 变更类操作还需人工审批。
 
 **前置要求:** [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md)；术语见 [reference/GLOSSARY.md](reference/GLOSSARY.md)。
 
@@ -48,7 +48,7 @@ flowchart LR
 | **控制服务器**（`unified_mcp_server.control_server`） | 认证操作的常驻 JSON 行通道 | `ownership.js startControlChannel`（`SOC_CONTROL_CHANNEL=off` 时改为一次性 `auth_cli`） | PostgreSQL、Zimbra（发送） |
 | **管理 CLI 子进程**（`unified_mcp_server.admin_cli`） | 每个管理操作一次性运行 | `host.js runAdmin` → `python-command.js` | 订阅服务（测试）、PostgreSQL（migrate） |
 | **schema 迁移子进程**（`unified_mcp_server.schema migrate`） | 应用 SQL 迁移（URI 经 stdin 传入） | `ownership.js ensureSchema` / 管理 `migrate` RPC | PostgreSQL |
-| **浏览器** | harness web 运行时 + SOC 客户端 bundle（经 `window.__ModuleLoader__` 加载的闭包工厂） | — | 仅 Node 宿主 |
+| **浏览器** | harness web 运行时 + 八个 SOC 浏览器 bundle（经 `window.__ModuleLoader__` 加载的闭包工厂：核心、隔离侧栏/工作区、五个可选功能包） | — | 仅 Node 宿主 |
 
 网络边界：浏览器↔宿主（HTTP/WS、Cookie），宿主↔Splunk MCP（出站 HTTPS），Python↔Zimbra/订阅（出站），其余都是本机 IPC（stdio 管道）或回环数据库。进程边界要点：Python 子进程永远收不到 `SOC_ADMIN_*` 环境变量（`python-command.js`、`env_loader.py` 三处剔除）；控制通道是私有父子管道，其授权依据是每个载荷中的 `session_id`。
 
@@ -90,11 +90,11 @@ flowchart TB
 
 | 层 | 权威源码 | 生成产物 | 测试 |
 |---|---|---|---|
-| Node 插件 | `apps/soc-agent/*.js`（含 `tool-inventory.js`、`python-command.js`） | — | `tests/*.test.js`（35） |
+| Node 插件 | `apps/soc-agent/*.js`（含 `tool-inventory.js`、`python-command.js`） | — | `tests/*.test.js`（41） |
 | 装配 | `apps/soc-agent/cordis.patch.yml`、`package.json` | — | `skills.test.js`（补丁断言） |
-| Python 服务器 | `server/unified_mcp_server/**`（活跃：`server.py`、`config.py`、`auth.py`、`request_context.py`、`schema.py`、`migrations/`、`postgres_store.py`、`errors/responses`、`blocking_io`、`env_loader`、`zimbra/**`、`email/`、`attachment_converter.py`、`control_server.py`、`admin_cli.py`、`auth_cli.py`） | — | 39 个测试 |
+| Python 服务器 | `server/unified_mcp_server/**`（活跃：`server.py`、`config.py`、`auth.py`、`request_context.py`、`schema.py`、`migrations/`、`postgres_store.py`、`errors/responses`、`blocking_io`、`env_loader`、`zimbra/**`、`email/`、`attachment_converter.py`、`control_server.py`、`admin_cli.py`、`auth_cli.py`） | — | 48 个测试 |
 | 已移除 | Python Splunk 栈（`splunk/**`、`splunk_service.py`、`detection.py`）及其 12 个测试文件 | — | — |
-| 客户端 | `packages/soc-agent-client/src/**` | `lib/*`（**被跟踪**） | 12 个测试 |
+| 浏览器包 | `packages/soc-agent-*/src/**` | `packages/soc-agent-*/lib/*`（**被跟踪**） | 各包测试 + 浏览器 smoke/screenshot |
 | 技能 | `skills/*/SKILL.md` | — | `skills.test.js` 内容断言 |
 | Vendor | `vendor/deepseek-harness/**`（`0.1.1-rc.2`；外层仓库是其工作区成员） | harness 构建产物（未跟踪） | 上游 |
 

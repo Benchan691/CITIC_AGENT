@@ -7,7 +7,7 @@
 
 **What you will understand:** the system at four levels (context → containers → components → code map), where every process and trust boundary sits, how the vendored harness is patched, and what happens to data as it crosses each boundary.
 
-**Plain-language summary.** One Node process serves the browser UI and hosts five product plugins on the vendored harness. It spawns the Python MCP server as a stdio child (`soc_agent`), optionally connects out to an external official Splunk MCP server (`splunk_mcp`), talks SOAP to Zimbra through that Python child, HTTPS to a subscription service, and persists identity/ownership/config in PostgreSQL. Every tool call the model makes is filtered twice — by the harness registry and by the SOC host policy — and mutations need human approval.
+**Plain-language summary.** One Node process serves the browser UI and hosts the SOC product plugins on the vendored harness. The browser side is split into a mandatory core, isolated sidebar/workspace packages, and five independently selectable feature packages; official sidebar/workspace plugins are disabled while their source remains frozen. The host spawns the Python MCP server as a stdio child (`soc_agent`), optionally connects out to an external official Splunk MCP server (`splunk_mcp`), talks SOAP to Zimbra through that Python child, HTTPS to a subscription service, and persists identity/ownership/config in PostgreSQL. Every tool call the model makes is filtered twice — by the harness registry and by the SOC host policy — and mutations need human approval.
 
 **Prerequisites:** [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md); vocabulary in [reference/GLOSSARY.md](reference/GLOSSARY.md).
 
@@ -42,7 +42,7 @@ Source: [diagrams/runtime-containers.mmd](diagrams/runtime-containers.mmd).
 | **`soc_agent` Python server** | FastMCP stdio server, 28 tools | `dsh-mcp-client` per `cordis.patch.yml` (`uv run unified-mcp-server`, `failOnStartupError: true`) | Zimbra SOAP, subscription REST, PostgreSQL |
 | **Control server** (`unified_mcp_server.control_server`) | Persistent JSON-line channel for authenticated ops | `ownership.js startControlChannel` (or one-shot `auth_cli` when `SOC_CONTROL_CHANNEL=off`) | PostgreSQL, Zimbra (send) |
 | **Admin CLI child** (`unified_mcp_server.admin_cli`) | One-shot per admin operation | `host.js runAdmin` → `python-command.js` | Subscription service (test), PostgreSQL (migrate) |
-| **Browser** | Harness web runtime + the SOC client bundle (`lib/client.js` closure factory loaded via `window.__ModuleLoader__`) | — | Node host only |
+| **Browser** | Harness web runtime + eight SOC browser bundles (`lib/client.js` closure factories loaded via `window.__ModuleLoader__`): core, isolated sidebar/workspace, and five optional feature packages | — | Node host only |
 
 Network boundaries: browser↔host (HTTP/WS, cookies), host↔Splunk MCP (outbound HTTPS), Python↔Zimbra/subscription (outbound), everything else is local IPC (stdio pipes) or loopback DB. Process boundary notes: the Python server never receives `SOC_ADMIN_*` env vars (stripped in `env_loader.py`, `childEnvironment()`, and `runAdmin`); the control channel is a private parent-child pipe whose authorization is the `session_id` in each payload.
 
@@ -88,9 +88,9 @@ Dependency highlights:
 |---|---|---|---|
 | Node plugins | `apps/soc-agent/*.js` | — | `apps/soc-agent/tests/*.test.js` |
 | Wiring | `apps/soc-agent/cordis.patch.yml`, `package.json` | — | `skills.test.js` (patch assertions) |
-| Python server | `apps/soc-agent/server/unified_mcp_server/**` (active: `server.py`, `config.py`, `auth.py`, `request_context.py`, `postgres_store.py`, `errors/responses`, `blocking_io`, `env_loader`, `zimbra/**`, `email/`, `attachment_converter.py`, `control_server.py`, `admin_cli.py`, `auth_cli.py`, `detection.py`) | — | `unified_mcp_server/tests/` (75 tests) |
+| Python server | `apps/soc-agent/server/unified_mcp_server/**` (active: `server.py`, `config.py`, `auth.py`, `request_context.py`, `schema.py`, `migrations/`, `postgres_store.py`, `errors/responses`, `blocking_io`, `env_loader`, `zimbra/**`, `email/`, `attachment_converter.py`, `control_server.py`, `admin_cli.py`, `auth_cli.py`) | — | `unified_mcp_server/tests/` (48 tests) |
 | Schema | `unified_mcp_server/schema.py`, `migrations/*.sql` | — | `test_schema.py` (3) |
-| Client | `packages/soc-agent-client/src/**` | `packages/soc-agent-client/lib/*` (**tracked**) | `packages/soc-agent-client/tests/*.test.ts` |
+| Browser packages | `packages/soc-agent-*/src/**` | `packages/soc-agent-*/lib/*` (**tracked**) | package-local tests plus `apps/soc-agent/tests/browser-smoke.test.mjs` |
 | Skills | `skills/*/SKILL.md` | — | `skills.test.js` content invariants |
 | Vendor | `vendor/deepseek-harness/**` (pinned `0.1.1-rc.2`; workspace includes this repo) | harness build outputs (untracked) | upstream |
 

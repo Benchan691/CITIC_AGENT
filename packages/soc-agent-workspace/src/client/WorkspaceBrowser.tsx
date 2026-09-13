@@ -103,6 +103,22 @@ function compareSessionRecency(a: SessionId, b: SessionId, byId: SessionListStat
   return a < b ? -1 : 1
 }
 
+/** Read the structured RPC code carried by runtime delete failures. */
+function rpcErrorCode(reason: unknown): string | undefined {
+  if (reason === null || typeof reason !== 'object') return undefined
+  const value = reason as {
+    code?: unknown
+    rpcError?: { code?: unknown }
+  }
+  if (typeof value.rpcError?.code === 'string') return value.rpcError.code
+  return typeof value.code === 'string' ? value.code : undefined
+}
+
+/** A bulk clear can safely treat an already-absent session as complete. */
+function isMissingSessionDelete(reason: unknown): boolean {
+  return rpcErrorCode(reason) === 'session-not-found'
+}
+
 /** Reconcile one editable order account and apply its activity-promotion policy. */
 function nextSessionOrderAccount({
   sessionIds, previousOrder, previousUpdatedAt, list, orderBy, sortByRecency,
@@ -1058,18 +1074,30 @@ export function WorkspaceBrowser({
     setClearing(true)
     setClearError(null)
     for (const sessionId of target.remainingSessionIds) {
+      let alreadyAbsent = false
       try {
         await deleteSession(sessionId)
       } catch (reason: unknown) {
-        setClearing(false)
-        setClearError(reason instanceof Error ? reason.message : String(reason))
-        return
+        if (!isMissingSessionDelete(reason)) {
+          setClearing(false)
+          setClearError(reason instanceof Error ? reason.message : String(reason))
+          return
+        }
+        // The desired state is already true. Remove this stale membership
+        // from the captured target so it cannot keep the modal open or cause
+        // the next clear attempt to repeat the same not-found error.
+        alreadyAbsent = true
       }
       deletedCount += 1
       remaining = remaining.slice(1)
       setClearTarget(current => current === null || current.workspaceId !== target.workspaceId
         ? current
-        : { ...current, remainingSessionIds: remaining, deletedCount })
+        : {
+          ...current,
+          ...(alreadyAbsent ? { sessionIds: current.sessionIds.filter(id => id !== sessionId) } : {}),
+          remainingSessionIds: remaining,
+          deletedCount,
+        })
     }
     setClearing(false)
   }

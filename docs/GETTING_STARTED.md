@@ -7,7 +7,7 @@
 
 **What you will understand:** prerequisites, the four setup modes, how configuration is prepared safely, how to start the app, a first non-destructive verification, and the common first-run failures.
 
-**Plain-language summary.** One script — `setup.sh`, the "setup doctor" — checks prerequisites, collects configuration interactively (writing two `.env` files with restrictive permissions), installs dependencies, builds the vendored harness, and wires the SOC product into the harness web profile. It starts nothing: you launch the app yourself with one command. A second script, `update.sh`, fast-forwards a clean checkout and re-runs the repair/wiring pass.
+**Plain-language summary.** One script — `setup.sh`, the "setup doctor" — checks prerequisites, collects configuration interactively (writing two `.env` files with restrictive permissions), installs dependencies, builds the vendored harness and all eight SOC browser packages, and wires the SOC product into the harness web profile. It starts nothing: you launch the app yourself with one command. A second script, `update.sh`, fast-forwards a clean checkout and re-runs the repair/wiring pass.
 
 **Prerequisites:** none.
 
@@ -64,7 +64,7 @@ pnpm dsh web --no-open
 
 Open `http://127.0.0.1:3080` (the summary prints this; remote access typically via `ssh -L 3080:127.0.0.1:3080 user@host`). The Node host loads the web profile, spawns the Python `soc_agent` stdio server, and (when configured) connects the `splunk_mcp` bridge. A failed Python spawn is fatal by design (`failOnStartupError: true`); a missing Splunk endpoint/token merely disables the bridge with a log line.
 
-Rebuilding after client changes: `pnpm --filter dsh-soc-agent-client run build` (or `./setup.sh --plugins`, which detects bundle drift and repairs it). See [DEVELOPMENT.md](DEVELOPMENT.md).
+Rebuilding after browser changes: rebuild the owning package, or run `./setup.sh --plugins`, which detects bundle drift and repairs all eight browser artifacts. See [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## 5. First non-destructive verification
 
@@ -87,7 +87,7 @@ Never paste real secrets into shell commands (shell history). Prefer the interac
 | Setup/`--check` fails on Splunk, or no Splunk tools at all | The official MCP connection is now **required**; the bridge stays disabled without endpoint + token | Set `SPLUNK_MCP_ENDPOINT` + `SPLUNK_TOKEN` (see [CONFIGURATION.md](CONFIGURATION.md)); look for "official Splunk MCP bridge disabled" in the log |
 | Admin console rejects login | Wrong `SOC_ADMIN_EMAIL`/`SOC_ADMIN_PASSWORD` env at host start; admin sessions are in-memory so host restarts log you out | Restart host after fixing `.env`; re-login |
 | "Stored Zimbra accounts are no longer supported" | Calling a legacy account RPC | Expected refusal; log in with Zimbra instead |
-| Client UI looks stale after editing `packages/soc-agent-client/src` | Tracked `lib/` bundle not rebuilt | `pnpm --filter dsh-soc-agent-client run build` or `./setup.sh --plugins` |
+| SOC UI looks stale after editing `packages/soc-agent-*/src` | The owning tracked `lib/` bundle was not rebuilt | Rebuild that package or run `./setup.sh --plugins` |
 | Profile has extra/stale plugins | `requirements.txt` vs profile drift | `./setup.sh --plugins` prunes to the managed set |
 
 More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md). Next steps: [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md) (what you just started), [CONFIGURATION.md](CONFIGURATION.md) (every variable), [DEPLOYMENT_AND_OPERATIONS.md](DEPLOYMENT_AND_OPERATIONS.md) (operations lifecycle).
@@ -97,7 +97,7 @@ More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md). Next steps: [PRODUCT_OVERVIEW.md
 - `setup.sh` (stages, modes, written files, `PLUGIN_NAMES`), `update.sh`, `requirements.txt`
 - `apps/soc-agent/cordis.patch.yml` (`failOnStartupError`, bridge env), `apps/soc-agent/splunk-bridge.js` (`resolveOfficialSplunkConfig`)
 - `apps/soc-agent/ownership.js` (`resolveAdminCredentials` throwing when unset), `apps/soc-agent/host.js` (`serveAdminPage`)
-- `packages/soc-agent-client/src/client/AuthGate.tsx` (Sentinel login), `apps/soc-agent/server/.env.example` (variable names)
+- `packages/soc-agent-client/src/client/core/AuthGate.tsx` (Sentinel login), `apps/soc-agent/server/.env.example` (variable names)
 - Root `README.md` (run command, port 3080)
 
 ## Assumptions and unknowns

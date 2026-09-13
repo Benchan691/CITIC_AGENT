@@ -16,14 +16,14 @@
 ## 1. 安装 / 引导与更新生命周期
 
 **触发:** 运维执行 `./setup.sh`（或 bootstrap 副本）/ `./update.sh`。
-**路径:** 前置检查（node/pnpm/uv）→ 参数收集（环境优先级；机密 `read -rs`）→ 写 `apps/soc-agent/server/.env` + `vendor/deepseek-harness/.env`（chmod 600）→ `uv sync --python 3.12` → 指纹门控的 `pnpm install --frozen-lockfile` + 构建（指纹在 `.data/harness-*.sha256`；`--rebuild` 强制）→ profile 补丁副本 + 插件安装/清理（受管集合）→ SOC bundle 注册 + 解析校验 → 摘要（掩码值；不启动服务）。
-**失败:** 前置缺失（循环或记录警告）；脏树阻止分支切换（从不 stash）；SOC bundle 漂移触发重建；`--check` 汇总失败计数后 exit 1。官方 Splunk MCP 端点 + 令牌现为**必填**。
+**路径:** 前置检查（node/pnpm/uv）→ 参数收集（环境优先级；机密 `read -rs`）→ 写 `apps/soc-agent/server/.env` + `vendor/deepseek-harness/.env`（chmod 600）→ `uv sync --python 3.12` → 指纹门控的 `pnpm install --frozen-lockfile` + 构建（指纹在 `.data/harness-*.sha256`；`--rebuild` 强制）→ profile 补丁副本 + 插件安装/清理（受管集合包含 app、强制核心、隔离侧栏/工作区和五个可选 SOC 浏览器包）→ SOC bundle 注册 + 解析校验 → 摘要（掩码值；不启动服务）。
+**失败:** 前置缺失（循环或记录警告）；脏树阻止分支切换（从不 stash）；任一 SOC 浏览器 bundle 漂移触发重建；`--check` 汇总失败计数后 exit 1。官方 Splunk MCP 端点 + 令牌现为**必填**。
 **证据:** `setup.sh` 各阶段；`update.sh`（干净树 ff-only + `--plugins`）。
 
 ## 2. 开发构建与应用启动
 
 **触发:** `pnpm dsh web --no-open`。
-**路径:** harness 加载 web profile → cordis loader 应用 `cordis.patch.yml`（禁用编码工具、启用技能/计划/问询、插入 SOC 插件）→ 插件 `apply(ctx)`：auth-host（路由、传输圈栏、Postgres 连接池）、host（RPC、钩子、管理页、背景刷新）、桥接（配置齐全时连接 `splunk_mcp`；否则日志禁用）、`soc-agent-mcp`（拉起 `uv run unified-mcp-server`；迁移在启动时应用；`load_server_env` 读取 `.env`）→ web 服务监听 3080。
+**路径:** harness 加载 web profile → cordis loader 应用 `cordis.patch.yml`（禁用官方侧栏/工作区与编码工具、启用技能/计划/问询、插入隔离 SOC 表面与选中的功能包）→ 插件 `apply(ctx)`：auth-host（路由、传输圈栏、Postgres 连接池）、host（RPC、钩子、管理页、背景刷新）、强制 SOC client core（认证遮罩、runtime service、admin 回退）、隔离侧栏/工作区、可选功能包、桥接（配置齐全时连接 `splunk_mcp`；否则日志禁用）、`soc-agent-mcp`（拉起 `uv run unified-mcp-server`；迁移在启动时应用；`load_server_env` 读取 `.env`）→ web 服务监听 3080。
 **失败:** Python 拉起失败是致命的（`failOnStartupError: true`）；桥接配置缺失只禁用桥接；缺 `SOC_ADMIN_EMAIL/PASSWORD` 在 auth 插件构造时抛错；Postgres 不可达 → 存储退化为空操作，下游登录失败关闭。
 **证据:** `cordis.patch.yml`；`ownership.js` 构造器；`splunk-bridge.js apply`。
 
@@ -52,7 +52,7 @@ sequenceDiagram
 
 ## 4. 会话、工作区与设置的归属检查
 
-浏览器的每个 API 调用都经过 `createScopedApiProxy`：九个域（`sessions`、`subagents`、`workspace`、`folders`、`events`、`downloads`、`skills`、`agentPresets`、`goals`）被包装为 (a) 授权阶段拒绝跨用户 id（11 个变更方法有测试）；(b) 规范化 — `sessions.create` 由**服务端生成** `session-<uuid>` id（防客户端占位）并默认指向用户的 General 工作区；(c) 列表/读取结果的 Postprocess 过滤；(d) `respond` 守卫 — 审批答复只能落在本用户挂起的请求上（否则 `{accepted:false, reason:'not-pending'}`）。工作区路径必须是单个目录名并解析在 `MCP_SERVER_ROOT/.data/soc-workspaces/<userId>/` 之下（`realpath` 规范化 + 包含性校验；穿越 → `workspace-invalid-path`）。General 工作区不可改名/删除（`workspace-protected`）。
+浏览器的每个 API 调用都经过 `createScopedApiProxy`：九个域（`sessions`、`subagents`、`workspace`、`folders`、`events`、`downloads`、`skills`、`agentPresets`、`goals`）被包装为 (a) 授权阶段拒绝跨用户 id（11 个变更方法有测试）；(b) 规范化 — `sessions.create` 由**服务端生成** `session-<uuid>` id（防客户端占位）并默认指向用户的 General 工作区；(c) 列表/读取结果的 Postprocess 过滤；(d) `respond` 守卫 — 审批答复只能落在本用户挂起的请求上（否则 `{accepted:false, reason:'not-pending'}`）。`dsh-soc-agent-workspace` 在自己生命周期内使 client-side `api.folders` 不可用，并在 teardown 恢复原值。工作区路径必须是单个目录名并解析在 `MCP_SERVER_ROOT/.data/soc-workspaces/<userId>/` 之下（`realpath` 规范化 + 包含性校验；穿越 → `workspace-invalid-path`）。General 工作区不可改名/删除（`workspace-protected`）。
 **证据:** `ownership.js createScopedApiProxy`、`userWorkspaceRoot`、`isWithinPath`；`auth.test.js` IDOR 测试。
 
 ## 5. MCP 服务器发现与工具允许列表

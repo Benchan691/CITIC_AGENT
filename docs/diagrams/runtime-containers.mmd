@@ -1,6 +1,6 @@
 %% Runtime containers — process topology (verified against 56c8dd2)
 flowchart TB
-    browser["Browser<br/>(harness web runtime + dsh-soc-agent-client bundle)"]
+    browser["Browser<br/>(harness web runtime + eight dsh-soc-agent-* bundles)"]
     host["Node host process<br/>cordis plugins: auth-host · host · splunk-bridge · mcp-client · connection"]
     pyagent["Python: soc_agent<br/>unified-mcp-server (stdio)<br/>27 Zimbra/subscription tools"]
     control["Python: control_server<br/>(persistent JSON-line channel)"]
