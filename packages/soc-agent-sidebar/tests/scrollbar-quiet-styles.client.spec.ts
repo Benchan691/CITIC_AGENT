@@ -5,10 +5,10 @@
  * sheet states which half.
  */
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-const css = readFileSync(resolve(import.meta.dirname, '../src/client/SidebarRoot.module.css'), 'utf8')
+const css = readFileSync(fileURLToPath(new URL('../src/client/SidebarRoot.module.css', import.meta.url)), 'utf8')
 /** Declarations only: the sheet's prose names the properties it explains. */
 const declarationText = css.replace(/\/\*[\s\S]*?\*\//g, ' ')
 
@@ -27,7 +27,7 @@ describe('SidebarRoot.module.css quiet column', () => {
 
   it('leaves the gutter reservation to the scrolling region', () => {
     // Hiding the thumb must not move a row: the reservation lives on the list
-    // (soc-agent-workspace), so the column states colour only.
+    // (ui-workspace), so the column states colour only.
     expect(declarationText).not.toMatch(/scrollbar-gutter/)
   })
 })

@@ -1,0 +1,19 @@
+{
+  "repository": "https://github.com/deepseek-ai/deepseek-harness",
+  "tag": "dsh-v0.1.5-rc.2",
+  "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+  "version": "0.1.5-rc.2",
+  "packageManager": "pnpm@11.7.0",
+  "fileCount": 10178,
+  "inventorySha256": "aa78d2f3cc2763ccd96f4b3ef47d712bce79577f6ee4fdaaec38fc0229ea9602",
+  "executableFiles": [
+    "scripts/merge-translation-pairing-driver.sh",
+    "scripts/check-vendor-manifest.sh",
+    ".agents/skills/record-browser-gif/scripts/encode_gif.py",
+    "scripts/wine-windows-gates.sh",
+    "packages/experimental/webworker-packer/bin.js",
+    "vendor/cordis/bin.js",
+    "scripts/check-expected-filenames.sh",
+    "scripts/prepare-ci-bubblewrap.sh"
+  ]
+}

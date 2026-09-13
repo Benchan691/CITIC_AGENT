@@ -1,53 +1,33 @@
 /**
  * Settings shell root: the sidebar-foot trigger row plus the centered modal
  * panel (figma 501:29947, 1080x700) with the section nav rail. The shell is
- * a pure composition face — every piece of text (trigger label, panel title,
+ * a pure composition face — slot-owned text (trigger label, panel title,
  * close label, sections) arrives from registrants through slots; accessible
- * names resolve to that content (trigger: its own text; dialog:
+ * names resolve from localized content (trigger: shell locale; dialog:
  * aria-labelledby the title node; close: visually-hidden slot text). Modal
  * open state and the active section id are component-local viewing state;
  * the onboarding coordinator mounts exactly one ordered registrant while the
  * sessions-derived empty-Hero fact is active. Visible dialog chrome belongs
  * to the step, so a mounted-but-deciding step paints nothing here.
  */
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
+  ConnectionIndicator,
   IconAgentPresetOutline16, IconCloseOutline16, IconDataOutline16,
   IconPersonalizationOutline16, IconSettingsOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { ConnectionIndicatorState } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
 import css from './SettingsRoot.module.css'
 
-/** Local wifi glyph for the SOC Connections settings nav row. */
-function IconWifiOutline16({ size = 16, className }: { size?: number; className?: string | undefined }) {
-  return (
-    <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 12.85a1.15 1.15 0 1 0 0-2.3 1.15 1.15 0 0 0 0 2.3Z" fill="currentColor" />
-      <path d="M5.35 9.55a3.75 3.75 0 0 1 5.3 0l.95-.95a5.1 5.1 0 0 0-7.2 0l.95.95Z" fill="currentColor" />
-      <path d="M3.25 7.45a6.75 6.75 0 0 1 9.5 0l.95-.95a8.1 8.1 0 0 0-11.4 0l.95.95Z" fill="currentColor" />
-      <path d="M1.15 5.35a9.75 9.75 0 0 1 13.7 0l.95-.95a11.1 11.1 0 0 0-15.6 0l.95.95Z" fill="currentColor" />
-    </svg>
-  )
-}
-
-/** Local clock glyph for the SOC Scheduled Tasks settings nav row. */
-function IconClockOutline16({ size = 16, className }: { size?: number; className?: string | undefined }) {
-  return (
-    <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path fillRule="evenodd" clipRule="evenodd" d="M8 1.35a6.65 6.65 0 1 0 0 13.3 6.65 6.65 0 0 0 0-13.3ZM2.65 8a5.35 5.35 0 1 1 10.7 0 5.35 5.35 0 0 1-10.7 0Z" fill="currentColor" />
-      <path d="M8.65 4.5V8.15l2.45 1.55-.7 1.1L7.35 8.7V4.5h1.3Z" fill="currentColor" />
-    </svg>
-  )
-}
+const RECOVERY_CONFIRMATION_MS = 2_000
 
 /** Nav glyph by section id; unknown ids fall back to the settings gear. */
 function navIcon(id: string) {
   if (id === 'models') return <IconDataOutline16 className={css.navIcon} size={16} />
   if (id === 'agent-presets') return <IconAgentPresetOutline16 className={css.navIcon} size={16} />
   if (id === 'plugins') return <IconPersonalizationOutline16 className={css.navIcon} size={16} />
-  if (id === 'soc-agent-connections') return <IconWifiOutline16 className={css.navIcon} size={16} />
-  if (id === 'soc-agent-schedules') return <IconClockOutline16 className={css.navIcon} size={16} />
   return <IconSettingsOutline16 className={css.navIcon} size={16} />
 }
 
@@ -78,7 +58,7 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
     return () => { document.removeEventListener('keydown', onKeyDown) }
   }, [onClose])
 
-  // Baseline focus management: entering the dialog lands on the close button.
+  // Entering the dialog focuses the close button; the root restores its trigger on close.
   const closeButton = useRef<HTMLButtonElement | null>(null)
   useEffect(() => { closeButton.current?.focus() }, [])
 
@@ -126,14 +106,24 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
  * @returns the settings shell element tree.
  */
 export function SettingsRoot(props: SettingsRootComponentProps) {
-  const { wide, useSections, useOnboardingSteps, useSessions, renderSlot } = props
+  const {
+    wide, reconnect, useConnectionState, useSections, useOnboardingSteps, useSessions, renderSlot, t,
+  } = props
   const [open, setOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
+  const [showRecovery, setShowRecovery] = useState(false)
+  const triggerButton = useRef<HTMLButtonElement | null>(null)
+  const wasOpen = useRef(open)
   const close = useCallback(() => {
     setOpen(false)
     setActiveId(undefined)
   }, [])
+  // Restore after the close commit, when the dialog can no longer own focus.
+  useEffect(() => {
+    if (wasOpen.current && !open) triggerButton.current?.focus()
+    wasOpen.current = open
+  }, [open])
   const openSection = useCallback((id: string) => {
     setActiveId(id)
     setOpen(true)
@@ -143,6 +133,8 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   // freshly localized text on locale change, and the trigger/header/close
   // seats re-render through their own outlets' subscriptions.
   const rows = useSections(s => s)
+  const connectionState = useConnectionState(state => state)
+  const previousConnectionState = useRef(connectionState)
   const onboardingSteps = useOnboardingSteps(s => s)
   const onboardingActive = useSessions(state =>
     state.phase === 'ready'
@@ -156,6 +148,19 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     setCompletedOnboarding(new Set())
   }, [onboardingActive])
 
+  useLayoutEffect(() => {
+    const previous = previousConnectionState.current
+    previousConnectionState.current = connectionState
+    if (connectionState !== 'connected') {
+      setShowRecovery(false)
+      return
+    }
+    if (previous !== 'disconnected' && previous !== 'connecting') return
+    setShowRecovery(true)
+    const timeout = window.setTimeout(() => { setShowRecovery(false) }, RECOVERY_CONFIRMATION_MS)
+    return () => { window.clearTimeout(timeout) }
+  }, [connectionState])
+
   const completeOnboardingStep = useCallback((id: string) => {
     setCompletedOnboarding((previous) => {
       if (previous.has(id)) return previous
@@ -163,17 +168,40 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     })
   }, [])
 
+  let connectionIndicator: ConnectionIndicatorState | undefined
+  if (connectionState === 'disconnected') {
+    connectionIndicator = 'disconnected'
+  } else if (connectionState === 'connecting') {
+    connectionIndicator = 'connecting'
+  } else if (showRecovery) {
+    connectionIndicator = 'recovered'
+  }
+
   return (
     <>
-      <button
-        type="button"
-        className={clsx(css.trigger, !wide && css.rail)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => { setOpen(true) }}
-      >
-        {renderSlot('settings.trigger', { wide })}
-      </button>
+      <div className={clsx(css.triggerRow, !wide && css.railRow)}>
+        <button
+          ref={triggerButton}
+          type="button"
+          className={clsx(css.trigger, !wide && css.rail)}
+          aria-label={t('trigger')}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          onClick={() => { setOpen(true) }}
+        >
+          {renderSlot('settings.trigger', { wide })}
+        </button>
+        <ConnectionIndicator
+          state={wide ? connectionIndicator : undefined}
+          disconnectedLabel={t('connection.error')}
+          reconnectLabel={t('connection.retry')}
+          connectingLabel={t('connection.connecting')}
+          recoveredLabel={t('connection.connected')}
+          reconnectActionLabel={t('connection.reconnect')}
+          restartActionLabel={t('connection.restart')}
+          onReconnect={reconnect}
+        />
+      </div>
       {open && (
         <SettingsPanel
           rows={rows}

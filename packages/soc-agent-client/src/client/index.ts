@@ -1,7 +1,7 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { ConnectionHandle } from 'dsh-soc-agent-connection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from 'dsh-soc-agent-ui-layout/client'
 import { AuthGate } from './core/AuthGate.tsx'
 import { AdminUnavailable } from './core/AdminUnavailable.tsx'
 import { createSocClientRuntime, socSurface } from './contract.ts'
@@ -17,7 +17,7 @@ export type {
 export const inject = ['slots', 'connection'] as const
 
 export function apply(ctx: ClientContext): void {
-  const connection = ctx.get('connection') as ConnectionHandle
+  const connection = ctx.get('connection') as unknown as ConnectionHandle
   const path = typeof window === 'undefined' ? '' : window.location.pathname
   const surface = socSurface(path)
   const socClient = createSocClientRuntime(connection, surface)

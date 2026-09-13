@@ -1,0 +1,35 @@
+{
+  "name": "citictel-cpc-soc-agent-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present run bundle",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "vitest run",
+    "verify:upstream": "node tooling/verify-upstream.mjs",
+    "verify:isolation": "node tooling/verify-isolation.mjs",
+    "check": "pnpm run verify:upstream && pnpm run verify:isolation && pnpm run typecheck && pnpm run test"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^22.20.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "jsdom": "29.1.1",
+    "lightningcss": "1.32.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsdown": "^0.22.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.8"
+  }
+}

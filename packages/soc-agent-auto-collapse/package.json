@@ -1,0 +1,42 @@
+{
+  "name": "dsh-soc-agent-auto-collapse",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Optional SOC compact transcript policy using the native rc.2 chat contract.",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./lib/index.js" },
+    "./client": { "types": "./src/client/index.ts", "default": "./lib/client.js" },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": ["dsh-soc-agent-client", "@deepseek-ai/dsh-client-ui-settings"],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-client-store": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-settings": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-settings": "0.1.5-rc.2",
+    "@deepseek-ai/schemastery": "3.18.2",
+    "dsh-soc-agent-client": "0.1.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-client-store": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-settings": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-settings": "0.1.5-rc.2",
+    "@deepseek-ai/schemastery": "3.18.2",
+    "dsh-soc-agent-client": "workspace:^"
+  },
+  "files": ["lib/index.js", "lib/client.js", "lib/client.js.map", "lib/types/**/*.d.ts"]
+}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import * as McpClient from '@deepseek-ai/dsh-mcp-client'
+import * as McpClient from 'dsh-soc-agent-mcp-client'
 
 test('MCP config preserves omitted, empty, and explicit tool allowlists for both transports', () => {
   for (const transport of [

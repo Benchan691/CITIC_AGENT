@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.soc-paths.json",
+  "include": [
+    "apps/soc-agent/**/*.ts",
+    "packages/*/src/**/*.ts",
+    "packages/*/src/**/*.tsx",
+    "tooling/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
+  ]
+}

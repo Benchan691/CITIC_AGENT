@@ -1,0 +1,232 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "dsh-soc-agent-action-policy": [
+        "./packages/soc-agent-action-policy/src/index.ts"
+      ],
+      "dsh-soc-agent-action-policy/client": [
+        "./packages/soc-agent-action-policy/src/client/index.ts"
+      ],
+      "dsh-soc-agent-admin": [
+        "./packages/soc-agent-admin/src/index.ts"
+      ],
+      "dsh-soc-agent-admin/client": [
+        "./packages/soc-agent-admin/src/client/index.ts"
+      ],
+      "dsh-soc-agent-agent": [
+        "./packages/soc-agent-agent/src/index.ts"
+      ],
+      "dsh-soc-agent-agent/invariant": [
+        "./packages/soc-agent-agent/src/invariant.ts"
+      ],
+      "dsh-soc-agent-agent/types": [
+        "./packages/soc-agent-agent/src/types.ts"
+      ],
+      "dsh-soc-agent-agent-instructions": [
+        "./packages/soc-agent-agent-instructions/src/index.ts"
+      ],
+      "dsh-soc-agent-agent-loop": [
+        "./packages/soc-agent-agent-loop/src/index.ts"
+      ],
+      "dsh-soc-agent-agent-loop/invariant": [
+        "./packages/soc-agent-agent-loop/src/invariant.ts"
+      ],
+      "dsh-soc-agent-api-gateway": [
+        "./packages/soc-agent-api-gateway/src/index.ts"
+      ],
+      "dsh-soc-agent-api-gateway/client": [
+        "./packages/soc-agent-api-gateway/src/client/index.ts"
+      ],
+      "dsh-soc-agent-api-gateway/types": [
+        "./packages/soc-agent-api-gateway/src/types.ts"
+      ],
+      "dsh-soc-agent-api-remotes": [
+        "./packages/soc-agent-api-remotes/src/index.ts"
+      ],
+      "dsh-soc-agent-api-remotes/client": [
+        "./packages/soc-agent-api-remotes/src/client/index.ts"
+      ],
+      "dsh-soc-agent-api-remotes/types": [
+        "./packages/soc-agent-api-remotes/src/types.ts"
+      ],
+      "dsh-soc-agent-api-settings-controller": [
+        "./packages/soc-agent-api-settings-controller/src/index.ts"
+      ],
+      "dsh-soc-agent-api-settings-controller/types": [
+        "./packages/soc-agent-api-settings-controller/src/types.ts"
+      ],
+      "dsh-soc-agent-api-workspace-files": [
+        "./packages/soc-agent-api-workspace-files/src/index.ts"
+      ],
+      "dsh-soc-agent-api-workspace-files/client": [
+        "./packages/soc-agent-api-workspace-files/src/client/index.ts"
+      ],
+      "dsh-soc-agent-api-workspace-files/types": [
+        "./packages/soc-agent-api-workspace-files/src/types.ts"
+      ],
+      "dsh-soc-agent-attachments": [
+        "./packages/soc-agent-attachments/src/index.ts"
+      ],
+      "dsh-soc-agent-attachments/client": [
+        "./packages/soc-agent-attachments/src/client/index.ts"
+      ],
+      "dsh-soc-agent-auto-collapse": [
+        "./packages/soc-agent-auto-collapse/src/index.ts"
+      ],
+      "dsh-soc-agent-auto-collapse/client": [
+        "./packages/soc-agent-auto-collapse/src/client/index.ts"
+      ],
+      "dsh-soc-agent-brand": [
+        "./packages/soc-agent-brand/src/index.ts"
+      ],
+      "dsh-soc-agent-brand/client": [
+        "./packages/soc-agent-brand/src/client/index.ts"
+      ],
+      "dsh-soc-agent-client": [
+        "./packages/soc-agent-client/src/index.ts"
+      ],
+      "dsh-soc-agent-client/client": [
+        "./packages/soc-agent-client/src/client/index.ts"
+      ],
+      "dsh-soc-agent-connection": [
+        "./packages/soc-agent-connection/src/index.ts"
+      ],
+      "dsh-soc-agent-connection/client": [
+        "./packages/soc-agent-connection/src/client/index.ts"
+      ],
+      "dsh-soc-agent-email-draft": [
+        "./packages/soc-agent-email-draft/src/index.ts"
+      ],
+      "dsh-soc-agent-email-draft/client": [
+        "./packages/soc-agent-email-draft/src/client/index.ts"
+      ],
+      "dsh-soc-agent-file-upload": [
+        "./packages/soc-agent-file-upload/src/index.ts"
+      ],
+      "dsh-soc-agent-file-upload/client": [
+        "./packages/soc-agent-file-upload/src/client/index.ts"
+      ],
+      "dsh-soc-agent-file-upload/types": [
+        "./packages/soc-agent-file-upload/src/types.ts"
+      ],
+      "dsh-soc-agent-llm-pi-ai": [
+        "./packages/soc-agent-llm-pi-ai/src/index.ts"
+      ],
+      "dsh-soc-agent-mcp-client": [
+        "./packages/soc-agent-mcp-client/src/index.ts"
+      ],
+      "dsh-soc-agent-session-controller": [
+        "./packages/soc-agent-session-controller/src/index.ts"
+      ],
+      "dsh-soc-agent-session-controller/client": [
+        "./packages/soc-agent-session-controller/src/client/index.ts"
+      ],
+      "dsh-soc-agent-session-controller/types": [
+        "./packages/soc-agent-session-controller/src/types.ts"
+      ],
+      "dsh-soc-agent-session-controller/remote-events": [
+        "./packages/soc-agent-session-controller/src/remote-events.ts"
+      ],
+      "dsh-soc-agent-session-log-export": [
+        "./packages/soc-agent-session-log-export/src/index.ts"
+      ],
+      "dsh-soc-agent-session-log-export/client": [
+        "./packages/soc-agent-session-log-export/src/client/index.ts"
+      ],
+      "dsh-soc-agent-session-persistence-jsonl": [
+        "./packages/soc-agent-session-persistence-jsonl/src/index.ts"
+      ],
+      "dsh-soc-agent-settings-file": [
+        "./packages/soc-agent-settings-file/src/index.ts"
+      ],
+      "dsh-soc-agent-sidebar": [
+        "./packages/soc-agent-sidebar/src/index.ts"
+      ],
+      "dsh-soc-agent-sidebar/client": [
+        "./packages/soc-agent-sidebar/src/client/index.ts"
+      ],
+      "dsh-soc-agent-time-context": [
+        "./packages/soc-agent-time-context/src/index.ts"
+      ],
+      "dsh-soc-agent-time-context/invariant": [
+        "./packages/soc-agent-time-context/src/invariant.ts"
+      ],
+      "dsh-soc-agent-tool-result-pruner": [
+        "./packages/soc-agent-tool-result-pruner/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-approval": [
+        "./packages/soc-agent-ui-approval/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-approval/client": [
+        "./packages/soc-agent-ui-approval/src/client/index.ts"
+      ],
+      "dsh-soc-agent-ui-chat": [
+        "./packages/soc-agent-ui-chat/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-chat/client": [
+        "./packages/soc-agent-ui-chat/src/client/index.ts"
+      ],
+      "dsh-soc-agent-ui-commands": [
+        "./packages/soc-agent-ui-commands/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-commands/client": [
+        "./packages/soc-agent-ui-commands/src/client/index.ts"
+      ],
+      "dsh-soc-agent-ui-conversation": [
+        "./packages/soc-agent-ui-conversation/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-conversation/client": [
+        "./packages/soc-agent-ui-conversation/src/client/index.ts"
+      ],
+      "dsh-soc-agent-ui-input-trigger": [
+        "./packages/soc-agent-ui-input-trigger/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-input-trigger/client": [
+        "./packages/soc-agent-ui-input-trigger/src/client/index.ts"
+      ],
+      "dsh-soc-agent-ui-layout": [
+        "./packages/soc-agent-ui-layout/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-layout/client": [
+        "./packages/soc-agent-ui-layout/src/client/index.ts"
+      ],
+      "dsh-soc-agent-ui-model-selection": [
+        "./packages/soc-agent-ui-model-selection/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-model-selection/client": [
+        "./packages/soc-agent-ui-model-selection/src/client/index.ts"
+      ],
+      "dsh-soc-agent-ui-renderer": [
+        "./packages/soc-agent-ui-renderer/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-renderer/client": [
+        "./packages/soc-agent-ui-renderer/src/client/index.ts"
+      ],
+      "dsh-soc-agent-ui-renderer/invariant": [
+        "./packages/soc-agent-ui-renderer/src/invariant.ts"
+      ],
+      "dsh-soc-agent-ui-session": [
+        "./packages/soc-agent-ui-session/src/index.ts"
+      ],
+      "dsh-soc-agent-ui-session/client": [
+        "./packages/soc-agent-ui-session/src/client/index.ts"
+      ],
+      "dsh-soc-agent-workspace": [
+        "./packages/soc-agent-workspace/src/index.ts"
+      ],
+      "dsh-soc-agent-workspace/client": [
+        "./packages/soc-agent-workspace/src/client/index.ts"
+      ],
+      "dsh-soc-agent-workspace-controller": [
+        "./packages/soc-agent-workspace-controller/src/index.ts"
+      ],
+      "dsh-soc-agent-workspace-controller/client": [
+        "./packages/soc-agent-workspace-controller/src/client/index.ts"
+      ],
+      "dsh-soc-agent-workspace-controller/types": [
+        "./packages/soc-agent-workspace-controller/src/types.ts"
+      ]
+    }
+  }
+}

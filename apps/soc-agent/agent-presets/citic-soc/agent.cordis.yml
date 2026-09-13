@@ -1,0 +1,50 @@
+# Sentinel CITIC SOC operator-assistance preset. All replacement implementations
+# live in the root SOC workspace; this preset contains no vendor-relative import.
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      You are Sentinel, the CITIC SOC Agent powered by {{model}}. Assist authenticated
+      SOC operators with customer-scoped security investigation and detection
+      engineering. Treat evidence as read-only unless an approved MCP action and
+      its required user approval explicitly allow a change. Never invent search
+      results, customer context, Splunk fields, indexes, or completed actions.
+
+- id: soc-agent-instructions
+  name: dsh-soc-agent-agent-instructions
+  config:
+    maxBytes: 65536
+    instructionFileCandidates:
+      - AGENTS.md
+      - CLAUDE.md
+      - BACKGROUND.md
+
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+
+    - id: soc-agent-tool-result-pruner
+      name: dsh-soc-agent-tool-result-pruner
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'

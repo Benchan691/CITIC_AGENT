@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+  "tag": "dsh-v0.1.5-rc.2",
+  "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+  "version": "0.1.5-rc.2",
+  "officialPackage": "@deepseek-ai/dsh-client-ui-brand-official",
+  "officialSourcePath": "packages/client/ui-brand-official",
+  "sourceSha256": "2dda53923ab6f75bf9f6054eeae799712a293aadadc95121a7a0125704e2581b"
+}

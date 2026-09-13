@@ -1,8 +1,8 @@
-import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import type { ConnectionHandle, SessionId } from 'dsh-soc-agent-connection/client'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {
   ComposerDocument, ComposerDocumentProvider, DraftAttachmentId, MarkdownAttachment,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { SessionId, SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
+} from 'dsh-soc-agent-ui-conversation/client'
 import {
   DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS, type MarkItDownAttachmentSettings,
 } from '../attachment-constants.ts'

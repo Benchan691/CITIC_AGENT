@@ -1,25 +1,13 @@
 {
-  "extends": "../../vendor/deepseek-harness/tsconfig.base.client.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
+    "emitDeclarationOnly": true,
     "declaration": true,
     "declarationMap": false,
-    "emitDeclarationOnly": true,
-    "outDir": "lib/types",
-    "rootDir": "src"
-  },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "references": [
-    { "path": "../../vendor/deepseek-harness/vendor/cordis" },
-    { "path": "../../vendor/deepseek-harness/packages/client/connection/tsconfig.client.json" },
-    { "path": "../../vendor/deepseek-harness/packages/client/runtime" },
-    { "path": "../../vendor/deepseek-harness/packages/client/ui-commands" },
-    { "path": "../../vendor/deepseek-harness/packages/client/ui-conversation" },
-    { "path": "../../vendor/deepseek-harness/packages/client/ui-settings" },
-    { "path": "../../vendor/deepseek-harness/packages/client/ui-settings-plugins" },
-    { "path": "../../vendor/deepseek-harness/packages/client/ui-slots" },
-    { "path": "../../vendor/deepseek-harness/packages/settings/settings" },
-    { "path": "../../vendor/deepseek-harness/vendor/schemastery" },
-    { "path": "../soc-agent-client/tsconfig.types.json" }
-  ]
+    "sourceMap": false,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "src",
+    "outDir": "lib/types"
+  }
 }

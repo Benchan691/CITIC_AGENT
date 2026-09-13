@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { SocAuthService, SocStateStore, closeAuthControlChannel } from './ownership.js'
 
 export const name = 'soc-agent-auth-host'
-export const inject = ['webServer', 'apiProxy', 'tools', 'agents', 'sessions']
+export const inject = ['webServer', 'tools', 'agents', 'sessions']
 
 export function apply(ctx) {
   const testCredentials = (() => {
@@ -11,9 +11,7 @@ export function apply(ctx) {
   const auth = new SocAuthService(ctx, new SocStateStore(), {
     ...(testCredentials ? { adminCredentials: testCredentials } : {}),
   })
-  const disposeTransport = auth.installTransport(ctx.webServer, ctx.apiProxy)
   ctx.effect(() => () => {
-    disposeTransport()
     void closeAuthControlChannel()
   }, 'soc-agent-auth: Harness transport integration')
   ctx.on('mcp/request-meta', async (exec, serverName, next) => {

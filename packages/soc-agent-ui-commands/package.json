@@ -1,0 +1,73 @@
+{
+  "name": "dsh-soc-agent-ui-commands",
+  "description": "Client command surface: global directory cache, '/' source, three command UI kinds, popupSelect registry",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/client/ui-commands"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./src/client/index.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "dsh-soc-agent-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "dsh-soc-agent-ui-input-trigger",
+        "dsh-soc-agent-ui-conversation"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run tests"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-client-locale": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-store": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-test-runtime": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-slots": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-commands": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-session": "0.1.5-rc.2",
+    "@types/react": "~18.3.1",
+    "clsx": "^2.0.0",
+    "dsh-soc-agent-api-remotes": "workspace:^",
+    "dsh-soc-agent-connection": "workspace:^",
+    "dsh-soc-agent-session-controller": "workspace:^",
+    "dsh-soc-agent-ui-conversation": "workspace:^",
+    "dsh-soc-agent-ui-input-trigger": "workspace:^",
+    "dsh-soc-agent-ui-renderer": "workspace:^",
+    "dsh-soc-agent-ui-session": "workspace:^",
+    "react": "^18.2.0"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ]
+}

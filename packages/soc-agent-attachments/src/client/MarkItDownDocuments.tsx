@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
-import type { ComposerDocumentsProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { ComposerDocument } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {
+  ComposerAttachmentsProps, ComposerDocument,
+} from 'dsh-soc-agent-ui-conversation/client'
 import { MarkItDownDocumentController } from './markitdownAttachments.ts'
 import css from './MarkItDownDocuments.module.css'
 
@@ -11,13 +12,18 @@ function statusText(document: ComposerDocument, converting: boolean): string {
   return 'Queued'
 }
 
-export function MarkItDownDocuments(props: ComposerDocumentsProps & { controller: MarkItDownDocumentController }) {
+export function MarkItDownDocuments(props: ComposerAttachmentsProps & { controller: MarkItDownDocumentController }) {
   const { controller, sessionId } = props
   useSyncExternalStore(controller.subscribe, controller.getVersion, controller.getVersion)
   if (sessionId === undefined) return null
-  const documents = controller.list(sessionId, props.documents.map(document => document.id))
+  const documents = controller.list(
+    sessionId,
+    props.attachments
+      .filter((attachment): attachment is ComposerDocument => attachment.kind === 'document')
+      .map(document => document.id),
+  )
   const pickerId = `soc-agent-file-picker-${sessionId}`
-  if (documents.length === 0 && !props.canAcceptDocuments) return null
+  if (documents.length === 0 && !props.canAcceptDrop) return null
   return (
     <div className={css.rail} aria-label="Attached files">
       <input
@@ -28,7 +34,7 @@ export function MarkItDownDocuments(props: ComposerDocumentsProps & { controller
         onChange={(event) => {
           const files = [...(event.currentTarget.files ?? [])]
           event.currentTarget.value = ''
-          if (files.length > 0 && props.canAcceptDocuments) props.onAddDocuments(files)
+          if (files.length > 0 && props.canAcceptDrop) props.onAddFiles(files)
         }}
       />
       {documents.map(document => (
@@ -39,8 +45,8 @@ export function MarkItDownDocuments(props: ComposerDocumentsProps & { controller
         >
           <span className={css.icon} aria-hidden="true">📎</span>
           <span className={css.name}>{document.file.name}</span>
-          <span className={css.status}>{statusText(document, props.phase === 'submitting')}</span>
-          <button className={css.remove} type="button" aria-label={`Remove ${document.file.name}`} onClick={() => props.onRemoveDocument(document.id)}>×</button>
+          <span className={css.status}>{statusText(document, document.status === 'converting')}</span>
+          <button className={css.remove} type="button" aria-label={`Remove ${document.file.name}`} onClick={() => props.onRemoveAttachment(document.id)}>×</button>
         </div>
       ))}
     </div>

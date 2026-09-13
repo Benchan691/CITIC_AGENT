@@ -1,10 +1,11 @@
 import type {
-  ConfigurableProviderView,
-  CredentialView,
-  DiscoveredModelView,
+  CredentialInfo,
+  LlmConfigurableProvider,
+  LlmDiscoveredModel,
   SettingsNamespaceView,
   SettingsPathOpView,
-} from '@deepseek-ai/dsh-client-connection/client'
+} from 'dsh-soc-agent-api-remotes/client'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import type { SocActionMode, SocActionState, SocClientRuntime } from 'dsh-soc-agent-client/client'
 import styles from './AdminConsole.module.css'
@@ -29,6 +30,10 @@ type AdminSettings = {
 }
 
 type ProviderProfile = Record<string, unknown>
+
+type ConfigurableProviderView = LlmConfigurableProvider & { readonly active?: boolean }
+type CredentialView = CredentialInfo
+type DiscoveredModelView = LlmDiscoveredModel
 
 type ProviderRow = {
   provider: ConfigurableProviderView
@@ -919,7 +924,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
       const nextModels = models.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
       if (JSON.stringify(nextModels) !== JSON.stringify(initialModels)) {
         ops.push(nextModels.length
-          ? { op: 'set', path: [...provider.settingsPath, 'models'], value: mergeModels(profile, nextModels) }
+          ? { op: 'set', path: [...provider.settingsPath, 'models'], value: mergeModels(profile, nextModels) as JsonValue }
           : { op: 'unset', path: [...provider.settingsPath, 'models'] })
       }
       if (secret.trim() && !stringValue(profile.apiKeyEnv)) {

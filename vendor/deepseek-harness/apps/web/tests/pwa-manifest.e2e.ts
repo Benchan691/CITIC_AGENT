@@ -7,13 +7,13 @@ const DIST_ROOT = fileURLToPath(new URL('../dist', import.meta.url))
 
 it('ships install metadata with the built web application', async () => {
   const index = await readFile(join(DIST_ROOT, 'index.html'), 'utf8')
-  expect(index).toContain('<link rel="manifest" href="/manifest.webmanifest" />')
+  expect(index).toContain('<link rel="manifest" href="./manifest.webmanifest" />')
 
   const manifest: unknown = JSON.parse(await readFile(join(DIST_ROOT, 'manifest.webmanifest'), 'utf8'))
   expect(manifest).toEqual({
     id: '/',
-    name: 'Sentinel',
-    short_name: 'Sentinel',
+    name: 'DeepSeek Harness',
+    short_name: 'DSH',
     start_url: '/',
     scope: '/',
     display: 'fullscreen',
@@ -26,8 +26,10 @@ it('ships install metadata with the built web application', async () => {
   })
 })
 
-it('ships the red CITIC favicon with Sentinel accessibility text', async () => {
+it('ships a favicon that switches to a light mark under dark color scheme', async () => {
   const favicon = await readFile(join(DIST_ROOT, 'favicon.svg'), 'utf8')
-  expect(favicon).toContain('fill="#d70010"')
-  expect(favicon).toContain('aria-label="Sentinel"')
+  // The light fill must live inside the dark-scheme media query, so the icon
+  // stays black in light mode and only turns white under a dark scheme.
+  expect(favicon).toMatch(/@media \(prefers-color-scheme: dark\)\s*{\s*path\s*{[^}]*fill:\s*#fff/i)
+  expect(favicon).toContain('fill="#000"')
 })

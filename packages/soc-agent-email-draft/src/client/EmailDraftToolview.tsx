@@ -1,6 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
-import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ToolCallBlock } from 'dsh-soc-agent-ui-conversation/client'
 import type { SocClientRuntime } from 'dsh-soc-agent-client/client'
 import React, { useEffect, useMemo, useState } from 'react'
 import css from './EmailDraftToolview.module.css'
@@ -12,6 +11,7 @@ import {
   type EmailDraftFields,
   type EmailDraftFormFields,
 } from './emailDraft.ts'
+import type { ToolCallViewProps } from './tool-slot.ts'
 
 export {
   draftFromForm,
@@ -308,6 +308,6 @@ export const emailDraftToolview = {
   },
 }
 
-export function installEmailDraftToolview(ctx: ClientContext): void {
+export function installEmailDraftToolview(ctx: Context): void {
   ctx.plugin(emailDraftToolview)
 }

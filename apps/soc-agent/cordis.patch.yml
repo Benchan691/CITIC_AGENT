@@ -2,11 +2,72 @@
 # Keep coding tools off; keep fs provider on so agent-instructions can load
 # $DSH_HOME/AGENTS.md. Model-facing fs/shell tools stay disabled below.
 
+# Every implementation forked for the SOC boundary is disabled in the
+# pristine rc.2 graph. Replacements below use distinct ids so rollback remains
+# an explicit configuration change and duplicate owners are mechanically visible.
+- id: typert-gateway
+  disabled: true
+- id: agent
+  disabled: true
+- id: settings
+  disabled: true
+- id: llm-pi-ai
+  disabled: true
+- id: session-persistence-jsonl
+  disabled: true
+- id: connection
+  disabled: true
+- id: file-upload
+  disabled: true
+- id: api-remotes
+  disabled: true
+- id: session-controller
+  disabled: true
+- id: workspace-controller
+  disabled: true
+- id: workspace-files
+  disabled: true
+- id: settings-controller
+  disabled: true
+- id: session-log-download
+  disabled: true
+- id: ui-layout
+  disabled: true
+- id: ui-renderer
+  disabled: true
+- id: ui-session
+  disabled: true
+- id: ui-conversation
+  disabled: true
+- id: ui-chat
+  disabled: true
+- id: ui-approval
+  disabled: true
+- id: ui-commands
+  disabled: true
+- id: ui-input-trigger
+  disabled: true
+- id: ui-model-selection
+  disabled: true
+- id: ui-attachment
+  disabled: true
+- id: ui-brand-official
+  disabled: true
+- id: open-in-app
+  disabled: true
+- id: ui-open-in-app
+  disabled: true
+- id: directory-picker
+  disabled: true
+- id: subagent
+  disabled: true
+
 - id: tools
   config:
     mode: native
 
 - id: agent-loop
+  disabled: true
   config:
     maxParallelToolCalls: 4
 
@@ -19,7 +80,9 @@
 - id: command-compact
   disabled: false
 - id: tool-result-pruner
-  disabled: false
+  disabled: true
+- id: agent-instructions
+  disabled: true
 
 # AGENTS.md / CLAUDE.md loading needs the fs provider (not model tools).
 - id: sandbox-policy
@@ -30,6 +93,13 @@
 # Preset roster owns persona + agent-instructions for standard sessions.
 - id: agent-presets
   disabled: false
+  config:
+    default: citic-soc
+    roots:
+      - path: !!js "(process.env.MCP_SERVER_ROOT ?? process.env.MCP_SEVER_ROOT ?? process.cwd().split('/vendor/deepseek-harness')[0]) + '/apps/soc-agent/agent-presets'"
+        trust: system
+    includeShippedRoot: true
+    includeUserRoot: true
 
 - id: skill
   disabled: false
@@ -188,10 +258,51 @@
 # ── SOC product plugins ─────────────────────────────────────────────────────
 
 - insert:
-    - id: time-context
-      name: '@deepseek-ai/dsh-time-context'
+    - id: soc-agent-api-gateway
+      name: dsh-soc-agent-api-gateway
+    - id: soc-agent-agent
+      name: dsh-soc-agent-agent
+    - id: soc-agent-agent-loop
+      name: dsh-soc-agent-agent-loop
+      config:
+        agents: []
+        maxParallelToolCalls: 4
+    - id: soc-agent-settings-file
+      name: dsh-soc-agent-settings-file
+    - id: soc-agent-llm-pi-ai
+      name: dsh-soc-agent-llm-pi-ai
+    - id: soc-agent-session-persistence-jsonl
+      name: dsh-soc-agent-session-persistence-jsonl
+      config:
+        root: !!js dshHomePath('sessions')
+    - id: soc-agent-time-context
+      name: dsh-soc-agent-time-context
+    - id: soc-agent-connection
+      name: dsh-soc-agent-connection
+      inject: [webRuntime, socAuth]
+      config:
+        trustedHosts: !!js ctx.webRuntime.trustedHosts
+    - id: soc-agent-file-upload
+      name: dsh-soc-agent-file-upload
+    - id: soc-agent-api-remotes
+      name: dsh-soc-agent-api-remotes
+    - id: soc-agent-session-controller
+      name: dsh-soc-agent-session-controller
+      inject: [socAuth]
+    - id: soc-agent-workspace-controller
+      name: dsh-soc-agent-workspace-controller
+      inject: [socAuth]
+    - id: soc-agent-workspace-files
+      name: dsh-soc-agent-api-workspace-files
+      inject: [socAuth]
+    - id: soc-agent-settings-controller
+      name: dsh-soc-agent-api-settings-controller
+      inject: [socAuth]
+    - id: soc-agent-session-log-export
+      name: dsh-soc-agent-session-log-export
+      inject: [socAuth]
     - id: soc-agent-mcp
-      name: '@deepseek-ai/dsh-mcp-client'
+      name: dsh-soc-agent-mcp-client
       config:
         serverName: soc_agent
         transport: stdio
@@ -249,6 +360,15 @@
       name: dsh-soc-agent-client
       disabled: false
       description: Mandatory SOC client runtime, authentication gate, and policy contract.
+    - id: soc-agent-ui-layout
+      name: dsh-soc-agent-ui-layout
+      disabled: false
+    - id: soc-agent-ui-renderer
+      name: dsh-soc-agent-ui-renderer
+      disabled: false
+    - id: soc-agent-ui-session
+      name: dsh-soc-agent-ui-session
+      disabled: false
     - id: soc-agent-sidebar-ui
       name: dsh-soc-agent-sidebar
       disabled: false
@@ -257,6 +377,28 @@
       name: dsh-soc-agent-workspace
       disabled: false
       description: Isolated SOC workspace and session browser.
+    - id: soc-agent-ui-conversation
+      name: dsh-soc-agent-ui-conversation
+      disabled: false
+    - id: soc-agent-auto-collapse
+      name: dsh-soc-agent-auto-collapse
+      disabled: false
+      description: Optional native compact transcript behavior.
+    - id: soc-agent-ui-chat
+      name: dsh-soc-agent-ui-chat
+      disabled: false
+    - id: soc-agent-ui-approval
+      name: dsh-soc-agent-ui-approval
+      disabled: false
+    - id: soc-agent-ui-commands
+      name: dsh-soc-agent-ui-commands
+      disabled: false
+    - id: soc-agent-ui-input-trigger
+      name: dsh-soc-agent-ui-input-trigger
+      disabled: false
+    - id: soc-agent-ui-model-selection
+      name: dsh-soc-agent-ui-model-selection
+      disabled: false
     - id: soc-agent-brand-ui
       name: dsh-soc-agent-brand
       disabled: false
@@ -277,7 +419,3 @@
       name: dsh-soc-agent-email-draft
       disabled: false
       description: Optional editable Zimbra email draft tool views.
-
-- id: connection
-  name: '@deepseek-ai/dsh-client-connection'
-  inject: [webRuntime, socAuth]

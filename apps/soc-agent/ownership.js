@@ -42,6 +42,14 @@ const PRIVILEGED_API_METHODS = new Set([
 ])
 const MIXED_API_METHODS = new Set(['llm.providers', 'llm.models'])
 
+export class SocAuthenticationError extends Error {
+  constructor(status, message) {
+    super(message)
+    this.name = 'SocAuthenticationError'
+    this.status = status
+  }
+}
+
 function storageUriFromServerEnv(serverRoot) {
   try {
     const values = parseEnv(readFileSync(join(serverRoot, '.env'), 'utf8'))
@@ -1196,6 +1204,7 @@ export class SocAuthService {
       throw new Error(`${ADMIN_EMAIL_ENV} and ${ADMIN_PASSWORD_ENV} are required`)
     }
     this.adminSessions = new Map()
+    this.adminSessionSignals = new Map()
     this.agentSessions = new Map()
     this.actionModes = new Map()
     this.pendingResponses = new Map()
@@ -1275,6 +1284,171 @@ export class SocAuthService {
     const session = this.currentSession()
     if (!session) throw new Error('authentication required')
     return session
+  }
+
+  userPrincipal(session) {
+    return {
+      kind: 'user',
+      applicationSessionId: String(session.id),
+      userId: String(session.userId),
+      zimbraEmail: String(session.email),
+      value: session,
+    }
+  }
+
+  adminPrincipal(admin) {
+    return {
+      kind: 'admin',
+      adminSessionId: String(admin.adminSessionId),
+      email: String(admin.email),
+      value: admin,
+    }
+  }
+
+  async authenticateHttp(request, audience = 'user') {
+    const allowAdmin = audience === 'admin' || audience === 'mixed'
+    const allowUser = audience === 'user' || audience === 'mixed'
+    const admin = allowAdmin ? await this.requestAdmin(request) : undefined
+    if (admin) return this.adminPrincipal(admin)
+    const session = allowUser || audience === 'admin' ? await this.requestSession(request) : undefined
+    if (session && allowUser) return this.userPrincipal(session)
+    if (session && audience === 'admin') throw new SocAuthenticationError(403, 'forbidden')
+    throw new SocAuthenticationError(401, 'authentication required')
+  }
+
+  async authenticateUpgrade(request, audience = 'user') {
+    return await this.authenticateHttp(request, audience)
+  }
+
+  run(principal, operation) {
+    if (principal?.kind === 'admin') {
+      const admin = principal.value ?? {
+        adminSessionId: principal.adminSessionId,
+        email: principal.email,
+        expiresAt: new Date(Date.now() + ADMIN_SESSION_TTL_SECONDS * 1000),
+      }
+      return this.adminStorage.run(admin, operation)
+    }
+    if (principal?.kind === 'user') {
+      const session = principal.value ?? {
+        id: principal.applicationSessionId,
+        userId: principal.userId,
+        email: principal.zimbraEmail,
+        expiresAt: new Date(Date.now() + SESSION_TTL_SECONDS * 1000),
+      }
+      if (this.isApplicationSessionRevoked(session.id)) {
+        throw new SocAuthenticationError(401, 'authentication required')
+      }
+      return this.storage.run(session, operation)
+    }
+    throw new SocAuthenticationError(401, 'authentication required')
+  }
+
+  requireUser() {
+    return this.userPrincipal(this.requireSession())
+  }
+
+  async ownedSessionIds() {
+    const principal = this.requireUser()
+    return await this.store.userSessionIds(principal.userId)
+  }
+
+  async ownedWorkspaceIds() {
+    const principal = this.requireUser()
+    return await this.store.userWorkspaceIds(principal.userId)
+  }
+
+  async ownsSession(sessionId) {
+    const principal = this.requireUser()
+    return await sessionBelongsToUser(this.store, sessionId, principal.userId)
+  }
+
+  async workspaceForSession(sessionId) {
+    const principal = this.requireUser()
+    const owner = await this.store.sessionOwner(String(sessionId))
+    if (!owner || owner.userId !== principal.userId) return undefined
+    const workspace = await this.store.workspaceOwner(owner.workspaceId)
+    return workspace?.userId === principal.userId ? owner.workspaceId : undefined
+  }
+
+  async workspacePathForSession(sessionId) {
+    const principal = this.requireUser()
+    const owner = await this.store.sessionOwner(String(sessionId))
+    if (!owner || owner.userId !== principal.userId) return undefined
+    const workspace = await this.store.workspaceOwner(owner.workspaceId)
+    if (!workspace || workspace.userId !== principal.userId || typeof workspace.path !== 'string') return undefined
+    const [rootPath, canonicalPath] = await Promise.all([
+      realpath(userWorkspaceRoot(principal.userId)),
+      realpath(workspace.path),
+    ])
+    if (!isWithinPath(rootPath, canonicalPath) || canonicalPath === rootPath) return undefined
+    return canonicalPath
+  }
+
+  async ownsWorkspace(workspaceId) {
+    const principal = this.requireUser()
+    return (await this.store.workspaceOwner(String(workspaceId)))?.userId === principal.userId
+  }
+
+  async isGeneralWorkspace(workspaceId) {
+    const principal = this.requireUser()
+    const owner = await this.store.workspaceOwner(String(workspaceId))
+    return owner?.userId === principal.userId && isGeneralWorkspacePath(owner.path, principal.userId)
+  }
+
+  async claimSession(sessionId, workspaceId) {
+    const principal = this.requireUser()
+    return await this.store.claimSession(String(sessionId), principal.userId, String(workspaceId))
+  }
+
+  async releaseSession(sessionId) {
+    await this.store.deleteSessionOwner(String(sessionId))
+    this.unbindAgentSession(sessionId)
+  }
+
+  async claimWorkspace(workspaceId, path) {
+    const principal = this.requireUser()
+    return await this.store.claimWorkspace(String(workspaceId), principal.userId, String(path))
+  }
+
+  async releaseWorkspace(workspaceId) {
+    await this.store.deleteWorkspace(String(workspaceId))
+  }
+
+  async privateWorkspacePath(name) {
+    const principal = this.requireUser()
+    const value = String(name ?? '').trim()
+    if (isAbsolute(value) || value === '' || value === '.' || value === '..' || /[/\\\0]/u.test(value)) {
+      throw new Error('workspace name must be a non-empty single directory name')
+    }
+    const path = value.toLowerCase() === 'general'
+      ? generalWorkspacePath(principal.userId)
+      : join(userWorkspaceRoot(principal.userId), value)
+    await mkdir(path, { recursive: true })
+    const [rootPath, canonicalPath] = await Promise.all([
+      realpath(userWorkspaceRoot(principal.userId)),
+      realpath(path),
+    ])
+    if (!isWithinPath(rootPath, canonicalPath) || canonicalPath === rootPath) {
+      throw new Error('workspace path must remain within the private workspace root')
+    }
+    return canonicalPath
+  }
+
+  revocationSignal(principal) {
+    if (principal?.kind === 'user') {
+      return this.applicationSessionSignal(principal.applicationSessionId)
+        ?? AbortSignal.abort(new Error('authentication required'))
+    }
+    if (principal?.kind === 'admin') {
+      let controller = this.adminSessionSignals.get(principal.adminSessionId)
+      if (!controller) {
+        controller = new AbortController()
+        this.adminSessionSignals.set(principal.adminSessionId, controller)
+      }
+      return controller.signal
+    }
+    return AbortSignal.abort(new Error('authentication required'))
   }
 
   /** Called by the Connection transport after it has checked the request fence. */
@@ -1625,7 +1799,14 @@ export class SocAuthService {
     }
     if (kind === 'logout') {
       const token = requestCookieValue(request, ADMIN_SESSION_COOKIE)
-      if (token) this.adminSessions.delete(this.adminSessionKey(token))
+      if (token) {
+        const key = this.adminSessionKey(token)
+        const session = this.adminSessions.get(key)
+        this.adminSessions.delete(key)
+        const controller = session ? this.adminSessionSignals.get(session.adminSessionId) : undefined
+        if (controller && !controller.signal.aborted) controller.abort(new Error('admin session revoked'))
+        if (session) this.adminSessionSignals.delete(session.adminSessionId)
+      }
       sendJson(response, 200, { authenticated: false }, {
         'set-cookie': adminCookieHeader('', request, 0),
       })
@@ -1646,6 +1827,7 @@ export class SocAuthService {
       }
       const token = this.adminSessionToken()
       const session = {
+        adminSessionId: randomUUID(),
         email: this.adminEmail,
         expiresAt: new Date(Date.now() + ADMIN_SESSION_TTL_SECONDS * 1000),
       }

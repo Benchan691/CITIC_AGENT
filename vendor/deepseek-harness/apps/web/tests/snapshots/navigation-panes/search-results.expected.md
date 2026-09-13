@@ -1,2 +1,0 @@
-- tree "Search results":
-  - 'treeitem "NavScenario: first run bash to General ## Navigation Summary - alpha nav - beta nav ``` echo WATERFALL ```" [selected]'

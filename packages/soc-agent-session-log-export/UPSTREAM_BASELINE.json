@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+  "tag": "dsh-v0.1.5-rc.2",
+  "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+  "version": "0.1.5-rc.2",
+  "officialPackage": "@deepseek-ai/dsh-session-log-export",
+  "officialSourcePath": "packages/session-query/session-log-export",
+  "sourceSha256": "88704c3c91973b11517f2f7984db0d582cf55813e1be9a3fe34694ab0bcc5670"
+}

@@ -15,6 +15,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { scopeOf } from '@deepseek-ai/dsh-scope'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from './connection.ts'
 import type { ReconnectConfig } from './connection.ts'
@@ -37,12 +38,11 @@ const DEFAULT_TOOL_CALL_TIMEOUT_MS = 60_000
 const SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/
 
 /**
- * Live `serverName` reservations per app, keyed off `ctx.root` (multiple apps
- * in one process — tests — must not see each other's names). A duplicate
- * namespace is a configuration error surfaced at plugin load, never silent
- * shadowing.
+ * Live `serverName` reservations per registration scope. Agent-scoped MCP
+ * servers may reuse a namespace in another Agent, while global instances and
+ * duplicates inside one Agent remain mutually exclusive.
  */
-const activeServerNames = new WeakMap<Context, Set<string>>()
+const activeServerNames = new WeakMap<object, Set<string>>()
 
 // ---- Config ----
 
@@ -66,8 +66,6 @@ export interface StdioConfig {
   cwd: string
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
-  /** Optional exact raw MCP tool names to expose; omission exposes every tool. */
-  allowedToolNames?: string[]
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
@@ -88,12 +86,8 @@ export interface StreamableHttpConfig {
   url: string
   /** Additional headers attached to MCP requests. */
   headers: Record<string, string>
-  /** Whether to validate the remote TLS certificate chain. */
-  verifyTls?: boolean
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
-  /** Optional exact raw MCP tool names to expose; omission exposes every tool. */
-  allowedToolNames?: string[]
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
@@ -102,6 +96,12 @@ export interface StreamableHttpConfig {
 
 /** Configuration for one stdio or Streamable HTTP MCP server. */
 export type Config = StdioConfig | StreamableHttpConfig
+
+type StdioConfigInput = Omit<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>
+  & Partial<Pick<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>>
+type StreamableHttpConfigInput = Omit<StreamableHttpConfig, 'headers' | 'toolCallTimeoutMs' | 'failOnStartupError'>
+  & Partial<Pick<StreamableHttpConfig, 'headers' | 'toolCallTimeoutMs' | 'failOnStartupError'>>
+type ConfigInput = StdioConfigInput | StreamableHttpConfigInput
 
 const Reconnect: z<ReconnectConfig> = z.object({
   enabled: z.boolean().default(RECONNECT_DEFAULTS.enabled),
@@ -119,8 +119,6 @@ export const Config = z.union([
     env: z.dict(String).default({}),
     cwd: z.string().default(''),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    // Omission discovers all tools; an explicit [] intentionally exposes none.
-    allowedToolNames: z.array(String).default(undefined as unknown as string[]),
     failOnStartupError: z.boolean().default(false),
     reconnect: Reconnect,
   }),
@@ -129,13 +127,11 @@ export const Config = z.union([
     serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
     url: z.string().required(),
     headers: z.dict(String).default({}),
-    verifyTls: z.boolean().default(true),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    allowedToolNames: z.array(String).default(undefined as unknown as string[]),
     failOnStartupError: z.boolean().default(false),
     reconnect: Reconnect,
   }),
-]) as unknown as z<Config>
+]) as unknown as z<ConfigInput, Config>
 
 // ---- Plugin apply ----
 
@@ -156,10 +152,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // Reserve the namespace next: a duplicate `serverName` fails THIS instance
   // at load with an actionable error and leaves the earlier instance intact.
   ctx.effect(() => {
-    let names = activeServerNames.get(ctx.root)
+    const owner = scopeOf(ctx) ?? ctx.root
+    let names = activeServerNames.get(owner)
     if (!names) {
       names = new Set()
-      activeServerNames.set(ctx.root, names)
+      activeServerNames.set(owner, names)
     }
     if (names.has(config.serverName)) {
       throw new Error(

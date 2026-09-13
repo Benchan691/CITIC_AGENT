@@ -1,6 +1,6 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SocClientRuntime } from 'dsh-soc-agent-client/client'
+import type {} from './tool-slot.ts'
 import { installEmailDraftToolview } from './EmailDraftToolview.tsx'
 
 export {

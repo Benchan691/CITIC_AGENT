@@ -137,13 +137,13 @@ function visibleInstructionChanges(
   agent: Agent,
   authorityMessages: readonly UserMessage[],
 ): Map<string, AgentInstructionChange> {
-  const visibleSeqs = new Set(agent.session.surface.nodes)
   const visible = new Map<string, AgentInstructionChange>()
-  for (const [seq, event] of agent.session.events.entries()) {
-    if (event.type !== 'user/message' || !isWorkspaceContextSource(event.data.source)) continue
+  for (const seq of agent.session.surface.nodes) {
+    const event = agent.session.eventAt(seq)
+    if (event?.type !== 'user/message' || !isWorkspaceContextSource(event.data.source)) continue
     const changes = workspaceInstructionChanges(event.data.source)
     for (const change of changes) {
-      if (visibleSeqs.has(seq)) visible.set(change.scope, change)
+      visible.set(change.scope, change)
     }
   }
   for (const message of authorityMessages) {
@@ -240,7 +240,7 @@ function relativeScope(projectRoot: string, dir: string): string {
  * @param resolved - normalized plugin configuration.
  * @param versionCache - per-session scope metadata used to skip unchanged reads.
  * @param fileSystem - provider used for current file probes.
- * @param options - authoritative claimed context, pending scope hints, touched paths, and baseline/deferred participation.
+ * @param options - authoritative claimed context, pending scope hints, touched paths, and baseline participation.
  * @returns rendered context plus deferred cache updates, or undefined when unchanged/unavailable.
  */
 export async function reconcileInstructionContext(
@@ -253,7 +253,6 @@ export async function reconcileInstructionContext(
     scopeMessages: readonly UserMessage[]
     touchedPaths: readonly string[]
     includeBaselineScopes: boolean
-    includeDeferredScopes?: boolean
     excludedBaselineScopes?: ReadonlySet<string>
     projectRoot?: string
     signal?: AbortSignal
@@ -269,52 +268,34 @@ export async function reconcileInstructionContext(
     ?? await findProjectRoot(cwd, resolved.projectRootMarkers, fileSystem, options.signal)
   const scopes = new Set<string>()
   const baselineScopes = new Set<string>()
-  const deferredScopes = new Set<string>()
   const addDirScopes = (target: Set<string>, directory: string): void => {
     for (const candidate of resolved.instructionFileCandidates) target.add(candidateScopeKey(directory, candidate))
     for (const candidate of resolved.localInstructionFileCandidates) target.add(candidateScopeKey(directory, candidate))
   }
-  const addDeferredDirScopes = (target: Set<string>, directory: string): void => {
-    for (const candidate of resolved.deferredInstructionFileCandidates) target.add(candidateScopeKey(directory, candidate))
-  }
   const addProjectScopes = (target: Set<string>, dir: string): void => {
     addDirScopes(target, relativeScope(projectRoot, dir))
   }
-  const addDeferredProjectScopes = (target: Set<string>, dir: string): void => {
-    addDeferredDirScopes(target, relativeScope(projectRoot, dir))
-  }
   baselineScopes.add(candidateScopeKey(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE))
-  for (const dir of ancestorChain(projectRoot, cwd)) {
-    addProjectScopes(baselineScopes, dir)
-    addDeferredProjectScopes(deferredScopes, dir)
-  }
+  for (const dir of ancestorChain(projectRoot, cwd)) addProjectScopes(baselineScopes, dir)
   if (options.includeBaselineScopes) {
     for (const scope of baselineScopes) scopes.add(scope)
-  }
-  if (options.includeDeferredScopes) {
-    for (const scope of deferredScopes) scopes.add(scope)
   }
   for (const message of options.scopeMessages) {
     /* v8 ignore next -- the plugin passes its workspace-only pending projection. */
     if (!isWorkspaceContextSource(message.source)) continue
     for (const change of workspaceInstructionChanges(message.source)) {
       if (!options.includeBaselineScopes && baselineScopes.has(change.scope)) continue
-      if (!options.includeDeferredScopes && deferredScopes.has(change.scope)) continue
       scopes.add(change.scope)
     }
   }
   for (const scope of effective.keys()) {
     if (!options.includeBaselineScopes && baselineScopes.has(scope)) continue
-    if (!options.includeDeferredScopes && deferredScopes.has(scope)) continue
     const { directory } = decodeScopeKey(scope)
     if (directory === USER_GLOBAL_DIRECTORY) scopes.add(candidateScopeKey(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE))
     else addDirScopes(scopes, directory)
   }
   for (const touchedPath of options.touchedPaths) {
-    for (const dir of descendantDirsBetween(cwd, touchedPath)) {
-      addProjectScopes(scopes, dir)
-      if (options.includeDeferredScopes) addDeferredProjectScopes(scopes, dir)
-    }
+    for (const dir of descendantDirsBetween(cwd, touchedPath)) addProjectScopes(scopes, dir)
   }
 
   const versions = versionStatesFor(session, versionCache)

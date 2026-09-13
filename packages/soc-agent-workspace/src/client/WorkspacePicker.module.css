@@ -4,14 +4,6 @@
   min-width: 72px;
 }
 
-.modalInput {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px 10px;
-  border: 1px solid var(--dsw-alias-border-primary);
-  border-radius: 6px;
-}
-
 .modalError,
 .menuStatus {
   margin-top: 8px;

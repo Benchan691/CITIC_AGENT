@@ -1,4 +1,4 @@
-import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { HeroBrandMarkOwnerProps } from 'dsh-soc-agent-ui-conversation/client'
 import type { SidebarBrandMarkOwnerProps } from 'dsh-soc-agent-sidebar/client'
 import css from './CiticBrand.module.css'
 

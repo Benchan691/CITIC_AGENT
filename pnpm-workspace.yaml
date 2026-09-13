@@ -1,0 +1,18 @@
+packages:
+  - packages/*
+  - apps/soc-agent
+
+linkWorkspacePackages: true
+
+peerDependencyRules:
+  allowedVersions:
+    typescript: '>=5 <7'
+
+allowBuilds:
+  '@deepseek-ai/dsh-subprocess-local': false
+  '@google/genai': false
+  esbuild: true
+  koffi: true
+  node-addon-require-builtin: false
+  node-pty: false
+  protobufjs: false

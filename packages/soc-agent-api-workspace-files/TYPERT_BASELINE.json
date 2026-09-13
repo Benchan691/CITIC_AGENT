@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+  "tag": "dsh-v0.1.5-rc.2",
+  "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+  "officialPackage": "@deepseek-ai/dsh-api-workspace-files",
+  "officialPackageVersion": "0.1.5-rc.2",
+  "sourceSha256": {
+    "typert.host.d.ts": "5e2d26ee86d0fe170dac8cd3f5854e67bdea334c57f40a5766ace57b8304c17d",
+    "typert.host.js": "9f4e7b5bedfcee7a42f012589a710c79aa1bcfa76dad7f815cecbade269d2bff",
+    "typert.remote-client.d.ts": "8acaaecd95254c2350fe708a4a316ee5323854d83a477c2bab7ec66e664f50a9",
+    "typert.remote-client.js": "b54b3814c47ffc93a46125a56ab9f831299fe660701d12088540ee70bfcdae4d"
+  }
+}

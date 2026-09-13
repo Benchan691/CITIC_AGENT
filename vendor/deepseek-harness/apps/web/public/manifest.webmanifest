@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Sentinel",
-  "short_name": "Sentinel",
+  "name": "DeepSeek Harness",
+  "short_name": "DSH",
   "start_url": "/",
   "scope": "/",
   "display": "fullscreen",

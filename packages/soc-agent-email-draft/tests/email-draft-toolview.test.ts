@@ -41,7 +41,7 @@ test('preserves the original message ID when editing a forward without copying i
 
 test('forward editor requires confirmation, retains its source after edits, and requires Zimbra success', async () => {
   const require = createRequire(import.meta.url)
-  const { JSDOM } = require('../../../vendor/deepseek-harness/node_modules/jsdom')
+  const { JSDOM } = require('jsdom')
   const dom = new JSDOM('<div id="root"></div>', { url: 'https://soc.example/' })
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true })
   const cssHook = registerHooks({
@@ -51,7 +51,7 @@ test('forward editor requires confirmation, retains its source after edits, and 
         : nextLoad(url, context)
     },
   })
-  const { createRoot } = require('../../../vendor/deepseek-harness/packages/client/web/node_modules/react-dom/client')
+  const { createRoot } = require('react-dom/client')
   const { EmailDraftToolview } = await import('../src/client/EmailDraftToolview.tsx')
   const root = createRoot(document.getElementById('root'))
   const calls: unknown[][] = []

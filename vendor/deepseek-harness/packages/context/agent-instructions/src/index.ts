@@ -1,9 +1,8 @@
 /**
  * Workspace instruction loader for AGENTS.md-compatible files.
  *
- * Baseline instructions enter durable context before the first request; configured
- * deferred files enter once immediately before a request with a matching visible tool.
- * Successful fs tool touches project nested, changed, and removed instructions into the inbox.
+ * Baseline instructions enter durable context before the first request; successful fs
+ * tool touches project nested, changed, and removed instructions into the inbox.
  * Plugin lifecycle reads use the optional `ctx.fs` provider, so providerless products
  * mount it as a no-op.
  *
@@ -15,6 +14,7 @@ import { isDeepStrictEqual } from 'node:util'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { Session, UserMessage } from '@deepseek-ai/dsh-session'
+import type {} from '@deepseek-ai/dsh-session-projection'
 import type { ToolExecution, ToolExecutionResult, ToolExecutionToken } from '@deepseek-ai/dsh-tools'
 import { Config, resolveConfig, workspaceBaselineIdentity, type ResolvedConfig } from './config.ts'
 import { findProjectRoot, loadBaselineInstructionSet } from './files.ts'
@@ -30,6 +30,8 @@ import {
 import type { AgentInstructionChange } from './render.ts'
 
 export { Config, name }
+/** Services required by workspace instruction projection. */
+export const inject = ['sessionProjections']
 export {
   discoverBaselineInstructionFiles,
   loadBaselineInstructions,
@@ -51,7 +53,7 @@ function visibleBaselineSource(
     }
   }
   for (const seq of agent.session.surface.nodes.toReversed()) {
-    const event = agent.session.events[seq]
+    const event = agent.session.eventAt(seq)
     if (event?.type === 'user/message'
       && event.data.source.kind === 'agent-instructions'
       && event.data.source.baseline === true) return event.data.source
@@ -81,7 +83,6 @@ function filePathFromExecution(exec: ToolExecution): string | undefined {
 export function apply(ctx: Context, config: Config): void {
   const resolved: ResolvedConfig = resolveConfig(config)
   const instructionVersions: InstructionVersionCache = new WeakMap()
-  const deferredSessions = new WeakSet<Session>()
   const baselinePreparations = new WeakMap<Session, {
     identity: string
     excludedScopes: ReadonlySet<string>
@@ -101,7 +102,6 @@ export function apply(ctx: Context, config: Config): void {
   const projectionTails = new WeakMap<Agent, Promise<void>>()
   // Execution ancestry and the enclosing durable step are the two commit
   // boundaries before an asynchronous projection may mutate the agent inbox.
-  const openSteps = new WeakMap<Session, boolean>()
   const stepTouches = new WeakMap<Session, ProjectionTouch[]>()
 
   const compose = async (
@@ -110,7 +110,6 @@ export function apply(ctx: Context, config: Config): void {
     claimed: readonly UserMessage[],
     pending: readonly UserMessage[],
     touchedPaths: readonly string[] = [],
-    deferredEnabled = deferredSessions.has(agent.session),
   ): Promise<UserMessage | undefined> => {
     signal.throwIfAborted()
     if (resolved.maxBytes <= 0 || !Number.isFinite(resolved.maxBytes)) {
@@ -118,7 +117,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     const fileSystem = ctx.get('fs')
     if (fileSystem === undefined) return undefined
-    if (touchedPaths.length === 0 && pending.length > 0 && !deferredEnabled) return pending[0]
+    if (touchedPaths.length === 0 && pending.length > 0) return pending[0]
     const content: UserMessage['content'][number][] = []
     const changes: AgentInstructionChange[] = []
     let desiredBaseline = false
@@ -196,7 +195,6 @@ export function apply(ctx: Context, config: Config): void {
         authorityMessages,
         scopeMessages: pending,
         includeBaselineScopes: keepVisibleBaseline,
-        includeDeferredScopes: deferredEnabled,
         ...keepVisibleBaseline ? { excludedBaselineScopes } : {},
         touchedPaths,
         projectRoot,
@@ -230,7 +228,7 @@ export function apply(ctx: Context, config: Config): void {
     const alreadySupplied = desired !== undefined && (
       claimed.some(message => sameContextPayload(message, desired))
       || agent.session.surface.nodes.some((seq) => {
-        const event = agent.session.events[seq]
+        const event = agent.session.eventAt(seq)
         return event?.type === 'user/message' && sameContextPayload(event.data, desired)
       })
     )
@@ -283,32 +281,14 @@ export function apply(ctx: Context, config: Config): void {
     while ((projection = projectionTails.get(agent)) !== undefined) await projection
   }
 
-  const hasVisibleDeferredTool = (agent: Agent): boolean => {
-    if (resolved.deferredToolNamePrefixes.length === 0) return false
-    try {
-      const tools = ctx.get('tools')
-      if (tools === undefined) return false
-      const schemas = tools.schemas(agent)
-      return schemas.some(schema => resolved.deferredToolNamePrefixes.some(prefix => (
-        schema.name.startsWith(prefix)
-      )))
-    } catch {
-      // A product may mount this plugin without the tool registry. Deferred
-      // context must fail closed until a visible tool can be inspected.
-      return false
-    }
-  }
-
   const stepIsOpen = (session: Session): boolean => {
-    const known = openSteps.get(session)
-    if (known !== undefined) return known
-    let open = false
-    for (const event of session.events) {
-      if (event.type === 'step/start') open = true
-      else if (event.type === 'step/end' || event.type === 'turn/end') open = false
+    const boundary = ctx.sessionProjections.stateOf(session, 'turnBoundary')
+    if (boundary === undefined) {
+      throw new Error('agent-instructions requires the turnBoundary session projection')
     }
-    openSteps.set(session, open)
-    return open
+    return boundary.openTurnStartSeq !== null
+      && boundary.lastStepBoundary?.kind === 'start'
+      && boundary.lastStepBoundary.seq > boundary.openTurnStartSeq
   }
 
   const projectTouch = (touch: ProjectionTouch): void => {
@@ -323,16 +303,7 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   ctx.on('session/event', (session, event) => {
-    if (event.type === 'step/start') {
-      openSteps.set(session, true)
-      return
-    }
-    if (event.type === 'turn/end') {
-      openSteps.set(session, false)
-      return
-    }
     if (event.type !== 'step/end') return
-    openSteps.set(session, false)
     const pending = stepTouches.get(session)
     if (pending === undefined) return
     stepTouches.delete(session)
@@ -345,15 +316,8 @@ export function apply(ctx: Context, config: Config): void {
   ): Promise<PreStepDecision> => {
     const decision = await next()
     await waitForProjections(agent)
-    const deferredToolVisible = hasVisibleDeferredTool(agent)
-    if (decision.kind === 'enter'
-      && decision.messages.length > 0
-      && deferredToolVisible) {
-      deferredSessions.add(agent.session)
-    }
     const pending = agent.inbox.nextStep.filter(isWorkspaceContext)
-    const deferredEnabled = deferredSessions.has(agent.session) && deferredToolVisible
-    const desired = await compose(agent, signal, messages, pending, [], deferredEnabled)
+    const desired = await compose(agent, signal, messages, pending)
     signal.throwIfAborted()
     // An empty first entry owns a no-step turn; keep context pending instead
     // of turning it into a standalone request. Later entries may be tool continuations.
@@ -371,7 +335,7 @@ export function apply(ctx: Context, config: Config): void {
     // precedes it and the driver-appended runtime context follows it.
     const lastClaimedIndex = decision.messages.findLastIndex(message => messages.includes(message))
     const entered = decision.messages.toSpliced(lastClaimedIndex + 1, 0, desired)
-    return { kind: 'enter', messages: entered }
+    return { ...decision, messages: entered }
   })
 
   ctx.on('tools/result', (exec: ToolExecution, result: ToolExecutionResult) => {

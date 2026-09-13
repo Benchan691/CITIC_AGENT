@@ -4,11 +4,11 @@
  * inside it, and flat, grouped, and search views keep their intended rhythm.
  */
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-const css = readFileSync(resolve(import.meta.dirname, '../src/client/WorkspaceBrowser.module.css'), 'utf8')
-const rowsCss = readFileSync(resolve(import.meta.dirname, '../src/client/rows/Rows.module.css'), 'utf8')
+const css = readFileSync(fileURLToPath(new URL('../src/client/rows/WorkspaceBrowser.module.css', import.meta.url)), 'utf8')
+const rowsCss = readFileSync(fileURLToPath(new URL('../src/client/rows/Rows.module.css', import.meta.url)), 'utf8')
 
 /**
  * Declarations of one selector rule, keyed by property with whitespace collapsed.

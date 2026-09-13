@@ -1,4 +1,4 @@
-import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import type { ConnectionHandle } from 'dsh-soc-agent-connection/client'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 
 /** Shared RPC channel owned by the SOC host plugin. */

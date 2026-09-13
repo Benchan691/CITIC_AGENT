@@ -4,7 +4,7 @@ import test from 'node:test'
 import { act, createElement } from 'react'
 
 const require = createRequire(import.meta.url)
-const { JSDOM } = require('../../../vendor/deepseek-harness/node_modules/jsdom')
+const { JSDOM } = require('jsdom')
 
 test('admin forms retain drafts, show request failures, retry loading, and submit their settings revision', async () => {
   const dom = new JSDOM('<div id="root"></div>', { url: 'https://soc.example/admin#agent-context' })
@@ -18,7 +18,7 @@ test('admin forms retain drafts, show request failures, retry loading, and submi
         : nextLoad(url, context)
     },
   })
-  const { createRoot } = require('../../../vendor/deepseek-harness/packages/client/web/node_modules/react-dom/client')
+  const { createRoot } = require('react-dom/client')
   const { AdminConsole } = await import('../src/client/AdminConsole.tsx')
   const root = createRoot(document.getElementById('root'))
   const namespace = (ns: string, value: unknown) => ({ ns, revision: 7, value })

@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.soc-paths.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

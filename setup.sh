@@ -207,8 +207,6 @@ SERVER_DIR="$REPO_ROOT/apps/soc-agent/server"
 HARNESS_ENV="$HARNESS_DIR/.env"
 SERVER_ENV="$SERVER_DIR/.env"
 SERVER_ENV_EXAMPLE="$SERVER_DIR/.env.example"
-PLUGIN_REQUIREMENTS="$REPO_ROOT/requirements.txt"
-PLUGIN_PATCH="$REPO_ROOT/patches/dsh-auto-collapse@0.1.4.patch"
 
 for _d in "$HARNESS_DIR" "$SERVER_DIR"; do
   if [ ! -d "$_d" ]; then
@@ -225,40 +223,69 @@ fi
 
 DSH_PROFILE="${DSH_PROFILE:-web}"
 
-# Browser-facing SOC artifacts. This is the one authoritative matrix: every
-# row supplies the package name used by pnpm/profile wiring, its repository
-# directory, and its browser entry artifact. The derived arrays below are
-# consumed by fingerprints, builds, registration, and health checks.
-SOC_CLIENT_MATRIX=(
-  "dsh-soc-agent-client|soc-agent-client|$REPO_ROOT/packages/soc-agent-client/lib/client.js"
-  "dsh-soc-agent-sidebar|soc-agent-sidebar|$REPO_ROOT/packages/soc-agent-sidebar/lib/client.js"
-  "dsh-soc-agent-workspace|soc-agent-workspace|$REPO_ROOT/packages/soc-agent-workspace/lib/client.js"
-  "dsh-soc-agent-brand|soc-agent-brand|$REPO_ROOT/packages/soc-agent-brand/lib/client.js"
-  "dsh-soc-agent-admin|soc-agent-admin|$REPO_ROOT/packages/soc-agent-admin/lib/client.js"
-  "dsh-soc-agent-action-policy|soc-agent-action-policy|$REPO_ROOT/packages/soc-agent-action-policy/lib/client.js"
-  "dsh-soc-agent-attachments|soc-agent-attachments|$REPO_ROOT/packages/soc-agent-attachments/lib/client.js"
-  "dsh-soc-agent-email-draft|soc-agent-email-draft|$REPO_ROOT/packages/soc-agent-email-draft/lib/client.js"
+# One authoritative inventory for installation, building, profile composition,
+# resolution checks, and artifact health checks. Fields are:
+# package | repository directory | host/dual face | built artifact | config row
+# | mandatory/optional. Optional packages are installed even when disabled so
+# enabling them remains configuration-only.
+SOC_PACKAGE_MATRIX=(
+  "dsh-soc-agent-action-policy|soc-agent-action-policy|dual|lib/client.js|dsh-soc-agent-action-policy|optional"
+  "dsh-soc-agent-admin|soc-agent-admin|dual|lib/client.js|dsh-soc-agent-admin|optional"
+  "dsh-soc-agent-agent-instructions|soc-agent-agent-instructions|host|lib/index.js|dsh-soc-agent-agent-instructions|mandatory"
+  "dsh-soc-agent-agent-loop|soc-agent-agent-loop|host|lib/index.js|dsh-soc-agent-agent-loop|mandatory"
+  "dsh-soc-agent-agent|soc-agent-agent|host|lib/index.js|dsh-soc-agent-agent|mandatory"
+  "dsh-soc-agent-api-gateway|soc-agent-api-gateway|dual|lib/client.js|dsh-soc-agent-api-gateway|mandatory"
+  "dsh-soc-agent-api-remotes|soc-agent-api-remotes|dual|lib/client.js|dsh-soc-agent-api-remotes|mandatory"
+  "dsh-soc-agent-api-settings-controller|soc-agent-api-settings-controller|host|lib/index.js|dsh-soc-agent-api-settings-controller|mandatory"
+  "dsh-soc-agent-api-workspace-files|soc-agent-api-workspace-files|dual|lib/client.js|dsh-soc-agent-api-workspace-files|mandatory"
+  "dsh-soc-agent-attachments|soc-agent-attachments|dual|lib/client.js|dsh-soc-agent-attachments|optional"
+  "dsh-soc-agent-auto-collapse|soc-agent-auto-collapse|dual|lib/client.js|dsh-soc-agent-auto-collapse|optional"
+  "dsh-soc-agent-brand|soc-agent-brand|dual|lib/client.js|dsh-soc-agent-brand|optional"
+  "dsh-soc-agent-client|soc-agent-client|dual|lib/client.js|dsh-soc-agent-client|mandatory"
+  "dsh-soc-agent-connection|soc-agent-connection|dual|lib/client.js|dsh-soc-agent-connection|mandatory"
+  "dsh-soc-agent-email-draft|soc-agent-email-draft|dual|lib/client.js|dsh-soc-agent-email-draft|optional"
+  "dsh-soc-agent-file-upload|soc-agent-file-upload|dual|lib/client.js|dsh-soc-agent-file-upload|mandatory"
+  "dsh-soc-agent-llm-pi-ai|soc-agent-llm-pi-ai|host|lib/index.js|dsh-soc-agent-llm-pi-ai|mandatory"
+  "dsh-soc-agent-mcp-client|soc-agent-mcp-client|host|lib/index.js|dsh-soc-agent-mcp-client|mandatory"
+  "dsh-soc-agent-session-controller|soc-agent-session-controller|dual|lib/client.js|dsh-soc-agent-session-controller|mandatory"
+  "dsh-soc-agent-session-log-export|soc-agent-session-log-export|dual|lib/client.js|dsh-soc-agent-session-log-export|mandatory"
+  "dsh-soc-agent-session-persistence-jsonl|soc-agent-session-persistence-jsonl|host|lib/index.js|dsh-soc-agent-session-persistence-jsonl|mandatory"
+  "dsh-soc-agent-settings-file|soc-agent-settings-file|host|lib/index.js|dsh-soc-agent-settings-file|mandatory"
+  "dsh-soc-agent-sidebar|soc-agent-sidebar|dual|lib/client.js|dsh-soc-agent-sidebar|mandatory"
+  "dsh-soc-agent-time-context|soc-agent-time-context|host|lib/index.js|dsh-soc-agent-time-context|mandatory"
+  "dsh-soc-agent-tool-result-pruner|soc-agent-tool-result-pruner|host|lib/index.js|dsh-soc-agent-tool-result-pruner|mandatory"
+  "dsh-soc-agent-ui-approval|soc-agent-ui-approval|dual|lib/client.js|dsh-soc-agent-ui-approval|mandatory"
+  "dsh-soc-agent-ui-chat|soc-agent-ui-chat|dual|lib/client.js|dsh-soc-agent-ui-chat|mandatory"
+  "dsh-soc-agent-ui-commands|soc-agent-ui-commands|dual|lib/client.js|dsh-soc-agent-ui-commands|mandatory"
+  "dsh-soc-agent-ui-conversation|soc-agent-ui-conversation|dual|lib/client.js|dsh-soc-agent-ui-conversation|mandatory"
+  "dsh-soc-agent-ui-input-trigger|soc-agent-ui-input-trigger|dual|lib/client.js|dsh-soc-agent-ui-input-trigger|mandatory"
+  "dsh-soc-agent-ui-layout|soc-agent-ui-layout|dual|lib/client.js|dsh-soc-agent-ui-layout|mandatory"
+  "dsh-soc-agent-ui-model-selection|soc-agent-ui-model-selection|dual|lib/client.js|dsh-soc-agent-ui-model-selection|mandatory"
+  "dsh-soc-agent-ui-renderer|soc-agent-ui-renderer|dual|lib/client.js|dsh-soc-agent-ui-renderer|mandatory"
+  "dsh-soc-agent-ui-session|soc-agent-ui-session|dual|lib/client.js|dsh-soc-agent-ui-session|mandatory"
+  "dsh-soc-agent-workspace-controller|soc-agent-workspace-controller|dual|lib/client.js|dsh-soc-agent-workspace-controller|mandatory"
+  "dsh-soc-agent-workspace|soc-agent-workspace|dual|lib/client.js|dsh-soc-agent-workspace|mandatory"
 )
+SOC_PACKAGE_NAMES=()
+SOC_PACKAGE_DIRS=()
+SOC_PACKAGE_ARTIFACTS=()
 SOC_CLIENT_PACKAGE_NAMES=()
 SOC_CLIENT_PACKAGE_DIRS=()
 SOC_CLIENT_LIBS=()
-for soc_client_row in "${SOC_CLIENT_MATRIX[@]}"; do
-  IFS='|' read -r soc_client_package soc_client_dir soc_client_lib <<< "$soc_client_row"
-  SOC_CLIENT_PACKAGE_NAMES+=("$soc_client_package")
-  SOC_CLIENT_PACKAGE_DIRS+=("$soc_client_dir")
-  SOC_CLIENT_LIBS+=("$soc_client_lib")
+for soc_package_row in "${SOC_PACKAGE_MATRIX[@]}"; do
+  IFS='|' read -r soc_package soc_package_dir soc_package_face soc_package_artifact _soc_config_row _soc_status <<< "$soc_package_row"
+  SOC_PACKAGE_NAMES+=("$soc_package")
+  SOC_PACKAGE_DIRS+=("$soc_package_dir")
+  SOC_PACKAGE_ARTIFACTS+=("$REPO_ROOT/packages/$soc_package_dir/$soc_package_artifact")
+  if [ "$soc_package_face" = dual ]; then
+    SOC_CLIENT_PACKAGE_NAMES+=("$soc_package")
+    SOC_CLIENT_PACKAGE_DIRS+=("$soc_package_dir")
+    SOC_CLIENT_LIBS+=("$REPO_ROOT/packages/$soc_package_dir/$soc_package_artifact")
+  fi
 done
 
 if [ ! -f "$SERVER_ENV_EXAMPLE" ]; then
   echo "error: template '$SERVER_ENV_EXAMPLE' is missing." >&2
-  exit 1
-fi
-if [ ! -f "$PLUGIN_REQUIREMENTS" ]; then
-  echo "error: plugin requirements '$PLUGIN_REQUIREMENTS' is missing." >&2
-  exit 1
-fi
-if [ ! -f "$PLUGIN_PATCH" ]; then
-  echo "error: plugin patch '$PLUGIN_PATCH' is missing." >&2
   exit 1
 fi
 
@@ -275,48 +302,10 @@ trim() {
   printf '%s' "$s"
 }
 
-PLUGIN_NAMES=(
-  "@linxin666/dsh-client-ui-skin-center"
-  "dsh-auto-collapse"
-)
-PLUGIN_SPECS=()
-
-# Direct profile dependencies setup.sh owns besides the external plugins:
-# the SOC product bundle and its eight browser packages (wired by
-# ensure_soc_bundle).
-# Any other direct dependency found in the profile manifest is stale and gets
-# pruned (see prune_stale_plugins) — so removing a plugin from
-# requirements.txt propagates to every machine on the next setup run.
 SOC_MANAGED_DEPS=(
   dsh-soc-agent
-  dsh-soc-agent-client
-  dsh-soc-agent-sidebar
-  dsh-soc-agent-workspace
-  dsh-soc-agent-brand
-  dsh-soc-agent-admin
-  dsh-soc-agent-action-policy
-  dsh-soc-agent-attachments
-  dsh-soc-agent-email-draft
+  "${SOC_PACKAGE_NAMES[@]}"
 )
-
-read_plugin_requirements() {
-  PLUGIN_SPECS=()
-  local line
-  while IFS= read -r line || [ -n "$line" ]; do
-    line="${line%$'\r'}"
-    line="$(trim "$line")"
-    case "$line" in
-      ''|\#*) continue ;;
-      -*) bad "$PLUGIN_REQUIREMENTS contains a pnpm option instead of a package spec: $line"; return 1 ;;
-      *[[:space:]]*) bad "$PLUGIN_REQUIREMENTS contains whitespace in a package spec: $line"; return 1 ;;
-    esac
-    PLUGIN_SPECS+=("$line")
-  done < "$PLUGIN_REQUIREMENTS"
-  if [ "${#PLUGIN_SPECS[@]}" -ne "${#PLUGIN_NAMES[@]}" ]; then
-    bad "$PLUGIN_REQUIREMENTS must contain exactly ${#PLUGIN_NAMES[@]} package specs"
-    return 1
-  fi
-}
 
 # Strip one pair of surrounding single/double quotes, if both ends match.
 strip_quotes() {
@@ -776,48 +765,63 @@ ensure_python_server() {
   fi
 }
 
-# Incremental build state (Phase 5): content fingerprints of everything the
-# harness install and build consume. Markers live under .data/ (gitignored).
+# Incremental state is deliberately split across the immutable Harness,
+# independent SOC workspace, and profile composition.
 BUILD_STATE_DIR="$REPO_ROOT/.data"
 HARNESS_INSTALL_MARKER="$BUILD_STATE_DIR/harness-install.sha256"
 HARNESS_BUILD_MARKER="$BUILD_STATE_DIR/harness-build.sha256"
+SOC_INSTALL_MARKER="$BUILD_STATE_DIR/soc-install.sha256"
+SOC_BUILD_MARKER="$BUILD_STATE_DIR/soc-build.sha256"
+PROFILE_COMPOSITION_MARKER="$BUILD_STATE_DIR/profile-composition.sha256"
 FORCE_REBUILD="${FORCE_REBUILD:-0}"
 
 harness_source_fingerprint() {
-  # Content hash of every harness build input: framework sources, package
-  # manifests, configs, and all SOC browser package sources bound into bundles.
-  # Content-based (not mtime) so checkouts and pulls do not force rebuilds.
   (
-    cd "$HARNESS_DIR" && find packages apps scripts \
+    cd "$HARNESS_DIR" && find packages apps scripts vendor \
       -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' \
       -o -name '*.css' -o -name '*.yml' -o -name '*.yaml' -o -name '*.json' \) \
       -not -path '*/node_modules/*' -not -path '*/lib/*' -not -path '*/dist/*' \
       -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum
-    for index in "${!SOC_CLIENT_PACKAGE_NAMES[@]}"; do
-      package_dir="${SOC_CLIENT_PACKAGE_DIRS[$index]}"
+    sha256sum "$HARNESS_DIR/package.json" "$HARNESS_DIR/pnpm-lock.yaml" 2>/dev/null || true
+  ) 2>/dev/null | sha256sum | awk '{print $1}'
+}
+
+soc_source_fingerprint() {
+  (
+    cd "$REPO_ROOT" && find apps/soc-agent packages tooling/client \
+      -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' \
+      -o -name '*.css' -o -name '*.yml' -o -name '*.yaml' -o -name '*.json' \) \
+      -not -path '*/node_modules/*' -not -path '*/lib/*' -not -path '*/dist/*' \
+      -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum
+    for package_dir in "${SOC_PACKAGE_DIRS[@]}"; do
       cd "$REPO_ROOT/packages/$package_dir" && find src tests \
         -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.css' -o -name '*.json' \) \
         -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum
-      for soc_client_metadata in tsdown.config.ts tsconfig.json tsconfig.types.json package.json snapshot-baseline.json; do
-        if [ -f "$soc_client_metadata" ]; then sha256sum "$soc_client_metadata"; fi
-      done
     done
+    sha256sum "$REPO_ROOT/package.json" "$REPO_ROOT/pnpm-lock.yaml" \
+      "$REPO_ROOT/pnpm-workspace.yaml" 2>/dev/null || true
   ) 2>/dev/null | sha256sum | awk '{print $1}'
 }
 
 harness_install_fingerprint() {
-  {
-    sha256sum "$HARNESS_DIR/pnpm-lock.yaml" 2>/dev/null || true
-    sha256sum "$REPO_ROOT/apps/soc-agent/package.json" 2>/dev/null || true
-    for package_dir in "${SOC_CLIENT_PACKAGE_DIRS[@]}"; do
-      sha256sum "$REPO_ROOT/packages/$package_dir/package.json" 2>/dev/null || true
-    done
-  } | sha256sum | awk '{print $1}'
+  sha256sum "$HARNESS_DIR/pnpm-lock.yaml" 2>/dev/null | sha256sum | awk '{print $1}'
+}
+
+soc_install_fingerprint() {
+  sha256sum "$REPO_ROOT/package.json" "$REPO_ROOT/pnpm-lock.yaml" \
+    "$REPO_ROOT/pnpm-workspace.yaml" 2>/dev/null | sha256sum | awk '{print $1}'
 }
 
 ensure_harness_ready() {
   echo "${B}Harness build${N}"
   mkdir -p "$BUILD_STATE_DIR"
+
+  if node "$REPO_ROOT/tooling/verify-upstream.mjs" --fresh; then
+    ok "pristine Harness release verified"
+  else
+    bad "vendor/deepseek-harness differs from the official rc.2 release"
+    return 1
+  fi
 
   local install_fingerprint install_recorded
   install_fingerprint="$(harness_install_fingerprint)"
@@ -838,17 +842,16 @@ ensure_harness_ready() {
     fi
   fi
 
-  local source_fingerprint build_recorded source_changed=1
+  local source_fingerprint build_recorded
   source_fingerprint="$(harness_source_fingerprint)"
   build_recorded="$(cat "$HARNESS_BUILD_MARKER" 2>/dev/null || true)"
   if [ "$FORCE_REBUILD" != "1" ] && [ -n "$build_recorded" ] \
     && [ "$build_recorded" = "$source_fingerprint" ] \
     && [ -f "$HARNESS_DIR/apps/web/dist/index.html" ] \
     && [ -f "$HARNESS_DIR/packages/mcp/mcp-client/lib/index.js" ]; then
-    source_changed=0
     info "harness sources unchanged since the last build — skipping pnpm run build"
   else
-    echo "Building the harness (framework libs, SOC browser bundles, and web dist) — this can take several minutes…"
+    echo "Building the pristine Harness framework and web app — this can take several minutes…"
     if (cd "$HARNESS_DIR" && pnpm run build); then
       ok "framework build complete"
       printf '%s' "$source_fingerprint" > "$HARNESS_BUILD_MARKER"
@@ -859,7 +862,58 @@ ensure_harness_ready() {
     fi
   fi
 
-  local need_repair="$source_changed" index package lib violations
+}
+
+verify_soc_artifacts() {
+  local all_ok=0 index package artifact
+  for index in "${!SOC_PACKAGE_NAMES[@]}"; do
+    package="${SOC_PACKAGE_NAMES[$index]}"
+    artifact="${SOC_PACKAGE_ARTIFACTS[$index]}"
+    if [ -f "$artifact" ]; then
+      ok "$package artifact present"
+    else
+      bad "$package artifact missing — run: ./setup.sh --plugins"
+      all_ok=1
+    fi
+  done
+  if ! verify_soc_client_artifacts; then all_ok=1; fi
+  return "$all_ok"
+}
+
+ensure_soc_workspace_ready() {
+  echo "${B}SOC workspace build${N}"
+  mkdir -p "$BUILD_STATE_DIR"
+
+  local install_fingerprint install_recorded
+  install_fingerprint="$(soc_install_fingerprint)"
+  install_recorded="$(cat "$SOC_INSTALL_MARKER" 2>/dev/null || true)"
+  if [ "$FORCE_REBUILD" != 1 ] && [ "$install_recorded" = "$install_fingerprint" ] \
+    && [ -d "$REPO_ROOT/node_modules" ]; then
+    info "SOC dependency graph unchanged — skipping pnpm install"
+  else
+    echo "Installing the independent SOC workspace…"
+    if (cd "$REPO_ROOT" && pnpm install --frozen-lockfile); then
+      ok "SOC workspace dependencies ready"
+      printf '%s' "$install_fingerprint" > "$SOC_INSTALL_MARKER"
+    else
+      bad "SOC workspace install failed"
+      return 1
+    fi
+  fi
+
+  local source_fingerprint build_recorded need_repair=0 index package lib violations
+  source_fingerprint="$(soc_source_fingerprint)"
+  build_recorded="$(cat "$SOC_BUILD_MARKER" 2>/dev/null || true)"
+  if [ "$FORCE_REBUILD" != 1 ] && [ "$build_recorded" = "$source_fingerprint" ]; then
+    if verify_soc_artifacts >/dev/null 2>&1; then
+      info "SOC sources unchanged — skipping bundle build"
+    else
+      need_repair=1
+    fi
+  else
+    need_repair=1
+  fi
+
   for index in "${!SOC_CLIENT_PACKAGE_NAMES[@]}"; do
     package="${SOC_CLIENT_PACKAGE_NAMES[$index]}"
     lib="${SOC_CLIENT_LIBS[$index]}"
@@ -875,25 +929,15 @@ ensure_harness_ready() {
     fi
   done
   if [ "$need_repair" = 1 ]; then
-    echo "Rebuilding the SOC browser bundles against the built framework…"
-    for package in "${SOC_CLIENT_PACKAGE_NAMES[@]}"; do
-      if (cd "$HARNESS_DIR" && pnpm --filter "$package" run build); then
-        ok "$package bundle rebuilt"
-      else
-        bad "$package bundle rebuild failed"
-        PREREQ_WARNINGS+=("$package artifact")
-        return 1
-      fi
-    done
-    if verify_soc_client_artifacts; then
-      :
+    echo "Building every SOC host and browser bundle…"
+    if (cd "$REPO_ROOT" && pnpm run build); then
+      printf '%s' "$source_fingerprint" > "$SOC_BUILD_MARKER"
     else
-      bad "one or more SOC browser bundles are still unhealthy after rebuild"
-      PREREQ_WARNINGS+=("SOC browser artifacts")
+      bad "SOC workspace build failed"
       return 1
     fi
   fi
-  ok "SOC browser bundle artifacts verified"
+  verify_soc_artifacts
 }
 
 # --- profile wiring ---------------------------------------------------------
@@ -936,147 +980,24 @@ profile_has_bundle() {
   ' "$1" "$2"
 }
 
-ensure_profile_patch() {
-  local pdir workspace target patch_entry tmp
-  pdir="$(profile_dir)"
-  workspace="$pdir/pnpm-workspace.yaml"
-  target="$pdir/patches/$(basename "$PLUGIN_PATCH")"
-  patch_entry='  dsh-auto-collapse@0.1.4: patches/dsh-auto-collapse@0.1.4.patch'
-
-  mkdir -p "$pdir/patches"
-  if [ -e "$target" ]; then
-    if ! cmp -s "$PLUGIN_PATCH" "$target"; then
-      bad "profile patch differs from the repository copy: $target"
-      return 1
-    fi
-  elif ! cp "$PLUGIN_PATCH" "$target"; then
-    bad "could not copy the dsh-auto-collapse patch into the profile"
-    return 1
-  fi
-
-  if [ ! -f "$workspace" ]; then
-    printf '%s\n' \
-      'packages:' \
-      '  - .' \
-      '' \
-      'nodeLinker: hoisted' \
-      'autoInstallPeers: false' \
-      '' \
-      'patchedDependencies:' \
-      "$patch_entry" > "$workspace"
-    return 0
-  fi
-
-  if grep -Fqx "$patch_entry" "$workspace"; then
-    return 0
-  fi
-  if grep -q '^[[:space:]]*dsh-auto-collapse@0\.1\.4:' "$workspace"; then
-    bad "profile pnpm-workspace.yaml has a different dsh-auto-collapse patch entry"
-    return 1
-  fi
-
-  if grep -q '^patchedDependencies:[[:space:]]*$' "$workspace"; then
-    tmp="$(mktemp "${workspace}.XXXXXX")"
-    if awk -v entry="$patch_entry" '
-      /^patchedDependencies:[[:space:]]*$/ { print; in_patched=1; next }
-      in_patched && /^[^[:space:]#]/ { print entry; in_patched=0 }
-      { print }
-      END { if (in_patched) print entry }
-    ' "$workspace" > "$tmp" && mv "$tmp" "$workspace"; then
-      return 0
-    fi
-    rm -f "$tmp"
-    bad "could not register the dsh-auto-collapse patch in $workspace"
-    return 1
-  fi
-  if grep -q '^patchedDependencies:' "$workspace"; then
-    bad "cannot update inline patchedDependencies in $workspace"
-    return 1
-  fi
-
-  printf '\npatchedDependencies:\n%s\n' "$patch_entry" >> "$workspace"
-}
-
-verify_external_profile() {
-  local pdir="$1" name all_ok=0 profile_patch
-  local patch_entry='  dsh-auto-collapse@0.1.4: patches/dsh-auto-collapse@0.1.4.patch'
-  if [ ! -f "$pdir/package.json" ]; then
-    bad "DeepSeek Harness profile '$DSH_PROFILE' is missing"
-    return 1
-  fi
-
-  for name in "${PLUGIN_NAMES[@]}"; do
-    if profile_has_dependency "$pdir/package.json" "$name"; then
-      ok "external dependency: $name"
-    else
-      bad "external dependency missing: $name"
-      all_ok=1
-    fi
-    if profile_has_bundle "$pdir/package.json" "$name"; then
-      ok "external bundle: $name"
-    else
-      bad "external bundle missing: $name"
-      all_ok=1
-    fi
-  done
-
-  profile_patch="$pdir/patches/$(basename "$PLUGIN_PATCH")"
-  if [ -f "$profile_patch" ] && cmp -s "$PLUGIN_PATCH" "$profile_patch"; then
-    ok "dsh-auto-collapse patch copied to the profile"
-  else
-    bad "dsh-auto-collapse patch is missing or differs in the profile"
-    all_ok=1
-  fi
-  if [ -f "$pdir/pnpm-workspace.yaml" ] \
-    && grep -Fqx "$patch_entry" "$pdir/pnpm-workspace.yaml"; then
-    ok "dsh-auto-collapse patch registered in the profile"
-  else
-    bad "dsh-auto-collapse patch is not registered in the profile"
-    all_ok=1
-  fi
-  return "$all_ok"
-}
-
-# Direct dependency names of the profile manifest that are NOT in the managed
-# set (external plugins + SOC packages) — printed one per line. In-box bundle
-# layers (dsh-base, dsh-web-app) are not dependencies and never appear here.
-stale_plugin_names() { # $1 = profile dir
-  local -A expected=()
+legacy_plugin_names() { # $1 = profile dir
   local name
-  for name in "${PLUGIN_NAMES[@]}" "${SOC_MANAGED_DEPS[@]}"; do
-    expected["$name"]=1
-  done
-  node -e '
-    const fs = require("fs");
-    try {
-      const m = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-      console.log(Object.keys(m.dependencies || {}).join("\n"));
-    } catch {}
-  ' "$1/package.json" | while IFS= read -r name; do
-    if [ -z "$name" ]; then continue; fi
-    if [ -z "${expected[$name]+x}" ]; then printf '%s\n' "$name"; fi
+  for name in '@linxin666/dsh-client-ui-skin-center' dsh-auto-collapse; do
+    if profile_has_dependency "$1/package.json" "$name" || profile_has_bundle "$1/package.json" "$name"; then
+      printf '%s\n' "$name"
+    fi
   done
 }
 
-# Remove direct profile dependencies that requirements.txt no longer lists.
-# `pnpm dsh plugin remove` clears the dependency and node_modules, but its
-# reconciliation has been observed to leave the dsh.profile.bundles layer
-# entry behind — the manifest cleanup below guarantees the plugin cannot boot
-# again either way.
-prune_stale_plugins() { # $1 = profile dir
-  local pdir="$1" stale name
-  stale="$(stale_plugin_names "$pdir")"
-  if [ -z "$stale" ]; then
-    ok "no stale external plugins in the profile"
-    return 0
-  fi
-  local -a stale_arr=()
-  while IFS= read -r name; do
-    [ -n "$name" ] && stale_arr+=("$name")
-  done <<< "$stale"
-  warn "no longer listed in $PLUGIN_REQUIREMENTS — removing: ${stale_arr[*]}"
-  if ! (cd "$HARNESS_DIR" && pnpm dsh plugin --profile "$DSH_PROFILE" remove "${stale_arr[@]}"); then
-    bad "failed to remove stale plugins: ${stale_arr[*]}"
+prune_legacy_plugins() { # $1 = profile dir
+  local pdir="$1" legacy name
+  legacy="$(legacy_plugin_names "$pdir")"
+  [ -n "$legacy" ] || { ok "legacy skin and auto-collapse plugins absent"; return 0; }
+  local -a legacy_arr=()
+  while IFS= read -r name; do [ -n "$name" ] && legacy_arr+=("$name"); done <<< "$legacy"
+  echo "Removing replaced third-party plugins: ${legacy_arr[*]}"
+  if ! (cd "$HARNESS_DIR" && pnpm dsh plugin --profile "$DSH_PROFILE" remove "${legacy_arr[@]}"); then
+    bad "failed to remove replaced third-party plugins"
     return 1
   fi
   node -e '
@@ -1084,47 +1005,11 @@ prune_stale_plugins() { # $1 = profile dir
     const path = process.argv[1];
     const stale = new Set(process.argv.slice(2));
     const m = JSON.parse(fs.readFileSync(path, "utf8"));
-    const bundles = m.dsh && m.dsh.profile && m.dsh.profile.bundles;
-    if (Array.isArray(bundles)) {
-      const kept = bundles.filter((entry) => !stale.has(entry));
-      if (kept.length !== bundles.length) {
-        m.dsh.profile.bundles = kept;
-        fs.writeFileSync(path, JSON.stringify(m, null, 2) + "\n");
-      }
-    }
-  ' "$pdir/package.json" "${stale_arr[@]}"
-  for name in "${stale_arr[@]}"; do
-    if profile_has_dependency "$pdir/package.json" "$name" || profile_has_bundle "$pdir/package.json" "$name"; then
-      bad "stale plugin still present after removal: $name"
-      return 1
-    fi
-  done
-  ok "stale plugins removed: ${stale_arr[*]}"
-}
-
-ensure_external_plugins() {
-  local pdir
-  echo "${B}DeepSeek Harness external plugins${N}"
-  if ! read_plugin_requirements; then
-    return 1
-  fi
-
-  pdir="$(profile_dir)"
-  if ! ensure_profile_patch; then
-    return 1
-  fi
-
-  echo "Installing external plugin bundles into the '$DSH_PROFILE' profile…"
-  if (cd "$HARNESS_DIR" && pnpm dsh plugin --profile "$DSH_PROFILE" add "${PLUGIN_SPECS[@]}"); then
-    ok "external plugin installation complete"
-  else
-    bad "external plugin installation failed"
-    return 1
-  fi
-  if ! verify_external_profile "$pdir"; then
-    return 1
-  fi
-  prune_stale_plugins "$pdir"
+    const bundles = m.dsh?.profile?.bundles;
+    if (Array.isArray(bundles)) m.dsh.profile.bundles = bundles.filter((item) => !stale.has(item));
+    fs.writeFileSync(path, JSON.stringify(m, null, 2) + "\n");
+  ' "$pdir/package.json" "${legacy_arr[@]}"
+  ok "replaced third-party plugins removed"
 }
 
 profile_lists() { # $1=manifest $2=package name -> exit 0 when bundled or depended on
@@ -1146,21 +1031,8 @@ verify_profile_resolution() { # $1 = profile dir; prints one line per plugin nam
   # installation's dependency closure before mounting anything. For them,
   # resolvability from the install anchor is the correct boot-readiness test.
   local harness_anchor="$HARNESS_DIR/apps/cli/package.json"
-  for spec in \
-    dsh-soc-agent/auth-host \
-    dsh-soc-agent/host \
-    dsh-soc-agent-client \
-    dsh-soc-agent-sidebar \
-    dsh-soc-agent-workspace \
-    dsh-soc-agent-brand \
-    dsh-soc-agent-admin \
-    dsh-soc-agent-action-policy \
-    dsh-soc-agent-attachments \
-    dsh-soc-agent-email-draft \
-    @deepseek-ai/dsh-time-context \
-    @linxin666/dsh-client-ui-skin-center \
-    dsh-auto-collapse
-  do
+  local -a resolution_specs=(dsh-soc-agent/auth-host dsh-soc-agent/host "${SOC_PACKAGE_NAMES[@]}")
+  for spec in "${resolution_specs[@]}"; do
     if node -e '
       const { createRequire } = require("module");
       try { createRequire(process.argv[1]).resolve(process.argv[2]); }
@@ -1181,8 +1053,12 @@ verify_profile_resolution() { # $1 = profile dir; prints one line per plugin nam
 }
 
 ensure_soc_bundle() {
-  local pdir
+  local pdir package package_dir all_registered=0
+  local -a package_specs=("$REPO_ROOT/apps/soc-agent")
   pdir="$(profile_dir)"
+  for package_dir in "${SOC_PACKAGE_DIRS[@]}"; do
+    package_specs+=("$REPO_ROOT/packages/$package_dir")
+  done
 
   echo "${B}Harness profile (SOC product bundle)${N}"
 
@@ -1194,29 +1070,20 @@ ensure_soc_bundle() {
     return 1
   fi
 
-  if profile_lists "$pdir/package.json" "dsh-soc-agent" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-client" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-sidebar" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-workspace" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-brand" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-admin" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-action-policy" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-attachments" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-email-draft"; then
-    ok "SOC bundle and browser feature packages already registered in the '$DSH_PROFILE' profile"
+  if ! prune_legacy_plugins "$pdir"; then return 1; fi
+
+  if profile_lists "$pdir/package.json" dsh-soc-agent; then
+    all_registered=1
+    for package in "${SOC_PACKAGE_NAMES[@]}"; do
+      if ! profile_lists "$pdir/package.json" "$package"; then all_registered=0; break; fi
+    done
+  fi
+  if [ "$all_registered" = 1 ]; then
+    ok "SOC bundle and all replacement packages already registered in the '$DSH_PROFILE' profile"
   else
     echo "Registering the SOC product bundle in the '$DSH_PROFILE' profile…"
-    if (cd "$HARNESS_DIR" && pnpm dsh plugin --profile "$DSH_PROFILE" add \
-        "$REPO_ROOT/apps/soc-agent" \
-        "$REPO_ROOT/packages/soc-agent-client" \
-        "$REPO_ROOT/packages/soc-agent-sidebar" \
-        "$REPO_ROOT/packages/soc-agent-workspace" \
-        "$REPO_ROOT/packages/soc-agent-brand" \
-        "$REPO_ROOT/packages/soc-agent-admin" \
-        "$REPO_ROOT/packages/soc-agent-action-policy" \
-        "$REPO_ROOT/packages/soc-agent-attachments" \
-        "$REPO_ROOT/packages/soc-agent-email-draft" 2>&1 | tail -n 3); then
-      ok "installed dsh-soc-agent and all browser feature packages"
+    if (cd "$HARNESS_DIR" && pnpm dsh plugin --profile "$DSH_PROFILE" add "${package_specs[@]}" 2>&1 | tail -n 8); then
+      ok "installed dsh-soc-agent and all SOC replacement packages"
     else
       bad "could not install the SOC bundle into the harness profile (see output above)"
       PREREQ_WARNINGS+=("harness profile wiring")
@@ -1226,6 +1093,9 @@ ensure_soc_bundle() {
 
   if verify_profile_resolution "$pdir"; then
     ok "every SOC plugin name resolves from the profile"
+    {
+      sha256sum "$pdir/package.json" "$REPO_ROOT/apps/soc-agent/cordis.patch.yml" 2>/dev/null || true
+    } | sha256sum | awk '{print $1}' > "$PROFILE_COMPOSITION_MARKER"
   else
     warn "the boot would fail on unresolved plugin names — fix the failures above and re-run ./setup.sh"
     PREREQ_WARNINGS+=("SOC plugin resolution")
@@ -1299,24 +1169,19 @@ run_check_mode() {
 
   echo
   echo "${B}Harness build & profile${N}"
-  if read_plugin_requirements; then
-    ok "third-party plugin requirements present"
+  if node "$REPO_ROOT/tooling/verify-upstream.mjs" --fresh; then
+    ok "pristine Harness release verified"
   else
-    fails=$((fails+1))
+    bad "vendor/deepseek-harness differs from the official rc.2 release"; fails=$((fails+1))
   fi
   local pdir
   pdir="$(profile_dir)"
-  if verify_external_profile "$pdir"; then
-    :
+  local legacy_list
+  legacy_list="$(legacy_plugin_names "$pdir")"
+  if [ -z "$legacy_list" ]; then
+    ok "replaced third-party plugins absent"
   else
-    fails=$((fails+1))
-  fi
-  local stale_list
-  stale_list="$(stale_plugin_names "$pdir")"
-  if [ -z "$stale_list" ]; then
-    ok "no stale external plugins"
-  else
-    bad "stale external plugins present: $(printf '%s' "$stale_list" | tr '\n' ' ') — run: ./setup.sh --plugins"; fails=$((fails+1))
+    bad "replaced third-party plugins still present: $(printf '%s' "$legacy_list" | tr '\n' ' ') — run: ./setup.sh --plugins"; fails=$((fails+1))
   fi
   if [ -d "$HARNESS_DIR/node_modules" ]; then
     if [ -f "$HARNESS_DIR/vendor/schemastery/lib/index.cjs" ] && [ -f "$HARNESS_DIR/apps/web/dist/index.html" ]; then
@@ -1324,21 +1189,20 @@ run_check_mode() {
     else
       bad "framework build incomplete — run: ./setup.sh --plugins"; fails=$((fails+1))
     fi
-    if verify_soc_client_artifacts; then
+    if verify_soc_artifacts; then
       :
     else
       fails=$((fails+1))
     fi
-    if profile_lists "$pdir/package.json" "dsh-soc-agent" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-client" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-sidebar" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-workspace" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-brand" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-admin" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-action-policy" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-attachments" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-email-draft"; then
-      ok "SOC bundle and browser feature packages registered in the '$DSH_PROFILE' profile"
+    local package all_registered=0
+    if profile_lists "$pdir/package.json" dsh-soc-agent; then
+      all_registered=1
+      for package in "${SOC_PACKAGE_NAMES[@]}"; do
+        if ! profile_lists "$pdir/package.json" "$package"; then all_registered=0; break; fi
+      done
+    fi
+    if [ "$all_registered" = 1 ]; then
+      ok "SOC bundle and all replacement packages registered in the '$DSH_PROFILE' profile"
     else
       bad "SOC bundle not registered — run: ./setup.sh --plugins"; fails=$((fails+1))
     fi
@@ -1381,7 +1245,7 @@ case "${1:-}" in
     run_prereq_checks
     ensure_python_server
     ensure_harness_ready
-    ensure_external_plugins
+    ensure_soc_workspace_ready
     ensure_soc_bundle
     exit 0
     ;;
@@ -1392,7 +1256,7 @@ case "${1:-}" in
     write_files
     ensure_python_server
     ensure_harness_ready
-    ensure_external_plugins
+    ensure_soc_workspace_ready
     ensure_soc_bundle
     echo
     summary

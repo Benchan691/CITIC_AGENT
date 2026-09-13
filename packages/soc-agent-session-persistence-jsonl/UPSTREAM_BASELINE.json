@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+  "tag": "dsh-v0.1.5-rc.2",
+  "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+  "version": "0.1.5-rc.2",
+  "officialPackage": "@deepseek-ai/dsh-session-persistence-jsonl",
+  "officialSourcePath": "packages/session/session-persistence-jsonl",
+  "sourceSha256": "49b10324d25ec291f2bf31d5eb3fe5ceaff84977ac545d2d1709442f16372aaa"
+}

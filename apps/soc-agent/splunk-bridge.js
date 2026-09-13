@@ -4,7 +4,7 @@ import { parseEnv } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import { OFFICIAL_SPLUNK_TOOL_NAMES } from './tool-inventory.js'
-import * as McpClient from '@deepseek-ai/dsh-mcp-client'
+import * as McpClient from 'dsh-soc-agent-mcp-client'
 
 export const name = 'soc-agent-splunk-official-bridge'
 export const inject = ['tools']

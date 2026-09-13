@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+  "tag": "dsh-v0.1.5-rc.2",
+  "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+  "version": "0.1.5-rc.2",
+  "officialPackage": "@deepseek-ai/dsh-api-remotes",
+  "officialSourcePath": "packages/api/remotes",
+  "sourceSha256": "08da17da3c3f10ef95886b4539cadc35bebf891e9d09ff0f09b5a4896ff01e8c"
+}

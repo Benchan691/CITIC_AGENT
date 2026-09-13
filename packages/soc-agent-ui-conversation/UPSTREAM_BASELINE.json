@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+  "tag": "dsh-v0.1.5-rc.2",
+  "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+  "version": "0.1.5-rc.2",
+  "officialPackage": "@deepseek-ai/dsh-client-ui-conversation",
+  "officialSourcePath": "packages/client/ui-conversation",
+  "sourceSha256": "6b65b3d9edb2d596a803b90f7faace29bbde73c5c78235d52f08e559e6d45e46"
+}

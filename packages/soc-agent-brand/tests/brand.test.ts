@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
+import { SlotRegistry } from 'dsh-soc-agent-ui-renderer/client'
 import { apply, inject } from 'dsh-soc-agent-brand/client'
 
 async function bench() {

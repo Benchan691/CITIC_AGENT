@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.soc-paths.json",
+  "include": [
+    "src/css-modules.d.ts",
+    "src/client/**/*.ts",
+    "src/client/**/*.tsx"
+  ]
+}

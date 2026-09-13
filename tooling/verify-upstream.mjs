@@ -1,0 +1,117 @@
+import { createHash } from 'node:crypto'
+import { execFile } from 'node:child_process'
+import { mkdtemp, mkdir, readFile, readdir, readlink, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { basename, dirname, join, relative, resolve } from 'node:path'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
+const root = resolve(dirname(new URL(import.meta.url).pathname), '..')
+const vendorRoot = join(root, 'vendor', 'deepseek-harness')
+const manifestPath = join(root, 'vendor', 'deepseek-harness.upstream.json')
+const release = {
+  repository: 'https://github.com/deepseek-ai/deepseek-harness',
+  tag: 'dsh-v0.1.5-rc.2',
+  commit: 'fb2c4b9e698e30edb738bca4cf0618587db7d203',
+  version: '0.1.5-rc.2',
+  packageManager: 'pnpm@11.7.0',
+}
+
+const ignoredNames = new Set([
+  '.git', '.cache', '.data', '.env', '.turbo', 'coverage', 'dist', 'lib', 'node_modules',
+])
+const ignoredSuffixes = ['.env.local', '.log']
+
+function sha256(value) {
+  return createHash('sha256').update(value).digest('hex')
+}
+
+async function inventory(directory) {
+  const records = []
+  async function visit(current) {
+    const entries = await readdir(current, { withFileTypes: true })
+    entries.sort((left, right) => left.name.localeCompare(right.name, 'en'))
+    for (const entry of entries) {
+      if (ignoredNames.has(entry.name) || ignoredSuffixes.some(suffix => entry.name.endsWith(suffix))) continue
+      const absolute = join(current, entry.name)
+      const path = relative(directory, absolute).split('\\').join('/')
+      if (entry.isDirectory()) {
+        await visit(absolute)
+        continue
+      }
+      if (entry.isSymbolicLink()) {
+        records.push(`120000 ${sha256(await readlink(absolute))} ${path}`)
+        continue
+      }
+      if (!entry.isFile()) throw new Error(`unsupported vendor entry: ${path}`)
+      const metadata = await stat(absolute)
+      const mode = (metadata.mode & 0o111) === 0 ? '100644' : '100755'
+      records.push(`${mode} ${sha256(await readFile(absolute))} ${path}`)
+    }
+  }
+  await visit(directory)
+  records.sort()
+  return {
+    fileCount: records.length,
+    inventorySha256: sha256(`${records.join('\n')}\n`),
+    executableFiles: records.filter(record => record.startsWith('100755 ')).map(record => record.split(' ').slice(2).join(' ')),
+  }
+}
+
+async function assertReleaseMetadata(directory) {
+  const manifest = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'))
+  if (manifest.version !== release.version) throw new Error(`vendor version is ${manifest.version}, expected ${release.version}`)
+  if (manifest.packageManager !== release.packageManager) {
+    throw new Error(`vendor package manager is ${manifest.packageManager}, expected ${release.packageManager}`)
+  }
+}
+
+async function freshReleaseInventory() {
+  const temporary = await mkdtemp(join(tmpdir(), 'dsh-upstream-verify.'))
+  try {
+    const archive = join(temporary, `${release.tag}.tar.gz`)
+    const response = await fetch(`https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/refs/tags/${release.tag}`)
+    if (!response.ok) throw new Error(`release archive download failed: HTTP ${response.status}`)
+    await writeFile(archive, new Uint8Array(await response.arrayBuffer()))
+    const unpacked = join(temporary, 'unpacked')
+    await mkdir(unpacked)
+    await execFileAsync('tar', ['-xzf', archive, '-C', unpacked])
+    const roots = (await readdir(unpacked, { withFileTypes: true })).filter(entry => entry.isDirectory())
+    if (roots.length !== 1) throw new Error('release archive did not contain exactly one root directory')
+    const extracted = join(unpacked, roots[0].name)
+    await assertReleaseMetadata(extracted)
+    return await inventory(extracted)
+  } finally {
+    await rm(temporary, { recursive: true, force: true })
+  }
+}
+
+const local = await inventory(vendorRoot)
+await assertReleaseMetadata(vendorRoot)
+
+if (process.argv.includes('--write')) {
+  await writeFile(manifestPath, `${JSON.stringify({ ...release, ...local }, null, 2)}\n`)
+  console.log(`wrote ${basename(manifestPath)} (${local.fileCount} files)`)
+  process.exit(0)
+}
+
+const expected = JSON.parse(await readFile(manifestPath, 'utf8'))
+for (const [key, value] of Object.entries(release)) {
+  if (expected[key] !== value) throw new Error(`upstream manifest ${key} does not match the pinned release`)
+}
+for (const key of ['fileCount', 'inventorySha256']) {
+  if (local[key] !== expected[key]) throw new Error(`vendor ${key} is ${local[key]}, expected ${expected[key]}`)
+}
+if (JSON.stringify(local.executableFiles) !== JSON.stringify(expected.executableFiles)) {
+  throw new Error('vendor executable-bit inventory differs from the pinned release')
+}
+
+if (process.argv.includes('--fresh')) {
+  const fresh = await freshReleaseInventory()
+  if (fresh.inventorySha256 !== local.inventorySha256 || fresh.fileCount !== local.fileCount
+    || JSON.stringify(fresh.executableFiles) !== JSON.stringify(local.executableFiles)) {
+    throw new Error('tracked vendor tree differs from a fresh official release archive')
+  }
+}
+
+console.log(`verified pristine ${release.tag} vendor snapshot (${local.fileCount} files, ${local.inventorySha256})`)

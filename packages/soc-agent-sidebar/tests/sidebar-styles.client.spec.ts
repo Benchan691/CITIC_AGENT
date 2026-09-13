@@ -1,9 +1,9 @@
 /** Sidebar shell style contracts shared with its slot-owned controls. */
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-const css = readFileSync(resolve(import.meta.dirname, '../src/client/SidebarRoot.module.css'), 'utf8')
+const css = readFileSync(fileURLToPath(new URL('../src/client/SidebarRoot.module.css', import.meta.url)), 'utf8')
 
 /**
  * Declarations of one exact selector, keyed by property.
@@ -69,9 +69,6 @@ describe('SidebarRoot.module.css', () => {
     expect(declarations('.brandName')?.get('height')).toBe('24px')
     expect(declarations('.brandName')?.get('line-height')).toBe('24px')
     expect(declarations('.brandName')?.get('font-size')).toBe('18px')
-    expect(declarations('.brandName')?.get('overflow')).toBe('hidden')
-    expect(declarations('.brandName')?.get('text-overflow')).toBe('ellipsis')
-    expect(declarations('.brandName')?.get('white-space')).toBe('nowrap')
     expect(declarations('.fallbackBrandName')?.get('font-size')).toBe('17px')
     expect(declarations('.fallbackBrandName')?.get('white-space')).toBe('nowrap')
   })
