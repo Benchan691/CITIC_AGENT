@@ -20,7 +20,7 @@ import { NodePrivateZstdFrameDecoder } from '../src/zstd-private-decoder.ts'
 import { PublicZstdFrameDecoder } from '../src/zstd-public-decoder.ts'
 import {
   runPersistenceContract, meta, oneTurnLog, releasedV1OneTurnLog,
-} from '../../session-persistence/tests/contract.ts'
+} from '../../../vendor/deepseek-harness/packages/session/session-persistence/tests/contract.ts'
 
 const MAGIC = Buffer.from([0x28, 0xB5, 0x2F, 0xFD])
 const roots: string[] = []

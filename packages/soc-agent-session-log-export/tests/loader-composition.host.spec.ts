@@ -10,6 +10,7 @@ import type { Agent } from 'dsh-soc-agent-agent'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import * as SessionLogDownload from 'dsh-soc-agent-session-log-export'
+import { createTestSocAuth } from '../../../tests/soc-auth.ts'
 
 let root: string | undefined
 let context: Context | undefined
@@ -37,6 +38,9 @@ describe('session-log-download real Loader composition', () => {
     context.provide('connection', {
       fetch: { register: () => () => Promise.resolve() },
     } as never)
+    context.provide('socAuth' as never, createTestSocAuth({
+      ownedSessionIds: ['loader-session-export'],
+    }) as never)
     await context.plugin(Loader)
     context.loader.builtins.include = Include
     const modules = new Map<string, unknown>([

@@ -42,7 +42,7 @@ import {
 } from '../src/state.ts'
 import { resolveConfig } from '../src/config.ts'
 import { candidateScopeKey, renderInstructionChanges, renderWorkspaceInstructionSet, USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE } from '../src/render.ts'
-import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
+import { MockAdapter, textResponse, toolCallResponse } from '../../soc-agent-agent-loop/tests/mock-adapter.ts'
 import {
   mountAgentLoopTestDependencies,
   mountAgentLoopTestHarness,

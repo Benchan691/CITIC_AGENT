@@ -3,7 +3,11 @@ import { once } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import WebSocket, { type RawData } from 'ws'
 import { Context, Service, symbols } from '@deepseek-ai/cordis'
-import { apply as applyConnection, inject as connectionInject } from 'dsh-soc-agent-connection'
+import {
+  apply as applyConnection,
+  inject as connectionInject,
+  type SocPrincipal,
+} from 'dsh-soc-agent-connection'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import {
@@ -23,6 +27,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   }
 }
 import { provideBrowserCredentials } from './browser-credentials.ts'
+import { createTestSocAuth, testUserPrincipal } from '../../../tests/soc-auth.ts'
 import TypertGatewayService, {
   TypertGatewayError,
   type Config as GatewayConfig,
@@ -202,7 +207,12 @@ function pendingInvocation(
     dispatch: {
       event: 'fixture/approval',
       request: { prompt, agent: subject, ...(signal === undefined ? {} : { signal }) },
-      context: { value: context, subject, agentId: identity as string },
+      context: {
+        value: context,
+        subject,
+        agentId: identity as string,
+        principal: testUserPrincipal,
+      },
       resolve,
       reject,
     },
@@ -440,6 +450,56 @@ describe('Typert Remote streams', () => {
       .toThrow('forwarded Remote event source is already registered')
     await unregisterReplacement()
     socket.close()
+  })
+
+  it('delivers principal-bound notifications only to the captured application session', async () => {
+    const ctx = new Context()
+    roots.push(ctx)
+    const principalA = testUserPrincipal
+    const principalB = {
+      ...testUserPrincipal,
+      applicationSessionId: 'application-session-other',
+      userId: 'user-other',
+      zimbraEmail: 'other@example.test',
+    } as const satisfies SocPrincipal
+    let active: Extract<SocPrincipal, { readonly kind: 'user' }> = principalA
+    ctx.provide('socAuth' as never, {
+      ...createTestSocAuth(),
+      requireUser: () => active,
+    } as never)
+    await ctx.plugin(TypertRegistry)
+    await ctx.plugin(TypertGatewayService)
+    const source = new RemoteEventSourceProbe()
+    const unregister = ctx.typertGateway.registerRemoteEvents(source.source, REMOTE_HOST)
+    const gateway = rawEventGateway(ctx)
+    const firstAbort = new AbortController()
+    const first = gateway.openRemoteEvents({ args: {} }, firstAbort.signal)
+    await expect(first.next()).resolves.toMatchObject({ value: { type: 'ready' } })
+    active = principalB
+    const secondAbort = new AbortController()
+    const second = gateway.openRemoteEvents({ args: {} }, secondAbort.signal)
+    await expect(second.next()).resolves.toMatchObject({ value: { type: 'ready' } })
+
+    source.push({ event: 'fixture/public', args: ['all'] })
+    source.push({ event: 'fixture/private', args: ['a'], principal: principalA })
+    source.push({ event: 'fixture/private', args: ['b'], principal: principalB })
+
+    await expect(first.next()).resolves.toMatchObject({
+      value: { type: 'emit', event: 'fixture/public', args: ['all'] },
+    })
+    await expect(second.next()).resolves.toMatchObject({
+      value: { type: 'emit', event: 'fixture/public', args: ['all'] },
+    })
+    await expect(first.next()).resolves.toMatchObject({
+      value: { type: 'emit', event: 'fixture/private', args: ['a'] },
+    })
+    await expect(second.next()).resolves.toMatchObject({
+      value: { type: 'emit', event: 'fixture/private', args: ['b'] },
+    })
+
+    firstAbort.abort()
+    secondAbort.abort()
+    await unregister()
   })
 
   it('rejects a scoped dispatch yielded after its Remote event source is withdrawn', async () => {
@@ -931,6 +991,7 @@ async function setup(
   if (transport) {
     await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
     provideBrowserCredentials(ctx)
+    ctx.provide('socAuth' as never, createTestSocAuth() as never)
   }
   await ctx.plugin(TypertRegistry)
   await ctx.plugin(TypertGatewayService, gatewayConfig)
@@ -994,6 +1055,20 @@ interface RemoteEventTestClient {
   readonly clientId: RemoteEventClientId
   readonly origin: string
   readonly cookie: string
+}
+
+interface RawEventGateway {
+  openRemoteEvents(
+    payload: unknown,
+    signal: AbortSignal,
+  ): AsyncGenerator<Record<string, unknown>>
+}
+
+function rawEventGateway(ctx: Context): RawEventGateway {
+  const receiver = ctx.get('typertGateway') as unknown as RawEventGateway & {
+    [symbols.original]?: RawEventGateway
+  }
+  return receiver[symbols.original] ?? receiver
 }
 
 async function openEventClient(ctx: Context, streamId: string): Promise<RemoteEventTestClient> {

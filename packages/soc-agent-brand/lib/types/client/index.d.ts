@@ -1,5 +1,5 @@
 /** CITIC/Sentinel occupants for the standard Harness brand slots. */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
+import type { Context as ClientContext } from '@deepseek-ai/cordis';
 export { CiticBrandMark, CiticBrandName } from './CiticBrand.tsx';
 /** Required services: the shared slot registry and mandatory SOC runtime. */
 export declare const inject: readonly ["slots", "socClient"];

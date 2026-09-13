@@ -3,7 +3,8 @@ import { Context } from '@deepseek-ai/cordis'
 import type { CredentialInfo } from '@deepseek-ai/dsh-credentials/types'
 import { remoteErrorOf, remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import CredentialsController from '../src/credentials.ts'
-import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
+import { MemoryCredentials } from '../../../vendor/deepseek-harness/packages/credentials/credentials/tests/memory.ts'
+import { createTestSocAuth, testAdminPrincipal } from '../../../tests/soc-auth.ts'
 
 /** A store whose `describe` carries more than the view declares, as a foreign provider might. */
 class LeakyCredentials extends MemoryCredentials {
@@ -33,6 +34,7 @@ async function boot(
   provider: typeof MemoryCredentials = MemoryCredentials,
 ): Promise<CredentialsController> {
   const ctx = new Context()
+  ctx.provide('socAuth' as never, createTestSocAuth({ principal: testAdminPrincipal }) as never)
   await ctx.plugin(provider, seed)
   await ctx.plugin(CredentialsController)
   return ctx.credentialsController
@@ -53,6 +55,7 @@ describe('the credentials Remote namespace a configuration surface calls', () =>
 
   it('reports the actionable configuration error while no credential provider is mounted', async () => {
     const ctx = new Context()
+    ctx.provide('socAuth' as never, createTestSocAuth({ principal: testAdminPrincipal }) as never)
     await ctx.plugin(CredentialsController)
     for (const call of [
       () => ctx.credentialsController.describe(['DEEPSEEK_API_KEY']),

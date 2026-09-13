@@ -170,6 +170,7 @@ describe('session.search', () => {
     ]
     expect(query).toEqual({
       query: 'matching answer',
+      sessionFilters: [{ kind: 'id', values: ['cold', 'live'] }],
       eventFilters: [
         {
           kind: 'type',
@@ -763,7 +764,7 @@ describe('session.search', () => {
     }
   })
 
-  it('keeps visibility sets above SQLite variable limits out of provider bindings', async () => {
+  it('passes even large visibility sets as a pre-ranking ownership filter', async () => {
     const ctx = await baseContext()
     const cold = Array.from(
       { length: 32_751 },
@@ -790,7 +791,13 @@ describe('session.search', () => {
       },
     })
     expect(searchSessions).toHaveBeenCalledOnce()
-    expect(searchSessions.mock.calls[0]?.[0]).not.toHaveProperty('sessionFilters')
+    const [filter] = searchSessions.mock.calls[0]?.[0].sessionFilters ?? []
+    expect(filter?.kind).toBe('id')
+    if (filter?.kind !== 'id') throw new Error('expected an ownership id filter')
+    expect(filter.values).toHaveLength(cold.length)
+    expect(filter.values[0]).toBe('cold-0')
+    expect(filter.values.at(-1)).toBe('cold-9999')
+    expect(filter.values).toContain('cold-32750')
   })
 
   it('propagates cancellation through the lightweight visibility listing', async () => {

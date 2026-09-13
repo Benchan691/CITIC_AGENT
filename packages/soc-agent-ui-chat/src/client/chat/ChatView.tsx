@@ -18,6 +18,14 @@ import css from './ChatView.module.css'
 
 const FOLLOW_THRESHOLD = 24
 const SCROLL_SAMPLE_INTERVAL_MS = 500
+const DISABLED_AUTO_COLLAPSE = { enabled: false, statusText: '' } as const
+
+/** Optional-feature fallback used when the SOC auto-collapse plugin is disabled. */
+function useDisabledAutoCollapse<T>(
+  selector: (snapshot: typeof DISABLED_AUTO_COLLAPSE) => T,
+): T {
+  return selector(DISABLED_AUTO_COLLAPSE)
+}
 
 /** Active column host when present; otherwise the view-local scroller. */
 function scrollerOf(from: HTMLElement): HTMLElement {
@@ -218,7 +226,7 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
   sessionId, openFile, loadOlder, loadThrough, loadImage, openView, chatScroll, forkAt, fileMentions,
-  useTranscriptView, useAutoCollapse, useProjection, t,
+  useTranscriptView, useAutoCollapse = useDisabledAutoCollapse, useProjection, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
   const nodeStore = useChat(s => s.nodes)

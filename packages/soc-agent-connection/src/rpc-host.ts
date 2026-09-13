@@ -158,14 +158,12 @@ export class HostConnectionService extends Service implements HostConnectionHand
     request: Request,
     dispatch: (request: Request) => Promise<Response>,
   ): Promise<Response> {
+    let principal: SocPrincipal
     try {
       // The HTTP transport serves both the user application and the optional
       // administration surface. Domain controllers remain responsible for
       // requiring the appropriate principal before touching state.
-      const principal = await this.socAuth.authenticateHttp(request, 'mixed')
-      const signal = AbortSignal.any([request.signal, this.socAuth.revocationSignal(principal)])
-      const authenticatedRequest = new Request(request, { signal })
-      return await this.socAuth.run(principal, () => dispatch(authenticatedRequest))
+      principal = await this.socAuth.authenticateHttp(request, 'mixed')
     } catch (error) {
       const status = authFailureStatus(error)
       return new Response(status === 403 ? 'forbidden' : 'authentication required', {
@@ -173,6 +171,12 @@ export class HostConnectionService extends Service implements HostConnectionHand
         headers: { 'cache-control': 'no-store' },
       })
     }
+    // Downstream failures, including request cancellation, retain their native
+    // semantics. Only failures raised by the authentication boundary itself
+    // may be translated into an HTTP authentication response above.
+    const signal = AbortSignal.any([request.signal, this.socAuth.revocationSignal(principal)])
+    const authenticatedRequest = new Request(request, { signal })
+    return await this.socAuth.run(principal, () => dispatch(authenticatedRequest))
   }
 
   private registerFetchRoute(

@@ -376,7 +376,11 @@ describe('session.history projections block', () => {
   it('leaves the imageLimits key absent while no attachment service is composed', async () => {
     const { ctx, session } = await harness(true)
     seedMessages(session, 1)
-    const snapshot = await opening(remote(ctx), session.id)
+    const snapshot = await opening(createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+      attachments: false,
+    }), session.id)
     expect('imageLimits' in snapshot.projections.values).toBe(false)
   })
 

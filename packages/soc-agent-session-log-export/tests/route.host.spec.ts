@@ -1,6 +1,8 @@
 import { Context } from '@deepseek-ai/cordis'
 import { HostConnectionService } from 'dsh-soc-agent-connection'
 import type { BrowserAuth } from 'dsh-soc-agent-connection/src/browser-auth.ts'
+import type { SocAuth } from 'dsh-soc-agent-connection'
+import { createTestSocAuth } from '../../../tests/soc-auth.ts'
 import { SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
 import type { SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionHandle } from '@deepseek-ai/dsh-session-persistence'
@@ -52,7 +54,9 @@ async function mounted(withServices: boolean): Promise<{
       readImage: async () => { throw new Error('fixture has no images') },
     } as never)
   }
-  const connection = new HostConnectionService(ctx, [], {} as BrowserAuth)
+  const socAuth = createTestSocAuth({ ownedSessionIds: ['session-1'] })
+  ctx.provide('socAuth' as never, socAuth as never)
+  const connection = new HostConnectionService(ctx, [], {} as BrowserAuth, socAuth as SocAuth)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber
   return { connection, dispose: () => fiber.dispose() }

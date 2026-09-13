@@ -314,20 +314,23 @@ export function apply(ctx: Context, config: Config): void {
     { agent, messages, step, signal },
     next,
   ): Promise<PreStepDecision> => {
+    // Compatible official contributors type this shared event with the stable
+    // base Agent shape; this replacement supplies the extended live contract.
+    const socAgent = agent as Agent
     const decision = await next()
-    await waitForProjections(agent)
-    const pending = agent.inbox.nextStep.filter(isWorkspaceContext)
-    const desired = await compose(agent, signal, messages, pending)
+    await waitForProjections(socAgent)
+    const pending = socAgent.inbox.nextStep.filter(isWorkspaceContext)
+    const desired = await compose(socAgent, signal, messages, pending)
     signal.throwIfAborted()
     // An empty first entry owns a no-step turn; keep context pending instead
     // of turning it into a standalone request. Later entries may be tool continuations.
     if (decision.kind === 'reject' || (step === 1 && decision.messages.length === 0)) {
-      syncInbox(agent, messages, desired)
+      syncInbox(socAgent, messages, desired)
       return decision
     }
     // A proceeding step settles the pending context: it either enters below as
     // `desired`, or its payload is already covered by the batch, so nothing stays pending.
-    for (const message of pending) agent.inbox.remove(message.id)
+    for (const message of pending) socAgent.inbox.remove(message.id)
     if (desired === undefined || decision.messages.some(message => sameContextPayload(message, desired))) {
       return decision
     }
@@ -343,7 +346,7 @@ export function apply(ctx: Context, config: Config): void {
     executionTouches.delete(exec.token)
     if (!result.isError && exec.agent !== undefined && !exec.signal.aborted) {
       const ownPath = filePathFromExecution(exec)
-      if (ownPath !== undefined) touches.push({ agent: exec.agent, path: ownPath })
+      if (ownPath !== undefined) touches.push({ agent: exec.agent as Agent, path: ownPath })
     }
     if (exec.parent !== undefined) {
       if (touches.length > 0) {

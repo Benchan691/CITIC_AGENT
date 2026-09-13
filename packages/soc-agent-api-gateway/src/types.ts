@@ -4,6 +4,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { SocPrincipal } from 'dsh-soc-agent-connection'
 import type { RemoteEventHostInfo } from './stream-protocol.ts'
 
 /** One Remote method request after a carrier has decoded its envelope. */
@@ -24,6 +25,11 @@ export interface TypertRemoteEventFrame {
   readonly event: string
   /** Original event argument list after the owner validates it for JSON transport. */
   readonly args: readonly unknown[]
+  /**
+   * Captured owner for a user-scoped notification. Frames without a principal
+   * are deployment-wide notifications and may be delivered to every client.
+   */
+  readonly principal?: Extract<SocPrincipal, { readonly kind: 'user' }>
 }
 
 /** Live Host values used to project one scoped Remote Event. */
@@ -34,6 +40,8 @@ export interface TypertRemoteEventContext {
   readonly subject: object
   /** Agent identity read directly from the scoped event subject. */
   readonly agentId: string
+  /** Authenticated application identity captured when the Host event began. */
+  readonly principal: Extract<SocPrincipal, { readonly kind: 'user' }>
 }
 
 /** Result returned from a Client waterfall, or delegation back to the Host chain. */

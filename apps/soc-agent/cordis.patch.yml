@@ -31,6 +31,10 @@
   disabled: true
 - id: session-log-download
   disabled: true
+- id: time-context
+  disabled: true
+- id: mcp-client
+  disabled: true
 - id: ui-layout
   disabled: true
 - id: ui-renderer

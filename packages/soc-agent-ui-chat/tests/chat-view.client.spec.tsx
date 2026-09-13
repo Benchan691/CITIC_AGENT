@@ -265,6 +265,15 @@ function makeHarness(
   // Rows and the harness must observe the same chat-store instance.
   const chat = createChatStore().create()
   const transcriptView = createSnapshotStore<TranscriptViewMode>('compact')
+  // The optional SOC auto-collapse plugin is enabled by default in the real
+  // application composition.  Direct ChatView tests provide the same service
+  // explicitly so they exercise the default production behavior while the
+  // component can still run safely when that optional plugin is disabled.
+  const autoCollapse = createSnapshotStore({
+    enabled: true,
+    // An empty override means "use the host's localized status text".
+    statusText: '',
+  })
   const t = makeTranslate(zh, commonZh)
   const toolOwners: Array<{
     callId: string
@@ -390,6 +399,7 @@ function makeHarness(
     useStore: bindSnapshotSelector(chat),
     actions: chat.actions,
     useTranscriptView: bindSnapshotSelector(transcriptView),
+    useAutoCollapse: bindSnapshotSelector(autoCollapse),
     renderSlot,
     SessionProvider: SessionProviderStub,
     viewRequest: null,

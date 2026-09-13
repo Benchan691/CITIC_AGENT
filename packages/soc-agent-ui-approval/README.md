@@ -31,7 +31,7 @@ None; approval request and response rendering does not alter a model request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **The panel exposes transient decisions only** — it supports allow-once and reject; persistent permission policy remains owned by Host-side approval packages.
+- **Remembered grants are process-local** — “Always allow this tool” is scoped to the authenticated application session and exact Harness session, and is cleared on logout, revocation, session disposal, or plugin teardown.
 
 
 <a id="dev-note"></a>

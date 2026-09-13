@@ -1,10 +1,10 @@
 /** CSS checks for the completed-turn footer's 20px content spacing. */
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const read = (name: string): string =>
-  readFileSync(fileURLToPath(new URL(`../src/client/chat/${name}`, import.meta.url)), 'utf8')
+  readFileSync(resolve(process.cwd(), 'packages/soc-agent-ui-chat/src/client/chat', name), 'utf8')
 
 describe('completed-turn spacing', () => {
   it('combines the flow and footer offsets around turn-tail content', () => {

@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { createServer } from 'node:http'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -534,7 +535,7 @@ const RECORDED_LISTINGS = [
 
 describe('recorded provider listings', () => {
   it.each(RECORDED_LISTINGS)('reads $name as recorded', async ({ file, api, models }) => {
-    const body = await readFile(new URL(`./fixtures/model-listings/${file}`, import.meta.url), 'utf8')
+    const body = await readFile(resolve(process.cwd(), 'packages/soc-agent-llm-pi-ai/tests/fixtures/model-listings', file), 'utf8')
     const server = await listingServer({ body })
     const ctx = await harness()
 

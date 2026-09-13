@@ -9,5 +9,7 @@ export interface SocAutoCollapseSettings {
 
 export const SocAutoCollapseSettingsSchema: z<SocAutoCollapseSettings> = z.object({
   enabled: z.boolean().default(true),
-  statusText: z.string().default('Deep diving...'),
+  // Preserve the former plugin's default and persisted preference contract.
+  // An explicitly empty value restores the host's localized rc.2 text.
+  statusText: z.string().default('Deep sleeping...'),
 })

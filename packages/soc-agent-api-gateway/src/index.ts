@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { Context, Service, symbols } from '@deepseek-ai/cordis'
-import type { ConnectionRpcHandler } from 'dsh-soc-agent-connection'
+import type { ConnectionRpcHandler, SocAuth, SocPrincipal } from 'dsh-soc-agent-connection'
 import { Deque } from '@deepseek-ai/dsh-deque'
 import type { WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
@@ -97,6 +97,7 @@ interface RegisteredRemoteEventSource {
 
 interface RemoteEventClient {
   readonly id: RemoteEventClientId
+  readonly principal: Extract<SocPrincipal, { readonly kind: 'user' }>
   readonly queue: RemoteEventQueue
   readonly deliveries: Map<RemoteEventId, PendingRemoteEvent>
 }
@@ -374,6 +375,10 @@ export class TypertGatewayService extends Service implements TypertGateway {
         if (client === undefined) {
           throw new Error('typert gateway: Remote event result identifies no active event stream')
         }
+        const principal = this.requireUserPrincipal()
+        if (principal.applicationSessionId !== client.principal.applicationSessionId) {
+          throw new Error('typert gateway: Remote event result identifies no active event stream')
+        }
         this.receiveRemoteEventResult(client, result)
         return { ok: true, value: undefined }
       } catch (error) {
@@ -422,16 +427,20 @@ export class TypertGatewayService extends Service implements TypertGateway {
         'forwarded Remote event source is unavailable',
       )
     }
+    const principal = this.requireUserPrincipal()
     const lifetime = AbortSignal.any([signal, registration.lifetime.signal])
     let clientId = randomUUID() as RemoteEventClientId
     while (this.remoteEventClients.has(clientId)) clientId = randomUUID() as RemoteEventClientId
     const client: RemoteEventClient = {
       id: clientId,
+      principal,
       queue: new RemoteEventQueue(),
       deliveries: new Map(),
     }
     this.remoteEventClients.set(clientId, client)
-    for (const pending of this.pendingRemoteEvents.values()) this.deliverRemoteEvent(pending, client)
+    for (const pending of this.pendingRemoteEvents.values()) {
+      if (this.mayDeliverRemoteEvent(pending, client)) this.deliverRemoteEvent(pending, client)
+    }
     try {
       yield { ...REMOTE_EVENT_STREAM_READY, clientId, host: registration.host }
       yield* client.queue.iterate(lifetime)
@@ -464,7 +473,11 @@ export class TypertGatewayService extends Service implements TypertGateway {
       event: frame.event,
       args: frame.args,
     }
-    for (const client of this.remoteEventClients.values()) client.queue.push(wire)
+    for (const client of this.remoteEventClients.values()) {
+      if (frame.principal !== undefined
+        && frame.principal.applicationSessionId !== client.principal.applicationSessionId) continue
+      client.queue.push(wire)
+    }
   }
 
   private startRemoteEvent(source: TypertRemoteEventInvocation): void {
@@ -520,7 +533,9 @@ export class TypertGatewayService extends Service implements TypertGateway {
       this.pendingRemoteEvents.set(id, pending)
       for (const signal of signals) signal.addEventListener('abort', abort, { once: true })
       if ([...signals].some(signal => signal.aborted)) abort()
-      else for (const client of this.remoteEventClients.values()) this.deliverRemoteEvent(pending, client)
+      else for (const client of this.remoteEventClients.values()) {
+        if (this.mayDeliverRemoteEvent(pending, client)) this.deliverRemoteEvent(pending, client)
+      }
     } catch (error) {
       source.reject(error)
     }
@@ -530,6 +545,17 @@ export class TypertGatewayService extends Service implements TypertGateway {
     pending.deliveries.add(client)
     client.deliveries.set(pending.id, pending)
     client.queue.push(pending.frame)
+  }
+
+  private mayDeliverRemoteEvent(pending: PendingRemoteEvent, client: RemoteEventClient): boolean {
+    return pending.source.context.principal.applicationSessionId
+      === client.principal.applicationSessionId
+  }
+
+  private requireUserPrincipal(): Extract<SocPrincipal, { readonly kind: 'user' }> {
+    const auth = this.ctx.get('socAuth') as SocAuth | undefined
+    if (auth === undefined) throw new Error('typert gateway: authenticated request context is unavailable')
+    return auth.requireUser()
   }
 
   private receiveRemoteEventResult(

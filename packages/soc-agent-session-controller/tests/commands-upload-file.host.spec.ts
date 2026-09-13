@@ -17,6 +17,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ApiSessionAgentController } from '../src/agent.ts'
 import { SessionCommandController } from '../src/commands.ts'
 import type { SessionRequestId } from '../src/types.ts'
+import { createTestSocAuth } from '../../../tests/soc-auth.ts'
 
 const SESSION = SessionId('upload-session')
 
@@ -86,6 +87,10 @@ async function uploadHarness(origin?: 'subagent'): Promise<{
     listProviders: () => [{ id: 'fixture', name: 'Fixture' }],
     resolveModelInfo: () => Promise.resolve({ provider: 'fixture', id: 'fixture-model', name: 'Fixture' }),
   } as never)
+  ctx.provide('socAuth' as never, createTestSocAuth({
+    ownedSessionIds: [String(SESSION)],
+  }) as never)
+  ctx.provide('socAttachmentsFeature' as never, {} as never)
   const selection: ModelSelectionRef = {
     current: { provider: 'fixture', model: 'fixture-model' },
     assembled: undefined,

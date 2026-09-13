@@ -7,7 +7,6 @@
  */
 
 import type {} from 'dsh-soc-agent-session-controller/remote-events'
-import type { TypertForwardableEventEntry } from '@deepseek-ai/dsh-typert-protocol'
 
 /**
  * Host events this application forwards without renaming. The explicit mode is
@@ -33,4 +32,4 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'llm/adapters-updated', mode: 'emit' },
   { event: 'settings/document-updated', mode: 'emit' },
   { event: 'user-questions/request', mode: 'waterfall' },
-] as const satisfies readonly TypertForwardableEventEntry[]
+] as const

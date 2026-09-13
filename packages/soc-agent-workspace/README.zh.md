@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包让用户浏览分组或扁平的 Session 列表、为新 Session 选择 Workspace，并通过添加、重命名、重排序、搜索、fork、归档和删除 Workspace 来管理 Workspace 与 Session。待处理交互显示为警告点，活动定时任务显示为闹钟标识，subagent 来源的 Session 则保持隐藏。规范化后仍有差异的文件夹路径会保留为独立 Workspace。添加 Workspace 需要组合目录选择器；没有目录选择器时，添加操作不可用。
+本包让用户浏览分组或扁平的 Session 列表、为新 Session 选择 Workspace，并通过添加、重命名、重排序、搜索、fork、归档和删除 Workspace 来管理 Workspace 与 Session。待处理交互显示为警告点，活动定时任务显示为闹钟标识，subagent 来源的 Session 则保持隐藏。规范化后仍有差异的文件夹路径会保留为独立 Workspace。在 SOC 组合中，“添加工作区”会要求输入逻辑名称，由经过认证的 Host 将其放在用户私有 Workspace 根目录下。标准目录流 slot 仍然保留给兼容贡献者，但 SOC 包不会挂载浏览器或原生目录选择器。
 
 ## 目录
 
@@ -59,11 +59,11 @@ Session 行渲染运行时的实时 `pendingInteraction` 分类：审批显示**
 <details>
 <summary>实现细节——点击展开</summary>
 
-本包是一条组合：两个目标 slot 都由其他插件声明，因此 `apply` 使用 `slots.inject()` 在各自的声明生命周期内完成注册，并在目标 slot 的声明恢复后重新注册。
+本包是一条组合：两个目标 slot 都由其他插件声明，因此 `apply` 使用 `slots.inject()` 在各自的声明生命周期内完成注册，并在目标 slot 的声明恢复后重新注册。SOC 自有的逻辑名称对话框是默认创建路径；目录流子 slot 仅作为兼容契约保留。
 
 ### 目录流子 slot
 
-每个注册各自声明一个**目录流子 slot**（`single` kind：`conversation.hero.workspace.directoryFlow`／`sidebar.workspaces.directoryFlow`），由组合的选择器包 client half 填入其选取交互——`-native` 后端的无渲染 OS 选择器驱动，`-browse` 组合下则是应用内浏览对话框。平铺显示的**添加工作区…** 操作仅在当前界面的 slot 被占用时渲染；slot 为空意味着该组合没有目录选择能力。本包持有触发与接纳：占用方通过 slot 的属主交互约定（`open`/`busy`/`onPicked`/`onCancel`/`onError`）每次打开上报一个所选路径，owner 通过对象层接纳它，并等待 Workspace 列表投影刷新后才选中已提交的 Workspace。
+每个注册仍声明一个**目录流子 slot**（`single` kind：`conversation.hero.workspace.directoryFlow`／`sidebar.workspaces.directoryFlow`）供兼容贡献者使用。SOC 组合不会填充这些 slot：平铺的**添加工作区…**操作打开逻辑名称对话框，由认证 Host 将名称映射到用户私有根目录。未来的目录贡献者可以填充标准 slot，而不需要修改本包的列表、搜索或会话管理契约。
 
 ### 视图状态
 
@@ -108,7 +108,7 @@ Workspace 与 Session 悬浮卡片会复制对应行被截断的值：激活 Wor
 - **没有模糊内容搜索或事件深链接**：内容后端采用字面 token/短语匹配，选择结果会打开 Session，而不是匹配的事件。
 - **没有 Session 删除与取消归档控件**：会话可以归档，但已归档会话没有查看或取消归档入口；删除 Workspace 注册记录不会删除 Session。
 - **待处理的用户交互不会聚合到折叠的分组上**：折叠分组内正在等待的行不会点亮分组头指示，只有展开该分组后才可见。
-- **原生文件夹选择依赖本地 Host 载体**：在 `-native` 组合下，进程内部署或远程浏览器部署无法打开本地操作系统对话框；可远程的选取是 `-browse` 组合的应用内流程。
+- **SOC 组合不提供物理文件夹选择**：Workspace 是认证用户私有根目录下的逻辑名称。标准目录流 slot 仍然可供其他组合使用，但启用它属于显式集成选择。
 
 <a id="dev-note"></a>
 ### 开发备注

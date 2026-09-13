@@ -5,11 +5,11 @@
  * preference through --dsh-content-font-size / --dsh-content-font-delta.
  */
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const read = (name: string): string =>
-  readFileSync(fileURLToPath(new URL(`../src/client/chat/${name}`, import.meta.url)), 'utf8')
+  readFileSync(resolve(process.cwd(), 'packages/soc-agent-ui-chat/src/client/chat', name), 'utf8')
 
 function declarationsFrom(source: string, selector: string): string[] {
   const declarationText = source.replace(/\/\*[\s\S]*?\*\//g, ' ')

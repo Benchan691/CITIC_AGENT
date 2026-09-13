@@ -1208,6 +1208,9 @@ export class SocAuthService {
     this.agentSessions = new Map()
     this.actionModes = new Map()
     this.pendingResponses = new Map()
+    // Process-local grants only.  The outer key is the authenticated
+    // application session; the inner key is the exact Harness session.
+    this.toolApprovalGrants = new Map()
     this.applicationSessionSignals = new Map()
     this.revokedApplicationSessions = new Map()
     this.proxyCache = new WeakMap()
@@ -1262,6 +1265,7 @@ export class SocAuthService {
     if (controller && !controller.signal.aborted) controller.abort(new Error('application session revoked'))
     this.pendingResponses.delete(value)
     this.actionModes.delete(value)
+    this.toolApprovalGrants.delete(value)
   }
 
   currentAdmin() {
@@ -1672,6 +1676,73 @@ export class SocAuthService {
     return await this.store.session(sessionId)
   }
 
+  principalForAgent(agent) {
+    const current = this.currentSession()
+    const harnessSessionId = sessionIdOf(agent)
+    const applicationSessionId = current?.id ?? this.agentSessions.get(harnessSessionId)
+    if (!applicationSessionId || this.isApplicationSessionRevoked(applicationSessionId)) return undefined
+    if (current?.id === applicationSessionId) return this.userPrincipal(current)
+    if (typeof this.store.session !== 'function') return undefined
+    return Promise.resolve(this.store.session(applicationSessionId)).then(session =>
+      session ? this.userPrincipal(session) : undefined)
+  }
+
+  principalForHarnessSession(sessionId) {
+    const harnessSessionId = String(sessionId ?? '')
+    if (!harnessSessionId) return undefined
+    const current = this.currentSession()
+    const applicationSessionId = this.agentSessions.get(harnessSessionId)
+    if (current && (applicationSessionId === undefined || applicationSessionId === current.id)) {
+      return Promise.resolve(sessionBelongsToUser(this.store, harnessSessionId, current.userId))
+        .then(owned => owned ? this.userPrincipal(current) : undefined)
+    }
+    if (!applicationSessionId || this.isApplicationSessionRevoked(applicationSessionId)
+      || typeof this.store.session !== 'function') return undefined
+    return Promise.resolve(this.store.session(applicationSessionId)).then(async (session) => {
+      if (!session || !await sessionBelongsToUser(this.store, harnessSessionId, session.userId)) return undefined
+      return this.userPrincipal(session)
+    })
+  }
+
+  hasRememberedToolApproval(principal, harnessSessionId, toolName) {
+    if (principal?.kind !== 'user' || this.isApplicationSessionRevoked(principal.applicationSessionId)) return false
+    const sessionId = String(harnessSessionId ?? '')
+    const name = String(toolName ?? '')
+    if (!sessionId || !name || this.agentSessions.get(sessionId) !== principal.applicationSessionId) return false
+    return this.toolApprovalGrants.get(principal.applicationSessionId)?.get(sessionId)?.has(name) === true
+  }
+
+  rememberToolApproval(principal, harnessSessionId, toolName) {
+    if (principal?.kind !== 'user' || this.isApplicationSessionRevoked(principal.applicationSessionId)) return false
+    const sessionId = String(harnessSessionId ?? '')
+    const name = String(toolName ?? '')
+    if (!sessionId || !name || this.agentSessions.get(sessionId) !== principal.applicationSessionId) return false
+    let sessions = this.toolApprovalGrants.get(principal.applicationSessionId)
+    if (!sessions) {
+      sessions = new Map()
+      this.toolApprovalGrants.set(principal.applicationSessionId, sessions)
+    }
+    let tools = sessions.get(sessionId)
+    if (!tools) {
+      tools = new Set()
+      sessions.set(sessionId, tools)
+    }
+    tools.add(name)
+    return true
+  }
+
+  clearSessionToolApprovals(harnessSessionId) {
+    const sessionId = String(harnessSessionId ?? '')
+    for (const [applicationSessionId, sessions] of this.toolApprovalGrants) {
+      sessions.delete(sessionId)
+      if (sessions.size === 0) this.toolApprovalGrants.delete(applicationSessionId)
+    }
+  }
+
+  clearToolApprovals() {
+    this.toolApprovalGrants.clear()
+  }
+
   bindAgentSession(sessionId, applicationSessionId) {
     const current = this.currentSession()
     const agentId = String(sessionId ?? '')
@@ -1682,7 +1753,9 @@ export class SocAuthService {
   }
 
   unbindAgentSession(sessionId) {
-    this.agentSessions.delete(String(sessionId ?? ''))
+    const value = String(sessionId ?? '')
+    this.agentSessions.delete(value)
+    this.clearSessionToolApprovals(value)
   }
 
   unbindApplicationSession(sessionId) {

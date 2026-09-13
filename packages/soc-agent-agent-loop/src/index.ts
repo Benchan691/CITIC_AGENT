@@ -5,7 +5,8 @@
  * @module dsh-soc-agent-agent-loop
  */
 
-import { Context, FiberState, Service } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
+import type { FiberState } from '@deepseek-ai/cordis'
 import { randomUUID } from 'node:crypto'
 import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
@@ -36,10 +37,13 @@ import { ReactLoopAgent } from './agent.ts'
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS } from './constants.ts'
 
 /** Fiber states that cannot own or serve a new lifecycle. */
+// Cordis 4.0.2 publishes FiberState as a declaration-only const enum. Keep the
+// pinned ABI values local so the standalone SOC bundle never imports a symbol
+// that does not exist at runtime.
 const INACTIVE_STATES: ReadonlySet<FiberState> = new Set([
-  FiberState.UNLOADING,
-  FiberState.DISPOSED,
-  FiberState.FAILED,
+  5 as FiberState, // UNLOADING
+  4 as FiberState, // DISPOSED
+  3 as FiberState, // FAILED
 ])
 
 const turnBoundaryProjectionSchema: zod.ZodType<TurnBoundaryProjection> = zod.object({

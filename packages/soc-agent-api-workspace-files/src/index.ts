@@ -223,7 +223,7 @@ export class WorkspaceFiles extends TypertRemoteService {
   /**
    * Read one page of lines from a UTF-8 file readable by the filesystem backend.
    * @param workspaceFileScope - header-derived workspace root for the Session identity on the wire.
-   * @param path - absolute path or path relative to the workspace root; files outside it are allowed.
+   * @param path - absolute path or path relative to the workspace root; it must remain inside that root.
    * @param range - the line window; omitted fields take the page defaults.
    * @param signal - caller cancellation.
    * @returns the page, the file's version at the stat before it, and whether it reaches the last line.
@@ -248,7 +248,7 @@ export class WorkspaceFiles extends TypertRemoteService {
    * Read one byte window of a regular file readable by the filesystem backend: raw
    * bytes, no text decoding and no binary rejection.
    * @param workspaceFileScope - header-derived workspace root for the Session identity on the wire.
-   * @param path - absolute path or path relative to the workspace root; files outside it are allowed.
+   * @param path - absolute path or path relative to the workspace root; it must remain inside that root.
    * @param range - the byte window; omitted fields take the window defaults.
    * @param signal - caller cancellation.
    * @returns the window in base64, the file's version and size at the stat before it, and whether it reaches the last byte.
@@ -289,7 +289,7 @@ export class WorkspaceFiles extends TypertRemoteService {
   }
 
   /**
-   * Read a complete file relative to another file's directory, including outside the workspace.
+   * Read a complete file relative to another file's directory inside the workspace.
    * @param workspaceFileScope - header-derived workspace root for the Session identity on the wire.
    * @param path - base file, absolute or workspace-relative.
    * @param relativePath - relative filesystem path, not a URL or absolute path.
@@ -316,7 +316,7 @@ export class WorkspaceFiles extends TypertRemoteService {
   /**
    * Report one regular file's identity, version, and size without its content.
    * @param workspaceFileScope - header-derived workspace root for the Session identity on the wire.
-   * @param path - absolute path or path relative to the workspace root; files outside it are allowed.
+   * @param path - absolute path or path relative to the workspace root; it must remain inside that root.
    * @param signal - caller cancellation.
    * @returns the file's absolute path, current version, and byte size.
    */

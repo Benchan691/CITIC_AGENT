@@ -9,6 +9,7 @@
     "test:browser": "vitest run --config tests/vitest.browser.config.mjs"
   },
   "files": [
+    "agent-presets",
     "cordis.patch.yml",
     "host.js",
     "splunk-bridge.js",
@@ -29,6 +30,7 @@
   },
   "dependencies": {
     "@deepseek-ai/dsh-llm": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-web-frontend": "0.1.5-rc.2",
     "@deepseek-ai/schemastery": "3.18.2",
     "dsh-soc-agent-action-policy": "0.1.0",
     "dsh-soc-agent-admin": "0.1.0",
@@ -69,6 +71,7 @@
     "pg": "^8.16.3"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
     "typescript": "^6.0.3"
   },
   "dsh": {

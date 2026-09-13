@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package lets users browse grouped or flat Session lists, choose a Workspace for a new Session, and manage Workspaces and Sessions through add, rename, reorder, search, fork, archive, and Workspace deletion. Pending interactions appear as warning dots, active scheduled tasks as alarm markers, and subagent-origin Sessions remain hidden. Canonically distinct folder paths remain separate Workspaces. Adding a Workspace requires a composed directory picker; without one, the add action is unavailable.
+This package lets users browse grouped or flat Session lists, choose a Workspace for a new Session, and manage Workspaces and Sessions through add, rename, reorder, search, fork, archive, and Workspace deletion. Pending interactions appear as warning dots, active scheduled tasks as alarm markers, and subagent-origin Sessions remain hidden. Canonically distinct folder paths remain separate Workspaces. In the SOC composition, Add Workspace asks for a logical name and the authenticated Host places it under the user's private Workspace root. The standard directory-flow slots remain available for compatible contributors, but the SOC package does not mount a browser or native directory picker.
 
 ## Table of Contents
 
@@ -59,11 +59,11 @@ The value is intentionally best effort for cold Sessions. An identity-matching u
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The package is one composition: both target slots are declared by other plugins, so `apply` uses `slots.inject()` to register for each declaration lifetime and re-register after a declaring slot is restored.
+The package is one composition: both target slots are declared by other plugins, so `apply` uses `slots.inject()` to register for each declaration lifetime and re-register after a declaring slot is restored. The SOC-owned logical-name dialog is the default creation path; directory-flow child slots are retained as compatibility contracts only.
 
 ### The directory-flow hole
 
-Each registration declares a **directory-flow child hole** (`single` kind: `conversation.hero.workspace.directoryFlow` / `sidebar.workspaces.directoryFlow`) that the composed picker package's client half fills with its picking interaction — the `-native` backend's renderless OS-chooser driver, an in-app browsing dialog under a `-browse` composition. The flat **Add workspace...** action renders only while the surface's hole is occupied; an empty hole means the composition has no picking affordance. This package owns the trigger and the adoption: the occupant reports one picked path per open through the hole's owner conversation (`open`/`busy`/`onPicked`/`onCancel`/`onError`), and the owner adopts it through the object layer, selecting the committed Workspace only after its list projection has refreshed.
+Each registration retains a **directory-flow child hole** (`single` kind: `conversation.hero.workspace.directoryFlow` / `sidebar.workspaces.directoryFlow`) for compatible contributors. The SOC composition does not fill those holes: its flat **Add workspace...** action opens a logical-name dialog, and the authenticated Host maps the submitted name into the user's private root. A future compatible directory contributor may fill the standard hole without changing this package's list, search, or session-management contracts.
 
 ### View state
 
@@ -108,7 +108,7 @@ These limits define the search depth, the archive surface, and the picking carri
 - **No fuzzy content search or event deep links** — the content backend uses literal token/phrase matching, and selecting a result opens the Session rather than the matching event.
 - **No Session deletion or unarchive control** — sessions can be archived, but archived sessions have no viewing or unarchive surface, and Workspace registration deletion does not delete Sessions.
 - **Pending user interaction is not aggregated into collapsed groups** — a waiting row inside a collapsed group lights no group-header indicator and becomes visible only after that group is expanded.
-- **Native folder selection depends on the local Host carrier** — under the `-native` composition, in-process or remote browser deployments cannot open a local operating-system dialog; remote-capable picking is the `-browse` composition's in-app flow.
+- **Physical folder selection is not part of the SOC composition** — workspaces are logical names under the authenticated user's private root. Standard directory-flow slots remain available for other compositions, but enabling one is an explicit integration choice.
 
 <a id="dev-note"></a>
 ### Dev Note

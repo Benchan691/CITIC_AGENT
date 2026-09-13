@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type {} from 'dsh-soc-agent-client/client'
+import type { SocClientRuntime } from 'dsh-soc-agent-client/client'
 import {
   SOC_AUTO_COLLAPSE_NAMESPACE,
   type SocAutoCollapseSettings,
@@ -25,10 +25,12 @@ declare module '@deepseek-ai/cordis' {
 export const inject = ['socClient', 'settingsScope']
 
 export function apply(ctx: Context): void {
+  const socClient = ctx.get('socClient') as SocClientRuntime
+  if (socClient.surface !== 'workspace') return
   const scope = ctx.settingsScope.bind<SocAutoCollapseSettings>({ namespace: SOC_AUTO_COLLAPSE_NAMESPACE })
   const state = createSnapshotStore<SocAutoCollapseSnapshot>({
     enabled: true,
-    statusText: 'Deep diving...',
+    statusText: 'Deep sleeping...',
   })
   const adopt = (): void => {
     const settings = scope.getSnapshot().value

@@ -60,8 +60,14 @@ export interface ApprovalPresentationRequest {
   readonly signal?: AbortSignal
 }
 
-/** Decisions this interactive Client presentation can return. */
-export type ApprovalDecision = 'allowed-once' | 'rejected'
+/** Decisions exposed by the SOC approval presentation. */
+export type ApprovalDecision = 'allowed-once' | 'allowed-tool' | 'rejected'
+
+/** Wire value consumed by the SOC Host event adapter. */
+export type ApprovalWireDecision =
+  | 'allowed-once'
+  | 'rejected'
+  | { readonly outcome: 'allowed-once'; readonly remember: 'tool' }
 
 let nextApprovalKey = 0
 
@@ -78,9 +84,9 @@ export class PendingApproval {
   /** Human-readable reason supplied by the asker. */
   readonly reason: string | undefined
   /** Result returned by the Remote Event listener to the Host waterfall. */
-  readonly result: Promise<ApprovalDecision>
+  readonly result: Promise<ApprovalWireDecision>
 
-  readonly #resolve: (outcome: ApprovalDecision) => void
+  readonly #resolve: (outcome: ApprovalWireDecision) => void
   readonly #reject: (reason: unknown) => void
   readonly #signal: AbortSignal | undefined
   readonly #onAbort: (() => void) | undefined
@@ -98,7 +104,7 @@ export class PendingApproval {
     this.toolName = request.toolName
     this.callId = request.callId
     this.reason = request.reason
-    const completion = Promise.withResolvers<ApprovalDecision>()
+    const completion = Promise.withResolvers<ApprovalWireDecision>()
     this.result = completion.promise
     this.#resolve = completion.resolve
     this.#reject = completion.reject
@@ -121,7 +127,11 @@ export class PendingApproval {
    */
   answer(outcome: ApprovalDecision): Promise<void> {
     return settlePendingComposer(() => {
-      this.finish(() => { this.#resolve(outcome) })
+      this.finish(() => {
+        this.#resolve(outcome === 'allowed-tool'
+          ? { outcome: 'allowed-once', remember: 'tool' }
+          : outcome)
+      })
     }, 'pending approval settlement failed')
   }
 

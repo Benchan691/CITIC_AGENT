@@ -5,10 +5,10 @@
  * sheet states which half.
  */
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const css = readFileSync(fileURLToPath(new URL('../src/client/SidebarRoot.module.css', import.meta.url)), 'utf8')
+const css = readFileSync(resolve(process.cwd(), 'packages/soc-agent-sidebar/src/client/SidebarRoot.module.css'), 'utf8')
 /** Declarations only: the sheet's prose names the properties it explains. */
 const declarationText = css.replace(/\/\*[\s\S]*?\*\//g, ' ')
 

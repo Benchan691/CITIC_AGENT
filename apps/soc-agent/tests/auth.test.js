@@ -3,8 +3,8 @@ import { mkdtemp, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import test from 'node:test'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CallToolResultSchema } from '../../../vendor/deepseek-harness/packages/mcp/mcp-client/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js'
-import { Client as HarnessMcpClient } from '../../../vendor/deepseek-harness/packages/mcp/mcp-client/node_modules/@modelcontextprotocol/sdk/dist/esm/client/index.js'
+import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js'
+import { Client as HarnessMcpClient } from '@modelcontextprotocol/sdk/client/index.js'
 import { apply as applyAuthHost } from '../auth-host.js'
 import {
   ADMIN_SESSION_COOKIE,
@@ -228,6 +228,51 @@ test('revoking an application session aborts its event stream and fences MCP wor
     soc_session_id: 'old-app-session',
   })
   assert.deepEqual(await pending, { done: true, value: undefined })
+})
+
+test('remembered tool approvals are isolated and cleared by session and login lifetimes', async () => {
+  const records = new Map()
+  const store = {
+    async ensureSchema() {},
+    async session(id) { return records.get(String(id)) },
+  }
+  const auth = new SocAuthService({}, store, {
+    adminCredentials: { email: 'admin@example.com', password: 'admin-secret' },
+  })
+  const application = {
+    id: 'application-a',
+    userId: 'user-a',
+    email: 'a@example.com',
+    expiresAt: new Date(Date.now() + 60_000),
+  }
+  records.set(application.id, application)
+
+  await auth.storage.run(application, async () => {
+    auth.bindAgentSession('harness-a')
+    const principal = auth.requireUser()
+    assert.equal(auth.rememberToolApproval(principal, 'harness-a', 'zimbra_send_email'), true)
+    assert.equal(auth.hasRememberedToolApproval(principal, 'harness-a', 'zimbra_send_email'), true)
+    assert.deepEqual(await auth.principalForAgent({ id: 'harness-a' }), principal)
+    assert.equal(auth.hasRememberedToolApproval(principal, 'other-harness', 'zimbra_send_email'), false)
+  })
+
+  const otherPrincipal = {
+    kind: 'user',
+    applicationSessionId: 'application-b',
+    userId: 'user-a',
+    zimbraEmail: 'a@example.com',
+  }
+  assert.equal(auth.hasRememberedToolApproval(otherPrincipal, 'harness-a', 'zimbra_send_email'), false)
+  auth.clearSessionToolApprovals('harness-a')
+  const principal = auth.userPrincipal(application)
+  assert.equal(auth.hasRememberedToolApproval(principal, 'harness-a', 'zimbra_send_email'), false)
+
+  await auth.storage.run(application, () => {
+    auth.rememberToolApproval(auth.requireUser(), 'harness-a', 'zimbra_send_email')
+  })
+  auth.revokeApplicationSession(application.id)
+  assert.equal(auth.hasRememberedToolApproval(principal, 'harness-a', 'zimbra_send_email'), false)
+  assert.equal(auth.toolApprovalGrants.size, 0)
 })
 
 test('admin cookies cannot authorize chat APIs, while regular users cannot authorize settings APIs', async () => {

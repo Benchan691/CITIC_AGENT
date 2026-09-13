@@ -5,7 +5,7 @@
  * @module dsh-soc-agent-agent
  */
 
-import { Context, FiberState, getTraceable, Service, symbols } from '@deepseek-ai/cordis'
+import { Context, getTraceable, Service, symbols } from '@deepseek-ai/cordis'
 import type { Fiber } from '@deepseek-ai/cordis'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { isPromise } from 'node:util/types'
@@ -269,7 +269,9 @@ export class AgentRegistry extends Service {
       })
     })
     ctx.on('internal/status', (fiber) => {
-      if (fiber.state === FiberState.UNLOADING && this.hasLifecycleAncestor(fiber)) {
+      // Cordis publishes FiberState as a declaration-only const enum; 5 is the
+      // pinned 4.0.2 ABI value for UNLOADING.
+      if (fiber.state === 5 && this.hasLifecycleAncestor(fiber)) {
         this.closeInitiators()
       }
     })

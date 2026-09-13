@@ -16,6 +16,7 @@ export type {
   ApprovalDecision,
   ApprovalDetailOwnerProps,
   ApprovalPresentationRequest,
+  ApprovalWireDecision,
   PendingApproval,
 } from './contract/slots.ts'
 export type { ApprovalKey } from './locales.ts'
@@ -56,7 +57,9 @@ async function answerApproval(
   })
   try {
     try {
-      return await pending.result
+      // The SOC Host adapter consumes the extended remember-tool envelope and
+      // returns the official one-shot outcome to the upstream approval seam.
+      return await pending.result as unknown as ClientApprovalOutcome
     } catch (error) {
       if (pending.isDelegation(error)) return await next()
       throw error

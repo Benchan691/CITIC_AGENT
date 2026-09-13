@@ -6,8 +6,15 @@ import type {
   TypertRemoteEventSource,
 } from 'dsh-soc-agent-api-gateway'
 import { scopeTarget } from '@deepseek-ai/dsh-scope'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { apply, inject } from '../src/index.ts'
+import { testUserPrincipal } from '../../../tests/soc-auth.ts'
+
+interface AuthProbe {
+  readonly grants: Set<string>
+  readonly principalForHarnessSession: ReturnType<typeof vi.fn>
+  readonly rememberToolApproval: ReturnType<typeof vi.fn>
+}
 
 interface GatewayProbe {
   source: TypertRemoteEventSource | undefined
@@ -22,6 +29,7 @@ interface GatewayProbe {
 async function setup(): Promise<{
   readonly ctx: Context
   readonly gateway: GatewayProbe
+  readonly auth: AuthProbe
   readonly fiber: Fiber
 }> {
   const ctx = new Context()
@@ -41,9 +49,25 @@ async function setup(): Promise<{
     },
   }
   ctx.reflect.provide('typertGateway', gateway)
+  const grants = new Set<string>()
+  const auth: AuthProbe = {
+    grants,
+    principalForHarnessSession: vi.fn(() => testUserPrincipal),
+    rememberToolApproval: vi.fn((_principal, sessionId: string, toolName: string) => {
+      grants.add(`${sessionId}:${toolName}`)
+      return true
+    }),
+  }
+  ctx.reflect.provide('socAuth', {
+    principalForAgent: () => testUserPrincipal,
+    principalForHarnessSession: auth.principalForHarnessSession,
+    hasRememberedToolApproval: (_principal: unknown, sessionId: string, toolName: string) =>
+      grants.has(`${sessionId}:${toolName}`),
+    rememberToolApproval: auth.rememberToolApproval,
+  })
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber
-  return { ctx, gateway, fiber }
+  return { ctx, gateway, auth, fiber }
 }
 
 function sourceOf(gateway: GatewayProbe): TypertRemoteEventSource {
@@ -88,7 +112,7 @@ describe('Remote event Host source', () => {
   })
 
   it('gives each Client stream an independent allowlisted event queue', async () => {
-    const { ctx, gateway, fiber } = await setup()
+    const { ctx, gateway, auth, fiber } = await setup()
     const firstAbort = new AbortController()
     const secondAbort = new AbortController()
     const first = sourceOf(gateway)(firstAbort.signal)[Symbol.asyncIterator]()
@@ -113,6 +137,7 @@ describe('Remote event Host source', () => {
       value: {
         event: 'goal/activation-changed',
         args: [{ sessionId: 'session-1', goal: { id: 'goal-1', revision: 1, activation: 'disarmed' } }],
+        principal: testUserPrincipal,
       },
     })
     await expect(second.next()).resolves.toEqual({
@@ -120,17 +145,23 @@ describe('Remote event Host source', () => {
       value: {
         event: 'goal/activation-changed',
         args: [{ sessionId: 'session-1', goal: { id: 'goal-1', revision: 1, activation: 'disarmed' } }],
+        principal: testUserPrincipal,
       },
     })
+    expect(auth.principalForHarnessSession).toHaveBeenCalledTimes(2)
+    expect(auth.principalForHarnessSession).toHaveBeenCalledWith('session-1')
 
     const firstDone = first.next()
     firstAbort.abort(new Error('first Client disconnected'))
+    auth.principalForHarnessSession.mockReturnValue(undefined)
+    emitRaw(ctx, 'api-session/error', ['foreign-session', 'private failure'])
     emitRaw(ctx, 'commands/change', [])
     await expect(firstDone).resolves.toEqual({ done: true, value: undefined })
     await expect(second.next()).resolves.toEqual({
       done: false,
       value: { event: 'commands/change', args: [] },
     })
+    expect(auth.principalForHarnessSession).toHaveBeenCalledWith('foreign-session')
 
     const secondDone = second.next()
     secondAbort.abort(new Error('second Client disconnected'))
@@ -196,7 +227,12 @@ describe('Remote event Host source', () => {
     expect(claimedDispatch).toMatchObject({
       event: 'user-questions/request',
       request,
-      context: { value: agentCtx, subject: agent, agentId: 'agent-1' },
+      context: {
+        value: agentCtx,
+        subject: agent,
+        agentId: 'agent-1',
+        principal: testUserPrincipal,
+      },
     })
     claimedDispatch.resolve({ kind: 'result', value: 'client answer' })
     await expect(claimed).resolves.toBe('client answer')
@@ -226,6 +262,48 @@ describe('Remote event Host source', () => {
     const rejectedDispatch = invocationOf((await iterator.next()).value)
     rejectedDispatch.reject(rejection)
     await rejectedAssertion
+
+    const done = iterator.next()
+    abort.abort()
+    await expect(done).resolves.toEqual({ done: true, value: undefined })
+    await ctx.fiber.dispose()
+  })
+
+  it('normalizes and remembers an explicit tool grant before auto-granting the next ask', async () => {
+    const { ctx, gateway, auth } = await setup()
+    const abort = new AbortController()
+    const iterator = sourceOf(gateway)(abort.signal)[Symbol.asyncIterator]()
+    const agent = { id: 'session-1', ctx: ctx.extend() }
+    const target = scopeTarget(ctx, agent)
+    const request = { agent, toolName: 'zimbra_send_email', callId: 'call-1' }
+
+    const first = waterfallRaw(
+      ctx,
+      target,
+      'approval/request',
+      [request],
+      () => Promise.resolve('unavailable'),
+    )
+    const dispatch = invocationOf((await iterator.next()).value)
+    dispatch.resolve({
+      kind: 'result',
+      value: { outcome: 'allowed-once', remember: 'tool' },
+    })
+
+    await expect(first).resolves.toBe('allowed-once')
+    expect(auth.rememberToolApproval).toHaveBeenCalledWith(
+      testUserPrincipal,
+      'session-1',
+      'zimbra_send_email',
+    )
+
+    await expect(waterfallRaw(
+      ctx,
+      target,
+      'approval/request',
+      [{ ...request, callId: 'call-2' }],
+      () => Promise.resolve('unavailable'),
+    )).resolves.toBe('allowed-once')
 
     const done = iterator.next()
     abort.abort()

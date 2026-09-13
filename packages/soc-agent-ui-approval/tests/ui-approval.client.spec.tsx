@@ -6,7 +6,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApprovalPanel } from '../src/client/ApprovalPanel.tsx'
-import type { ApprovalComposerProps } from '../src/client/contract/slots.ts'
+import type { ApprovalComposerProps, ApprovalWireDecision } from '../src/client/contract/slots.ts'
 import { PendingApproval } from '../src/client/contract/slots.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as nodeApply } from '../src/index.ts'
@@ -175,7 +175,7 @@ describe('PendingApproval', () => {
 
   it('wraps a non-Error answer settlement failure with its cause', async () => {
     const failure = 'resolve failed'
-    const completion = Promise.withResolvers<'allowed-once' | 'rejected'>()
+    const completion = Promise.withResolvers<ApprovalWireDecision>()
     const withResolvers = vi.spyOn(Promise, 'withResolvers').mockImplementationOnce(() => ({
       promise: completion.promise,
       resolve: () => { throw failure },
@@ -314,6 +314,7 @@ function panelProps(
     escalation: `Tool ${pending.toolName} asks`,
     reject: 'Reject',
     allowOnce: 'Allow once',
+    allowTool: 'Always allow this tool',
   }
   return {
     matched: pending,
@@ -336,6 +337,7 @@ describe('ApprovalPanel', () => {
     await expect(pending.result).resolves.toBe('rejected')
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Reject' }).disabled).toBe(true)
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Allow once' }).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Always allow this tool' }).disabled).toBe(true)
   })
 
   it('renders correlated detail and returns allow-once', async () => {
@@ -355,6 +357,18 @@ describe('ApprovalPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
 
     await expect(pending.result).resolves.toBe('allowed-once')
+  })
+
+  it('returns the SOC remember-tool envelope only from the explicit action', async () => {
+    const pending = new PendingApproval(id('s1'), { toolName: 'bash' })
+    render(<ApprovalPanel {...panelProps(pending)} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Always allow this tool' }))
+
+    await expect(pending.result).resolves.toEqual({
+      outcome: 'allowed-once',
+      remember: 'tool',
+    })
   })
 
   it('re-enables actions when answering fails', async () => {

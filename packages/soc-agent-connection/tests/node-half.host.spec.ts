@@ -11,6 +11,7 @@ import type { IndexInjection, WebServer, WebRoute, WebUpgradeRoute } from '@deep
 import { API_PATH, RpcId, apply, inject, type ClientRequest, type ConnectionConfig, type HostConnectionHandle } from '../src/index.ts'
 import { DEFAULT_MAX_REQUEST_BODY_BYTES } from '../src/http-bridge.ts'
 import { provideBrowserCredentials } from './browser-credentials.ts'
+import { createTestSocAuth } from '../../../tests/soc-auth.ts'
 
 /** Structural webServer fake recording both route registries. */
 function fakeHttpServer(
@@ -92,6 +93,7 @@ async function mounted(config?: ConnectionConfig): Promise<{
   const routes: WebRoute[] = []
   const upgrades: WebUpgradeRoute[] = []
   provideBrowserCredentials(ctx)
+  ctx.provide('socAuth' as never, createTestSocAuth() as never)
   ctx.provide('webServer', fakeHttpServer(routes, upgrades) as WebServer)
   const fiber = ctx.plugin({ inject: [...inject], apply }, config)
   await fiber.await()
@@ -121,6 +123,7 @@ describe('connection node half', () => {
   it('provides the carrier-neutral service without a Web server', async () => {
     const ctx = new Context()
     provideBrowserCredentials(ctx)
+    ctx.provide('socAuth' as never, createTestSocAuth() as never)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(ctx.get('connection')).toBeInstanceOf(Object)
@@ -178,6 +181,7 @@ describe('connection node half', () => {
     const upgrades: WebUpgradeRoute[] = []
     const ctx = new Context()
     provideBrowserCredentials(ctx)
+    ctx.provide('socAuth' as never, createTestSocAuth() as never)
     ctx.provide('webServer', fakeHttpServer(routes, upgrades) as WebServer)
     const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.internal/path'] })
     await expect(fiber).rejects.toThrow(/not a bare host\[:port\] authority/)
@@ -282,6 +286,7 @@ describe('connection node half', () => {
     const ctx = new Context()
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
+    ctx.provide('socAuth' as never, createTestSocAuth() as never)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -331,6 +336,7 @@ describe('connection node half', () => {
     const ctx = new Context()
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
+    ctx.provide('socAuth' as never, createTestSocAuth() as never)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
     const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
     await fiber.await()
@@ -415,6 +421,7 @@ describe('connection node half', () => {
     const ctx = new Context()
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
+    ctx.provide('socAuth' as never, createTestSocAuth() as never)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
     const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
     await fiber.await()

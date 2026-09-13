@@ -114,7 +114,9 @@ describe('HTTP bridge abort', () => {
     request.push(null)
     await pending
     expect(status).toBe(200)
-    expect(received).toEqual([Uint8Array.of(1, 2), Uint8Array.of(3, 4)])
+    // Undici may expose request-body chunks through a different Uint8Array
+    // realm; compare the stable byte values rather than realm identity.
+    expect(received.map(chunk => [...chunk])).toEqual([[1, 2], [3, 4]])
     expect(Buffer.concat(responseBytes).toString()).toBe('stored')
   })
 

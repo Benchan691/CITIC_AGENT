@@ -3,7 +3,7 @@
 
 import { resolveConfigPath } from '@deepseek-ai/dsh-app-boot'
 import { runFixtureTurn } from '@deepseek-ai/dsh-loader-smoke'
-import { bootProductionProfile } from '../../../../test-support/loader-smoke/tests/fixtures/production-profile.ts'
+import { bootProductionProfile } from '../../../../vendor/deepseek-harness/packages/test-support/loader-smoke/tests/fixtures/production-profile.ts'
 
 const configPath = process.argv[2]
 if (configPath === undefined) throw new Error('time-context driver requires a config path')

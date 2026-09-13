@@ -382,7 +382,7 @@ export class SessionController extends TypertRemoteService {
    */
   workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 'explorer' | 'directory' | null } {
     const fileManager = nativeFileManager()
-    return { name: hostname(), available: fileManager !== null && this.canOpenPath(), fileManager }
+    return { name: hostname(), available: false, fileManager }
   }
 
   /**

@@ -18,6 +18,8 @@ import { SessionPersistenceNotFoundError } from '@deepseek-ai/dsh-session-persis
 import type { SessionAccess, SessionHandle } from '@deepseek-ai/dsh-session-persistence'
 import { HostConnectionService } from 'dsh-soc-agent-connection'
 import type { BrowserAuth } from 'dsh-soc-agent-connection/src/browser-auth.ts'
+import type { SocAuth } from 'dsh-soc-agent-connection'
+import { createTestSocAuth } from '../../../tests/soc-auth.ts'
 import * as SessionLogExport from '../src/index.ts'
 
 const sid = (id: string): SessionId => id as SessionId
@@ -165,7 +167,12 @@ async function buildApi(
     } as never)
   }
   if (services.sessions !== undefined) ctx.provide('sessions', services.sessions as never)
-  const connection = new HostConnectionService(ctx, [], {} as BrowserAuth)
+  // Export error-path fixtures deliberately refer to missing stored logs; the
+  // authenticated user still owns those logical Session ids.
+  const socAuth = createTestSocAuth()
+  socAuth.ownsSession = async () => true
+  ctx.provide('socAuth' as never, socAuth as never)
+  const connection = new HostConnectionService(ctx, [], {} as BrowserAuth, socAuth as SocAuth)
   const fiber = ctx.plugin(SessionLogExport, {
     ...services.compressionLevel === undefined
       ? {}
@@ -616,13 +623,17 @@ describe('session.export download endpoint', () => {
     const producerSignal = traces[0]
     if (producerSignal === undefined) throw new Error('missing lineage signal')
     expect(reads[0]?.id).toBe(sid('session-root'))
-    expect(reads[1]).toEqual({ id: sid('child-a'), signal: producerSignal })
+    expect(reads[1]?.id).toBe(sid('child-a'))
+    const descendantSignal = reads[1]?.signal
+    if (descendantSignal === undefined) throw new Error('missing descendant signal')
     const cancellation = new Error('request cancelled after response')
     controller.abort(cancellation)
     expect(rootSignal.aborted).toBe(true)
     expect(rootSignal.reason).toBe(cancellation)
     expect(producerSignal.aborted).toBe(true)
     expect(producerSignal.reason).toBe(cancellation)
+    expect(descendantSignal.aborted).toBe(true)
+    expect(descendantSignal.reason).toBe(cancellation)
   })
 
   it('preserves request cancellation instead of translating it to HTTP 500', async () => {

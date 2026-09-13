@@ -29,6 +29,9 @@ export function apply(ctx) {
     }
   }, { global: true })
   ctx.provide('socAuth', auth)
+  ctx.on('session/disposed', session => {
+    auth.clearSessionToolApprovals(session?.id)
+  })
   ctx.provide('connectionAuthorization', {
     authorizePrivilegedRequest: () => auth.authorizePrivilegedRequest(),
   })
@@ -39,5 +42,8 @@ export function apply(ctx) {
     const disposers = auth.registerRoutes(ctx.webServer)
     return () => disposers.forEach(dispose => dispose())
   }, 'soc-agent-auth: HTTP routes')
-  ctx.effect(() => () => { void auth.store.close() }, 'soc-agent-auth: PostgreSQL pool')
+  ctx.effect(() => () => {
+    auth.clearToolApprovals()
+    void auth.store.close()
+  }, 'soc-agent-auth: PostgreSQL pool and transient grants')
 }

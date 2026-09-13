@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { collectExportJsdocViolations } from '../../../../scripts/verify-export-jsdoc.ts'
+import { collectExportJsdocViolations } from '../../../vendor/deepseek-harness/scripts/verify-export-jsdoc.ts'
 
 const roots: string[] = []
 

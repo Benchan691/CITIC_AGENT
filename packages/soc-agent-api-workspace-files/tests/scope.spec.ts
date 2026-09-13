@@ -4,6 +4,7 @@ import SessionStore, { SESSION_FORMAT_VERSION, SessionId, type SessionHeader } f
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { describe, expect, it, vi } from 'vitest'
 import WorkspaceFiles from '../src/index.ts'
+import { createTestSocAuth } from '../../../tests/soc-auth.ts'
 
 const CAPS = {
   maxBytes: 1024,
@@ -24,7 +25,7 @@ function header(id: SessionId, cwd?: string): SessionHeader {
 }
 
 describe('Workspace Files Session scope lookup', () => {
-  it('uses live or stored headers without an Agent and leaves with its plugin', async () => {
+  it('uses authenticated private roots without an Agent and leaves with its plugin', async () => {
     const liveId = SessionId('live-subagent')
     const coldId = SessionId('cold-subagent')
     const fallbackId = SessionId('cold-without-cwd')
@@ -41,6 +42,16 @@ describe('Workspace Files Session scope lookup', () => {
     ctx.provide('fs', {} as never)
     ctx.provide('sandboxPolicy', { workspaceRoot: fallbackRoot } as never)
     ctx.provide('sessionPersistence', { stat } as never)
+    const socAuth = createTestSocAuth({
+      ownedSessionIds: [String(liveId), String(coldId), String(fallbackId)],
+    })
+    socAuth.workspacePathForSession = async (id) => {
+      if (id === liveId) return liveRoot
+      if (id === coldId) return coldRoot
+      if (id === fallbackId) return fallbackRoot
+      return undefined
+    }
+    ctx.provide('socAuth' as never, socAuth as never)
     const sessions = await ctx.plugin(SessionStore)
     const typert = await ctx.plugin(TypertRegistry)
     const workspaceFiles = await ctx.plugin(WorkspaceFiles, CAPS)
@@ -62,7 +73,7 @@ describe('Workspace Files Session scope lookup', () => {
       await expect(lookup.resolve(coldId)).resolves.toEqual({ sessionId: coldId, workspaceRoot: coldRoot })
       await expect(lookup.resolve(fallbackId)).resolves.toEqual({ sessionId: fallbackId, workspaceRoot: fallbackRoot })
       await expect(lookup.resolve(missingId)).resolves.toBeUndefined()
-      expect(stat.mock.calls.map(([id]) => id)).toEqual([coldId, fallbackId, missingId])
+      expect(stat).not.toHaveBeenCalled()
 
       await workspaceFiles.dispose()
       expect(ctx.typert.lookups.get('workspaceFileScope')).toBeUndefined()

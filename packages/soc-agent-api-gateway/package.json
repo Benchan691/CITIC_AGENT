@@ -59,7 +59,8 @@
     "ws": "^8.21.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "4.0.2"
+    "@deepseek-ai/cordis": "4.0.2",
+    "dsh-soc-agent-connection": "0.1.0"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "56c8dd21492a5c36cb9f3eaa3da01160aba40033",
+  "upstream": {
+    "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+    "tag": "dsh-v0.1.5-rc.2",
+    "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+    "sourcePath": "packages/client/ui-sidebar",
+    "sourceSha256": "ec18513ac3f4cd5e40ae7d279e53f3326e6afe3c7ce4718170dd7abbd185c904"
+  },
+  "socSourceSha256": "9ae062c6ada933665bcbb3f2351280d76dad7a01126e6ca7af57592220e76606",
+  "screenshots": {
+    "expanded": "apps/soc-agent/tests/__screenshots__/sidebar-expanded.png",
+    "collapsed": "apps/soc-agent/tests/__screenshots__/sidebar-collapsed.png"
+  },
+  "visualPolicy": "rc.2 markup and CSS are pinned; only explicitly approved SOC branding/content may differ."
+}

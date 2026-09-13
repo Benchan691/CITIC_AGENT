@@ -34,6 +34,14 @@ test('user modes are authenticated, isolated, enforced, and revoked on logout', 
   await auth.storage.run(a, async () => {
     auth.bindAgentSession('chat-a')
     assert.equal((await execute()).kind, 'ask')
+    assert.equal(auth.rememberToolApproval(
+      auth.requireUser(),
+      'chat-a',
+      'mcp__soc_agent__zimbra_move_email',
+    ), true)
+    assert.equal((await execute()).kind, 'delegate')
+    auth.clearSessionToolApprovals('chat-a')
+    assert.equal((await execute()).kind, 'ask')
     assert.equal((await rpc('set-action-mode', { mode: 'full', sessionId: 'login-b' })).ok, false)
     assert.equal((await rpc('set-action-mode', { mode: 'invalid' })).ok, false)
     assert.equal((await rpc('set-action-mode', { mode: 'full' })).value.mode, 'full')

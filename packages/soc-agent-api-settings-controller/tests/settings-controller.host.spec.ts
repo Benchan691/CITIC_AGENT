@@ -4,9 +4,16 @@ import z from '@deepseek-ai/schemastery'
 import type { SettingsDescriptor } from '@deepseek-ai/dsh-settings'
 import { RemoteError, remoteErrorOf, remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import SettingsController from '../src/index.ts'
-import { MemorySettings } from '../../../settings/settings/tests/memory.ts'
+import { MemorySettings } from '../../../vendor/deepseek-harness/packages/settings/settings/tests/memory.ts'
+import { createTestSocAuth, testAdminPrincipal } from '../../../tests/soc-auth.ts'
 
 const NS = 'ui-test'
+
+function adminContext(): Context {
+  const ctx = new Context()
+  ctx.provide('socAuth' as never, createTestSocAuth({ principal: testAdminPrincipal }) as never)
+  return ctx
+}
 
 const Profile = z.object({
   preference: z.union(['light', 'dark']).default('light'),
@@ -62,7 +69,7 @@ async function boot(
   provider: typeof MemorySettings = MemorySettings,
   options: { doc?: Record<string, unknown>; base?: { preference: 'light' | 'dark' } } = {},
 ): Promise<{ controller: SettingsController; ctx: Context }> {
-  const ctx = new Context()
+  const ctx = adminContext()
   await ctx.plugin(provider, options.doc === undefined ? {} : { doc: options.doc })
   ctx.settings.register(NS, Profile, options.base === undefined ? {} : { base: options.base })
   await ctx.plugin(SettingsController)
@@ -86,7 +93,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('reports the actionable configuration error while no settings provider is mounted', async () => {
-    const ctx = new Context()
+    const ctx = adminContext()
     await ctx.plugin(SettingsController)
     const calls: Array<() => unknown> = [
       () => ctx.settingsController.describe(),
@@ -106,7 +113,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('mounts the credentials namespace beside its own', async () => {
-    const ctx = new Context()
+    const ctx = adminContext()
     await ctx.plugin(MemorySettings)
     ctx.settings.register(NS, Profile)
     const fiber = ctx.plugin(SettingsController)
@@ -241,7 +248,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('prepares and opens the provider-owned settings document', async () => {
-    const ctx = new Context()
+    const ctx = adminContext()
     await ctx.plugin(DocumentSettings)
     const prepare = vi.spyOn(ctx.settings, 'prepareDocument').mockResolvedValue('/tmp/settings.yaml')
     const openTextFile = vi.fn((_path: string, _signal: AbortSignal) => Promise.resolve())
@@ -275,7 +282,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('does not open a settings document cancelled during preparation', async () => {
-    const ctx = new Context()
+    const ctx = adminContext()
     await ctx.plugin(DocumentSettings)
     const prepared = Promise.withResolvers<string | undefined>()
     vi.spyOn(ctx.settings, 'prepareDocument').mockReturnValue(prepared.promise)
@@ -292,7 +299,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('maps native settings-document opener failures', async () => {
-    const ctx = new Context()
+    const ctx = adminContext()
     await ctx.plugin(DocumentSettings)
     vi.spyOn(ctx.settings, 'prepareDocument').mockResolvedValue('/tmp/settings.yaml')
     const controller = new SettingsController(ctx, {}, {
@@ -304,7 +311,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('classifies cancellation while preparing or opening the settings document', async () => {
-    const preparing = new Context()
+    const preparing = adminContext()
     await preparing.plugin(DocumentSettings)
     const prepareAbort = new AbortController()
     vi.spyOn(preparing.settings, 'prepareDocument').mockImplementation(async () => {
@@ -315,7 +322,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
     await expect(preparingController.openSettingsDocument(prepareAbort.signal))
       .rejects.toMatchObject({ code: 'gateway/cancelled' })
 
-    const opening = new Context()
+    const opening = adminContext()
     await opening.plugin(DocumentSettings)
     vi.spyOn(opening.settings, 'prepareDocument').mockResolvedValue('/tmp/settings.yaml')
     const openAbort = new AbortController()
@@ -330,7 +337,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('opens a user Agent preset directory or returns its path without a native opener', async () => {
-    const ctx = new Context()
+    const ctx = adminContext()
     ctx.provide('agentPresets', {
       resolve: (id: string) => Promise.resolve({
         id, trust: 'user', path: `/presets/${id}/agent.cordis.yml`,
@@ -344,7 +351,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
       .resolves.toEqual({ opened: true })
     expect(openPath).toHaveBeenCalledWith('/presets/mine', signal)
 
-    const headless = new Context()
+    const headless = adminContext()
     headless.provide('agentPresets', {
       resolve: (id: string) => Promise.resolve({
         id, trust: 'user', path: `/presets/${id}/agent.cordis.yml`,
@@ -357,22 +364,22 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('covers native-open detection defaults and explicit overrides', () => {
-    const fromInjectedOpener = new SettingsController(new Context(), {}, {
+    const fromInjectedOpener = new SettingsController(adminContext(), {}, {
       openPath: () => Promise.resolve(),
     })
     expect((fromInjectedOpener as unknown as { canOpenPath: () => boolean }).canOpenPath()).toBe(true)
 
-    const detected = new SettingsController(new Context())
+    const detected = new SettingsController(adminContext())
     expect(typeof (detected as unknown as { canOpenPath: () => boolean }).canOpenPath()).toBe('boolean')
 
     const override = vi.fn(() => false)
-    const overridden = new SettingsController(new Context(), {}, { canOpenPath: override })
+    const overridden = new SettingsController(adminContext(), {}, { canOpenPath: override })
     expect((overridden as unknown as { canOpenPath: () => boolean }).canOpenPath()).toBe(false)
     expect(override).toHaveBeenCalledOnce()
   })
 
   it('refuses a shipped Agent preset and a missing preset provider', async () => {
-    const ctx = new Context()
+    const ctx = adminContext()
     ctx.provide('agentPresets', {
       resolve: (id: string) => Promise.resolve({
         id, trust: 'system', path: `/presets/${id}/agent.cordis.yml`,
@@ -382,14 +389,14 @@ describe('the settings Remote namespace a configuration page calls', () => {
     await expect(controller.openAgentPresetDirectory('standard', new AbortController().signal))
       .rejects.toMatchObject({ code: 'agent-preset/read-only' })
 
-    const missing = new SettingsController(new Context())
+    const missing = new SettingsController(adminContext())
     await expect(missing.openAgentPresetDirectory('mine', new AbortController().signal))
       .rejects.toMatchObject({ code: 'agent-preset/not-found' })
   })
 
   it('rejects an empty Agent preset id before resolving a provider', async () => {
     const resolve = vi.fn()
-    const ctx = new Context()
+    const ctx = adminContext()
     ctx.provide('agentPresets', { resolve } as never)
     const controller = new SettingsController(ctx)
 
@@ -399,7 +406,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('raises an Agent preset resolution failure as the roster reported it', async () => {
-    const ctx = new Context()
+    const ctx = adminContext()
     const reported = new RemoteError('agent-preset/not-found', 'no such preset', {
       agentPreset: 'mine', available: ['standard'],
     })
@@ -411,7 +418,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
   })
 
   it('classifies cancellation and non-Error failures from the preset opener', async () => {
-    const ctx = new Context()
+    const ctx = adminContext()
     ctx.provide('agentPresets', {
       resolve: (id: string) => Promise.resolve({
         id, trust: 'user', path: `/presets/${id}/agent.cordis.yml`,

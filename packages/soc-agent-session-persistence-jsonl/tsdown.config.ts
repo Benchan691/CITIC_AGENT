@@ -1,9 +1,9 @@
 import { defineConfig } from 'tsdown'
 
-/** Build the backend and its path-loaded verifier as separate bundles. */
+/** Build the backend, maintenance migrator, and its path-loaded verifier. */
 export default defineConfig(({ env }) => env?.DSH_BUILD_FACE === 'client' ? [] : [
   {
-    entry: ['src/index.ts'],
+    entry: ['src/index.ts', 'src/migration.ts'],
     outDir: 'lib',
     format: ['esm'],
     platform: 'node',

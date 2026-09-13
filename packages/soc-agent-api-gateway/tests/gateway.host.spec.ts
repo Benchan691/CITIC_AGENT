@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { Context, Service, symbols } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { apply as applyConnection, inject as connectionInject } from 'dsh-soc-agent-connection'
-import type { HostConnectionHandle } from 'dsh-soc-agent-connection'
+import type { HostConnectionHandle, SocPrincipal } from 'dsh-soc-agent-connection'
 import type { WebServer, WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import {
   bindTypertRemote,
@@ -19,6 +19,7 @@ import {
 import TypertRegistry, { type TypertContribution } from '@deepseek-ai/dsh-typert-registry'
 import TypertGatewayService, { TypertGatewayError } from 'dsh-soc-agent-api-gateway'
 import { provideBrowserCredentials } from './browser-credentials.ts'
+import { createTestSocAuth, testUserPrincipal } from '../../../tests/soc-auth.ts'
 
 interface FixtureAgent {
   readonly id: string
@@ -1067,6 +1068,12 @@ describe('TypertGatewayService', () => {
 
   it('claims and validates in-process Remote event results for the active Client generation', async () => {
     const ctx = new Context()
+    let principal: Extract<SocPrincipal, { readonly kind: 'user' }> = testUserPrincipal
+    const auth = createTestSocAuth()
+    ctx.provide('socAuth' as never, {
+      ...auth,
+      requireUser: () => principal,
+    } as never)
     await ctx.plugin(TypertRegistry)
     await ctx.plugin(FakeConnectionService)
     await ctx.plugin(TypertGatewayService)
@@ -1099,6 +1106,18 @@ describe('TypertGatewayService', () => {
     if (opening.done) throw new Error('Remote event stream ended before ready')
     const clientId: unknown = Reflect.get(opening.value as object, 'clientId')
     if (typeof clientId !== 'string') throw new Error('Remote event stream omitted its Client id')
+
+    principal = {
+      ...testUserPrincipal,
+      applicationSessionId: 'other-application-session',
+    }
+    const crossSession = await handler('$events/result', {
+      args: { clientId, eventId: 'missing', outcome: { kind: 'next' } },
+    }, carrier.signal)
+    expect(crossSession).toMatchObject({ ok: false, error: { code: 'gateway/internal' } })
+    if (crossSession.ok) throw new Error('cross-session Remote event result unexpectedly succeeded')
+    expect(crossSession.error.message).toContain('identifies no active event stream')
+    principal = testUserPrincipal
 
     for (const payload of [null, [], {}, { other: {} }]) {
       const invalid = await handler('$events/result', payload, carrier.signal)
@@ -1176,6 +1195,7 @@ describe('TypertGatewayService', () => {
     const ctx = new Context().extend({ fixtureScope: 'http-caller' })
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
+    ctx.provide('socAuth' as never, createTestSocAuth({ ownedSessionIds: ['agent-1'] }) as never)
     ctx.provide('webServer', fakeHttpServer(routes) as WebServer)
     const connectionFiber = ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
     await connectionFiber

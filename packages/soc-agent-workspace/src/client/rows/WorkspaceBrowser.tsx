@@ -890,9 +890,7 @@ export function WorkspaceBrowser({
   createWorkspace,
   searchSessions,
   searchResultLimit,
-  useDirectoryFlow,
   useHostInfo,
-  renderSlot,
   t,
 }: WorkspaceBrowserProps) {
   const home = useHostInfo(info => info.home)
@@ -900,9 +898,6 @@ export function WorkspaceBrowser({
   const workspacePhase = useWorkspaces(state => state.phase)
   const workspaceStreamState = useWorkspaces(state => state.state)
   const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds)
-  // Live occupancy of this surface's directory-flow hole (the same source the
-  // flow reads): a composition without a picking affordance can add nothing.
-  const directoryFlowAvailable = useDirectoryFlow(occupied => occupied)
   const groupBy = useStore(s => s.groupBy)
   const orderBy = useStore(s => s.orderBy)
   const groupExpansion = useStore(s => s.groupExpansion)
@@ -1336,24 +1331,19 @@ export function WorkspaceBrowser({
               t={t}
             />
           )}
-          {/* Adding is the button's one action, so a composition with no
-              picking affordance has nothing to offer here: the region hides the
-              button rather than leaving a dead one in the header. */}
-          {directoryFlowAvailable && (
-            <Tooltip label={t('workspace.add')} side="bottom" delayMs={500}>
-              <button
-                ref={wsPlusRef}
-                type="button"
-                className={css.iconButton}
-                aria-label={t('workspace.add')}
-                onClick={() => {
-                  setWsPickerOpen(v => !v)
-                }}
-              >
-                <IconProjectAddOutline16 size={wide ? 16 : 18} />
-              </button>
-            </Tooltip>
-          )}
+          <Tooltip label={t('workspace.add')} side="bottom" delayMs={500}>
+            <button
+              ref={wsPlusRef}
+              type="button"
+              className={css.iconButton}
+              aria-label={t('workspace.add')}
+              onClick={() => {
+                setWsPickerOpen(v => !v)
+              }}
+            >
+              <IconProjectAddOutline16 size={wide ? 16 : 18} />
+            </button>
+          </Tooltip>
         </div>
         {/* Add flow + its error dialog (same package — direct composition). */}
         <WorkspacePickFlow
@@ -1362,8 +1352,6 @@ export function WorkspaceBrowser({
           anchorRef={wsPlusRef}
           useWorkspaces={useWorkspaces}
           createWorkspace={createWorkspace}
-          useDirectoryFlow={useDirectoryFlow}
-          renderDirectoryFlow={owner => renderSlot('sidebar.workspaces.directoryFlow', owner)}
           addOnly
           side="right"
           onPick={(workspaceId) => {

@@ -545,6 +545,36 @@ async function verifyCurrentGeneration(
   }
 }
 
+/**
+ * Read one complete current-format generation for maintenance tooling.
+ * Unlike the normal persistence read path this returns the validated artifact
+ * so a copied data root can be audited before any successor is published.
+ * @param path - current v3 generation path.
+ * @param compression - physical encoding selected for the data root.
+ * @returns the decoded current artifact and its stable source identity/digest.
+ */
+export async function readCurrentJsonlGeneration(
+  path: string,
+  compression: JsonlCompression,
+): Promise<ReturnType<SessionLogScanner['finish']> & { readonly identity: JsonlPhysicalIdentity; readonly digest: string }> {
+  const source = await readStableJsonlFile(path)
+  const decoded = decodeCurrentGeneration(source.bytes, compression)
+  validateStoredEvents(decoded.meta, decoded.events, { kind: 'jsonl', path })
+  Session.fromRestore(
+    decoded.meta.id,
+    decoded.events,
+    decoded.meta,
+    decoded.inheritedEventCount,
+    'detached',
+  )
+  assertCurrentAssistantStreams(decoded.events)
+  return {
+    ...decoded,
+    identity: source.identity,
+    digest: createHash('sha256').update(source.bytes).digest('hex'),
+  }
+}
+
 /** Fully replay embedded streams only inside isolated current-generation verification. */
 function assertCurrentAssistantStreams(events: readonly SessionEvent[]): void {
   for (const [index, event] of events.entries()) {

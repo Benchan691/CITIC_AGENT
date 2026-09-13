@@ -1,7 +1,9 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import type { BrowserAuth } from '../src/browser-auth.ts'
+import type { SocAuth } from '../src/rpc.ts'
 import { HostConnectionService } from '../src/rpc-host.ts'
+import { createTestSocAuth } from '../../../tests/soc-auth.ts'
 
 async function mounted(): Promise<{
   readonly connection: HostConnectionService
@@ -9,7 +11,7 @@ async function mounted(): Promise<{
 }> {
   const ctx = new Context()
   const fiber = ctx.plugin((pluginCtx) => {
-    new HostConnectionService(pluginCtx, [], {} as BrowserAuth)
+    new HostConnectionService(pluginCtx, [], {} as BrowserAuth, createTestSocAuth() as SocAuth)
   })
   await fiber.await()
   return {

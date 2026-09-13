@@ -16,8 +16,8 @@ import {
 } from '../src/format.ts'
 import {
   runPersistenceContract, meta, oneTurnLog, releasedV1OneTurnLog,
-} from '../../session-persistence/tests/contract.ts'
-import { runLiveWritePathContract } from '../../session-persistence/tests/live-write-contract.ts'
+} from '../../../vendor/deepseek-harness/packages/session/session-persistence/tests/contract.ts'
+import { runLiveWritePathContract } from '../../../vendor/deepseek-harness/packages/session/session-persistence/tests/live-write-contract.ts'
 import { LIVE_WRITE_BATCH_MAX_DELAY_MS, type JsonlSessionHandle } from '../src/storage.ts'
 import { JsonlGenerationSourceChangedError } from '../src/generation.ts'
 import SessionStore from '@deepseek-ai/dsh-session'
@@ -887,7 +887,7 @@ describe('JsonlSessionPersistence: immutable format generations', () => {
     const sourcePath = historicalLogPath(root, '/work', id)
     const currentPath = rawLogPath(root, '/work', id)
     const source = await readFile(resolve(
-      'packages/session/session-persistence-jsonl/tests/fixtures/released-v0-real-shapes.jsonl',
+      'vendor/deepseek-harness/packages/session/session-persistence-jsonl/tests/fixtures/released-v0-real-shapes.jsonl',
     ))
     await mkdir(dirname(sourcePath), { recursive: true })
     await writeFile(sourcePath, source)

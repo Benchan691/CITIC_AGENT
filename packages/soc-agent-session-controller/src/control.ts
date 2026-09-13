@@ -41,10 +41,10 @@ export class SessionControlController {
       })
     })
     ctx.inject(['jobs'], (jobsCtx) => {
-      jobsCtx.jobs.onJobsChanged((owner) => { this.onJobsChanged(owner) })
+      jobsCtx.jobs.onJobsChanged((owner) => { this.onJobsChanged(owner as Agent | undefined) })
     })
     ctx.on('session/created', (session) => {
-      const jobs = this.jobsFor(this.ctx.agents.get(session.id))
+      const jobs = this.jobsFor(this.ctx.agents.get(session.id) as Agent | undefined)
       if (jobs.length > 0) this.broadcast({ type: 'jobs', sessionId: session.id, jobs })
     })
     ctx.effect(() => () => {
@@ -76,7 +76,7 @@ export class SessionControlController {
     const queues = Object.create(null) as Record<SessionId, readonly SessionQueuedItem[]>
     const jobs = Object.create(null) as Record<SessionId, readonly SessionJob[]>
     for (const session of sessions) {
-      const agent = this.ctx.agents.get(session.id)
+      const agent = this.ctx.agents.get(session.id) as Agent | undefined
       queues[session.id] = agent?.session === session ? queueItems(agent) : []
       jobs[session.id] = this.jobsFor(agent)
     }
@@ -111,7 +111,7 @@ export class SessionControlController {
       this.broadcast({
         type: 'jobs',
         sessionId: session.id,
-        jobs: this.jobsFor(this.ctx.agents.get(session.id)),
+        jobs: this.jobsFor(this.ctx.agents.get(session.id) as Agent | undefined),
       })
     }
   }

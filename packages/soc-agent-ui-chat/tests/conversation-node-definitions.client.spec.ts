@@ -11,7 +11,7 @@ import {
   type ConversationViewDefinition,
 } from 'dsh-soc-agent-ui-conversation/client'
 import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
-import { inspectSystemPrompt } from '../../ui-conversation/src/client/contract/system-prompt.ts'
+import { inspectSystemPrompt } from '../../soc-agent-ui-conversation/src/client/contract/system-prompt.ts'
 import { AssistantStreamAccumulator } from '@deepseek-ai/dsh-llm/assistant-stream'
 import type { StreamChunk } from '@deepseek-ai/dsh-llm'
 import { hasAssistantReplyContent } from '../src/client/contract/assistant-content.ts'

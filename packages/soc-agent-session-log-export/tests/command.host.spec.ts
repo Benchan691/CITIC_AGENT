@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { CommandDefinition, CommandInvocation } from '@deepseek-ai/dsh-commands'
 import * as SessionLogDownload from '../src/index.ts'
+import { createTestSocAuth } from '../../../tests/soc-auth.ts'
 
 describe('/export Web download command', () => {
   it('registers one pathless command and removes it with the plugin fiber', async () => {
@@ -16,6 +17,7 @@ describe('/export Web download command', () => {
     ctx.provide('connection', {
       fetch: { register: () => () => Promise.resolve() },
     } as never)
+    ctx.provide('socAuth' as never, createTestSocAuth() as never)
     const fiber = await ctx.plugin(SessionLogDownload)
 
     expect(descriptor).toMatchObject({

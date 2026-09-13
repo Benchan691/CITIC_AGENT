@@ -1,4 +1,4 @@
-import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client';
+import type { HeroBrandMarkOwnerProps } from 'dsh-soc-agent-ui-conversation/client';
 import type { SidebarBrandMarkOwnerProps } from 'dsh-soc-agent-sidebar/client';
 type CiticBrandMarkProps = HeroBrandMarkOwnerProps & SidebarBrandMarkOwnerProps;
 /** CITIC Telecom CPC's red emblem, adapted from the official logo artwork. */

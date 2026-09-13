@@ -27,6 +27,11 @@ The dsh web client sidebar lets users recognize the active build, start a new se
 
 The sidebar is the navigation shell: users see the brand, start new sessions, collapse the rail, and reach Settings. Feature plugins fill its seats — ui-workspace fills `sidebar.workspaces`, ui-settings registers the trigger row and settings panel at `sidebar.settings`.
 
+This package is an isolated SOC-owned replacement for the official Harness
+sidebar. Its markup and styles are intentionally pinned to the rc.2 visual
+baseline; the standard child slots remain available so compatible contributors
+can continue to participate without importing the official implementation.
+
 ### Brand and New Session
 
 The expanded brand row renders `sidebar.brand.mark` and `sidebar.brand.name` as independent single slots; the collapsed rail renders the same mark slot. Without occupants, the shell uses the fish mark and a localized local-build label. A complete build stacks a code badge below the label as `version[-commit][-dirty]`, using `DSH_CLIENT_VERSION`, the optional 7-character `DSH_CLIENT_COMMIT_HASH`, and `DSH_CLIENT_GIT_DIRTY=true`; missing version metadata omits the badge. New Session targets the explicit Workspace used by a scoped action, otherwise the current Session's Workspace, otherwise the most recently active Workspace; when none exists it clears into the blank New Session page.

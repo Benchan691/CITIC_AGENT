@@ -15,6 +15,7 @@ import { basename, dirname, isAbsolute, relative, resolve as resolvePath, sep } 
 import { fileURLToPath } from 'node:url'
 import type { UserConfig } from 'tsdown'
 import { transform } from 'lightningcss'
+import { standardDecoratorPlugin } from '../standard-decorators.ts'
 
 /** Browser modules supplied by the pristine rc.2 web shell. */
 const PLATFORM_MODULES = [
@@ -257,6 +258,7 @@ function clientLibraryConfig(
     fixedExtension: false,
     dts: false,
     clean: false,
+    plugins: [standardDecoratorPlugin()],
     deps: {
       // The Node half runs from a real install: a production dependency is on
       // disk there and stays an import, everything else inlines. Stating both

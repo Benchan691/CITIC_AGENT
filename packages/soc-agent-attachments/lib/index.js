@@ -1,4 +1,4 @@
-import { settingsNamespace } from "@deepseek-ai/dsh-settings";
+import { Service } from "@deepseek-ai/cordis";
 import z from "@deepseek-ai/schemastery";
 //#region src/attachment-constants.ts
 const MARKITDOWN_ATTACHMENTS_NAMESPACE = "soc-agent-markitdown-attachments";
@@ -20,11 +20,17 @@ const MarkItDownAttachmentSettingsSchema = z.object({
 });
 //#endregion
 //#region src/index.ts
+var SocAttachmentsFeature = class extends Service {
+	constructor(ctx) {
+		super(ctx, "socAttachmentsFeature");
+	}
+};
 /** Registers the durable attachment settings owned by this optional feature. */
 function apply(ctx) {
+	ctx.plugin(SocAttachmentsFeature);
 	ctx.inject(["settings"], (settingsCtx) => {
-		settingsCtx.settings.register(settingsNamespace(MARKITDOWN_ATTACHMENTS_NAMESPACE), MarkItDownAttachmentSettingsSchema);
+		settingsCtx.settings.register(MARKITDOWN_ATTACHMENTS_NAMESPACE, MarkItDownAttachmentSettingsSchema);
 	});
 }
 //#endregion
-export { DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS, MARKITDOWN_ATTACHMENTS_NAMESPACE, apply };
+export { DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS, MARKITDOWN_ATTACHMENTS_NAMESPACE, SocAttachmentsFeature, apply };

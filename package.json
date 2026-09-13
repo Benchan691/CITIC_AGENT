@@ -8,28 +8,36 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "scripts": {
-    "build": "pnpm -r --if-present run bundle",
+    "build": "pnpm run build:types && pnpm -r --if-present run bundle",
+    "build:types": "node tooling/build-soc-types.mjs",
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "vitest run",
     "verify:upstream": "node tooling/verify-upstream.mjs",
     "verify:isolation": "node tooling/verify-isolation.mjs",
+    "sessions:validate": "node tooling/session-migration.mjs --validate",
+    "sessions:migrate": "node tooling/session-migration.mjs --migrate",
+    "sessions:rollback": "node tooling/session-migration.mjs --rollback",
     "check": "pnpm run verify:upstream && pnpm run verify:isolation && pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-app-boot": "0.1.5-rc.2",
     "@testing-library/dom": "^10.4.1",
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "16.3.2",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^22.20.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
+    "fast-check": "4.8.0",
     "jsdom": "29.1.1",
     "lightningcss": "1.32.0",
+    "playwright": "^1.49.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tsdown": "^0.22.2",
-    "tsx": "^4.22.4",
-    "typescript": "^6.0.3",
+    "tsdown": "0.22.2",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3",
+    "vite": "8.0.16",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^4.1.8"
+    "vitest": "4.1.8"
   }
 }

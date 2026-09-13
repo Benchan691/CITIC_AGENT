@@ -1,4 +1,3 @@
-import * as nativeCommand from '@deepseek-ai/dsh-native-command'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from 'dsh-soc-agent-agent'
 import SessionStore from '@deepseek-ai/dsh-session'
@@ -15,158 +14,74 @@ async function context(): Promise<Context> {
   return ctx
 }
 
-describe('session/openWorkspacePath', () => {
-  it('reports the deployment opener capability independently of a Session', async () => {
-    const ctx = await context()
-    const remote = createSessionTestRemote(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/default',
-      canOpenPath: () => false,
-    })
-
-    await expect(remote.canOpenWorkspacePath()).resolves.toEqual({ ok: true, value: false })
+describe('session/openWorkspacePath SOC policy', () => {
+  it('reports Open In unavailable regardless of native or injected desktop support', async () => {
+    for (const defaults of [
+      { nativeOpen: true },
+      { openPath: async () => {} },
+      { canOpenPath: () => true },
+    ]) {
+      const ctx = await context()
+      try {
+        const remote = createSessionTestRemote(ctx, {
+          defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+          cwd: '/default',
+          ...defaults,
+        })
+        await expect(remote.canOpenWorkspacePath()).resolves.toEqual({ ok: true, value: false })
+      } finally {
+        await ctx.fiber.dispose()
+      }
+    }
   })
 
-  it('derives opener availability from config, an injected opener, or the platform probe', async () => {
-    const configured = createSessionTestRemote(await context(), {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/default',
-      nativeOpen: false,
-    })
-    await expect(configured.canOpenWorkspacePath()).resolves.toEqual({ ok: true, value: false })
-
-    const injected = createSessionTestRemote(await context(), {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/default',
-      openPath: () => Promise.resolve(),
-    })
-    await expect(injected.canOpenWorkspacePath()).resolves.toEqual({ ok: true, value: true })
-
-    const detected = createSessionTestRemote(await context(), {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/default',
-    })
-    await expect(detected.canOpenWorkspacePath()).resolves.toMatchObject({ ok: true })
-  })
-
-  it('hands a Client-resolved workspace path to the Host opener unchanged', async () => {
+  it('rejects open and reveal requests without invoking a native adapter', async () => {
     const ctx = await context()
-    const openPath = vi.fn((_path: string, _signal: AbortSignal) => Promise.resolve())
-    const remote = createSessionTestRemote(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/default',
-      openPath,
-    })
-    const signal = new AbortController().signal
-
-    await expect(remote.openWorkspacePath({ path: '/workspace/project/src/a.ts' }, signal))
-      .resolves.toEqual({ ok: true, value: { opened: true } })
-    expect(openPath).toHaveBeenCalledWith('/workspace/project/src/a.ts', signal)
-    expect(ctx.agents.list()).toEqual([])
-  })
-
-  it('preserves relative and absolute Host-resolvable paths', async () => {
-    const ctx = await context()
-    const openPath = vi.fn((_path: string, _signal: AbortSignal) => Promise.resolve())
-    const remote = createSessionTestRemote(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/default',
-      openPath,
-    })
-
-    await remote.openWorkspacePath({ path: '/tmp/result.html' })
-    await remote.openWorkspacePath({ path: 'result.html' })
-    expect(openPath.mock.calls.map(call => call[0])).toEqual(['/tmp/result.html', 'result.html'])
-  })
-
-  it('rejects empty paths before opening anything', async () => {
-    const ctx = await context()
-    const openPath = vi.fn((_path: string, _signal: AbortSignal) => Promise.resolve())
-    const remote = createSessionTestRemote(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/default',
-      openPath,
-    })
-
-    await expect(remote.openWorkspacePath({ path: '' }))
-      .resolves.toMatchObject({ ok: false, error: { code: 'gateway/bad-request' } })
-    expect(openPath).not.toHaveBeenCalled()
-  })
-
-  it('preserves native opener failure and cancellation results', async () => {
-    const ctx = await context()
-    const openPath = vi.fn((_path: string, _signal: AbortSignal) =>
-      Promise.reject(new Error('desktop unavailable')))
-    const remote = createSessionTestRemote(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/default',
-      openPath,
-    })
-
-    await expect(remote.openWorkspacePath({ path: 'result.html' }))
-      .resolves.toMatchObject({
-        ok: false,
-        error: { code: 'gateway/internal', message: 'path open failed: desktop unavailable' },
+    const openPath = vi.fn(async () => {})
+    const revealPath = vi.fn(async () => {})
+    try {
+      const controller = createSessionTestController(ctx, {
+        defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+        cwd: '/default',
+        openPath,
+        revealPath,
       })
-
-    const aborted = new AbortController()
-    aborted.abort(new Error('gateway/cancelled'))
-    await expect(remote.openWorkspacePath({ path: 'result.html' }, aborted.signal))
-      .resolves.toMatchObject({ ok: false, error: { code: 'gateway/cancelled' } })
-  })
-
-  it('classifies opener cancellation and non-Error failures', async () => {
-    const ctx = await context()
-    const aborted = new AbortController()
-    const openPath = vi.fn()
-      .mockImplementationOnce(async () => {
-        aborted.abort(new Error('gateway/cancelled'))
-        throw new Error('opening stopped')
+      expect(controller.workspaceDesktop()).toMatchObject({
+        available: false,
+        name: expect.any(String) as string,
       })
-      .mockRejectedValueOnce('desktop unavailable')
-    const controller = createSessionTestController(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
-      cwd: '/default',
-      openPath,
-    })
-
-    await expect(controller.openWorkspacePath({ path: 'first.html' }, aborted.signal))
-      .rejects.toMatchObject({ code: 'gateway/cancelled' })
-    await expect(controller.openWorkspacePath({
-      path: 'second.html',
-    }, new AbortController().signal)).rejects.toMatchObject({
-      code: 'gateway/internal', message: 'path open failed: desktop unavailable',
-    })
+      for (const action of ['open', 'reveal'] as const) {
+        await expect(controller.openWorkspacePath(
+          { path: '/workspace/report.txt', action },
+          new AbortController().signal,
+        )).rejects.toMatchObject({
+          code: 'gateway/bad-request',
+          message: 'Open In is disabled for the SOC workspace model',
+        })
+      }
+      expect(openPath).not.toHaveBeenCalled()
+      expect(revealPath).not.toHaveBeenCalled()
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
-})
 
-
-it('reports Host file-manager metadata and dispatches reveal separately from default-app open', async () => {
-  const ctx = await context()
-  const revealPath = vi.fn(async (_path: string, _signal: AbortSignal) => {})
-  const openPath = vi.fn(async (_path: string, _signal: AbortSignal) => {})
-  const controller = createSessionTestController(ctx, {
-    defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/default', openPath, revealPath,
+  it('preserves caller cancellation ahead of the disabled-feature response', async () => {
+    const ctx = await context()
+    try {
+      const controller = createSessionTestController(ctx, {
+        defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+        cwd: '/default',
+      })
+      const abort = new AbortController()
+      const reason = new Error('cancelled')
+      abort.abort(reason)
+      await expect(controller.openWorkspacePath(
+        { path: '/workspace/report.txt' },
+        abort.signal,
+      )).rejects.toBe(reason)
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
-  try {
-    expect(controller.workspaceDesktop()).toMatchObject({ available: true, name: expect.any(String) as string })
-    const signal = new AbortController().signal
-    await controller.openWorkspacePath({ path: '/workspace/report.txt', action: 'reveal' }, signal)
-    expect(revealPath).toHaveBeenCalledWith('/workspace/report.txt', signal)
-    expect(openPath).not.toHaveBeenCalled()
-  } finally { await ctx.fiber.dispose() }
-})
-
-it('uses the native reveal adapter without a test override and respects unsupported desktop metadata', async () => {
-  const ctx = await context()
-  const reveal = vi.spyOn(nativeCommand, 'revealNativePath').mockResolvedValue(undefined)
-  const manager = vi.spyOn(nativeCommand, 'nativeFileManager').mockReturnValue(null)
-  try {
-    const controller = createSessionTestController(ctx, {
-      defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/default', nativeOpen: true,
-    })
-    expect(controller.workspaceDesktop()).toMatchObject({ available: false, fileManager: null })
-    await controller.openWorkspacePath({ path: '/report.txt', action: 'reveal' }, new AbortController().signal)
-    expect(reveal).toHaveBeenCalledOnce()
-  } finally { manager.mockRestore(); reveal.mockRestore(); await ctx.fiber.dispose() }
 })

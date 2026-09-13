@@ -89,7 +89,7 @@ test('SOC mode applies deployment action states without an action-policy session
     get(name) {
       if (name === 'settings') return { get: () => saved }
       if (name === 'socAuth') return {
-        requireSession: () => ({ id: 'auth-session' }),
+        requireUser: () => ({ kind: 'user', applicationSessionId: 'auth-session', userId: 'user-1', zimbraEmail: 'analyst@example.test' }),
         requireAdmin: () => ({ email: 'admin@example.test' }),
       }
       return undefined

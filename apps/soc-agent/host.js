@@ -43,8 +43,8 @@ function requireAdmin(ctx) {
 
 function requireUser(ctx) {
   const auth = ctx.get?.('socAuth')
-  if (!auth || typeof auth.requireSession !== 'function') throw new Error('authentication required')
-  return auth.requireSession()
+  if (!auth || typeof auth.requireUser !== 'function') throw new Error('authentication required')
+  return auth.requireUser()
 }
 
 async function serveAdminPage(request, response, webServer) {
@@ -55,18 +55,9 @@ async function serveAdminPage(request, response, webServer) {
   }
   let indexPath
   try {
-    // The product package is loaded from a sibling workspace and does not
-    // necessarily have the web frontend in its own dependency directory.
-    // Resolve it through the maintained web-app package, just like the web
-    // bundle does, then fall back to the checked-out workspace path.
-    indexPath = nodeRequire.resolve(
-      '@deepseek-ai/dsh-web-frontend/dist/index.html',
-      { paths: [join(workspaceRoot(), 'vendor/deepseek-harness/packages/bundle/web-app')] },
-    )
+    const frontendPackage = nodeRequire.resolve('@deepseek-ai/dsh-web-frontend/package.json')
+    indexPath = join(dirname(frontendPackage), 'dist', 'index.html')
   } catch {
-    indexPath = join(workspaceRoot(), 'vendor/deepseek-harness/apps/web/dist/index.html')
-  }
-  if (!indexPath) {
     response.writeHead(503, { 'cache-control': 'no-store' })
     response.end('admin interface unavailable')
     return
@@ -492,11 +483,11 @@ async function handleEndpoint(endpoint, payload, signal, ctx) {
     case 'test-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'send-email': {
       const session = requireUser(ctx)
-      return ok(await runAuthCommand('send-email', { ...payload, session_id: session.id }))
+      return ok(await runAuthCommand('send-email', { ...payload, session_id: session.applicationSessionId }))
     }
     case 'list-signatures': {
       const session = requireUser(ctx)
-      return ok(await runAuthCommand('list-signatures', { session_id: session.id }))
+      return ok(await runAuthCommand('list-signatures', { session_id: session.applicationSessionId }))
     }
     case 'test-splunk': requireAdmin(ctx); return ok(await testOfficialSplunkConnection(ctx, signal))
     case 'test-subscription-server': requireAdmin(ctx); return ok(await runAdmin('test-subscription-server'))
@@ -535,7 +526,7 @@ export function apply(ctx) {
     if (!ctx.agents.roots().includes(agent)) return
     try { agent.ctx.tools.restrict({ allow: [...DOMAIN_TOOLS, ...CONTROL_TOOLS] }) } catch { /* MCP tools may still be registering; pre-execute enforces */ }
   })
-  ctx.on('tools/pre-execute', (exec, next) => {
+  ctx.on('tools/pre-execute', async (exec, next) => {
     if (!DOMAIN_TOOLS.has(exec.name) && !CONTROL_TOOLS.has(exec.name)) {
       return Promise.resolve({ kind: 'deny', reason: 'This harness exposes only approved Splunk, Zimbra, and subscription tools.' })
     }
@@ -546,6 +537,12 @@ export function apply(ctx) {
     }
     const state = policy.mode === 'full' ? 'auto' : (configuredState ?? defaultActionState(exec.name))
     if (state === 'ask') {
+      const auth = ctx.get?.('socAuth')
+      const principal = await auth?.principalForAgent?.(exec.agent)
+      const harnessSessionId = String(exec.agent?.session?.id ?? exec.agent?.id ?? '')
+      if (principal && auth.hasRememberedToolApproval?.(principal, harnessSessionId, exec.name)) {
+        return next()
+      }
       return Promise.resolve({
         kind: 'ask',
         reason: 'This action changes a SOC system or sends email.',

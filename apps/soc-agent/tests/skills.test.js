@@ -21,8 +21,8 @@ test('Harness patch enables the filesystem skill and plan review layers', () => 
 
 test('CITIC SOC loads generic Splunk background with the startup instructions', () => {
   const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
-  const presetRoot = join(repoRoot, 'vendor/deepseek-harness/apps/cli/config/agent-presets')
-  const citicPreset = readFileSync(join(presetRoot, 'citic-soc/agent.cordis.yml'), 'utf8')
+  const presetRoot = join(repoRoot, 'vendor/deepseek-harness/packages/preset/agent-presets/presets')
+  const citicPreset = readFileSync(join(repoRoot, 'apps/soc-agent/agent-presets/citic-soc/agent.cordis.yml'), 'utf8')
   const background = readFileSync(join(repoRoot, 'BACKGROUND.md'), 'utf8')
   const detection = readFileSync(join(repoRoot, 'skills', 'detection-engineering', 'SKILL.md'), 'utf8')
 
@@ -51,7 +51,7 @@ test('CITIC SOC loads generic Splunk background with the startup instructions', 
   assert.doesNotMatch(background, /^## How the SOC Agent uses Splunk$/m)
   assert.doesNotMatch(background, /^## Splunk Web UI and REST API$/m)
 
-  for (const preset of ['standard', 'code', 'cordis']) {
+  for (const preset of ['standard', 'ptc', 'cordis']) {
     const content = readFileSync(join(presetRoot, preset, 'agent.cordis.yml'), 'utf8')
     assert.doesNotMatch(content, /BACKGROUND\.md/, preset)
   }

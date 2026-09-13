@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "56c8dd21492a5c36cb9f3eaa3da01160aba40033",
+  "upstream": {
+    "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+    "tag": "dsh-v0.1.5-rc.2",
+    "commit": "fb2c4b9e698e30edb738bca4cf0618587db7d203",
+    "sourcePath": "packages/client/ui-workspace",
+    "sourceSha256": "6047e802715cadbe965ec3f31fb7c5fd39e0d80c395f272428514fd48875f7ad"
+  },
+  "socSourceSha256": "5835fc3b3df53490839fd789d51d04274fc58d0a6a596c711a896438b63ab346",
+  "screenshots": {
+    "list": "apps/soc-agent/tests/__screenshots__/workspace-list.png",
+    "picker": "apps/soc-agent/tests/__screenshots__/workspace-picker.png"
+  },
+  "visualPolicy": "rc.2 markup and CSS are pinned; only explicitly approved SOC logical-workspace behavior and content may differ."
+}

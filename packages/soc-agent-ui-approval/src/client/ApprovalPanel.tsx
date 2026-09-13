@@ -23,7 +23,7 @@ function ApprovalFlow({ pending, detail, t }: {
   t: ApprovalComposerProps['t']
 }) {
   const [answered, setAnswered] = useState(false)
-  const answer = (outcome: 'allowed-once' | 'rejected'): void => {
+  const answer = (outcome: 'allowed-once' | 'allowed-tool' | 'rejected'): void => {
     setAnswered(true)
     void pending.answer(outcome).catch(() => { setAnswered(false) })
   }
@@ -47,6 +47,9 @@ function ApprovalFlow({ pending, detail, t }: {
           </Button>
           <Button variant="primary" disabled={answered} onClick={() => { answer('allowed-once') }}>
             {t('allowOnce')}
+          </Button>
+          <Button variant="primary" disabled={answered} onClick={() => { answer('allowed-tool') }}>
+            {t('allowTool')}
           </Button>
         </div>
       </div>

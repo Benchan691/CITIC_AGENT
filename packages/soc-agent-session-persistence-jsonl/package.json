@@ -23,6 +23,8 @@
   },
   "files": [
     "lib/index.js",
+    "lib/migration.js",
+    "lib/generation-*.js",
     "lib/worker.cjs",
     "lib/types/**/*.d.ts"
   ],

@@ -93,6 +93,8 @@ export interface TestSessionRemoteDefaults {
   readonly openPath?: (path: string, signal: AbortSignal) => Promise<void>
   readonly revealPath?: (path: string, signal: AbortSignal) => Promise<void>
   readonly canOpenPath?: () => boolean
+  /** Omit the ordinary attachment-store test double for absence-composition tests. */
+  readonly attachments?: false
 }
 
 const installed = new WeakMap<Context, SessionController>()
@@ -251,7 +253,7 @@ function installControllers(
       },
     } as never)
   }
-  if (ctx.get('attachments') === undefined) {
+  if (defaults.attachments !== false && ctx.get('attachments') === undefined) {
     ctx.provide('attachments', {
       imageLimits: TEST_IMAGE_LIMITS,
       admitPromptContent: async (

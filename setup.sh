@@ -9,7 +9,7 @@
 # then the collected values are written to the two env files the app reads:
 #
 #   apps/soc-agent/server/.env      deployment config and Node admin credentials
-#   vendor/deepseek-harness/.env    Node harness process (loaded at `pnpm dsh web`)
+#   .env                            Node Harness launch environment (kept outside vendor)
 #
 # Existing values (current shell, existing .env files, .env.example) are kept
 # and used as defaults; only broken or missing parameters are asked for.
@@ -204,7 +204,10 @@ fi
 
 HARNESS_DIR="$REPO_ROOT/vendor/deepseek-harness"
 SERVER_DIR="$REPO_ROOT/apps/soc-agent/server"
-HARNESS_ENV="$HARNESS_DIR/.env"
+# The upstream checkout is immutable. Keep launch-time secrets in the first-
+# party repository root so the pristine vendor tree never gains an .env file.
+# The app's own server/.env remains the source for Python/SOC settings.
+HARNESS_ENV="$REPO_ROOT/.env"
 SERVER_ENV="$SERVER_DIR/.env"
 SERVER_ENV_EXAMPLE="$SERVER_DIR/.env.example"
 
@@ -226,57 +229,63 @@ DSH_PROFILE="${DSH_PROFILE:-web}"
 # One authoritative inventory for installation, building, profile composition,
 # resolution checks, and artifact health checks. Fields are:
 # package | repository directory | host/dual face | built artifact | config row
-# | mandatory/optional. Optional packages are installed even when disabled so
-# enabling them remains configuration-only.
+# | mandatory/optional | health check. Optional packages are installed even
+# when disabled so enabling them remains configuration-only.
 SOC_PACKAGE_MATRIX=(
-  "dsh-soc-agent-action-policy|soc-agent-action-policy|dual|lib/client.js|dsh-soc-agent-action-policy|optional"
-  "dsh-soc-agent-admin|soc-agent-admin|dual|lib/client.js|dsh-soc-agent-admin|optional"
-  "dsh-soc-agent-agent-instructions|soc-agent-agent-instructions|host|lib/index.js|dsh-soc-agent-agent-instructions|mandatory"
-  "dsh-soc-agent-agent-loop|soc-agent-agent-loop|host|lib/index.js|dsh-soc-agent-agent-loop|mandatory"
-  "dsh-soc-agent-agent|soc-agent-agent|host|lib/index.js|dsh-soc-agent-agent|mandatory"
-  "dsh-soc-agent-api-gateway|soc-agent-api-gateway|dual|lib/client.js|dsh-soc-agent-api-gateway|mandatory"
-  "dsh-soc-agent-api-remotes|soc-agent-api-remotes|dual|lib/client.js|dsh-soc-agent-api-remotes|mandatory"
-  "dsh-soc-agent-api-settings-controller|soc-agent-api-settings-controller|host|lib/index.js|dsh-soc-agent-api-settings-controller|mandatory"
-  "dsh-soc-agent-api-workspace-files|soc-agent-api-workspace-files|dual|lib/client.js|dsh-soc-agent-api-workspace-files|mandatory"
-  "dsh-soc-agent-attachments|soc-agent-attachments|dual|lib/client.js|dsh-soc-agent-attachments|optional"
-  "dsh-soc-agent-auto-collapse|soc-agent-auto-collapse|dual|lib/client.js|dsh-soc-agent-auto-collapse|optional"
-  "dsh-soc-agent-brand|soc-agent-brand|dual|lib/client.js|dsh-soc-agent-brand|optional"
-  "dsh-soc-agent-client|soc-agent-client|dual|lib/client.js|dsh-soc-agent-client|mandatory"
-  "dsh-soc-agent-connection|soc-agent-connection|dual|lib/client.js|dsh-soc-agent-connection|mandatory"
-  "dsh-soc-agent-email-draft|soc-agent-email-draft|dual|lib/client.js|dsh-soc-agent-email-draft|optional"
-  "dsh-soc-agent-file-upload|soc-agent-file-upload|dual|lib/client.js|dsh-soc-agent-file-upload|mandatory"
-  "dsh-soc-agent-llm-pi-ai|soc-agent-llm-pi-ai|host|lib/index.js|dsh-soc-agent-llm-pi-ai|mandatory"
-  "dsh-soc-agent-mcp-client|soc-agent-mcp-client|host|lib/index.js|dsh-soc-agent-mcp-client|mandatory"
-  "dsh-soc-agent-session-controller|soc-agent-session-controller|dual|lib/client.js|dsh-soc-agent-session-controller|mandatory"
-  "dsh-soc-agent-session-log-export|soc-agent-session-log-export|dual|lib/client.js|dsh-soc-agent-session-log-export|mandatory"
-  "dsh-soc-agent-session-persistence-jsonl|soc-agent-session-persistence-jsonl|host|lib/index.js|dsh-soc-agent-session-persistence-jsonl|mandatory"
-  "dsh-soc-agent-settings-file|soc-agent-settings-file|host|lib/index.js|dsh-soc-agent-settings-file|mandatory"
-  "dsh-soc-agent-sidebar|soc-agent-sidebar|dual|lib/client.js|dsh-soc-agent-sidebar|mandatory"
-  "dsh-soc-agent-time-context|soc-agent-time-context|host|lib/index.js|dsh-soc-agent-time-context|mandatory"
-  "dsh-soc-agent-tool-result-pruner|soc-agent-tool-result-pruner|host|lib/index.js|dsh-soc-agent-tool-result-pruner|mandatory"
-  "dsh-soc-agent-ui-approval|soc-agent-ui-approval|dual|lib/client.js|dsh-soc-agent-ui-approval|mandatory"
-  "dsh-soc-agent-ui-chat|soc-agent-ui-chat|dual|lib/client.js|dsh-soc-agent-ui-chat|mandatory"
-  "dsh-soc-agent-ui-commands|soc-agent-ui-commands|dual|lib/client.js|dsh-soc-agent-ui-commands|mandatory"
-  "dsh-soc-agent-ui-conversation|soc-agent-ui-conversation|dual|lib/client.js|dsh-soc-agent-ui-conversation|mandatory"
-  "dsh-soc-agent-ui-input-trigger|soc-agent-ui-input-trigger|dual|lib/client.js|dsh-soc-agent-ui-input-trigger|mandatory"
-  "dsh-soc-agent-ui-layout|soc-agent-ui-layout|dual|lib/client.js|dsh-soc-agent-ui-layout|mandatory"
-  "dsh-soc-agent-ui-model-selection|soc-agent-ui-model-selection|dual|lib/client.js|dsh-soc-agent-ui-model-selection|mandatory"
-  "dsh-soc-agent-ui-renderer|soc-agent-ui-renderer|dual|lib/client.js|dsh-soc-agent-ui-renderer|mandatory"
-  "dsh-soc-agent-ui-session|soc-agent-ui-session|dual|lib/client.js|dsh-soc-agent-ui-session|mandatory"
-  "dsh-soc-agent-workspace-controller|soc-agent-workspace-controller|dual|lib/client.js|dsh-soc-agent-workspace-controller|mandatory"
-  "dsh-soc-agent-workspace|soc-agent-workspace|dual|lib/client.js|dsh-soc-agent-workspace|mandatory"
+  "dsh-soc-agent-action-policy|soc-agent-action-policy|dual|lib/client.js|dsh-soc-agent-action-policy|optional|browser"
+  "dsh-soc-agent-admin|soc-agent-admin|dual|lib/client.js|dsh-soc-agent-admin|optional|browser"
+  "dsh-soc-agent-agent-instructions|soc-agent-agent-instructions|host|lib/index.js|dsh-soc-agent-agent-instructions|mandatory|host"
+  "dsh-soc-agent-agent-loop|soc-agent-agent-loop|host|lib/index.js|dsh-soc-agent-agent-loop|mandatory|host"
+  "dsh-soc-agent-agent|soc-agent-agent|host|lib/index.js|dsh-soc-agent-agent|mandatory|host"
+  "dsh-soc-agent-api-gateway|soc-agent-api-gateway|dual|lib/client.js|dsh-soc-agent-api-gateway|mandatory|browser"
+  "dsh-soc-agent-api-remotes|soc-agent-api-remotes|dual|lib/client.js|dsh-soc-agent-api-remotes|mandatory|browser"
+  "dsh-soc-agent-api-settings-controller|soc-agent-api-settings-controller|host|lib/index.js|dsh-soc-agent-api-settings-controller|mandatory|host"
+  "dsh-soc-agent-api-workspace-files|soc-agent-api-workspace-files|dual|lib/client.js|dsh-soc-agent-api-workspace-files|mandatory|browser"
+  "dsh-soc-agent-attachments|soc-agent-attachments|dual|lib/client.js|dsh-soc-agent-attachments|optional|browser"
+  "dsh-soc-agent-auto-collapse|soc-agent-auto-collapse|dual|lib/client.js|dsh-soc-agent-auto-collapse|optional|browser"
+  "dsh-soc-agent-brand|soc-agent-brand|dual|lib/client.js|dsh-soc-agent-brand|optional|browser"
+  "dsh-soc-agent-client|soc-agent-client|dual|lib/client.js|dsh-soc-agent-client|mandatory|browser"
+  "dsh-soc-agent-connection|soc-agent-connection|dual|lib/client.js|dsh-soc-agent-connection|mandatory|browser"
+  "dsh-soc-agent-email-draft|soc-agent-email-draft|dual|lib/client.js|dsh-soc-agent-email-draft|optional|browser"
+  "dsh-soc-agent-file-upload|soc-agent-file-upload|dual|lib/client.js|dsh-soc-agent-file-upload|mandatory|browser"
+  "dsh-soc-agent-llm-pi-ai|soc-agent-llm-pi-ai|host|lib/index.js|dsh-soc-agent-llm-pi-ai|mandatory|host"
+  "dsh-soc-agent-mcp-client|soc-agent-mcp-client|host|lib/index.js|dsh-soc-agent-mcp-client|mandatory|host"
+  "dsh-soc-agent-session-controller|soc-agent-session-controller|dual|lib/client.js|dsh-soc-agent-session-controller|mandatory|browser"
+  "dsh-soc-agent-session-log-export|soc-agent-session-log-export|dual|lib/client.js|dsh-soc-agent-session-log-export|mandatory|browser"
+  "dsh-soc-agent-session-persistence-jsonl|soc-agent-session-persistence-jsonl|host|lib/index.js|dsh-soc-agent-session-persistence-jsonl|mandatory|host"
+  "dsh-soc-agent-settings-file|soc-agent-settings-file|host|lib/index.js|dsh-soc-agent-settings-file|mandatory|host"
+  "dsh-soc-agent-sidebar|soc-agent-sidebar|dual|lib/client.js|dsh-soc-agent-sidebar|mandatory|browser"
+  "dsh-soc-agent-time-context|soc-agent-time-context|host|lib/index.js|dsh-soc-agent-time-context|mandatory|host"
+  "dsh-soc-agent-tool-result-pruner|soc-agent-tool-result-pruner|host|lib/index.js|dsh-soc-agent-tool-result-pruner|mandatory|host"
+  "dsh-soc-agent-ui-approval|soc-agent-ui-approval|dual|lib/client.js|dsh-soc-agent-ui-approval|mandatory|browser"
+  "dsh-soc-agent-ui-chat|soc-agent-ui-chat|dual|lib/client.js|dsh-soc-agent-ui-chat|mandatory|browser"
+  "dsh-soc-agent-ui-commands|soc-agent-ui-commands|dual|lib/client.js|dsh-soc-agent-ui-commands|mandatory|browser"
+  "dsh-soc-agent-ui-conversation|soc-agent-ui-conversation|dual|lib/client.js|dsh-soc-agent-ui-conversation|mandatory|browser"
+  "dsh-soc-agent-ui-input-trigger|soc-agent-ui-input-trigger|dual|lib/client.js|dsh-soc-agent-ui-input-trigger|mandatory|browser"
+  "dsh-soc-agent-ui-layout|soc-agent-ui-layout|dual|lib/client.js|dsh-soc-agent-ui-layout|mandatory|browser"
+  "dsh-soc-agent-ui-model-selection|soc-agent-ui-model-selection|dual|lib/client.js|dsh-soc-agent-ui-model-selection|mandatory|browser"
+  "dsh-soc-agent-ui-renderer|soc-agent-ui-renderer|dual|lib/client.js|dsh-soc-agent-ui-renderer|mandatory|browser"
+  "dsh-soc-agent-ui-session|soc-agent-ui-session|dual|lib/client.js|dsh-soc-agent-ui-session|mandatory|browser"
+  "dsh-soc-agent-workspace-controller|soc-agent-workspace-controller|dual|lib/client.js|dsh-soc-agent-workspace-controller|mandatory|browser"
+  "dsh-soc-agent-workspace|soc-agent-workspace|dual|lib/client.js|dsh-soc-agent-workspace|mandatory|browser"
 )
 SOC_PACKAGE_NAMES=()
 SOC_PACKAGE_DIRS=()
 SOC_PACKAGE_ARTIFACTS=()
+SOC_PACKAGE_HOST_ARTIFACTS=()
+SOC_PACKAGE_FACES=()
+SOC_PACKAGE_HEALTH_CHECKS=()
 SOC_CLIENT_PACKAGE_NAMES=()
 SOC_CLIENT_PACKAGE_DIRS=()
 SOC_CLIENT_LIBS=()
 for soc_package_row in "${SOC_PACKAGE_MATRIX[@]}"; do
-  IFS='|' read -r soc_package soc_package_dir soc_package_face soc_package_artifact _soc_config_row _soc_status <<< "$soc_package_row"
+  IFS='|' read -r soc_package soc_package_dir soc_package_face soc_package_artifact _soc_config_row _soc_status soc_package_health <<< "$soc_package_row"
   SOC_PACKAGE_NAMES+=("$soc_package")
   SOC_PACKAGE_DIRS+=("$soc_package_dir")
   SOC_PACKAGE_ARTIFACTS+=("$REPO_ROOT/packages/$soc_package_dir/$soc_package_artifact")
+  SOC_PACKAGE_HOST_ARTIFACTS+=("$REPO_ROOT/packages/$soc_package_dir/lib/index.js")
+  SOC_PACKAGE_FACES+=("$soc_package_face")
+  SOC_PACKAGE_HEALTH_CHECKS+=("$soc_package_health")
   if [ "$soc_package_face" = dual ]; then
     SOC_CLIENT_PACKAGE_NAMES+=("$soc_package")
     SOC_CLIENT_PACKAGE_DIRS+=("$soc_package_dir")
@@ -666,14 +675,14 @@ write_files() {
   upsert_env_file "$SERVER_ENV" "${SETUP_FIELDS[@]}"
 
   if [ ! -f "$HARNESS_ENV" ]; then
-    printf '# Loaded by the DeepSeek Harness boot when `pnpm dsh web` runs from\n# vendor/deepseek-harness (cwd .env layer). Managed by setup.sh.\n' > "$HARNESS_ENV"
+    printf '# Loaded by the DeepSeek Harness boot when `dsh web` runs from the\n# CITIC_AGENT repository root. Managed by setup.sh; never commit this file.\n' > "$HARNESS_ENV"
     info "created $HARNESS_ENV"
   fi
   upsert_env_file "$HARNESS_ENV" \
     APP_POSTGRES_URI APP_SETTINGS_ENCRYPTION_KEY
 
   ensure_git_ignored "apps/soc-agent/server/.env"
-  ensure_git_ignored "vendor/deepseek-harness/.env"
+  ensure_git_ignored ".env"
 
   # Values exported in the current shell override the files at runtime.
   local key
@@ -788,7 +797,7 @@ harness_source_fingerprint() {
 
 soc_source_fingerprint() {
   (
-    cd "$REPO_ROOT" && find apps/soc-agent packages tooling/client \
+    cd "$REPO_ROOT" && find apps/soc-agent packages tooling \
       -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' \
       -o -name '*.css' -o -name '*.yml' -o -name '*.yaml' -o -name '*.json' \) \
       -not -path '*/node_modules/*' -not -path '*/lib/*' -not -path '*/dist/*' \
@@ -865,17 +874,32 @@ ensure_harness_ready() {
 }
 
 verify_soc_artifacts() {
-  local all_ok=0 index package artifact
+  local all_ok=0 index package artifact host_artifact face health
   for index in "${!SOC_PACKAGE_NAMES[@]}"; do
     package="${SOC_PACKAGE_NAMES[$index]}"
     artifact="${SOC_PACKAGE_ARTIFACTS[$index]}"
+    face="${SOC_PACKAGE_FACES[$index]}"
+    health="${SOC_PACKAGE_HEALTH_CHECKS[$index]}"
     if [ -f "$artifact" ]; then
-      ok "$package artifact present"
+      ok "$package $health artifact present"
     else
       bad "$package artifact missing — run: ./setup.sh --plugins"
       all_ok=1
     fi
+    if [ "$face" = dual ]; then
+      host_artifact="${SOC_PACKAGE_HOST_ARTIFACTS[$index]}"
+      if [ -f "$host_artifact" ]; then
+        ok "$package host artifact present"
+      else
+        bad "$package host artifact missing — run: ./setup.sh --plugins"
+        all_ok=1
+      fi
+    fi
   done
+  if [ ! -f "$REPO_ROOT/packages/soc-agent-session-persistence-jsonl/lib/migration.js" ]; then
+    bad "dsh-soc-agent-session-persistence-jsonl migration artifact missing — run: ./setup.sh --plugins"
+    all_ok=1
+  fi
   if ! verify_soc_client_artifacts; then all_ok=1; fi
   return "$all_ok"
 }
@@ -980,7 +1004,7 @@ profile_has_bundle() {
   ' "$1" "$2"
 }
 
-legacy_plugin_names() { # $1 = profile dir
+stale_external_plugin_names() { # $1 = profile dir; migration cleanup only
   local name
   for name in '@linxin666/dsh-client-ui-skin-center' dsh-auto-collapse; do
     if profile_has_dependency "$1/package.json" "$name" || profile_has_bundle "$1/package.json" "$name"; then
@@ -991,7 +1015,7 @@ legacy_plugin_names() { # $1 = profile dir
 
 prune_legacy_plugins() { # $1 = profile dir
   local pdir="$1" legacy name
-  legacy="$(legacy_plugin_names "$pdir")"
+  legacy="$(stale_external_plugin_names "$pdir")"
   [ -n "$legacy" ] || { ok "legacy skin and auto-collapse plugins absent"; return 0; }
   local -a legacy_arr=()
   while IFS= read -r name; do [ -n "$name" ] && legacy_arr+=("$name"); done <<< "$legacy"
@@ -1117,14 +1141,14 @@ summary() {
   echo
   echo "${B}Files written${N}"
   echo "  $SERVER_ENV          (Python MCP server; chmod 600)"
-  echo "  $HARNESS_ENV  (Node harness process; chmod 600)"
+  echo "  $HARNESS_ENV  (Node Harness launch environment; chmod 600)"
   if [ "${#PREREQ_WARNINGS[@]}" -gt 0 ]; then
     echo
     warn "skipped prerequisites: ${PREREQ_WARNINGS[*]} — the app will not boot until they are installed."
   fi
   echo
   echo "${B}Next steps${N}"
-  echo "  1. Start the web app:  cd vendor/deepseek-harness && pnpm dsh web --no-open"
+  echo "  1. Start the web app from the repository root:  vendor/deepseek-harness/node_modules/.bin/dsh web --no-open"
   echo "     (the SOC product bundle is registered in the '$DSH_PROFILE' profile —"
   echo "      restart any running instance so it picks the plugins up)"
   echo "  2. Open http://127.0.0.1:3080 (remote: ssh -L 3080:127.0.0.1:3080 usr@ip)"
@@ -1163,7 +1187,7 @@ run_check_mode() {
   if check_uv; then ok "uv ($(uv --version 2>/dev/null))"; else bad "uv is not installed"; fails=$((fails+1)); fi
 
   echo
-  echo "${B}Parameters${N} ${D}(environment > apps/soc-agent/server/.env > vendor/deepseek-harness/.env > .env.example)${N}"
+  echo "${B}Parameters${N} ${D}(environment > .env > apps/soc-agent/server/.env > .env.example)${N}"
 
   if check_parameters; then :; else fails=$((fails+$?)); fi
 
@@ -1177,7 +1201,7 @@ run_check_mode() {
   local pdir
   pdir="$(profile_dir)"
   local legacy_list
-  legacy_list="$(legacy_plugin_names "$pdir")"
+  legacy_list="$(stale_external_plugin_names "$pdir")"
   if [ -z "$legacy_list" ]; then
     ok "replaced third-party plugins absent"
   else

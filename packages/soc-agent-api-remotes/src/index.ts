@@ -3,6 +3,7 @@
 import { homedir } from 'node:os'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from 'dsh-soc-agent-agent'
+import type { SocPrincipal } from 'dsh-soc-agent-connection'
 import type {
   TypertRemoteEventDispatch,
   TypertRemoteEventInvocation,
@@ -32,8 +33,29 @@ export type {} from 'dsh-soc-agent-session-controller/types'
 export { API_REMOTE_FORWARDED_EVENTS } from './remote-events.ts'
 export type { ApiRemoteForwardedEvent } from './types.ts'
 
-/** Required Host service: the Gateway owns the physical Remote stream mux. */
-export const inject = ['typertGateway']
+interface SocRemoteEventAuth {
+  principalForAgent(agent: Agent):
+    | Extract<SocPrincipal, { readonly kind: 'user' }>
+    | undefined
+    | Promise<Extract<SocPrincipal, { readonly kind: 'user' }> | undefined>
+  principalForHarnessSession(sessionId: string):
+    | Extract<SocPrincipal, { readonly kind: 'user' }>
+    | undefined
+    | Promise<Extract<SocPrincipal, { readonly kind: 'user' }> | undefined>
+  hasRememberedToolApproval(
+    principal: Extract<SocPrincipal, { readonly kind: 'user' }>,
+    sessionId: string,
+    toolName: string,
+  ): boolean
+  rememberToolApproval(
+    principal: Extract<SocPrincipal, { readonly kind: 'user' }>,
+    sessionId: string,
+    toolName: string,
+  ): boolean
+}
+
+/** Required Host services: the Gateway transport and SOC request identity. */
+export const inject = ['typertGateway', 'socAuth']
 
 /** Host plugin body registering this application's selected Cordis event source. */
 export function apply(ctx: Context): void {
@@ -50,7 +72,19 @@ function remoteEventSource(ctx: Context): TypertRemoteEventSource {
     const disposers = API_REMOTE_FORWARDED_EVENTS.map(({ event, mode }) => {
       if (mode === 'emit') {
         return ctx.on(event as never, ((...args: unknown[]) => {
-          queue.push({ event, args: assertJsonArgs(event, args) })
+          const jsonArgs = assertJsonArgs(event, args)
+          const sessionId = scopedSessionId(event, jsonArgs)
+          if (sessionId === undefined) {
+            queue.push({ event, args: jsonArgs })
+            return
+          }
+          const auth = ctx.get('socAuth') as unknown as SocRemoteEventAuth
+          void Promise.resolve(auth.principalForHarnessSession(sessionId)).then((principal) => {
+            // A sensitive notification without a live authenticated owner is
+            // intentionally dropped. The next authorized snapshot reconciles
+            // the browser without disclosing the session to another client.
+            if (principal !== undefined) queue.push({ event, args: jsonArgs, principal })
+          })
         }) as never)
       }
       return ctx.on(event as never, (function (
@@ -64,13 +98,32 @@ function remoteEventSource(ctx: Context): TypertRemoteEventSource {
         if (agent === undefined || agent !== carrierAgent) {
           throw new TypeError(`forwarded scoped event ${JSON.stringify(event)} must carry its Agent directly`)
         }
-        return forwardWaterfall(
-          queue,
-          event,
-          request,
-          { value: agent.ctx, subject: agent, agentId: agent.id },
-          next,
-        )
+        const auth = ctx.get('socAuth') as unknown as SocRemoteEventAuth
+        const forward = (principal: Extract<SocPrincipal, { readonly kind: 'user' }> | undefined) => {
+          // An Agent without a current authenticated owner must never be
+          // exposed to an arbitrary connected browser.
+          if (principal === undefined) return next()
+          const toolName = event === 'approval/request'
+            && typeof Reflect.get(request, 'toolName') === 'string'
+            ? Reflect.get(request, 'toolName') as string
+            : undefined
+          if (toolName !== undefined
+            && auth.hasRememberedToolApproval(principal, agent.id, toolName)) {
+            return Promise.resolve('allowed-once')
+          }
+          return forwardWaterfall(
+            queue,
+            event,
+            request,
+            { value: agent.ctx, subject: agent, agentId: agent.id, principal },
+            next,
+            toolName === undefined
+              ? undefined
+              : value => normalizeApprovalResult(auth, principal, agent.id, toolName, value),
+          )
+        }
+        const principal = auth.principalForAgent(agent)
+        return isPromiseLike(principal) ? Promise.resolve(principal).then(forward) : forward(principal)
       }) as never)
     })
     return queue.iterate(signal, () => {
@@ -137,6 +190,7 @@ function forwardWaterfall(
   request: object,
   context: TypertRemoteEventInvocation['context'],
   next: () => unknown,
+  normalizeResult?: (value: unknown) => unknown,
 ): Promise<unknown> {
   const settled = Promise.withResolvers<unknown>()
   const dispatch: TypertRemoteEventInvocation = {
@@ -145,7 +199,7 @@ function forwardWaterfall(
     context,
     resolve: (outcome: TypertRemoteEventOutcome) => {
       if (outcome.kind === 'result') {
-        settled.resolve(outcome.value)
+        settled.resolve(normalizeResult?.(outcome.value) ?? outcome.value)
         return
       }
       void Promise.resolve().then(next).then(settled.resolve, settled.reject)
@@ -156,6 +210,22 @@ function forwardWaterfall(
   return settled.promise
 }
 
+function normalizeApprovalResult(
+  auth: SocRemoteEventAuth,
+  principal: Extract<SocPrincipal, { readonly kind: 'user' }>,
+  sessionId: string,
+  toolName: string,
+  value: unknown,
+): unknown {
+  if (typeof value !== 'object' || value === null
+    || Reflect.ownKeys(value).length !== 2
+    || Reflect.get(value, 'outcome') !== 'allowed-once'
+    || Reflect.get(value, 'remember') !== 'tool') return value
+  return auth.rememberToolApproval(principal, sessionId, toolName)
+    ? 'allowed-once'
+    : 'unavailable'
+}
+
 /** Reject an allowlisted event whose runtime arguments are not lossless JSON data. */
 function assertJsonArgs(event: string, args: readonly unknown[]): JsonValue[] {
   for (const [index, arg] of args.entries()) {
@@ -164,4 +234,35 @@ function assertJsonArgs(event: string, args: readonly unknown[]): JsonValue[] {
     }
   }
   return args as JsonValue[]
+}
+
+function scopedSessionId(event: string, args: readonly JsonValue[]): string | undefined {
+  if (event === 'agent-preset/selected'
+    || event === 'api-session/activity'
+    || event === 'api-session/removed'
+    || event === 'api-session/status'
+    || event === 'api-session/error') {
+    return typeof args[0] === 'string' && args[0].length > 0 ? args[0] : undefined
+  }
+  if (event === 'api-session/added') {
+    const summary = args[0]
+    return typeof summary === 'object' && summary !== null && !Array.isArray(summary)
+      && typeof summary.id === 'string' && summary.id.length > 0
+      ? summary.id
+      : undefined
+  }
+  if (event === 'goal/activation-changed') {
+    const payload = args[0]
+    return typeof payload === 'object' && payload !== null && !Array.isArray(payload)
+      && typeof payload.sessionId === 'string' && payload.sessionId.length > 0
+      ? payload.sessionId
+      : undefined
+  }
+  return undefined
+}
+
+function isPromiseLike<T>(value: T | PromiseLike<T>): value is PromiseLike<T> {
+  return (typeof value === 'object' || typeof value === 'function')
+    && value !== null
+    && typeof Reflect.get(value, 'then') === 'function'
 }

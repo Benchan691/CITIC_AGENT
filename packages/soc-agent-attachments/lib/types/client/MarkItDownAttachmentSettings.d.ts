@@ -1,5 +1,5 @@
-import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client';
-import { type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client';
+import { type SnapshotStore } from '@deepseek-ai/dsh-client-store';
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { MarkItDownAttachmentSettings } from '../attachment-constants.ts';
 interface FieldState {

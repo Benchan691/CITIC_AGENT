@@ -130,8 +130,8 @@ describe('WorkspaceBrowser', () => {
     const add = screen.getByRole('button', { name: '添加工作区' })
     add.focus()
     fireEvent.click(add)
-    expect(document.activeElement).toBe(add)
-    expect(screen.getByTestId('directory-flow')).toBeTruthy()
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: '工作区名称' }))
+    expect(screen.getByRole('dialog', { name: '创建工作区' })).toBeTruthy()
     expect(panelInfo.activePanelId).toBe('panel-a')
     expect(b.props.open).not.toHaveBeenCalled()
     expect(b.props.startSession).not.toHaveBeenCalled()
@@ -1068,26 +1068,28 @@ describe('WorkspaceBrowser', () => {
     }
   })
 
-  it('rail add-workspace raises the directory flow in place, with no menu and no expansion', () => {
+  it('rail add-workspace raises the logical create dialog in place, with no menu and no expansion', () => {
     const expandSidebar = vi.fn()
     mount({ wide: false, expandSidebar, useWorkspaces: hook(workspaceState([workspace('alpha', [])])) })
     fireEvent.click(screen.getByRole('button', { name: '添加工作区' }))
     expect(expandSidebar).not.toHaveBeenCalled()
-    // Adding is the header's only action, so the gesture IS that action: no
-    // one-row popover, and existing workspaces stay in the tree below.
+    // Adding is the header's only action, so the gesture opens the SOC-owned
+    // name dialog directly; existing workspaces stay in the tree below.
     expect(screen.queryByRole('menu')).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'alpha' })).toBeNull()
-    expect(screen.getByTestId('directory-flow')).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: '创建工作区' })).toBeTruthy()
   })
 
-  it('hides the add button when no directory-flow occupant is composed', () => {
+  it('keeps the add button available without a directory-flow occupant', () => {
     mount({
       useWorkspaces: hook(workspaceState([workspace('alpha', [])])),
       useDirectoryFlow: bindSnapshotSelector({ getSnapshot: () => false, subscribe: () => () => {} }),
     })
-    // Nothing to add with, so the header offers no dead button.
-    expect(screen.queryByRole('button', { name: '添加工作区' })).toBeNull()
+    // Logical creation does not depend on a browser/native directory picker.
+    expect(screen.getByRole('button', { name: '添加工作区' })).toBeTruthy()
     expect(screen.getByText('alpha')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '添加工作区' }))
+    expect(screen.getByRole('dialog', { name: '创建工作区' })).toBeTruthy()
   })
 
   it('uses the full expanded Workspace section when resolving a Workspace drop half', () => {

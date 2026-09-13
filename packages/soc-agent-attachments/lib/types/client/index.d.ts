@@ -1,4 +1,4 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
+import type { Context as ClientContext } from '@deepseek-ai/cordis';
 export { AttachmentSettingsController, MarkItDownAttachmentSettingsCard, } from './MarkItDownAttachmentSettings.tsx';
 export { MarkItDownDocumentController } from './markitdownAttachments.ts';
 export { MarkItDownDocuments, openMarkItDownPicker } from './MarkItDownDocuments.tsx';

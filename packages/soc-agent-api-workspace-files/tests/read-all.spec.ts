@@ -24,8 +24,8 @@ describe('workspaceFiles.readAll', () => {
     expect(await harness.endpoint().readAll(harness.scope, 'empty', signal())).toMatchObject({ data: '', offset: 0, eof: true, bytes: 0 })
   })
 
-  it.each(['workspace', 'outside'] as const)('rejects a known oversized %s file before reading bytes', async (location) => {
-    const path = join(harness[location], 'large')
+  it('rejects a known oversized workspace file before reading bytes', async () => {
+    const path = join(harness.workspace, 'large')
     await writeFile(path, 'abcde')
     const read = vi.spyOn(harness.ctx.fs, 'readByteRange')
     expect(await failureOf(harness.endpoint({ maxFileBytes: 4 }).readAll(harness.scope, path, signal())))
@@ -40,14 +40,14 @@ describe('workspaceFiles.readAll', () => {
       .toBe('workspace-file/too-large')
   })
 
-  it('reads outside files while retaining missing-file and kind failures', async () => {
+  it('rejects outside files while retaining missing-file and kind failures', async () => {
     await mkdir(join(harness.workspace, 'directory'))
     await writeFile(join(harness.outside, 'outside'), 'outside')
     const files = harness.endpoint()
     expect((await failureOf(files.readAll(harness.scope, 'missing', signal()))).code).toBe('workspace-file/not-found')
     expect((await failureOf(files.readAll(harness.scope, 'directory', signal()))).code).toBe('workspace-file/not-regular-file')
-    const outside = await files.readAll(harness.scope, join(harness.outside, 'outside'), signal())
-    expect(Buffer.from(outside.data, 'base64').toString()).toBe('outside')
+    expect((await failureOf(files.readAll(harness.scope, join(harness.outside, 'outside'), signal()))).code)
+      .toBe('workspace-file/outside-workspace')
   })
 })
 
@@ -70,24 +70,27 @@ describe('workspaceFiles.readRelated', () => {
     expect((await failureOf(harness.endpoint().readRelated(harness.scope, 'base', path, signal()))).code).toBe('gateway/bad-request')
   })
 
-  it('resolves related files on either side of the workspace root', async () => {
+  it('rejects related-file traversal on either side of the workspace root', async () => {
     await writeFile(join(harness.workspace, 'base'), 'base')
     await writeFile(join(harness.outside, 'outside'), 'outside')
     const files = harness.endpoint()
     expect((await failureOf(files.readRelated(harness.scope, 'missing', 'file', signal()))).code).toBe('workspace-file/not-found')
-    const fromOutside = await files.readRelated(harness.scope, join(harness.outside, 'outside'), '../workspace/base', signal())
-    const toOutside = await files.readRelated(harness.scope, 'base', '../outside/outside', signal())
-    expect(Buffer.from(fromOutside.data, 'base64').toString()).toBe('base')
-    expect(Buffer.from(toOutside.data, 'base64').toString()).toBe('outside')
+    expect((await failureOf(files.readRelated(
+      harness.scope, join(harness.outside, 'outside'), '../workspace/base', signal(),
+    ))).code).toBe('workspace-file/outside-workspace')
+    expect((await failureOf(files.readRelated(
+      harness.scope, 'base', '../outside/outside', signal(),
+    ))).code).toBe('workspace-file/outside-workspace')
   })
 
-  it('reads sibling assets beside an outside HTML file with escaped path characters', async () => {
+  it('rejects sibling assets beside an outside HTML file with escaped path characters', async () => {
     await mkdir(join(harness.outside, 'space # assets'))
     const base = join(harness.outside, 'space # assets', 'page.html')
     await writeFile(base, '<script src="./app.js"></script>')
     await writeFile(join(harness.outside, 'space # assets', 'app.js'), 'EXTERNAL_ASSET')
-    const result = await harness.endpoint().readRelated(harness.scope, base, './app.js', signal())
-    expect(Buffer.from(result.data, 'base64').toString()).toBe('EXTERNAL_ASSET')
+    expect((await failureOf(harness.endpoint().readRelated(
+      harness.scope, base, './app.js', signal(),
+    ))).code).toBe('workspace-file/outside-workspace')
   })
 
   it.each([
