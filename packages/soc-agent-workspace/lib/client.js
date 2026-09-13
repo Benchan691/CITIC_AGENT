@@ -1130,6 +1130,17 @@ window.__ModuleLoader__.load({
 			if (aUpdatedAt !== bUpdatedAt) return bUpdatedAt - aUpdatedAt;
 			return a < b ? -1 : 1;
 		}
+		/** Read the structured RPC code carried by runtime delete failures. */
+		function rpcErrorCode(reason) {
+			if (reason === null || typeof reason !== "object") return void 0;
+			const value = reason;
+			if (typeof value.rpcError?.code === "string") return value.rpcError.code;
+			return typeof value.code === "string" ? value.code : void 0;
+		}
+		/** A bulk clear can safely treat an already-absent session as complete. */
+		function isMissingSessionDelete(reason) {
+			return rpcErrorCode(reason) === "session-not-found";
+		}
 		/** Reconcile one editable order account and apply its activity-promotion policy. */
 		function nextSessionOrderAccount({ sessionIds, previousOrder, previousUpdatedAt, list, orderBy, sortByRecency }) {
 			let order = reconciledSessionOrder(sessionIds, previousOrder);
@@ -1953,17 +1964,22 @@ window.__ModuleLoader__.load({
 				setClearing(true);
 				setClearError(null);
 				for (const sessionId of target.remainingSessionIds) {
+					let alreadyAbsent = false;
 					try {
 						await deleteSession(sessionId);
 					} catch (reason) {
-						setClearing(false);
-						setClearError(reason instanceof Error ? reason.message : String(reason));
-						return;
+						if (!isMissingSessionDelete(reason)) {
+							setClearing(false);
+							setClearError(reason instanceof Error ? reason.message : String(reason));
+							return;
+						}
+						alreadyAbsent = true;
 					}
 					deletedCount += 1;
 					remaining = remaining.slice(1);
 					setClearTarget((current) => current === null || current.workspaceId !== target.workspaceId ? current : {
 						...current,
+						...alreadyAbsent ? { sessionIds: current.sessionIds.filter((id) => id !== sessionId) } : {},
 						remainingSessionIds: remaining,
 						deletedCount
 					});
@@ -1976,6 +1992,7 @@ window.__ModuleLoader__.load({
 					workspaceId,
 					title,
 					sessionIds: sessionIdsForClear,
+					totalSessionCount: sessionIdsForClear.length,
 					remainingSessionIds: sessionIdsForClear,
 					deletedCount: 0
 				});
@@ -2338,7 +2355,7 @@ window.__ModuleLoader__.load({
 							role: "status",
 							children: t("clear.progress", {
 								done: clearTarget.deletedCount,
-								n: clearTarget.sessionIds.length
+								n: clearTarget.totalSessionCount
 							})
 						}), clearError !== null && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							className: WorkspaceBrowser_module_css_default.renameError,

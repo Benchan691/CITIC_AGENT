@@ -1045,6 +1045,7 @@ export function WorkspaceBrowser({
     workspaceId: WorkspaceId
     title: string
     sessionIds: SessionId[]
+    totalSessionCount: number
     remainingSessionIds: SessionId[]
     deletedCount: number
   }
@@ -1107,6 +1108,7 @@ export function WorkspaceBrowser({
       workspaceId,
       title,
       sessionIds: sessionIdsForClear,
+      totalSessionCount: sessionIdsForClear.length,
       remainingSessionIds: sessionIdsForClear,
       deletedCount: 0,
     })
@@ -1422,7 +1424,7 @@ export function WorkspaceBrowser({
       >
         {clearTarget !== null && (clearing || clearTarget.deletedCount > 0) && (
           <div className={css.deleteStatus} role="status">
-            {t('clear.progress', { done: clearTarget.deletedCount, n: clearTarget.sessionIds.length })}
+            {t('clear.progress', { done: clearTarget.deletedCount, n: clearTarget.totalSessionCount })}
           </div>
         )}
         {clearError !== null && <div className={css.renameError} role="alert">{clearError}</div>}
