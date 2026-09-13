@@ -2334,7 +2334,7 @@ window.__ModuleLoader__.load({
 						title: t("clear.sessions"),
 						...clearTarget === null ? {} : { description: t("clear.desc", {
 							name: clearTarget.title,
-							n: clearTarget.sessionIds.length
+							n: clearTarget.totalSessionCount
 						}) },
 						footer: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 							variant: "outline",

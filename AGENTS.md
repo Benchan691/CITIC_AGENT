@@ -107,20 +107,6 @@ Prefer reversible actions when possible and verify the result afterward.
 
 Never describe a proposed action as completed.
 
-## Skills
-
-Use task-specific skills for detailed procedures.
-
-- `soc-incident-triage`: multi-source incident triage
-- `splunk-investigation`: Splunk investigation
-- `email-to-splunk-investigation`: email and Splunk correlation
-- `false-positive-analysis`: false-positive assessment
-- `detection-engineering`: detection changes and validation
-- `spl-writing`: SPL construction
-- `zimbra-operations`: approved email operations
-
-Do not duplicate detailed skill procedures here.
-
 ## Response Style
 
 Be concise and operationally useful.

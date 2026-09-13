@@ -1407,7 +1407,7 @@ export function WorkspaceBrowser({
         title={t('clear.sessions')}
         {...clearTarget === null
           ? {}
-          : { description: t('clear.desc', { name: clearTarget.title, n: clearTarget.sessionIds.length }) }}
+          : { description: t('clear.desc', { name: clearTarget.title, n: clearTarget.totalSessionCount }) }}
         footer={(
           <>
             <Button variant="outline" disabled={clearing} onClick={closeClear}>{t('cancel')}</Button>

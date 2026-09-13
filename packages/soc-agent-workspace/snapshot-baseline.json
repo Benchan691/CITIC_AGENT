@@ -3,7 +3,7 @@
   "snapshot": "current checked-in SOC workspace and session browser implementation",
   "files": {
     "src/client/WorkspaceBrowser.module.css": "a09fdf87dab5c03454cb3967dfd968e8894b021eb50b6220345f24553b8981e2",
-    "src/client/WorkspaceBrowser.tsx": "67164c09a770606694766fcd796d82f300bfcce07dc9266b57ce92aa364fd218",
+    "src/client/WorkspaceBrowser.tsx": "aceb3a46a3f65a9ddbfc9831723750c384721962af92e37001be57862fbd12af",
     "src/client/WorkspacePicker.module.css": "508d039b66bb0c2b56ceb7ecf035518e2a2b4cc5f932c170063ee4d67147b692",
     "src/client/WorkspacePicker.tsx": "bb11f59125239005759ba25f48ef5954db2b4fd3c5df3bca1b6bf3baec4882fb",
     "src/client/contract/slots.ts": "870cacc17d3007989ba6e25d561fb7d0eb60049345c576b97dd5ccfa2274a6e2",
