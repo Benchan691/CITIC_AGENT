@@ -1,8 +1,25 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
+/**
+ * Workspace plugin, browser half. Two registrations: WorkspaceBrowser fills
+ * the sidebar shell's `sidebar.workspaces` hole (the whole browsing region),
+ * and WorkspacePicker fills the conversation hero's picker hole
+ * (`conversation.hero.workspace` — both hero forms). Both read real Host
+ * Workspaces through the global useWorkspaces hook, and each declares its
+ * own `single` directory-flow child hole for the composed picker package's
+ * client half (see the contract module doc). Export discipline:
+ * packages/client/AGENTS.md.
+ */
+import type { Context } from '@deepseek-ai/cordis';
+import type { WorkspaceSnapshot } from 'dsh-soc-agent-workspace-controller/client';
+import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots';
 import { type WorkspaceKey } from './locales.ts';
-export type { DirectoryFlowOwnerProps, DirectoryFlowSlotName, WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspacePickerInjected, WorkspacePickerProps, } from './contract/slots.ts';
+export type { UiWorkspace } from './navigation.ts';
+export type { DirectoryFlowOwnerProps, DirectoryFlowSlotName, DirectoryPickingHooks, DirectoryPickingInjected, WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspacePickerInjected, WorkspacePickerProps, } from './contract/slots.ts';
 export type { WorkspaceKey } from './locales.ts';
 declare module '@deepseek-ai/dsh-client-ui-slots' {
+    interface GlobalStandardProps {
+        /** Selector hook over the pure Workspace Controller snapshot. */
+        useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>;
+    }
     interface LocaleNamespaceMap {
         /** The workspace browsing region and pick/create flow copy. */
         workspace: WorkspaceKey;
@@ -10,7 +27,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 /**
  * Required services (cordis fiber inject). The target slots are declared by
- * the soc-agent-sidebar / ui-conversation applies, whose activation order relative
+ * the ui-sidebar / ui-conversation applies, whose activation order relative
  * to this one is NOT constrained: dsh.client.inject edges are informational
  * (loading/prefetch metadata, never apply sequencing) and neither owner
  * provides a waitable service. apply therefore depends on each slot
@@ -23,4 +40,4 @@ export declare const inject: string[];
  * framework's global hooks.
  * @param ctx - client root context.
  */
-export declare function apply(ctx: ClientContext): void;
+export declare function apply(ctx: Context): void;

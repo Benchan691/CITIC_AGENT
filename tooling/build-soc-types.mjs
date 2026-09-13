@@ -7,11 +7,18 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const tsc = join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'tsc.cmd' : 'tsc')
 if (!existsSync(tsc)) throw new Error('SOC type build requires the root TypeScript dependency; run pnpm install first')
 
-const configs = readdirSync(join(root, 'packages'), { withFileTypes: true })
+const packageRoots = readdirSync(join(root, 'packages'), { withFileTypes: true })
   .filter(entry => entry.isDirectory() && entry.name.startsWith('soc-agent-'))
-  .map(entry => join(root, 'packages', entry.name, 'tsconfig.types.json'))
-  .filter(existsSync)
+  .map(entry => join(root, 'packages', entry.name))
   .sort()
+
+const builds = packageRoots.flatMap(packageRoot => {
+  const host = join(packageRoot, 'tsconfig.host.json')
+  const client = join(packageRoot, 'tsconfig.client.json')
+  if (existsSync(host) && existsSync(client)) return [host, client]
+  const types = join(packageRoot, 'tsconfig.types.json')
+  return existsSync(types) ? [types] : []
+})
 
 // The workspace path aliases intentionally point at source so package typechecks
 // exercise the same contracts as the production bundles.  TypeScript's default
@@ -23,13 +30,24 @@ rmSync(stagingRoot, { recursive: true, force: true })
 mkdirSync(stagingRoot, { recursive: true })
 
 try {
-  for (const config of configs) {
+  for (const config of builds) {
     const packageRoot = dirname(config)
     const packageName = basename(packageRoot)
     const packageStage = join(stagingRoot, packageName)
     execFileSync(
       tsc,
-      ['-p', config, '--rootDir', root, '--outDir', packageStage, '--pretty', 'false'],
+      [
+        '-p', config,
+        '--rootDir', root,
+        '--outDir', packageStage,
+        '--noEmit', 'false',
+        '--emitDeclarationOnly',
+        '--declaration',
+        '--declarationMap', 'false',
+        '--sourceMap', 'false',
+        '--rewriteRelativeImportExtensions', 'true',
+        '--pretty', 'false',
+      ],
       { cwd: root, stdio: 'inherit' },
     )
 
@@ -41,4 +59,4 @@ try {
   rmSync(stagingRoot, { recursive: true, force: true })
 }
 
-console.log(`generated declarations for ${configs.length} SOC packages`)
+console.log(`generated declarations for ${packageRoots.length} SOC packages (${builds.length} compiler targets)`)

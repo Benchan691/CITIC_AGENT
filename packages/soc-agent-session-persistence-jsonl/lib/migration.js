@@ -454,6 +454,7 @@ async function auditSessionRoot(options) {
 async function freshAuditWork(options) {
 	const root = resolve(options.root);
 	const compression = options.compression;
+	if (compression !== "none" && compression !== "zstd") throw new Error(`unsupported JSONL compression: ${compression}`);
 	await assertDirectory(root, "session root");
 	const entries = await readdir(root, { withFileTypes: true });
 	const sessions = [];

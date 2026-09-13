@@ -1,12 +1,14 @@
 /**
- * Workspace pick/add flow. WorkspacePickFlow is the reusable core (menu +
- * creation error dialog) consumed directly by WorkspaceBrowser and wrapped by
- * WorkspacePicker for the conversation empty-state slot registration.
+ * SOC logical Workspace pick/add flow. Existing Workspaces retain the rc.2
+ * picker menu, while creation asks only for a logical name. The authenticated
+ * Host boundary maps that name into the user's private Workspace root; no
+ * browser or native directory-picker implementation is mounted. The standard
+ * directory-flow contract remains available for compatible contributors.
  */
 import type { RefObject } from 'react';
-import type { WorkspaceId, WorkspaceListState, WorkspaceView } from '@deepseek-ai/dsh-client-runtime/client';
+import type { WorkspaceId, WorkspaceSnapshot, WorkspaceView } from 'dsh-soc-agent-workspace-controller/client';
 import type { WorkspacePickerProps } from './contract/slots.ts';
-/** Core flow props: the owner supplies popover control and pick semantics. */
+/** Core flow props shared by the sidebar and conversation picker. */
 export interface WorkspacePickFlowProps {
     /** The standard locale seat, forwarded by whichever slot entry hosts the flow. */
     t: WorkspacePickerProps['t'];
@@ -15,8 +17,8 @@ export interface WorkspacePickFlowProps {
     /** The anchor button element — the popover's placement anchor. */
     anchorRef?: RefObject<HTMLElement | null> | undefined;
     /** Selector hook over the workspace list (framework standard hook). */
-    useWorkspaces: <S>(selector: (state: WorkspaceListState) => S) => S;
-    /** Create a logical chat folder. */
+    useWorkspaces: <S>(selector: (state: WorkspaceSnapshot) => S) => S;
+    /** Create a logical Workspace inside the authenticated user's private root. */
     createWorkspace: (input: {
         path: string;
     }) => Promise<WorkspaceView>;
@@ -31,16 +33,7 @@ export interface WorkspacePickFlowProps {
     /** Currently active workspace (trailing check in the picker list). */
     selectedId?: WorkspaceId | undefined;
 }
-/**
- * Render the pick menu plus the adoption error dialog.
- * @param props - owner-controlled flow props.
- * @returns menu + dialog elements.
- */
+/** Render the rc.2 Workspace menu plus the SOC-owned logical-name dialog. */
 export declare function WorkspacePickFlow({ t, open, anchorRef, useWorkspaces, createWorkspace, onPick, onClose, addOnly, side, selectedId, }: WorkspacePickFlowProps): import("react").JSX.Element;
-/**
- * The conversation empty-state registration: adapts the owner share to the
- * core flow (all state and semantics live in the flow / the owner).
- * @param props - empty-state slot props (owner share + injected creation callback).
- * @returns the flow element.
- */
+/** Conversation empty-state registration around the shared SOC flow. */
 export declare function WorkspacePicker({ open, anchorRef, useWorkspaces, selectedId, onPick, onClose, createWorkspace, t, }: WorkspacePickerProps): import("react").JSX.Element;
