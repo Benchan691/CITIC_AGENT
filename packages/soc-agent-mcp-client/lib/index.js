@@ -6,6 +6,7 @@ import { ListToolsResultSchema, ToolListChangedNotificationSchema } from "@model
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { scrubbedParentEnv } from "@deepseek-ai/dsh-subprocess";
+import { Agent } from "undici";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { z as z$1 } from "zod";
@@ -38,7 +39,27 @@ function createTransport(config) {
 			env: buildChildEnv(config.env),
 			cwd: config.cwd
 		});
-		case "streamable-http": return new StreamableHTTPClientTransport(new URL(config.url), { requestInit: { headers: config.headers } });
+		case "streamable-http":
+			const dispatcher = config.verifyTls === false ? new Agent({ connect: { rejectUnauthorized: false } }) : void 0;
+			const fetch = dispatcher === void 0 ? void 0 : (url, init) => globalThis.fetch(url, {
+				...init,
+				dispatcher
+			});
+			const transport = new StreamableHTTPClientTransport(new URL(config.url), {
+				requestInit: { headers: config.headers },
+				...fetch === void 0 ? {} : { fetch }
+			});
+			if (dispatcher !== void 0) {
+				const closeTransport = transport.close.bind(transport);
+				transport.close = async () => {
+					try {
+						await closeTransport();
+					} finally {
+						await dispatcher.close();
+					}
+				};
+			}
+			return transport;
 	}
 }
 //#endregion
@@ -734,6 +755,7 @@ const Config = z.union([z.object({
 	serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
 	url: z.string().required(),
 	headers: z.dict(String).default({}),
+	verifyTls: z.boolean().default(true),
 	toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
 	failOnStartupError: z.boolean().default(false),
 	reconnect: Reconnect

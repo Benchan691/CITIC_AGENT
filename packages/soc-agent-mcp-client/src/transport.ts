@@ -7,9 +7,11 @@
  */
 
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
+import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
+import { Agent } from 'undici'
 import type { Config } from './index.ts'
 
 /**
@@ -38,13 +40,39 @@ export function createTransport(config: Config): Transport {
         cwd: config.cwd,
       })
     case 'streamable-http':
+      // Node's fetch uses Undici. Keep the TLS exception scoped to this
+      // transport instead of mutating NODE_TLS_REJECT_UNAUTHORIZED, which
+      // would weaken every HTTPS client in the host process.
+      const dispatcher = config.verifyTls === false
+        ? new Agent({ connect: { rejectUnauthorized: false } })
+        : undefined
+      const fetch: FetchLike | undefined = dispatcher === undefined
+        ? undefined
+        : (url, init) => globalThis.fetch(url, {
+          ...init,
+          dispatcher,
+        } as RequestInit & { dispatcher: Agent })
+      const transport = new StreamableHTTPClientTransport(
+        new URL(config.url),
+        {
+          requestInit: { headers: config.headers },
+          ...(fetch === undefined ? {} : { fetch }),
+        },
+      ) as StreamableHTTPClientTransport
+      if (dispatcher !== undefined) {
+        const closeTransport = transport.close.bind(transport)
+        transport.close = async () => {
+          try {
+            await closeTransport()
+          } finally {
+            await dispatcher.close()
+          }
+        }
+      }
       // The MCP SDK's StreamableHTTPClientTransport has optional callback
       // properties typed without `| undefined` (exactOptionalPropertyTypes
       // mismatch with the Transport interface); the SDK constructed the
       // object, so the cast records only that widening.
-      return new StreamableHTTPClientTransport(
-        new URL(config.url),
-        { requestInit: { headers: config.headers } },
-      ) as Transport
+      return transport as Transport
   }
 }

@@ -38,6 +38,7 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.2",
     "@modelcontextprotocol/sdk": "^1.12.0",
+    "undici": "8.10.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {

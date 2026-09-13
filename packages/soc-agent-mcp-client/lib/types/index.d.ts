@@ -60,6 +60,8 @@ export interface StreamableHttpConfig {
     url: string;
     /** Additional headers attached to MCP requests. */
     headers: Record<string, string>;
+    /** Verify the remote TLS certificate chain (defaults to true). */
+    verifyTls?: boolean;
     /** Per-tool-call timeout in milliseconds. */
     toolCallTimeoutMs: number;
     /** Fail plugin activation when the initial connection or tool synchronization fails. */
@@ -70,7 +72,7 @@ export interface StreamableHttpConfig {
 /** Configuration for one stdio or Streamable HTTP MCP server. */
 export type Config = StdioConfig | StreamableHttpConfig;
 type StdioConfigInput = Omit<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'> & Partial<Pick<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>>;
-type StreamableHttpConfigInput = Omit<StreamableHttpConfig, 'headers' | 'toolCallTimeoutMs' | 'failOnStartupError'> & Partial<Pick<StreamableHttpConfig, 'headers' | 'toolCallTimeoutMs' | 'failOnStartupError'>>;
+type StreamableHttpConfigInput = Omit<StreamableHttpConfig, 'headers' | 'verifyTls' | 'toolCallTimeoutMs' | 'failOnStartupError'> & Partial<Pick<StreamableHttpConfig, 'headers' | 'verifyTls' | 'toolCallTimeoutMs' | 'failOnStartupError'>>;
 type ConfigInput = StdioConfigInput | StreamableHttpConfigInput;
 export declare const Config: z<ConfigInput, Config>;
 /**
