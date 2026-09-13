@@ -7,9 +7,9 @@
 
 **读完后你将了解:** 每个被跟踪的第一方路径的完整分类，以及磁盘上存在但未被跟踪的本地目录。
 
-**方法:** 在核对基线提交上运行 `git ls-files`（Git 感知发现；`.gitignore` 排除 `node_modules/`、`__pycache__/`、`*.egg-info/`、`.data/`、`.state/`、`.env`）。该基线记录了 **182 个被跟踪第一方文件**；当前工作树新增隔离侧栏/工作区与五个可选 SOC 浏览器包，所以下文不复用基线的包/文件计数。`vendor/deepseek-harness` 文件仍按组覆盖，不逐项列出。
+**方法:** 在核对基线提交上运行 `git ls-files`（Git 感知发现；`.gitignore` 排除 `node_modules/`、`__pycache__/`、`*.egg-info/`、`.data/`、`.state/`、`.env`）。该基线记录了 **182 个被跟踪第一方文件**；当前工作树新增完整 SOC 替代包、隔离侧栏/工作区与六个可选 SOC 浏览器包，所以下文不复用基线的包/文件计数。`vendor/deepseek-harness` 文件仍按组覆盖，不逐项列出。
 
-**较上一轮（`b26d55d`）的变更:** 已退役的 Python Splunk 栈（34 文件 `splunk/` 包、`splunk_service.py`、`detection.py`、12 个相关测试文件）被**删除**；新增 `tool-inventory.js`（单一工具事实源）、`python-command.js`（共享 Python 拉起助手）、`migrations/*.sql` + `schema.py`（版本化 SQL 迁移）、`tests/python-command.test.js`、`tests/setup.test.js`、`tests/admin-console.test.ts`；客户端遗留状态卡（`SplunkSettings.ts`、`SubscriptionServerSettings.ts`）移除；`hi.txt` 移除。当前工作树进一步把浏览器 UI 拆成强制核心、隔离侧栏/工作区与五个可选 SOC 功能包。维护者的实施报告是 `docs/SHORTENING_PLAN_IMPLEMENTATION.md`（基线 `d264ca7`）。
+**较上一轮（`b26d55d`）的变更:** 已退役的 Python Splunk 栈（34 文件 `splunk/` 包、`splunk_service.py`、`detection.py`、12 个相关测试文件）被**删除**；新增 `tool-inventory.js`（单一工具事实源）、`python-command.js`（共享 Python 拉起助手）、`migrations/*.sql` + `schema.py`（版本化 SQL 迁移）、`tests/python-command.test.js`、`tests/setup.test.js`、`tests/admin-console.test.ts`；客户端遗留状态卡（`SplunkSettings.ts`、`SubscriptionServerSettings.ts`）移除；`hi.txt` 移除。当前工作树进一步把浏览器 UI 拆成强制核心、完整基础替代包、隔离侧栏/工作区与六个可选 SOC 功能包。维护者的实施报告是 `docs/SHORTENING_PLAN_IMPLEMENTATION.md`（基线 `d264ca7`）。
 
 相关: [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md)（每组*做什么*）、[SOURCE_INDEX.md](SOURCE_INDEX.md)（逐文件用途与符号）。
 
@@ -24,7 +24,7 @@
 | `BACKGROUND.md` | 文档/治理 | Splunk 参考背景（来自只读 `Ruleset.csv` 审查的规则命名约定；含一个保留的客户命名示例）。由 `host.js` `installBackgroundRefresh` 作为背景上下文注入。 | 活跃（模型上下文） |
 | `setup.sh` | 安装/管理脚本 | "SOC Agent setup doctor"：bootstrap 克隆、`--check`、`--plugins` 模式；单一参数清单驱动提示/检查；**官方 Splunk MCP 端点 + 令牌必填**（REST Splunk 字段已移除）。 | 活跃（运维执行） |
 | `update.sh` | 安装/管理脚本 | 拒绝参数与脏树，`git pull --ff-only`，再跑 `setup.sh --plugins`。 | 活跃（运维执行） |
-| `requirements.txt` | 配置/部署装配 | 恰好两个外部 pnpm 插件 spec；与 `setup.sh` 的 `PLUGIN_NAMES` 做数量校验。 | 活跃（安装输入） |
+| `package.json`、`pnpm-workspace.yaml` | 配置/部署装配 | 根 pnpm workspace（pnpm 11.7.0、Node `^22.19.0 || >=24.0.0`），精确锁定 Harness 运行时依赖。 | 活跃（安装输入） |
 | `lefthook.yml` | 配置（无效） | 全部为注释示例；无活跃 Git 钩子。 | 未启用 |
 | `.gitignore` | 配置 | 忽略 `node_modules/`、`__pycache__/`、`*.egg-info/`、`/.data/`、`**/.state/` 等。注意 `packages/soc-agent-*/lib/` **不在**忽略列表（SOC 浏览器包的被跟踪生成产物）。 | 活跃 |
 | `docs/` | 文档 | 本文档集、执行简报、维护者实施报告。 | 文档 |
@@ -45,7 +45,7 @@
 | `python-command.js` | 权威源码 | 共享一次性 Python 运行器：`pythonEnvironment()`（剔除 `SOC_ADMIN_*`；`MCP_SERVER_ROOT`/`MCP_SEVER_ROOT` 回退）、`runPythonCommand({module, command, arg, payload, timeoutMs, signal, mapError})`。注释："One-shot helpers only." |
 | `splunk-bridge.js` | 权威源码 | 插件 `soc-agent-splunk-official-bridge`：从 `tool-inventory.js` 导入清单；校验 `SPLUNK_MCP_ENDPOINT`（HTTP(S)、无内嵌凭据/查询/片段；明文 HTTP 需 `SPLUNK_ALLOW_INSECURE_HTTP=true`）；`testOfficialSplunkConnection` 经桥接真实执行 `splunk_get_info`（185 秒预算，错误中脱敏 Bearer 令牌）。 |
 | `investigation.js` | 权威源码 | `tools/post-execute` 投影：仅对 `mcp__splunk_mcp__splunk_*` 输出做掩码（卡号/SSN）与 50 KB 截断。 |
-| `tests/*.test.js`（11 文件，41 测试） | 第一方测试 | 新: `python-command.test.js`（1）、`setup.test.js`（5），并加入模块化浏览器包的装配/导入隔离覆盖。增长: `splunk-bridge.test.js`（4）。见 [TEST_COVERAGE_MATRIX.md](TEST_COVERAGE_MATRIX.md)。 |
+| `tests/*.test.js`（11 文件，42 测试） | 第一方测试 | 新: `python-command.test.js`（1）、`setup.test.js`（5），并加入模块化浏览器包的装配/导入隔离覆盖。增长: `splunk-bridge.test.js`（4）。见 [TEST_COVERAGE_MATRIX.md](TEST_COVERAGE_MATRIX.md)。 |
 
 ## 3. `apps/soc-agent/server/` — Python MCP 服务器（包 `soc-agent-mcp`，54 个文件）
 
@@ -85,7 +85,7 @@
 | `soc-agent-brand/`、`soc-agent-admin/` | 可选功能包 | 品牌贡献与完整 `/admin` 控制台；管理 UI 通过核心 `soc.admin.content` 子槽位挂载。 |
 | `soc-agent-action-policy/` | 可选功能包 | 终端用户 Full access/SOC mode 菜单；动作策略 schema 仍由核心注册。 |
 | `soc-agent-attachments/`、`soc-agent-email-draft/` | 可选功能包 | MarkItDown provider/rail/command/设置卡，以及可编辑草稿/转发 tool view。 |
-| 每个包的 `lib/index.js`、`lib/client.js`、`lib/client.js.map` | **被跟踪的生成产物** | 每个包一个闭包工厂；`setup.sh` 注册并健康检查八个包。 |
+| 每个包的 `lib/index.js`、`lib/client.js`、`lib/client.js.map` | **被跟踪的生成产物** | 36 个 SOC 包与 `apps/soc-agent` 产品 bundle 由 setup 矩阵注册；26 个包面生成浏览器闭包工厂。 |
 | 每个包的 `tests/` | 第一方测试 | 各包行为/护栏测试；浏览器视觉/smoke 测试在 `apps/soc-agent/tests/`。 |
 **本次抽取从核心移除：** 原先位于 `soc-agent-client/src/client/` 的可选功能实现（管理、品牌、动作策略、附件、邮件草稿）及旧的兼容设置样式。官方 vendor 侧栏/工作区源码保持冻结，并通过 SOC patch 禁用。
 
@@ -102,13 +102,11 @@
 
 ## 6. `patches/`
 
-| 路径 | 分类 | 用途 |
-|---|---|---|
-| `dsh-auto-collapse@0.1.4.patch` | 本地补丁的 vendor 行为 | pnpm 补丁：英文本地化、英文时长解析、`[data-dshcf-preserve]` 行豁免自动折叠（SOC 草稿卡使用）。 |
+本目录已退役。自动折叠与其他 SOC 行为均由根 workspace 的第一方替代包提供；profile 不再复制或安装 pnpm patch。
 
 ## 7. `vendor/deepseek-harness/` — vendored 上游（按组）
 
-集成面不变，本轮一处新增：`packages/host/apiproxy` 的 `rpc.schema.ts`/`rpc.ts` 声明结构化 `authentication-required`/`admin-authentication-required` 错误码（含测试）— SOC RPC 认证契约被钉入上游。其余面照旧：MCP 客户端桥、cordis loader、base/web 补丁层、工具+审批注册表、技能、预设（含本地 `citic-soc`）、webserver/gateway/static、浏览器引导。
+vendor 现在是官方 `dsh-v0.1.5-rc.2` 的纯净快照（提交 `fb2c4b9e698e30edb738bca4cf0618587db7d203`），由 `vendor/deepseek-harness.upstream.json` 与 `tooling/verify-upstream.mjs --fresh` 校验。SOC 包、产品预设和配置均在 vendor 外部；产品装配通过 `apps/soc-agent/cordis.patch.yml` 完成。其余集成面包括 MCP 客户端、cordis loader、base/web 层、工具+审批注册表、官方技能/预设、webserver/gateway/static 与浏览器引导。
 
 ## 8. 磁盘上的本地（未跟踪）路径
 
@@ -123,7 +121,7 @@
 
 ## 9. 值得点名的普查决策
 
-- 八个 `packages/soc-agent-*/lib/` 都是被跟踪的生成浏览器产物；setup 以一个权威矩阵为它们做指纹与重建。
+- 36 个 SOC 包加 `apps/soc-agent` 产品 bundle 由一个权威 setup 矩阵注册，其中 26 个包面生成被跟踪的浏览器产物。
 - **Splunk 栈已移除** — 上一轮"代码存在不等于运行时暴露"的例子现在变成"彻底移除"（[DOCUMENTATION_AUDIT.md](../DOCUMENTATION_AUDIT.md) §6）。
 - `tool-inventory.js` 是新的结构性漂移栅栏：策略、桥接与（经测试的）Python 注册都源自/钉住同一清单。
 - `hi.txt` 已删除；上一轮审计问题关闭。

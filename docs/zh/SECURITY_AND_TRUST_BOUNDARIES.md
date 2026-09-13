@@ -91,7 +91,7 @@
 | 机密不进入子进程环境 | 文档化 + 测试证据 | `auth.test.js`（"without exposing tokens"）、`python-command.js` |
 | 会话 id 的 SQL 边界；加密列；`statement_timeout=15000` | 文档化控制 | `postgres_store.py` |
 | TLS 校验默认开启（桥、Zimbra、订阅） | 文档化 + 测试证据 | `splunk-bridge.test.js`（"verifies TLS by default"）、`test_splunk_service.py`（历史） |
-| 依赖钉扎：vendored harness（工作区）、`markitdown==0.1.7`、提交钉扎的外部插件 + 本地补丁 | 文档化控制 | `pyproject.toml`、`requirements.txt`、`patches/` |
+| 依赖钉扎：原始 rc.2 Harness 归档 + 独立根 workspace；固定 `markitdown==0.1.7` | 文档化控制 | `vendor/deepseek-harness.upstream.json`、`package.json`、`pnpm-lock.yaml` |
 
 ## 3. 威胁场景与遏制
 

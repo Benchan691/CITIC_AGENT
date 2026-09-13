@@ -6,16 +6,16 @@
 
 **本页读者:** 准备部署的运维、追踪取值来源的开发者。
 
-**通俗概述。** 配置归部署所有: Python 服务器只读进程环境变量（由 `server/.env` 播种），Node 宿主读自己的变量加同一文件。优先级（代码所证）: **进程环境最高**，其次 `server/.env`；`env_loader.py` 再加载工作区 `.env`（带覆盖）。绝不在文档/工单/shell 历史中出现真实机密值。
+**通俗概述。** 配置归部署所有: Python 服务器只读进程环境变量（由根 `.env` 与 `server/.env` 播种），Node 宿主读自己的变量加服务器文件。优先级（代码所证）: **进程环境最高**，其次 `server/.env`；`env_loader.py` 再加载根 `.env`（带覆盖）。纯净 vendor 不接收运行时 `.env`。绝不在文档/工单/shell 历史中出现真实机密值。
 
 ---
 
 ## 1. 加载与优先级（按代码）
 
 1. 进程环境（最高）。
-2. `apps/soc-agent/server/.env`（`env_loader.load_server_env`），随后工作区 `.env`（**带覆盖**）。
+2. `apps/soc-agent/server/.env`（`env_loader.load_server_env`），随后根 `.env`（**带覆盖**）。
 3. `.env.example` — 仅模板，从不加载。
-4. `setup.sh` 写 `server/.env`（chmod 600）与 `vendor/deepseek-harness/.env`（仅 `APP_POSTGRES_URI` + `APP_SETTINGS_ENCRYPTION_KEY`）。
+4. `setup.sh` 写根 `.env` 与 `server/.env`（chmod 600）；不写入纯净的 `vendor/deepseek-harness`。
 5. `env_loader.py` 从 Python 进程剔除 `SOC_ADMIN_EMAIL`/`SOC_ADMIN_PASSWORD`（`_NODE_ONLY_ENV_NAMES`）；`python-command.js` 的 `pythonEnvironment()` 与 `host.js` 同样在拉起子进程前删除两者。
 
 按代码的回退链:

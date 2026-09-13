@@ -30,7 +30,11 @@ async function assertOrWriteScreenshot(locator, name) {
   } catch {
     throw new Error(`missing browser screenshot ${path}; run UPDATE_SOC_SCREENSHOTS=1 pnpm --filter dsh-soc-agent test:browser`)
   }
-  assert.deepEqual(actual, expected, `browser screenshot changed: ${path}`)
+  if (actual.length !== expected.length || !actual.equals(expected)) {
+    throw new Error(
+      `browser screenshot changed: ${path} (expected ${expected.length} bytes, got ${actual.length})`,
+    )
+  }
 }
 
 function installErrorTripwires(page) {
@@ -113,7 +117,7 @@ describe('SOC browser composition', () => {
     // Establish the Harness index session through the real one-time browser
     // token, then load fixture mode with the resulting HttpOnly cookie.
     await page.goto(scaffold.ctx.connection.authenticatedUrl(scaffold.baseUrl), { waitUntil: 'load' })
-    await page.goto(`${scaffold.baseUrl}/?fixture`, { waitUntil: 'load' })
+    await page.goto(`${scaffold.baseUrl}/?fixture&fixtureInteraction=approval`, { waitUntil: 'load' })
   }, 120_000)
 
   afterAll(async () => {
@@ -172,6 +176,39 @@ describe('SOC browser composition', () => {
     assert.match(await page.getByRole('tree', { name: 'Search results' }).innerText(), /fixture/u)
     await searchInput.press('Escape')
 
+    await page.getByRole('button', { name: 'Collapse sidebar' }).click()
+    await page.getByRole('button', { name: 'Open sidebar' }).waitFor({ timeout: 10_000 })
+    await page.waitForTimeout(250)
+    const collapsedSidebar = page.locator('button[aria-label="Open sidebar"]')
+      .locator('xpath=ancestor::div[contains(@class, "_root")][1]')
+    assert.equal(await collapsedSidebar.count(), 1, 'isolated collapsed sidebar root is mounted')
+    await assertOrWriteScreenshot(collapsedSidebar, 'sidebar-collapsed.png')
+    await page.getByRole('button', { name: 'Open sidebar' }).click()
+    await page.getByRole('button', { name: 'Collapse sidebar' }).waitFor({ timeout: 10_000 })
+
+    // The fixture starts with a resident session but the shell intentionally
+    // opens in its no-session hero. Select the resident session before taking
+    // conversation, approval, attachment, and auto-collapse snapshots.
+    const fixtureSession = page.getByRole('treeitem', { name: /Fixture 历史会话/u }).first()
+    await fixtureSession.click()
+    await fixtureSession.waitFor({ state: 'attached', timeout: 10_000 })
+
+    const conversation = page.locator('[data-conversation-scroll]').first()
+    await conversation.waitFor({ timeout: 10_000 })
+    await assertOrWriteScreenshot(conversation, 'conversation.png')
+
+    const approval = page.locator('[data-approval-scroll]').first()
+    await approval.waitFor({ timeout: 10_000 })
+    await assertOrWriteScreenshot(approval, 'approval.png')
+
+    const attachments = page.locator('[data-message-attachments]').first()
+    await attachments.waitFor({ timeout: 10_000 })
+    await assertOrWriteScreenshot(attachments, 'attachments.png')
+
+    const autoCollapse = page.getByRole('status').filter({ hasText: 'Deep sleeping...' }).first()
+    await autoCollapse.waitFor({ timeout: 10_000 })
+    await assertOrWriteScreenshot(autoCollapse, 'auto-collapse.png')
+
     // The sidebar's Add workspace control intentionally skips the menu when it
     // has no alternate target. Exercise the conversation picker here, where
     // the standard hero workspace slot exposes the full menu/list flow.
@@ -185,14 +222,6 @@ describe('SOC browser composition', () => {
     assert.match(await picker.innerText(), /project/u)
     await assertOrWriteScreenshot(picker, 'workspace-picker.png')
     await page.keyboard.press('Escape')
-
-    await page.getByRole('button', { name: 'Collapse sidebar' }).click()
-    await page.getByRole('button', { name: 'Open sidebar' }).waitFor({ timeout: 10_000 })
-    await page.waitForTimeout(250)
-    const collapsedSidebar = page.locator('button[aria-label="Open sidebar"]')
-      .locator('xpath=ancestor::div[contains(@class, "_root")][1]')
-    assert.equal(await collapsedSidebar.count(), 1, 'isolated collapsed sidebar root is mounted')
-    await assertOrWriteScreenshot(collapsedSidebar, 'sidebar-collapsed.png')
 
     const expectedBundles = [
       'dsh-soc-agent-action-policy',

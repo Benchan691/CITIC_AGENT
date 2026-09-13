@@ -2,7 +2,7 @@
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 > 语言 / Language: **English** · [中文版](../zh/reference/TEST_COVERAGE_MATRIX.md)
-> Current sources: `apps/soc-agent/tests/` (**11 files, 41 tests**) and `apps/soc-agent/server/unified_mcp_server/tests/` (**10 test files + `__init__.py`, 48 test functions**). The current worktree also carries package-local tests for the mandatory core, isolated surfaces, and five optional browser features, plus browser smoke/screenshot tests. Previous round (`b26d55d`): 27 JS / 9 TS / 75 Python — the Python reduction is the deleted Splunk stack's tests, not lost coverage of live code.
+> Current sources: `apps/soc-agent/tests/` (**12 files, 42 tests**) and `apps/soc-agent/server/unified_mcp_server/tests/` (**10 test files + `__init__.py`, 48 test functions**). The current worktree also carries package-local tests for the mandatory core, isolated surfaces, and six optional browser features, plus browser smoke/screenshot tests. Previous round (`b26d55d`): 27 JS / 9 TS / 75 Python — the Python reduction is the deleted Splunk stack's tests, not lost coverage of live code.
 
 **Who this is for:** developers changing behavior (which tests must move with the change), and reviewers judging which claims have test evidence.
 
@@ -12,7 +12,7 @@
 
 ---
 
-## 1. Node tests — `apps/soc-agent/tests` (`node --test tests/*.test.js`, 11 files / 41 tests)
+## 1. Node tests — `apps/soc-agent/tests` (`node --test tests/*.test.js`, 11 files / 42 tests)
 
 | File | Tests | Behavior covered | Exercised source |
 |---|---|---|---|
@@ -34,14 +34,15 @@
 |---|---|---|
 | `soc-agent-client` | 5 | Core `SocClientRuntime` contract, `/admin` route selection, RPC forwarding/error handling, mandatory action-policy schema, auth/admin fallback ownership, and no optional UI imports |
 | `soc-agent-sidebar` | 27 | Expanded/collapsed layout, root ownership, standard child slots, branding/workspace/settings/footer interoperability, pinned CSS/DOM invariants |
-| `soc-agent-workspace` | 119 | Workspace browser/picker, search/grouping/tree/reorder, create/delete/rename/fork/archive/session deletion, General clearing, pending/error states, and reversible folders guard |
+| `soc-agent-workspace` | 149 | Workspace browser/picker, search/grouping/tree/reorder, logical workspace creation, create/delete/rename/fork/archive/session deletion, General clearing, pending/error states, and reversible folders guard |
 | `soc-agent-brand` | 2 | Sidebar and conversation branding contributions |
 | `soc-agent-admin` | 4 | Admin status behavior, credential guardrails, access-policy guardrails, and core-owned child-slot mounting |
 | `soc-agent-action-policy` | 3 | `readActionMode` uses the exact RPC triple; malformed/failed responses reject; server-confirmed mode is adopted |
 | `soc-agent-attachments` | 1 | Two-worker conversion: peak concurrency 2, order preserved, retry after failure, cache reuse, truncation note, `release()` cleanup |
 | `soc-agent-email-draft` | 3 | Recipient parsing/dedupe/trim, canonical draft fields, forward-draft field mapping, send/signature view behavior |
+| `soc-agent-auto-collapse` | 3 | Native Chat contract wiring, persisted `dsh-auto-collapse` settings adoption, status text, listener cleanup, and teardown-safe service lifecycle |
 
-All eight browser packages build a separate tracked `lib/client.js`; tests import source through the vendored loaders. The app composition test additionally recursively scans first-party source/manifests for official sidebar/workspace imports.
+The 36 SOC packages plus the product bundle are built from the root workspace; 26 package faces emit a separate tracked browser artifact. Tests import source through the rc.2-compatible loaders. The app composition test additionally recursively scans first-party source/manifests for official implementation imports.
 
 ## 3. Python tests — `unified_mcp_server/tests` (`uv run pytest`; `asyncio_mode=auto`, 10 files / 48 tests)
 

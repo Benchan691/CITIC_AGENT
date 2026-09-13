@@ -13,9 +13,12 @@
 
 | 文件 | 用途 | 关键符号/事实 |
 |---|---|---|
-| `setup.sh` | setup doctor: bootstrap、`--check`、`--plugins` | `run_prereq_checks`、`collect_parameters`、`write_files`、`ensure_python_server`、`ensure_harness_ready`、`ensure_external_plugins`、`ensure_soc_bundle`、`PLUGIN_NAMES`（硬编码 2）；Splunk 参数仅 MCP |
+| `setup.sh` | setup doctor: bootstrap、`--check`、`--plugins`、`--rebuild` | `run_prereq_checks`、`collect_parameters`、`write_files`、`ensure_python_server`、`ensure_harness_ready`、`ensure_soc_workspace_ready`、`ensure_soc_bundle`、`SOC_PACKAGE_MATRIX`（37 个包 / 26 个浏览器 face）；Splunk 参数仅 MCP |
 | `update.sh` | 干净树 ff-only 更新 + `setup.sh --plugins` | 拒绝参数；从不 stash |
-| `requirements.txt` | 外部插件 spec（2 个，数量校验） | `@linxin666/dsh-client-ui-skin-center@^0.2.5`、`github:a179-sanae/dsh-auto-collapse#cd21c04…` |
+| `package.json` | 根 workspace 与构建策略 | 固定 `pnpm@11.7.0`、Node engine、声明/构建/类型检查/测试/校验脚本 |
+| `pnpm-workspace.yaml` | 独立 SOC workspace 定义 | 根 workspace 包；无 vendor-relative link |
+| `vendor/deepseek-harness.upstream.json` | 不可变 Harness 来源 | repository、`dsh-v0.1.5-rc.2`、`fb2c4b9e…`、文件 inventory SHA-256 |
+| `tooling/session-migration.mjs` | 会话校验/迁移/回滚 CLI | `--validate`、`--migrate`、`--rollback`；fail-closed v0/v1/v2 审计与不可变 v3 successor 发布 |
 | `AGENTS.md` | 智能体强制运行政策 | 身份、隔离、不可信内容、证据、邮件、Splunk、技能清单 |
 | `BACKGROUND.md` | Splunk 参考背景（命名约定；保留客户示例） | 由 `host.js` 背景刷新注入 |
 | `README.md` | 人工概览 | 链接 shortening 实施报告；MCP 必配 |
@@ -33,7 +36,7 @@
 | `python-command.js` | 共享一次性 Python 运行器 | `pythonEnvironment()`、`runPythonCommand({module, command, arg, payload, timeoutMs, signal, mapError})` |
 | `splunk-bridge.js` | 外部 Splunk MCP 客户端桥 | 从清单导入 `OFFICIAL_SPLUNK_TOOL_NAMES`；`resolveOfficialSplunkConfig`（URL 校验；`serverName: 'splunk_mcp'`）；`testOfficialSplunkConnection`（live `splunk_get_info` 探测、令牌脱敏）；`apply(ctx)` |
 | `investigation.js` | Splunk 输出投影 | `projectOfficialSplunkResult`（50 KB 截断）、`sanitizeSplunkText`（`SPLUNK_SANITIZE_OUTPUT` 退出项）、`installInvestigationProjection` |
-| `cordis.patch.yml` | 产品补丁清单 | 插件启用/禁用名册；`soc-agent-mcp`（28 名原始允许列表、185 000 ms）、`splunk-official-mcp`、`approval policy: ask`、编码工具禁用块、`skill-filesystem.customSkillDirs`、插入五个 SOC 插件 |
+| `cordis.patch.yml` | 产品补丁清单 | 禁用所有映射的官方实现，插入 SOC 替代名册，保持 session folders/directory picker/Open In/subagent extras 禁用，配置 MCP/approval/skills，并启用六个可选 client 行 |
 | `package.json` | bundle 清单 | `dsh-soc-agent`；`./tool-inventory`、`./python-command` 等导出 |
 
 ## `apps/soc-agent/server/unified_mcp_server/` — 活跃服务器
@@ -75,7 +78,7 @@
 | `soc-agent-action-policy/src/client/` | 可选动作策略 | Full access / SOC mode 菜单与失败关闭 RPC 助手 |
 | `soc-agent-attachments/src/client/` | 可选附件 | MarkItDown provider、双 worker 控制器、rail、command、设置卡/schema |
 | `soc-agent-email-draft/src/client/` | 可选邮件草稿 | 可编辑草稿/转发 tool view、签名与发送助手 |
-| 每个包的 `tsdown.config.ts` / `tsconfig.json` / `lib/` | 构建/TS 配置 | 每个包一个被跟踪 `lib/client.js`，由 setup 统一注册 |
+| 每个包的 `tsdown.config.ts` / `tsconfig.json` / `lib/` | 构建/TS 配置 | 跟踪 host/browser 产物；setup 注册全部 37 个包并健康检查 26 个浏览器 face |
 
 ## 技能、补丁、文档
 
@@ -85,7 +88,7 @@
 | `skills/false-positive-analysis/SKILL.md` | 告警解释/分类。部分陈旧（`splunk_search` 已删） |
 | `skills/splunk-investigation/SKILL.md` | 基于 `mcp__splunk_mcp__*` 的调查 — 仍有效 |
 | `skills/spl-writing/SKILL.md` | CITIC SPL 编写。**陈旧：** 编译器已删除 |
-| `patches/dsh-auto-collapse@0.1.4.patch` | 英文本地化 + 时长解析 + `data-dshcf-preserve` 豁免 |
+| `tooling/verify-upstream.mjs` | 与新鲜 rc.2 archive 比对纯净 vendor；通过显式可复现规则排除生成构建产物 |
 | `docs/GLM_5_3_REPOSITORY_DOCUMENTATION_INSTRUCTIONS.md` | 本文档集的执行简报（勿覆盖） |
 | `docs/SHORTENING_PLAN_IMPLEMENTATION.md` | 维护者的重构实施与验证报告（基线 `d264ca7`） |
 | `docs/zh/**`、`docs/site/zh/**` | 本文档集与站点的中文版（与本页同轮核对） |

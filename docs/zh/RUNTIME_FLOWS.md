@@ -16,7 +16,7 @@
 ## 1. 安装 / 引导与更新生命周期
 
 **触发:** 运维执行 `./setup.sh`（或 bootstrap 副本）/ `./update.sh`。
-**路径:** 前置检查（node/pnpm/uv）→ 参数收集（环境优先级；机密 `read -rs`）→ 写 `apps/soc-agent/server/.env` + `vendor/deepseek-harness/.env`（chmod 600）→ `uv sync --python 3.12` → 指纹门控的 `pnpm install --frozen-lockfile` + 构建（指纹在 `.data/harness-*.sha256`；`--rebuild` 强制）→ profile 补丁副本 + 插件安装/清理（受管集合包含 app、强制核心、隔离侧栏/工作区和五个可选 SOC 浏览器包）→ SOC bundle 注册 + 解析校验 → 摘要（掩码值；不启动服务）。
+**路径:** 前置检查（node/pnpm/uv）→ 参数收集（环境优先级；机密 `read -rs`）→ 写根 `.env` + `apps/soc-agent/server/.env`（chmod 600，vendor 保持纯净）→ `uv sync --python 3.12` → 指纹门控的纯净 Harness 安装/构建与根 SOC workspace 安装/构建（指纹在 `.data/harness-*.sha256`；`--rebuild` 强制）→ 使用官方 profile 机制安装/清理直接本地 SOC 依赖（受管集合包含 app、强制核心、基础替代包、隔离侧栏/工作区和六个可选 SOC 功能包）→ SOC bundle 注册 + 解析校验 → 摘要（掩码值；不启动服务）。
 **失败:** 前置缺失（循环或记录警告）；脏树阻止分支切换（从不 stash）；任一 SOC 浏览器 bundle 漂移触发重建；`--check` 汇总失败计数后 exit 1。官方 Splunk MCP 端点 + 令牌现为**必填**。
 **证据:** `setup.sh` 各阶段；`update.sh`（干净树 ff-only + `--plugins`）。
 

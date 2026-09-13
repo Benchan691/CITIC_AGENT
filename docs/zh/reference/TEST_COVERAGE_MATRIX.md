@@ -2,7 +2,7 @@
 
 > **核对基准:** 提交 `56c8dd21492a5c36cb9f3eaa3da01160aba40033`（2026-09-12T07:22:44Z）· 文档核对日期 2026-09-12。
 > 语言 / Language: **中文** · [English](../../reference/TEST_COVERAGE_MATRIX.md)。
-> 当前来源: `apps/soc-agent/tests/`（**11 文件 41 测试**）与 `unified_mcp_server/tests/`（**10 测试文件 + `__init__.py`，48 测试**）。当前工作树还包含强制核心、隔离表面、五个可选浏览器包的包内测试，以及浏览器 smoke/screenshot 测试。上一轮（`b26d55d`）为 27/9/75 — Python 的缩减是被删 Splunk 栈带走了它自己的测试，不是活跃代码 coverage 的损失。
+> 当前来源: `apps/soc-agent/tests/`（**12 文件 42 测试**）与 `unified_mcp_server/tests/`（**10 测试文件 + `__init__.py`，48 测试**）。当前工作树还包含强制核心、隔离表面、六个可选浏览器包的包内测试，以及浏览器 smoke/screenshot 测试。上一轮（`b26d55d`）为 27/9/75 — Python 的缩减是被删 Splunk 栈带走了它自己的测试，不是活跃代码 coverage 的损失。
 
 **本页读者:** 改动行为的开发者（哪些测试须随行）、判断论断证据的评审者。
 
@@ -10,7 +10,7 @@
 
 ---
 
-## 1. Node 测试 — `apps/soc-agent/tests`（11 文件 / 41 测试）
+## 1. Node 测试 — `apps/soc-agent/tests`（11 文件 / 42 测试）
 
 | 文件 | 数 | 覆盖行为 |
 |---|---|---|
@@ -32,14 +32,15 @@
 |---|---|---|
 | `soc-agent-client` | 5 | 核心 `SocClientRuntime`、`/admin` 路由、RPC 转发/错误处理、强制 action-policy schema、认证/回退归属与无可选 UI 导入 |
 | `soc-agent-sidebar` | 27 | 展开/收起、root owner、标准子槽位、品牌/工作区/设置/footer 互操作、固定 CSS/DOM 不变量 |
-| `soc-agent-workspace` | 119 | 工作区浏览/选择器、搜索/分组/tree/重排、创建/删除/改名/fork/archive/会话删除、General 清空、挂起/错误状态、可恢复 folders 守卫 |
+| `soc-agent-workspace` | 149 | 工作区浏览/选择器、搜索/分组/tree/重排、逻辑工作区创建、创建/删除/改名/fork/archive/会话删除、General 清空、挂起/错误状态、可恢复 folders 守卫 |
 | `soc-agent-brand` | 2 | 侧栏与 conversation branding 贡献 |
 | `soc-agent-admin` | 4 | 管理状态、凭据护栏、访问策略护栏、核心子槽位挂载 |
 | `soc-agent-action-policy` | 3 | `readActionMode` 精确 RPC、畸形/失败响应拒绝、采纳服务端确认模式 |
 | `soc-agent-attachments` | 1 | 双 worker 转换、保序、重试、缓存、截断注记、`release()` 清理 |
 | `soc-agent-email-draft` | 3 | 收件人解析/去重、规范草稿字段、转发字段映射、签名/发送视图行为 |
+| `soc-agent-auto-collapse` | 3 | 原生 Chat 契约接线、`dsh-auto-collapse` 持久设置读取、状态文案、监听器清理与可安全 teardown 的 service 生命周期 |
 
-八个浏览器包各自产生被跟踪的 `lib/client.js`；应用装配测试另外递归扫描第一方源码/清单，确保没有官方侧栏/工作区导入。
+36 个 SOC 包加产品 bundle 由根 workspace 构建；其中 26 个包面产生独立、被跟踪的浏览器产物。测试通过 rc.2 兼容 loader 导入源码；应用装配测试另外递归扫描第一方源码/清单，确保没有被替代官方实现的导入。
 
 ## 3. Python 测试 — `unified_mcp_server/tests`（10 文件 / 48 测试）
 

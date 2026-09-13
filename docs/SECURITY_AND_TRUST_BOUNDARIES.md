@@ -92,7 +92,7 @@
 | SQL bounds on session ids; encrypted columns; `statement_timeout=15000` | Documented control | `postgres_store.py` |
 | TLS verification defaults (bridge, Zimbra, subscription) | Documented + test evidence | `splunk-bridge.test.js` ("verifies TLS by default"), `test_splunk_service.py` |
 | Log hygiene: no secrets or third-party exception text in logs; per-call correlation ids | Documented + test evidence | `server.py execute` (upstream text withheld), `redact_endpoint`, `adminFailureMessage` (≤400 chars); correlation via `soc_correlation_id` |
-| Dependency pinning: vendored harness (workspace), pinned `markitdown==0.1.7`, commit-pinned external plugin + local patch | Documented control | `pyproject.toml`, `requirements.txt`, `patches/` |
+| Dependency pinning: pristine rc.2 Harness archive plus independent root workspace; pinned `markitdown==0.1.7` | Documented control | `vendor/deepseek-harness.upstream.json`, `package.json`, `pnpm-lock.yaml` |
 
 ## 3. Threat scenarios and how they are contained
 

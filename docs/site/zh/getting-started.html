@@ -32,10 +32,9 @@
 <tr><td>更新</td><td><code>./update.sh</code></td><td>拒绝脏树；ff-only；随后 <code>--plugins</code>；手动重启</td></tr>
 </tbody></table></div>
 <h2 id="config">配置准备（安全）</h2>
-<p>setup 写入两个 chmod 600 的 <code>.env</code>；机密静默输入；密钥留空自动生成。必填：<code>SOC_ADMIN_EMAIL/PASSWORD</code>（缺之宿主不启动）、<code>APP_POSTGRES_URI</code> + <code>APP_SETTINGS_ENCRYPTION_KEY</code>（登录）、<code>ZIMBRA_HOST</code>；<strong>官方 Splunk MCP <code>SPLUNK_MCP_ENDPOINT</code> + <code>SPLUNK_TOKEN</code>（setup/检查即要求）</strong>。绝不要把机密粘贴进 shell 命令。</p>
+<p>setup 写入根 `.env` 与服务器 <code>server/.env</code>（均 chmod 600）；机密静默输入；密钥留空自动生成。纯净 vendor 不接收运行时环境文件。必填：<code>SOC_ADMIN_EMAIL/PASSWORD</code>（缺之宿主不启动）、<code>APP_POSTGRES_URI</code> + <code>APP_SETTINGS_ENCRYPTION_KEY</code>（登录）、<code>ZIMBRA_HOST</code>；<strong>官方 Splunk MCP <code>SPLUNK_MCP_ENDPOINT</code> + <code>SPLUNK_TOKEN</code>（setup/检查即要求）</strong>。绝不要把机密粘贴进 shell 命令。</p>
 <h2 id="run">启动与首次验证</h2>
-<pre><code>cd vendor/deepseek-harness
-pnpm dsh web --no-open        # 打开 http://127.0.0.1:3080</code></pre>
+<pre><code>pnpm dsh web --no-open        # 打开 http://127.0.0.1:3080</code></pre>
 <p>验证顺序：<code>--check</code> 通过 → Sentinel 登录遮罩 → 本人 Zimbra 登录 → 管理端 Connections 的 Splunk/订阅检查 → 分析师读工具自动执行、变更触发审批 → 建草稿观察 Send 门。</p>
 <h2 id="failures">首启常见故障</h2>
 <div class="table-wrap"><table><thead><tr><th>症状</th><th>首查</th></tr></thead><tbody>

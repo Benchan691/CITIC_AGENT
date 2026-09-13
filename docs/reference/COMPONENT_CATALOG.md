@@ -7,7 +7,7 @@
 
 **What you will understand:** every first-party component described with the same eleven fields — purpose, ownership, entry points, inputs/outputs, state, trust level, dependencies, tests, and runtime status — so components can be compared and change impact can be assessed.
 
-**Plain-language summary.** The system is a set of cooperating components: isolated browser surface packages, a mandatory SOC client core plus five selectable feature plugins, a Node host running product plugins over the vendored harness, a Python MCP server child process with Zimbra/subscription tools, a client bridge to an external Splunk MCP server, an authenticated control channel for mail operations, an admin CLI for service operations, and PostgreSQL persistence. Related pages: [REPOSITORY_MAP.md](REPOSITORY_MAP.md) (file classification), [ARCHITECTURE.md](../ARCHITECTURE.md) (how they connect), [TRACEABILITY_MATRIX.md](TRACEABILITY_MATRIX.md) (claim-level evidence).
+**Plain-language summary.** The system is a set of cooperating components: isolated browser surface packages, a mandatory SOC client core plus six selectable feature plugins, a Node host running product plugins over the pristine vendored harness, a Python MCP server child process with Zimbra/subscription tools, a client bridge to an external Splunk MCP server, an authenticated control channel for mail operations, an admin CLI for service operations, and PostgreSQL persistence. Related pages: [REPOSITORY_MAP.md](REPOSITORY_MAP.md) (file classification), [ARCHITECTURE.md](../ARCHITECTURE.md) (how they connect), [TRACEABILITY_MATRIX.md](TRACEABILITY_MATRIX.md) (claim-level evidence).
 
 **Prerequisites:** none.
 
@@ -21,11 +21,11 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 
 - **Mandatory core — `packages/soc-agent-client/`:** authentication overlay, `SocClientRuntime`/`socClient` service, action-policy schema, `/admin` root takeover, and safe admin-disabled fallback. It owns no optional feature UI and does not import the isolated or official sidebar/workspace implementations. Tests: `tests/core-contract.test.ts`.
 - **Isolated surfaces — `packages/soc-agent-sidebar/` and `packages/soc-agent-workspace/`:** the only enabled root sidebar owner and the workspace browser/conversation picker. They preserve standard host-facing slots, pinned styling snapshots, search/grouping/reordering and session lifecycle behavior. The workspace package owns the reversible `api.folders` guard. Tests live beside each package; visual baselines are recorded in each `snapshot-baseline.json`.
-- **Selectable features:** `packages/soc-agent-brand/` (sidebar/hero branding), `packages/soc-agent-admin/` (admin console), `packages/soc-agent-action-policy/` (end-user mode menu), `packages/soc-agent-attachments/` (MarkItDown provider, rail, command, settings), and `packages/soc-agent-email-draft/` (editable draft/forward tool views). Each depends on the core and fills only its own slots/commands/settings.
+- **Selectable features:** `packages/soc-agent-brand/` (sidebar/hero branding), `packages/soc-agent-admin/` (admin console), `packages/soc-agent-action-policy/` (end-user mode menu), `packages/soc-agent-attachments/` (MarkItDown provider, rail, command, settings), `packages/soc-agent-email-draft/` (editable draft/forward tool views), and `packages/soc-agent-auto-collapse/` (conversation auto-collapse). Each depends on the core and fills only its own slots/commands/settings.
 - **Inputs/outputs:** harness slots and runtime services; SOC RPC channel `/soc-agent-config`; HTTP auth routes; settings, credentials, LLM, connection, conversation, command, and tool-view APIs as needed by each package.
 - **Trust level:** untrusted client. All enforcement is server-side; UI packages are convenience surfaces.
-- **Build/output:** every package has a tracked `lib/client.js` closure-factory artifact; `setup.sh` fingerprints, builds, registers, resolves, and health-checks all eight packages.
-- **Runtime status:** core/sidebar/workspace mandatory; the five feature packages enabled by default and independently disable-able.
+- **Build/output:** the 36 SOC packages plus the `apps/soc-agent` product bundle are tracked in one setup matrix; 26 package faces emit browser artifacts. `setup.sh` fingerprints, builds, registers, resolves, and health-checks the matrix.
+- **Runtime status:** core/sidebar/workspace and the foundational replacements are mandatory; the six feature packages are enabled by default and independently disable-able.
 
 ## 2. Admin console feature (`dsh-soc-agent-admin`, browser `/admin`)
 
@@ -154,17 +154,17 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 
 ## 14. Vendored harness integration surface
 
-- **Paths:** `vendor/deepseek-harness/` (`@deepseek-ai/dsh-root` `0.1.1-rc.2`), `apps/soc-agent/cordis.patch.yml`, `patches/dsh-auto-collapse@0.1.4.patch`
+- **Paths:** pristine `vendor/deepseek-harness/` (`dsh-v0.1.5-rc.2`, commit `fb2c4b9e698e30edb738bca4cf0618587db7d203`), `vendor/deepseek-harness.upstream.json`, `apps/soc-agent/cordis.patch.yml`, root `packages/soc-agent-*`
 - **Purpose:** agent runtime: cordis plugin loader, tools registry with fail-closed approval, MCP client (stdio + streamable-http, reconnect backoff 500 ms doubling, `allowedToolNames` filter, `toolCallTimeoutMs`), web server/gateway, browser module loader, skills, presets, LLM providers.
-- **Entry points:** `pnpm dsh web --no-open` (port 3080); profile wiring under `~/.dsh/profiles/web`.
+- **Entry points:** `vendor/deepseek-harness/node_modules/.bin/dsh web --no-open` from the repository root (port 3080); profile wiring under `~/.dsh/profiles/web`.
 - **Trust level:** trusted host; its patch roster is itself a security control (disables shell/fs/subagent tool families for the model).
-- **Pinning:** vendored directory; outer repo consumed via workspace globs (`../../apps/*`, `../../packages/*`); `schemastery`/`cosmokit` forced to vendored forks via pnpm overrides. **Changed this round:** `packages/host/apiproxy` declares the structured `authentication-required`/`admin-authentication-required` RPC error codes upstream (with tests).
+- **Pinning:** the vendor directory is compared against the official release archive by `tooling/verify-upstream.mjs`; no SOC source, profile patch, or vendor-relative workspace link is allowed inside it. The root SOC workspace pins exact `0.1.5-rc.2` Harness dependencies and records the source inventory. **Changed this round:** the structured authentication error codes are consumed through the pristine rc.2 API contract.
 - **Tests:** harness-internal (upstream); locally `skills.test.js` pins the patch roster.
 - **Runtime status:** Active (vendored).
 
 ## 15. Setup doctor + updater
 
-- **Paths:** `setup.sh`, `update.sh`, `requirements.txt`
+- **Paths:** `setup.sh`, `update.sh`, root `package.json`, `pnpm-workspace.yaml`, `tooling/session-migration.mjs`
 - **Purpose:** bootstrap/repair/wire everything: prerequisites (node ≥22.19/24, pnpm, uv), a single parameter inventory (official Splunk MCP endpoint + token now **required**; REST-only Splunk fields removed), `.env` generation (chmod 600), `uv sync`, fingerprint-gated `pnpm install/build`, plugin add/prune, SOC bundle registration, verification. `update.sh` = clean-tree ff-only pull + `setup.sh --plugins`.
 - **Runtime status:** Operational tooling (operator-run; starts no services).
 

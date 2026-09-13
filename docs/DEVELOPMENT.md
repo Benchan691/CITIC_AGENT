@@ -7,7 +7,7 @@
 
 **What you will understand:** the layout and toolchain, the workspace/dependency model, canonical-vs-generated boundaries, build/run/lint commands, the patch workflow, safe change recipes (including the full MCP-tool contract), and how vendor changes stay reproducible.
 
-**Plain-language summary.** First-party code is small and deliberately shaped: five Node host plugins, one Python package, and eight independent SOC browser packages. The vendored harness is configured — never edited — through `cordis.patch.yml`; the only file-level vendor patch is a pnpm patch with a manifest. Most change risk is *synchronization* risk: the same tool inventory lives in four places, fenced by tests.
+**Plain-language summary.** First-party code is small and deliberately shaped: Node host plugins, one Python package, and an independent SOC workspace containing 37 packages (including the product bundle) and 26 browser-facing package faces. The pristine rc.2 Harness remains frozen under `vendor/deepseek-harness`; the SOC profile composes it through `apps/soc-agent/cordis.patch.yml` and SOC-owned replacement packages. Most change risk is *synchronization* risk: the same tool inventory lives in four places, fenced by tests.
 
 **Prerequisites:** [GETTING_STARTED.md](GETTING_STARTED.md); file map in [reference/REPOSITORY_MAP.md](reference/REPOSITORY_MAP.md).
 
@@ -29,33 +29,33 @@
 | Task | Command (from repo root unless noted) |
 |---|---|
 | Install everything / repair wiring | `./setup.sh` (interactive) or `./setup.sh --plugins` (non-interactive) |
-| Node tests (host) | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent test` |
-| SOC package tests | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft test` |
+| Node tests (host) | `pnpm --filter dsh-soc-agent test` |
+| SOC package tests | `pnpm --filter dsh-soc-agent test && pnpm --filter 'dsh-soc-agent-*' test` |
 | Python tests (48) | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
-| Rebuild SOC browser bundles | `./setup.sh --plugins` (or run `build` for each package listed in [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md)) |
-| Browser smoke and screenshots | `cd vendor/deepseek-harness && pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs` |
+| Rebuild SOC workspace bundles | `pnpm run build` (or `./setup.sh --plugins` for the complete install/build/profile flow) |
+| Browser smoke and screenshots | `pnpm exec vitest run --config apps/soc-agent/tests/vitest.browser.config.mjs` |
 | Rebuild harness (forced) | `./setup.sh --plugins --rebuild` |
-| Run the app | `cd vendor/deepseek-harness && pnpm dsh web --no-open` (port 3080) |
+| Run the app | `vendor/deepseek-harness/node_modules/.bin/dsh web --no-open` from the repository root (port 3080) |
 | Audit installation | `./setup.sh --check` |
 
 Lint/format: there is **no active formatter or hook** — `lefthook.yml` is entirely commented examples, and no lint config exists at the root. Match the surrounding style manually.
 
 ## 3. Dependency / workspace model
 
-- The vendored harness's `pnpm-workspace.yaml` **includes this repo** (`../../apps/*`, `../../packages/*`) — the app and all eight SOC browser packages are workspace members. The optional browser packages depend on `dsh-soc-agent-client` through `workspace:*`; the app also uses `workspace:*` for the SOC packages and one `link:` (`@deepseek-ai/dsh-mcp-client`).
-- Two Python dependency declarations exist **by design**: root `requirements.txt` lists *external pnpm plugins* for the harness profile (not Python!), while the server's `pyproject.toml`/`uv.lock` are the real Python dependencies. `setup.sh` count-validates the two specs against its hardcoded `PLUGIN_NAMES` — adding a plugin means editing **both** files.
+- The root `pnpm-workspace.yaml` owns the SOC workspace; the pristine Harness has no workspace membership or SOC source references. Runtime SOC-to-SOC dependencies use exact published-style versions in manifests, while the root lockfile resolves the local development workspace. Profile installation uses direct local package paths through the official `dsh plugin --profile web add` mechanism.
+- The root `package.json` pins `pnpm@11.7.0` and Node `^22.19.0 || >=24.0.0`. The Harness release is pinned separately by `vendor/deepseek-harness.upstream.json` and verified against a fresh rc.2 archive.
 - Python extras: `markitdown-llm` (optional OCR), `test` (pytest).
-- Generated boundary: every `packages/soc-agent-*/lib/` browser artifact is **tracked** — always rebuild the owning package after a browser change and commit its bundle together with the source (setup also auto-repairs drift).
+- Generated boundary: every `packages/soc-agent-*/lib/` artifact is **tracked** — always rebuild the owning package after a source change and commit declarations and bundles together with the source (setup also auto-repairs drift).
 
 ## 4. Patch workflow
 
 1. **Product patch** (`apps/soc-agent/cordis.patch.yml`): toggle/configure upstream plugin rows or insert new product plugins. Identified by plugin id; consumed via `dsh.bundle.patch`. Changes need a host restart and are pinned by `skills.test.js` (roster assertions).
-2. **Vendor file patch** (`patches/dsh-auto-collapse@0.1.4.patch`): a pnpm patch against the upstream plugin's *built* bundle. Applied by setup into `~/.dsh/profiles/web/patches/` (byte-compared against the repo copy; mismatch → refuse). The `requirements.txt` pin (`#cd21c04…`) exists **because** the patch targets 0.1.4 — bump the pin and the patch together.
-3. **Preset** (`vendor/.../agent-presets/citic-soc/agent.cordis.yml`): vendor-local configuration asserted by `skills.test.js`. Editing it is a vendor-tree change — see §5.
+2. **SOC replacement package** (`packages/soc-agent-*/`): an independently built fork of a security-sensitive Harness implementation. Each fork carries `UPSTREAM_BASELINE.json` with its official source path, rc.2 commit, and source hash; do not replace it with a vendor-relative import.
+3. **Preset** (`apps/soc-agent/agent-presets/citic-soc/agent.cordis.yml`): first-party SOC configuration outside the vendor snapshot. It is loaded through the product patch and may be changed without modifying the official release.
 
 ## 5. Keeping vendor changes reproducible
 
-Do not edit `vendor/deepseek-harness` sources. Acceptable vendor-tree artifacts, all reproducible from first-party files: the `citic-soc` preset (documented, tested), pnpm `overrides` (already in the vendor root for schemastery/cosmokit), and the profile patch copy written by setup. Anything else should become (a) a `cordis.patch.yml` row, (b) a `patches/*.patch` file, or (c) an upstream contribution.
+Do not edit `vendor/deepseek-harness` at all. `tooling/verify-upstream.mjs --fresh` compares the tracked snapshot with the official rc.2 release archive and rejects SOC files, generated outputs, and source drift. Put changes in the root SOC workspace, the product composition, or a first-party asset/configuration directory. Do not add vendor-relative links or imports; a future Harness refresh replaces the frozen snapshot independently.
 
 ## 6. Adding or changing a tool — synchronized-change recipe
 
@@ -78,8 +78,8 @@ For **policy/UI changes**: `policy.js` + `host.js` gate behavior + `AdminConsole
 ## 7. Python and TypeScript notes
 
 - **Python:** the request pipeline is `execute()` (correlation id, budget, identity) → service call → `success()/failure()` envelope. **Schema changes** go through a new `migrations/NNN_*.sql` file (advisory-locked, ledger-tracked) — never ad-hoc DDL in Node or Python service code. Add `ServiceError` codes to the taxonomy rather than inventing shapes; never let third-party exception text reach users. Blocking work goes through `run_blocking` (bounded). Tests use in-memory doubles and fake transports — no live services.
-- **TypeScript/React:** optional features use the core `SocClientRuntime` from `dsh-soc-agent-client/client` for `/soc-agent-config`; settings pages use the Harness settings API with `expectedRevision`; CSS modules use `.module.css`; each browser bundle is a closure factory — do not add bare `require()`s outside the setup allowlist (react, react-dom, cordis, client-ui primitives/runtime) or setup will rebuild/reject.
+- **TypeScript/React:** optional features use the core `SocClientRuntime` from `dsh-soc-agent-client/client` for `/soc-agent-config`; settings pages use the Harness settings API with `expectedRevision`; CSS modules use `.module.css`; each browser bundle is a closure factory — do not add bare `require()`s outside the setup allowlist (react, react-dom, cordis, client-ui primitives/runtime, client store, or the SOC gateway client entry) or setup will rebuild/reject.
 
 ## Evidence in the repository
 
-- `package.json` scripts (both packages), `pyproject.toml` + pytest config, `setup.sh` stage comments (including the schemastery `lib/` prerequisite note and SOC-drift repair), `requirements.txt` header, `skills.test.js` (patch/preset pins).
+- Root `package.json`, each SOC package manifest, `pyproject.toml` + pytest config, `setup.sh` stage comments, `vendor/deepseek-harness.upstream.json`, and `skills.test.js` (composition/preset pins).

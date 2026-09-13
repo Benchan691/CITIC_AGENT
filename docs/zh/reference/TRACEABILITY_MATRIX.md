@@ -37,11 +37,11 @@
 | 26 | 过滤器写入按指纹门控；redirect/discard 单独门控 | `zimbra/filters/service.py` | `test_zimbra_filters.py` | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md) §2 | 已确认 | 活跃 |
 | 27 | 订阅客户端: 表单登录、401 恰一次重认证、重定向校验、错误体不外泄 | `email/service.py` | `test_email_service.py` | [COMPONENT_CATALOG](COMPONENT_CATALOG.md) §7 | 已确认 | 条件性 |
 | 28 | 数据库 Schema 由版本化 SQL 迁移拥有（advisory 锁；台账表；URI 走 stdin） | `schema.py`、`migrations/*.sql`、`ownership.js ensureSchema`、`admin_cli.py migrate` | `test_schema.py`（3） | [DATA_STORE_CATALOG](DATA_STORE_CATALOG.md) §1 | 已确认 | 活跃 |
-| 29 | `lib/` 是被跟踪生成产物；本轮已重建 | `tsdown.config.ts`；`setup.sh` 漂移检查 | 无自动化（setup 时检查） | [REPOSITORY_MAP](REPOSITORY_MAP.md) §4 | 已确认 | 生成 |
+| 29 | 36 个 SOC 包加产品 bundle 由一个矩阵生成；26 个包面产生浏览器产物 | 各包 `tsdown.config.ts`；`setup.sh` 漂移检查 | `browser-smoke.test.mjs` 加 setup 检查 | [REPOSITORY_MAP](REPOSITORY_MAP.md) §4 | 已确认 | 生成 |
 | 30 | setup 要求官方 MCP 连接；参数清单单一来源；REST Splunk 字段移除 | `setup.sh`（+ README 论断）、`.env.example` | `setup.test.js`（5） | [GETTING_STARTED](../GETTING_STARTED.md)、[DEPLOYMENT_AND_OPERATIONS](../DEPLOYMENT_AND_OPERATIONS.md) | 已确认 | 运维工具 |
 | 31 | 仓库根无 CI；测试手动运行 | 仓库树 | — | [TESTING](../TESTING.md) | 已确认 | — |
 | 32 | `AGENTS.md` 列 3 个无 `SKILL.md` 的技能 | `AGENTS.md` vs `skills/` | — | [DOCUMENTATION_AUDIT](../DOCUMENTATION_AUDIT.md) | 已确认（漂移） | — |
 | 33 | 检测/SPL 技能引用**本轮已移除**的工具 | 技能文件 vs 删除 | — | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md) §7、[DOCUMENTATION_AUDIT](../DOCUMENTATION_AUDIT.md) | 已确认（漂移，加重） | — |
 | 34 | Send 确认是否有超出认证 + `ZIMBRA_ALLOW_SEND` 的服务端强制 | `auth_cli.py send-email`、`ownership.js` | — | [USER_INTERFACE_AND_ACTION_MODES](../USER_INTERFACE_AND_ACTION_MODES.md) | 推断: 确认是界面级；服务端强制会话认证 + 门 + `sent:true` 校验 | 活跃 |
-| 35 | vendor 以含外层仓库的工作区钉扎；apiproxy 错误码钉入上游 | `pnpm-workspace.yaml`；`rpc.schema.ts` | vendored 测试；`auth.test.js` | [REPOSITORY_MAP](REPOSITORY_MAP.md) §7 | 已确认 | vendored |
+| 35 | vendor 是纯净、不可变的 rc.2 快照；根 SOC 包与预设独立存在，使用上游 API 错误码而不编辑 vendor | `vendor/deepseek-harness.upstream.json`；`tooling/verify-upstream.mjs`；根 workspace | `verify-upstream.mjs --fresh`；装配/构建检查 | [REPOSITORY_MAP](REPOSITORY_MAP.md) §7 | 已确认 | vendored |
 | 36 | `hi.txt` 已删除；`soc-agent-scheduler` 问题仍开放 | 本轮删除；`git ls-files` | — | [DOCUMENTATION_AUDIT](../DOCUMENTATION_AUDIT.md) §8 | 已确认 | 已移除 |

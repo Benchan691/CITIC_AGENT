@@ -20,11 +20,14 @@ while allowing optional SOC features to be disabled one at a time.
 | `dsh-soc-agent-action-policy` | `soc-agent-action-policy-ui` | enabled | End-user Full access/SOC mode selector |
 | `dsh-soc-agent-attachments` | `soc-agent-attachments-ui` | enabled | MarkItDown provider, document rail, file command, settings card, and attachment schema |
 | `dsh-soc-agent-email-draft` | `soc-agent-email-draft-ui` | enabled | Editable Zimbra send/forward/signature tool views |
+| `dsh-soc-agent-auto-collapse` | `soc-agent-auto-collapse` | enabled | Contract-based compact transcript behavior and draft-card preservation |
 
-The five feature rows are optional. The core, isolated sidebar, and isolated
-workspace are mandatory. All eight browser artifacts are installed and built
-even when an optional row is disabled, so enabling a feature is a profile
-configuration change rather than a build or dependency change.
+The six feature rows are optional. The core, isolated sidebar, and isolated
+workspace are mandatory. The repository contains 37 SOC packages including
+the product bundle, with 26 browser-facing package faces. Every package is
+installed and built even when an optional row is disabled, so enabling a
+feature is a profile configuration change rather than a build or dependency
+change.
 
 ## Shared runtime contract
 
@@ -70,30 +73,33 @@ packages.
 
 ## Build, setup, and verification
 
-From the vendored Harness workspace, build any package with:
+From the repository root, build an individual package with:
 
 ```bash
-pnpm --filter dsh-soc-agent-client run build
-pnpm --filter dsh-soc-agent-sidebar run build
-pnpm --filter dsh-soc-agent-workspace run build
-pnpm --filter dsh-soc-agent-brand run build
-pnpm --filter dsh-soc-agent-admin run build
-pnpm --filter dsh-soc-agent-action-policy run build
-pnpm --filter dsh-soc-agent-attachments run build
-pnpm --filter dsh-soc-agent-email-draft run build
+pnpm --filter dsh-soc-agent-client run bundle
+pnpm --filter dsh-soc-agent-sidebar run bundle
+pnpm --filter dsh-soc-agent-workspace run bundle
+pnpm --filter dsh-soc-agent-brand run bundle
+pnpm --filter dsh-soc-agent-admin run bundle
+pnpm --filter dsh-soc-agent-action-policy run bundle
+pnpm --filter dsh-soc-agent-attachments run bundle
+pnpm --filter dsh-soc-agent-email-draft run bundle
+pnpm --filter dsh-soc-agent-auto-collapse run bundle
 ```
 
-`./setup.sh --plugins` uses one authoritative matrix for these eight browser
-packages. It installs dependencies, builds the Harness, repairs bundle
-artifacts when required, fingerprints source inputs, registers every package
-in the web profile, resolves each package, and checks browser-safe external
-requires. `./setup.sh --check` audits the same artifact and profile set
-without changing it.
+`pnpm run build` emits declarations and bundles the complete independent SOC
+workspace. `./setup.sh --plugins` uses one authoritative matrix for all 37
+packages and their 26 browser faces. It installs dependencies, builds the
+pristine Harness and the SOC workspace, repairs bundle artifacts when
+required, fingerprints source inputs, registers every package in the web
+profile, resolves each package, and checks browser-safe external requires.
+`./setup.sh --check` audits the same artifact and profile set without changing
+it.
 
-The browser smoke lane is run from the Harness workspace:
+The browser smoke lane is run from the repository root:
 
 ```bash
-pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs
+pnpm exec vitest run --config apps/soc-agent/tests/vitest.browser.config.mjs
 ```
 
 It loads the real bundles in fixture mode, intercepts only authentication,

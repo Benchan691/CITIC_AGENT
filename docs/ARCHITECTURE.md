@@ -5,9 +5,9 @@
 
 **Who this page is for:** developers and architects who need the real shape of the system — processes, boundaries, ownership, and extension points.
 
-**What you will understand:** the system at four levels (context → containers → components → code map), where every process and trust boundary sits, how the vendored harness is patched, and what happens to data as it crosses each boundary.
+**What you will understand:** the system at four levels (context → containers → components → code map), where every process and trust boundary sits, how the pristine Harness and independent SOC workspace are composed, and what happens to data as it crosses each boundary.
 
-**Plain-language summary.** One Node process serves the browser UI and hosts the SOC product plugins on the vendored harness. The browser side is split into a mandatory core, isolated sidebar/workspace packages, and five independently selectable feature packages; official sidebar/workspace plugins are disabled while their source remains frozen. The host spawns the Python MCP server as a stdio child (`soc_agent`), optionally connects out to an external official Splunk MCP server (`splunk_mcp`), talks SOAP to Zimbra through that Python child, HTTPS to a subscription service, and persists identity/ownership/config in PostgreSQL. Every tool call the model makes is filtered twice — by the harness registry and by the SOC host policy — and mutations need human approval.
+**Plain-language summary.** One Node process serves the browser UI and hosts the SOC product plugins on the pristine rc.2 Harness. The browser side is split into a mandatory core, isolated sidebar/workspace packages, and six independently selectable feature packages; official sidebar/workspace plugins are disabled while their source remains frozen. The host spawns the Python MCP server as a stdio child (`soc_agent`), optionally connects out to an external official Splunk MCP server (`splunk_mcp`), talks SOAP to Zimbra through that Python child, HTTPS to a subscription service, and persists identity/ownership/config in PostgreSQL. Every tool call the model makes is filtered twice — by the harness registry and by the SOC host policy — and mutations need human approval.
 
 **Prerequisites:** [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md); vocabulary in [reference/GLOSSARY.md](reference/GLOSSARY.md).
 
@@ -42,7 +42,7 @@ Source: [diagrams/runtime-containers.mmd](diagrams/runtime-containers.mmd).
 | **`soc_agent` Python server** | FastMCP stdio server, 28 tools | `dsh-mcp-client` per `cordis.patch.yml` (`uv run unified-mcp-server`, `failOnStartupError: true`) | Zimbra SOAP, subscription REST, PostgreSQL |
 | **Control server** (`unified_mcp_server.control_server`) | Persistent JSON-line channel for authenticated ops | `ownership.js startControlChannel` (or one-shot `auth_cli` when `SOC_CONTROL_CHANNEL=off`) | PostgreSQL, Zimbra (send) |
 | **Admin CLI child** (`unified_mcp_server.admin_cli`) | One-shot per admin operation | `host.js runAdmin` → `python-command.js` | Subscription service (test), PostgreSQL (migrate) |
-| **Browser** | Harness web runtime + eight SOC browser bundles (`lib/client.js` closure factories loaded via `window.__ModuleLoader__`): core, isolated sidebar/workspace, and five optional feature packages | — | Node host only |
+| **Browser** | Harness web runtime + 26 SOC browser faces (`lib/client.js` closure factories loaded via `window.__ModuleLoader__`): core, isolated sidebar/workspace, and six optional feature packages | — | Node host only |
 
 Network boundaries: browser↔host (HTTP/WS, cookies), host↔Splunk MCP (outbound HTTPS), Python↔Zimbra/subscription (outbound), everything else is local IPC (stdio pipes) or loopback DB. Process boundary notes: the Python server never receives `SOC_ADMIN_*` env vars (stripped in `env_loader.py`, `childEnvironment()`, and `runAdmin`); the control channel is a private parent-child pipe whose authorization is the `session_id` in each payload.
 
@@ -80,7 +80,7 @@ Dependency highlights:
 
 - **`tool-inventory.js` is the vocabulary**: a single runtime-independent module exports every tool name; `policy.js` derives its sets from it and the bridge imports its raw names. The Python registration count is pinned to the same inventory by tests (`policy.test.js`, `skills.test.js`, `splunk-bridge.test.js`, `test_server_tools.py`) — drift now fails imports or tests, not just review.
 - **ownership.js is the biggest first-party module** (1,875 lines) because it is both auth service and the scoped API proxy that makes the harness's own APIs per-user safe.
-- **The harness is patched, not forked**: `cordis.patch.yml` toggles upstream plugin rows and inserts the SOC plugins; the only file-level vendor patch is `patches/dsh-auto-collapse@0.1.4.patch` (localization + `data-dshcf-preserve` exclusion used by the draft card).
+- **The Harness is pristine and the SOC workspace is independent**: `tooling/verify-upstream.mjs` compares `vendor/deepseek-harness` with the immutable rc.2 release, while `cordis.patch.yml` disables mapped official rows and inserts SOC-owned replacements. The six optional client features are separate packages, including the contract-based `dsh-soc-agent-auto-collapse`; there is no vendor file patch.
 
 ## 4. Code map
 
@@ -92,7 +92,7 @@ Dependency highlights:
 | Schema | `unified_mcp_server/schema.py`, `migrations/*.sql` | — | `test_schema.py` (3) |
 | Browser packages | `packages/soc-agent-*/src/**` | `packages/soc-agent-*/lib/*` (**tracked**) | package-local tests plus `apps/soc-agent/tests/browser-smoke.test.mjs` |
 | Skills | `skills/*/SKILL.md` | — | `skills.test.js` content invariants |
-| Vendor | `vendor/deepseek-harness/**` (pinned `0.1.1-rc.2`; workspace includes this repo) | harness build outputs (untracked) | upstream |
+| Vendor | `vendor/deepseek-harness/**` (pinned `dsh-v0.1.5-rc.2`; isolated and immutable) | harness build outputs (untracked) | `tooling/verify-upstream.mjs` |
 
 Per-file index: [reference/SOURCE_INDEX.md](reference/SOURCE_INDEX.md).
 
@@ -117,8 +117,8 @@ Analyst input becomes a harness agent turn; the model may call an allowlisted to
 
 - **Add a tool:** Python `register_tools` module + raw allowlist entry (`cordis.patch.yml`) + qualified-name policy entry (`policy.js`) + client labels if needed + tests on both tiers. Recipe: [DEVELOPMENT.md](DEVELOPMENT.md).
 - **Add a skill:** a `skills/<name>/SKILL.md` — picked up by `skill-filesystem` on restart; no registration needed.
-- **Change harness behavior:** edit `cordis.patch.yml` rows (enable/disable/config) — never edit vendor source; keep vendor changes reproducible via `patches/` + the profile patch copy (`setup.sh`).
-- **Presets:** `vendor/.../agent-presets/citic-soc/agent.cordis.yml` (persona, instruction candidates, compaction thresholds) — vendor-local configuration asserted by `skills.test.js`.
+- **Change Harness behavior:** edit `cordis.patch.yml` rows (enable/disable/config) or the matching SOC replacement package — never edit vendor source. Verify the release snapshot with `pnpm run verify:upstream`.
+- **Presets:** `apps/soc-agent/agent-presets/citic-soc/agent.cordis.yml` (persona, instruction candidates, compaction thresholds) — first-party configuration outside vendor, asserted by `skills.test.js`.
 
 ## Evidence in the repository
 

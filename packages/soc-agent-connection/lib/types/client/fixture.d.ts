@@ -34,6 +34,8 @@ export type FixtureAssistantStreamFrame = {
 export interface FixtureOptions {
     /** Start with no real Workspace or Session. */
     empty?: boolean;
+    /** Limit resident Remote Event coverage to one interactive surface. */
+    interaction?: 'approval' | 'question' | 'both';
     /** Reject every prompt before appending its user event. */
     rejectPrompt?: boolean;
     /** Publish the Session but fail its Workspace account write. */

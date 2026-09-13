@@ -21,8 +21,8 @@
 | `--check` exits 1 with N items | Anything from env keys to profile drift | The check output names each failing area | Fix items top-down; rerun | exit 0 |
 | Update refuses: "working tree is not clean" | Local modifications (untracked files count) | `git status --porcelain --untracked-files=all` | Commit or remove changes yourself — update never stashes; then rerun `./update.sh` | Update completes |
 | Bootstrap re-prompts install path / refuses target | Target is not a CITIC_AGENT checkout (missing `setup.sh` or `vendor/deepseek-harness`) | Inspect the target dir | Choose a valid path or fix the checkout | Bootstrap continues |
-| Stale/unknown plugins appear in the profile | Manual `pnpm dsh plugin add`, or `requirements.txt` changed elsewhere | Compare profile manifest to the managed set in `setup.sh` | `./setup.sh --plugins` (prunes to managed set) | Check passes; manifest matches |
-| Patch copy mismatch warning | `patches/dsh-auto-collapse@0.1.4.patch` differs from the profile copy | Setup prints the byte-compare failure | Rerun `./setup.sh --plugins` to re-copy | No mismatch warning |
+| Stale/unknown plugins appear in the profile | Manual `pnpm dsh plugin add` or an interrupted profile migration | Compare profile manifest to the managed set in `setup.sh` | `./setup.sh --plugins` (prunes to the managed SOC set) | Check passes; manifest matches |
+| Obsolete third-party patch blocks profile repair | A previous profile still contains `dsh-auto-collapse@0.1.4` in `patchedDependencies` | Inspect the profile workspace manifest | Rerun `./setup.sh --plugins`; migration cleanup removes the stale patch before pnpm removal | Check passes; no third-party patch remains |
 
 **Escalation evidence:** the full `./setup.sh --check` output; `git rev-parse HEAD` + `git status --porcelain`.
 
@@ -103,7 +103,7 @@
 | Symptom | Likely causes | Safe diagnostic | Corrective action | Verify |
 |---|---|---|---|---|
 | UI changes don't appear | One of the tracked SOC browser bundles was not rebuilt | Check the owning `packages/soc-agent-*/lib/client.js` artifact vs its source | `./setup.sh --plugins` (or build the owning package); reload | Change visible |
-| Setup reports SOC browser-bundle drift | A bundle contains a `require()` outside the allowlist | Read the setup output for the package name | Rerun setup (auto-rebuilds the eight-package matrix) | Drift check passes |
+| Setup reports SOC browser-bundle drift | A bundle contains a `require()` outside the allowlist | Read the setup output for the package name | Rerun setup (auto-rebuilds the 36-package / 26-face matrix) | Drift check passes |
 | `/admin` returns 503 | Harness frontend index not found (build artifact missing) | `setup.sh --check` build-artifact section | `./setup.sh --plugins --rebuild` | `/admin` serves |
 | App loads but everything fails | Python server dead (spawn failure is fatal — so more likely env/store issues) | Startup logs; `uv run unified-mcp-server` smoke check in `apps/soc-agent/server` | Fix env/uv; restart | Tools respond |
 

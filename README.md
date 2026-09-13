@@ -101,7 +101,6 @@ sending email always requires the draft-view Send confirmation.
 To start the web app:
 
 ```bash
-cd vendor/deepseek-harness
 pnpm dsh web --no-open
 ```
 

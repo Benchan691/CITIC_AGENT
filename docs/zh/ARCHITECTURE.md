@@ -5,9 +5,9 @@
 
 **本页读者:** 需要了解系统真实形态 — 进程、边界、归属、扩展点 — 的开发者与架构师。
 
-**读完后你将了解:** 系统的四个层级（上下文 → 容器 → 组件 → 代码地图），每条进程与信任边界的位置，vendored harness 如何被打补丁，以及数据跨越每条边界时发生了什么。
+**读完后你将了解:** 系统的四个层级（上下文 → 容器 → 组件 → 代码地图），每条进程与信任边界的位置，纯净 Harness 与独立 SOC workspace 如何装配，以及数据跨越每条边界时发生了什么。
 
-**通俗概述。** 一个 Node 进程在内置 harness 上向浏览器提供 UI 并承载 SOC 产品插件。浏览器侧拆成强制核心、隔离侧栏/工作区，以及五个可独立选择的功能插件；官方侧栏/工作区插件被禁用，但其源码保持冻结。它把 Python MCP 服务器作为 stdio 子进程拉起（`soc_agent`），可选地作为客户端连到外部官方 Splunk MCP 服务器（`splunk_mcp`），经该 Python 子进程以 SOAP 访问 Zimbra、以 HTTPS 访问订阅服务，并把身份/归属/配置持久化到 PostgreSQL。模型的每一次工具调用都要过两道过滤 — harness 注册表与 SOC 宿主策略 — 变更类操作还需人工审批。
+**通俗概述。** 一个 Node 进程在纯净 rc.2 Harness 上向浏览器提供 UI 并承载 SOC 产品插件。浏览器侧拆成强制核心、隔离侧栏/工作区，以及六个可独立选择的功能插件；官方侧栏/工作区插件被禁用，但其源码保持冻结。它把 Python MCP 服务器作为 stdio 子进程拉起（`soc_agent`），可选地作为客户端连到外部官方 Splunk MCP 服务器（`splunk_mcp`），经该 Python 子进程以 SOAP 访问 Zimbra、以 HTTPS 访问订阅服务，并把身份/归属/配置持久化到 PostgreSQL。模型的每一次工具调用都要过两道过滤 — harness 注册表与 SOC 宿主策略 — 变更类操作还需人工审批。
 
 **前置要求:** [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md)；术语见 [reference/GLOSSARY.md](reference/GLOSSARY.md)。
 
@@ -48,7 +48,7 @@ flowchart LR
 | **控制服务器**（`unified_mcp_server.control_server`） | 认证操作的常驻 JSON 行通道 | `ownership.js startControlChannel`（`SOC_CONTROL_CHANNEL=off` 时改为一次性 `auth_cli`） | PostgreSQL、Zimbra（发送） |
 | **管理 CLI 子进程**（`unified_mcp_server.admin_cli`） | 每个管理操作一次性运行 | `host.js runAdmin` → `python-command.js` | 订阅服务（测试）、PostgreSQL（migrate） |
 | **schema 迁移子进程**（`unified_mcp_server.schema migrate`） | 应用 SQL 迁移（URI 经 stdin 传入） | `ownership.js ensureSchema` / 管理 `migrate` RPC | PostgreSQL |
-| **浏览器** | harness web 运行时 + 八个 SOC 浏览器 bundle（经 `window.__ModuleLoader__` 加载的闭包工厂：核心、隔离侧栏/工作区、五个可选功能包） | — | 仅 Node 宿主 |
+| **浏览器** | harness web 运行时 + 26 个 SOC 浏览器 package face（经 `window.__ModuleLoader__` 加载的闭包工厂：核心、隔离侧栏/工作区、六个可选功能包） | — | 仅 Node 宿主 |
 
 网络边界：浏览器↔宿主（HTTP/WS、Cookie），宿主↔Splunk MCP（出站 HTTPS），Python↔Zimbra/订阅（出站），其余都是本机 IPC（stdio 管道）或回环数据库。进程边界要点：Python 子进程永远收不到 `SOC_ADMIN_*` 环境变量（`python-command.js`、`env_loader.py` 三处剔除）；控制通道是私有父子管道，其授权依据是每个载荷中的 `session_id`。
 
@@ -84,7 +84,7 @@ flowchart TB
 
 - **`tool-inventory.js` 是词汇表**：一个与运行时无关的模块导出全部工具名；`policy.js` 从它派生策略集合，桥接从它导入原始名。Python 的 28 个注册工具通过测试与之对齐（`policy.test.js`、`skills.test.js`、`splunk-bridge.test.js`、`test_server_tools.py`）— 漂移现在会导致导入失败或测试失败，而不是仅靠评审发现。
 - **`ownership.js` 是最大的第一方模块**（本轮精简后仍是）：既是认证服务，也是把 harness 自身 API 变得按用户安全的受限 API 代理。数据库 DDL 已全部移入 Python 迁移。
-- **harness 是被配置的，不是被分叉的**：`cordis.patch.yml` 切换上游插件行并插入 SOC 插件；唯一的文件级 vendor 补丁是 `patches/dsh-auto-collapse@0.1.4.patch`（本地化 + `data-dshcf-preserve` 豁免，用于草稿卡片）。
+- **Harness 是纯净的，SOC workspace 是独立的**：`tooling/verify-upstream.mjs` 将 `vendor/deepseek-harness` 与不可变 rc.2 release 比较，`cordis.patch.yml` 禁用映射的官方行并插入 SOC 自有替代。六个可选客户端 feature 是独立包，其中包括基于 contract 的 `dsh-soc-agent-auto-collapse`；没有 vendor 文件补丁。
 
 ## 4. 代码地图
 
@@ -96,7 +96,7 @@ flowchart TB
 | 已移除 | Python Splunk 栈（`splunk/**`、`splunk_service.py`、`detection.py`）及其 12 个测试文件 | — | — |
 | 浏览器包 | `packages/soc-agent-*/src/**` | `packages/soc-agent-*/lib/*`（**被跟踪**） | 各包测试 + 浏览器 smoke/screenshot |
 | 技能 | `skills/*/SKILL.md` | — | `skills.test.js` 内容断言 |
-| Vendor | `vendor/deepseek-harness/**`（`0.1.1-rc.2`；外层仓库是其工作区成员） | harness 构建产物（未跟踪） | 上游 |
+| Vendor | `vendor/deepseek-harness/**`（固定 `dsh-v0.1.5-rc.2`；隔离且不可变） | harness 构建产物（未跟踪） | `tooling/verify-upstream.mjs` |
 
 逐文件索引: [reference/SOURCE_INDEX.md](reference/SOURCE_INDEX.md)。
 
@@ -121,8 +121,8 @@ flowchart TB
 
 - **加工具：** Python `register_tools` 模块 + `cordis.patch.yml` 原始允许列表 + `tool-inventory.js` 清单 + 客户端标签（如需）+ 双端测试。清单: [DEVELOPMENT.md](DEVELOPMENT.md)。
 - **加技能：** 一个 `skills/<name>/SKILL.md` — `skill-filesystem` 重启后自动发现，无需注册。
-- **改 harness 行为：** 编辑 `cordis.patch.yml` 行（启用/禁用/配置）— 绝不改 vendor 源码；vendor 变更须经 `patches/` + profile 补丁副本保持可复现（`setup.sh`）。
-- **预设：** `vendor/.../agent-presets/citic-soc/agent.cordis.yml`（人格、指令候选、压缩阈值）— vendor 内的本地配置，被 `skills.test.js` 断言。
+- **改 Harness 行为：** 编辑 `cordis.patch.yml` 行（启用/禁用/配置）或对应的 SOC 替代包 — 绝不改 vendor 源码。用 `pnpm run verify:upstream` 验证 release 快照。
+- **预设：** `apps/soc-agent/agent-presets/citic-soc/agent.cordis.yml`（人格、指令候选、压缩阈值）— vendor 外的第一方配置，被 `skills.test.js` 断言。
 
 ## 仓库中的证据
 

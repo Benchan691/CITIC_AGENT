@@ -19,10 +19,12 @@ SOC 浏览器界面现在拆分为相互独立的第一方插件。官方 Harnes
 | `dsh-soc-agent-action-policy` | `soc-agent-action-policy-ui` | 启用 | 用户 Full access/SOC mode 选择器 |
 | `dsh-soc-agent-attachments` | `soc-agent-attachments-ui` | 启用 | MarkItDown provider、文档 rail、文件命令、设置卡片及 attachment schema |
 | `dsh-soc-agent-email-draft` | `soc-agent-email-draft-ui` | 启用 | 可编辑的 Zimbra 发送/转发/签名 tool view |
+| `dsh-soc-agent-auto-collapse` | `soc-agent-auto-collapse` | 启用 | 基于 contract 的紧凑会话行为与草稿卡保护 |
 
-五个 feature 行是可选的；core、隔离 sidebar 和隔离 workspace 是必需的。
-即使可选行被禁用，八个浏览器产物仍会安装和构建，因此重新启用只需要
-修改 profile 配置。
+六个 feature 行是可选的；core、隔离 sidebar 和隔离 workspace 是必需的。
+仓库共有 37 个 SOC 包（包含 product bundle），其中有 26 个浏览器端
+package face。即使可选行被禁用，所有包仍会安装和构建，因此重新启用只
+需要修改 profile 配置。
 
 ## 共享 runtime contract
 
@@ -60,27 +62,30 @@ Action-approval schema 仍在必需 core 中，确保关闭用户选择器后宿
 
 ## 构建、setup 与验证
 
-在 vendored Harness workspace 中，八个包分别使用：
+在仓库根目录中，单独构建包使用：
 
 ```bash
-pnpm --filter dsh-soc-agent-client run build
-pnpm --filter dsh-soc-agent-sidebar run build
-pnpm --filter dsh-soc-agent-workspace run build
-pnpm --filter dsh-soc-agent-brand run build
-pnpm --filter dsh-soc-agent-admin run build
-pnpm --filter dsh-soc-agent-action-policy run build
-pnpm --filter dsh-soc-agent-attachments run build
-pnpm --filter dsh-soc-agent-email-draft run build
+pnpm --filter dsh-soc-agent-client run bundle
+pnpm --filter dsh-soc-agent-sidebar run bundle
+pnpm --filter dsh-soc-agent-workspace run bundle
+pnpm --filter dsh-soc-agent-brand run bundle
+pnpm --filter dsh-soc-agent-admin run bundle
+pnpm --filter dsh-soc-agent-action-policy run bundle
+pnpm --filter dsh-soc-agent-attachments run bundle
+pnpm --filter dsh-soc-agent-email-draft run bundle
+pnpm --filter dsh-soc-agent-auto-collapse run bundle
 ```
 
-`./setup.sh --plugins` 使用唯一的八包矩阵，负责依赖安装、Harness 构建、
-产物修复、source fingerprint、web profile 注册、解析检查和浏览器可用的
-external require 检查。`./setup.sh --check` 只读审计同一组产物和 profile。
+`pnpm run build` 会先生成声明，再构建整个独立 SOC workspace。
+`./setup.sh --plugins` 使用唯一的 37 包 / 26 个浏览器 face 矩阵，负责依赖
+安装、纯净 Harness 构建、SOC workspace 构建、产物修复、source fingerprint、
+web profile 注册、解析检查和浏览器可用的 external require 检查。
+`./setup.sh --check` 只读审计同一组产物和 profile。
 
-浏览器 smoke 从 Harness workspace 运行：
+浏览器 smoke 从仓库根目录运行：
 
 ```bash
-pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs
+pnpm exec vitest run --config apps/soc-agent/tests/vitest.browser.config.mjs
 ```
 
 它在 fixture 模式加载真实 bundle，仅拦截认证，检查隔离 sidebar/workspace

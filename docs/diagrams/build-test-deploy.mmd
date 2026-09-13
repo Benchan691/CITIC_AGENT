@@ -2,12 +2,12 @@
 flowchart LR
     src["Canonical sources<br/>apps/soc-agent · packages/soc-agent-* · skills · patch manifests"]
     tests["Test suites<br/>node --test · package tests · pytest · browser smoke"]
-    build1["Eight tsdown builds<br/>→ tracked lib/ (committed)"]
+    build1["Root pnpm build<br/>→ 26 browser faces + host outputs<br/>(tracked lib/, committed)"]
     build2["pnpm harness build<br/>(fingerprint-gated; --rebuild forces)"]
     fp[".data/harness-{install,build}.sha256 fingerprints"]
-    setup["setup.sh --plugins<br/>profile wiring: plugin add/prune · patch copy · resolution check"]
-    profile[("~/.dsh/profiles/web<br/>manifest + patches")]
-    deploy["pnpm dsh web --no-open<br/>Node host :3080"]
+    setup["setup.sh --plugins<br/>profile wiring: direct local package add/prune · resolution check"]
+    profile[("~/.dsh/profiles/web<br/>manifest + local SOC dependencies")]
+    deploy["vendor/deepseek-harness/node_modules/.bin/dsh web --no-open<br/>Node host :3080"]
     update["update.sh: clean tree → git pull --ff-only → setup.sh --plugins → manual restart"]
 
     src --> tests --> deploy

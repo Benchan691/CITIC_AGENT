@@ -21,8 +21,8 @@
 | Splunk 参数校验失败 | `SPLUNK_MCP_ENDPOINT`/`SPLUNK_TOKEN` 缺失或 URL 带凭据/查询/片段；`http://` 未开 `SPLUNK_ALLOW_INSECURE_HTTP` | 阅读校验错误 | 修 URL 或补令牌；明文 HTTP 需显式选择 | `--check` 通过 |
 | `--check` exit 1（N 项） | 从 env 键到 profile 漂移的任何项 | 检查输出点名每个失败区域 | 自上而下修复；重跑 | exit 0 |
 | 更新拒绝："working tree is not clean" | 本地修改（未跟踪文件也算） | `git status --porcelain --untracked-files=all` | 自行提交或移除 — update 从不 stash；再跑 `./update.sh` | 更新完成 |
-| profile 出现多余/未知插件 | 手动 `pnpm dsh plugin add`，或 `requirements.txt` 在别处变更 | 对比 profile 清单与 `setup.sh` 受管集合 | `./setup.sh --plugins`（清理到受管集合） | 检查通过；清单一致 |
-| 补丁副本不一致警告 | `patches/dsh-auto-collapse@0.1.4.patch` 与 profile 副本不同 | setup 打印逐字节比较失败 | 重跑 `./setup.sh --plugins` 重新复制 | 无不一致警告 |
+| profile 出现多余/未知插件 | 手动 `pnpm dsh plugin add` 或 profile 迁移中断 | 对比 profile 清单与 `setup.sh` 受管集合 | `./setup.sh --plugins`（清理到受管 SOC 集合） | 检查通过；清单一致 |
+| 过时第三方补丁阻塞 profile 修复 | 旧 profile 在 `patchedDependencies` 中仍有 `dsh-auto-collapse@0.1.4` | 检查 profile workspace manifest | 重跑 `./setup.sh --plugins`；迁移清理会先删除过时补丁再让 pnpm 移除插件 | 检查通过；没有第三方补丁 |
 
 **上报证据:** 完整 `./setup.sh --check` 输出；`git rev-parse HEAD` + `git status --porcelain`。
 
@@ -105,7 +105,7 @@
 | 症状 | 可能原因 | 安全诊断 | 处置 | 验证 |
 |---|---|---|---|---|
 | UI 改动不出现 | 某个被跟踪的 SOC 浏览器 bundle 未重建 | 对比负责该功能的 `packages/soc-agent-*/lib/client.js` 与源码 | `./setup.sh --plugins`（或重建负责该功能的包）；刷新 | 改动可见 |
-| setup 报 SOC 浏览器 bundle 漂移 | bundle 含允许列表之外的 `require()` | 阅读 setup 输出中的包名 | 重跑 setup（自动重建八包矩阵） | 漂移检查通过 |
+| setup 报 SOC 浏览器 bundle 漂移 | bundle 含允许列表之外的 `require()` | 阅读 setup 输出中的包名 | 重跑 setup（自动重建 36 包 / 26 包面矩阵） | 漂移检查通过 |
 | `/admin` 返回 503 | harness 前端 index 未找到（构建产物缺失） | `setup.sh --check` 构建产物段 | `./setup.sh --plugins --rebuild` | `/admin` 可服务 |
 | 应用加载但全部失效 | Python 服务器死亡（拉起失败致命 — 更可能是 env/存储问题） | 启动日志；在 `apps/soc-agent/server` 冒烟跑 `uv run unified-mcp-server` | 修 env/uv；重启 | 工具响应 |
 

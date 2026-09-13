@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 前置要求、四种安装形态、如何安全准备配置、如何启动应用、首次无损验证，以及首启常见故障。
 
-**通俗概述。** 一个脚本 — `setup.sh`（"setup doctor"）— 负责检查前置要求、交互式收集配置（写入两个限权 `.env` 文件）、安装依赖、构建内置 harness 和八个 SOC 浏览器包，并把 SOC 产品装配进 harness 的 web profile。它不启动任何服务：应用由你用一条命令自行启动。第二个脚本 `update.sh` 在干净的工作树上快进更新并重跑修复/装配流程。
+**通俗概述。** 一个脚本 — `setup.sh`（"setup doctor"）— 负责检查前置要求、交互式收集配置（写入两个限权 `.env` 文件）、安装依赖、构建纯净 Harness 与独立 SOC workspace（37 个 SOC 包、26 个浏览器 face），并把 SOC 产品装配进 Harness 的 web profile。它不启动任何服务：应用由你用一条命令自行启动。第二个脚本 `update.sh` 在干净的工作树上快进更新并重跑修复/装配流程。
 
 ---
 
@@ -15,8 +15,8 @@
 
 | 要求 | 版本 / 检查方式 | 说明 |
 |---|---|---|
-| Node.js | `^22.19.0` 或 `>=24`（`run_prereq_checks` 正则校验） | vendored 工作区要求 |
-| pnpm、uv、Git | 任意近期版本；setup 会在缺少 pnpm 时把 `~/.local/share/pnpm/bin` 加入 PATH（Corepack） | 包管理器 / Python 运行器 |
+| Node.js | `^22.19.0` 或 `>=24`（`run_prereq_checks` 正则校验） | 根 SOC workspace 与 Harness release 要求 |
+| pnpm、uv、Git | pnpm `11.7.0`（Corepack；缺少时 setup 会把 `~/.local/share/pnpm/bin` 加入 PATH）及近期 uv/Git | 包管理器 / Python 运行器 |
 | Python | 3.12（由 uv 管理；`uv sync --python 3.12`） | 服务器要求 `requires-python = ">=3.12"` |
 | PostgreSQL | 可达的数据库 | `APP_POSTGRES_URI`；缺失时登录按设计失败关闭（fail closed） |
 | openssl（或 /dev/urandom） | 用于密钥生成 | `APP_SETTINGS_ENCRYPTION_KEY` 自动生成 |
@@ -28,14 +28,14 @@
 | 场景 | 命令 | 行为 |
 |---|---|---|
 | 全新安装（无 checkout） | 任意位置 `bash setup.sh`（bootstrap） | 提示仓库 URL、安装路径（默认 `~/CITIC_AGENT`）、分支；克隆（或快进复用已有 checkout）；转入克隆内的 `setup.sh` 继续 |
-| 已有 checkout | `./setup.sh`（交互） | 前置检查 → 参数收集 → 写配置文件 → Python 环境 → harness 构建 → 插件装配 → SOC bundle 注册 → 摘要（不启动任何服务）。已有值成为默认值，仅缺失/非法项重新询问 |
+| 已有 checkout | `./setup.sh`（交互） | 前置检查 → 参数收集 → 写配置文件 → Python 环境 → Harness 构建 → SOC workspace 构建 → 插件装配 → SOC bundle 注册 → 摘要（不启动任何服务）。已有值成为默认值，仅缺失/非法项重新询问 |
 | 仅审计（不写入） | `./setup.sh --check` | 只报告；缺项即 exit 1；从不写入 |
-| 非交互修复/重装配 | `./setup.sh --plugins`（可加 `--rebuild`） | 前置检查、Python 环境、harness 构建（指纹门控）、插件安装/清理/校验、SOC bundle 注册。无提示、不写 env |
+| 非交互修复/重装配 | `./setup.sh --plugins`（可加 `--rebuild` 强制两个构建） | 前置检查、Python 环境、纯净 Harness 构建、独立 SOC workspace 构建、插件安装/清理/校验、SOC bundle 注册。无提示、不写 env |
 | 更新已有部署 | `./update.sh` | 拒绝参数与脏工作树；当前分支 `git pull --ff-only`；随后 `setup.sh --plugins`；应用需手动重启 |
 
 分支切换：只能通过 `./setup.sh`，且要求**干净工作树**（`git status --porcelain`）；从不 stash 或丢弃本地修改。
 
-**开发模式与部署模式。** 两种模式的 setup 阶段完全相同；区别在于运行位置与启动方式。开发模式是你编辑的 checkout，用 `pnpm dsh web` 手动启动。部署模式是把同样的 setup 跑在服务器上（`.env.example` 曾有的 `RUNNING_INSIDE_DOCKER` 变量暗示存在本仓库之外定义的容器化部署），启动同样以手动为主，除非你的服务管理器包装它 —— 本仓库不配置进程监管。运行态数据（`.env`、`.data`、PostgreSQL、`~/.dsh`）都在 Git 之外，两种模式下都能在更新后保留。
+**开发模式与部署模式。** 两种模式的 setup 阶段完全相同；区别在于运行位置与启动方式。开发模式是你编辑的 checkout，从仓库根目录使用 Harness binary 手动启动。部署模式是把同样的 setup 跑在服务器上（`.env.example` 曾有的 `RUNNING_INSIDE_DOCKER` 变量暗示存在本仓库之外定义的容器化部署），启动同样以手动为主，除非你的服务管理器包装它 —— 本仓库不配置进程监管。运行态数据（`.env`、`.data`、PostgreSQL、`~/.dsh`）都在 Git 之外，两种模式下都能在更新后保留。
 
 ## 3. setup 询问并写入什么
 
@@ -48,19 +48,18 @@
 - 订阅服务：`SUBSCRIPTION_SERVER_URL`、用户、密码、TLS 选项。
 - MarkItDown LLM：`MARKITDOWN_LLM_ENABLED`（为 true 时必填 key+model）。
 
-写入的文件（只列名字，内容绝不要贴进工单或聊天）：`apps/soc-agent/server/.env`（从 `.env.example` 播种，chmod 600）、`vendor/deepseek-harness/.env`（仅 Postgres URI + 加密密钥，chmod 600）、`.gitignore`（仅在缺少 `.env` 规则时）、`.data/harness-*.sha256` 指纹。仓库之外：`~/.dsh/profiles/web/`（补丁副本、`pnpm-workspace.yaml`、插件清单）。摘要只打印**掩码后**的值。
+写入的文件（只列名字，内容绝不要贴进工单或聊天）：`apps/soc-agent/server/.env`（从 `.env.example` 播种，chmod 600）、仓库根 `.env`（Harness 启动环境，chmod 600）、`.gitignore`（仅在缺少 `.env` 规则时）、`.data/*` 指纹。仓库之外：`~/.dsh/profiles/web/`（profile manifest 与本地包链接）。摘要只打印**掩码后**的值。
 
 ## 4. 开发启动
 
 ```bash
 # 仓库根目录
-cd vendor/deepseek-harness
-pnpm dsh web --no-open
+vendor/deepseek-harness/node_modules/.bin/dsh web --no-open
 ```
 
 打开 `http://127.0.0.1:3080`（摘要会打印；远程访问通常用 `ssh -L 3080:127.0.0.1:3080 user@host`）。Node 宿主加载 web profile，拉起 Python `soc_agent` stdio 服务器，并在配置齐全时连接 `splunk_mcp` 桥接。Python 启动失败是致命的（`failOnStartupError: true`）；缺少 Splunk 端点/令牌只会禁用桥接并打一条日志。
 
-浏览器改动后的重建：重建对应的 SOC 包，或运行 `./setup.sh --plugins`，它会检测并修复八个浏览器产物的漂移。参见 [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) 与 [DEVELOPMENT.md](DEVELOPMENT.md)。
+SOC 改动后的重建：在仓库根运行 `pnpm run build`，或运行 `./setup.sh --plugins`，它会检测并修复独立 workspace 中缺失/漂移的产物。参见 [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) 与 [DEVELOPMENT.md](DEVELOPMENT.md)。
 
 ## 5. 首次无损验证
 
@@ -84,13 +83,13 @@ pnpm dsh web --no-open
 | 管理控制台拒绝登录 | 宿主启动时 `SOC_ADMIN_EMAIL`/`SOC_ADMIN_PASSWORD` 不对；管理员会话在内存中，宿主重启即登出 | 修好 `.env` 后重启宿主；重新登录 |
 | "Stored Zimbra accounts are no longer supported" | 调用了遗留账户 RPC | 预期拒绝；请用 Zimbra 登录 |
 | 修改 `packages/soc-agent-*/src` 后界面陈旧 | 所属的被跟踪 `lib/` 产物未重建 | 重建对应包或运行 `./setup.sh --plugins` |
-| profile 中出现多余/过期插件 | `requirements.txt` 与 profile 漂移 | `./setup.sh --plugins` 会裁剪到受管集合 |
+| profile 中出现多余/过期插件 | 手动修改 profile 或迁移中断 | `./setup.sh --plugins` 会裁剪到受管 SOC 集合 |
 
 更多内容: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。下一步: [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md)（你刚启动的是什么）、[CONFIGURATION.md](CONFIGURATION.md)（每个变量）、[DEPLOYMENT_AND_OPERATIONS.md](DEPLOYMENT_AND_OPERATIONS.md)（运维生命周期）。
 
 ## 仓库中的证据
 
-- `setup.sh`（各阶段、各模式、写入文件、`PLUGIN_NAMES`）、`update.sh`、`requirements.txt`
+- `setup.sh`（各阶段、各模式、写入文件、权威 SOC 矩阵）、`update.sh`、`vendor/deepseek-harness.upstream.json`
 - `apps/soc-agent/cordis.patch.yml`（`failOnStartupError`、桥接 env）、`apps/soc-agent/splunk-bridge.js`（`resolveOfficialSplunkConfig`）
 - `apps/soc-agent/ownership.js`（缺少管理员凭据即抛错）、`apps/soc-agent/host.js`（`serveAdminPage`）
 - `packages/soc-agent-client/src/client/core/AuthGate.tsx`（Sentinel 登录）、`apps/soc-agent/server/.env.example`（变量名）

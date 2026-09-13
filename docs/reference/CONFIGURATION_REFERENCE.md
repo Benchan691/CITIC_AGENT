@@ -8,7 +8,7 @@
 
 **What you will understand:** every configuration key, its consumer, precedence, sensitivity, and validation — with safe example *shapes* only. **Never place real secret values in documentation, tickets, or shell history.**
 
-**Plain-language summary.** Configuration is deployment-owned: the Python server reads only process environment variables (seeded from `apps/soc-agent/server/.env`), never the database or any browser-editable document. The Node host reads a small set of its own variables plus the same `.env` file for bridge/admin values. Precedence observed in code: **process environment wins**, then `server/.env`; `env_loader.py` additionally loads workspace `.env` with override.
+**Plain-language summary.** Configuration is deployment-owned: the Python server reads only process environment variables (seeded from the root `.env` and `apps/soc-agent/server/.env`), never the database or any browser-editable document. The Node host reads a small set of its own variables plus the server file for bridge/admin values. Precedence observed in code: **process environment wins**, then `server/.env`; `env_loader.py` additionally loads the root `.env` with override. The pristine vendor tree receives no runtime `.env`.
 
 ---
 
@@ -17,7 +17,7 @@
 1. Process environment (highest).
 2. `apps/soc-agent/server/.env` (loaded by `env_loader.load_server_env`, then workspace `.env` **with override**).
 3. `.env.example` — template only, never loaded.
-4. `setup.sh` writes `server/.env` (chmod 600) and `vendor/deepseek-harness/.env` (only `APP_POSTGRES_URI`, `APP_SETTINGS_ENCRYPTION_KEY`).
+4. `setup.sh` writes the root `.env` and `server/.env` (chmod 600); it does not write into pristine `vendor/deepseek-harness`.
 5. `env_loader.py` strips `SOC_ADMIN_EMAIL`/`SOC_ADMIN_PASSWORD` from the Python process (`_NODE_ONLY_ENV_NAMES`); `host.js runAdmin`/`ownership.js childEnvironment()` also delete them before spawning children.
 
 Fallback chains exactly as coded:

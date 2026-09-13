@@ -7,7 +7,7 @@
 
 **What you will understand:** the host, modular browser-package, Python, and browser smoke layers and how to run each, what the feature-package tests assert, the prerequisites and fixtures involved, which tests guard the naming/allowlist contracts, and where coverage is deliberately thin. The file-by-file detail lives in [reference/TEST_COVERAGE_MATRIX.md](reference/TEST_COVERAGE_MATRIX.md).
 
-**Plain-language summary.** The repository has offline Node and Python suites, eight modular SOC browser-package suites, and a deterministic Playwright fixture lane. The browser packages are tested independently so disabling branding, admin, action policy, attachments, or email drafts does not disable the mandatory client core, isolated sidebar, or isolated workspace. No live Splunk/Zimbra/Postgres is needed for these tests, and the composition/import tests stop official sidebar/workspace code from leaking back into first-party production sources.
+**Plain-language summary.** The repository has offline Node and Python suites, 36 SOC package suites (37 SOC packages including the product bundle), 26 browser-facing package faces, and a deterministic Playwright fixture lane. The browser packages are tested independently so disabling any of the six optional features does not disable the mandatory client core, isolated sidebar, or isolated workspace. No live Splunk/Zimbra/Postgres is needed for these tests, and the composition/import tests stop official sidebar/workspace code from leaking back into first-party production sources.
 
 **Prerequisites:** dependencies installed (`./setup.sh --plugins` or per-suite `uv sync`).
 
@@ -18,16 +18,16 @@
 | Layer | Location | Command | Runner |
 |---|---|---|---|
 | Host (JS) | `apps/soc-agent/tests/` | `npm test` (in `apps/soc-agent`) | `node --test` |
-| SOC browser packages (TS/React) | `packages/soc-agent-*/tests/` | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft test` | package-local Vitest/Node tests via vendored loaders |
+| SOC packages (TS/React/Node) | `packages/soc-agent-*/tests/` | `pnpm --filter dsh-soc-agent test && pnpm --filter 'dsh-soc-agent-*' test` | package-local Vitest/Node tests |
 | Server (Python) | `apps/soc-agent/server/unified_mcp_server/tests/` | `uv run pytest` (after `uv sync --extra test`) | pytest, `asyncio_mode = auto`, `-q` |
-| Browser smoke/screenshots | `apps/soc-agent/tests/browser-smoke.test.mjs` | `cd vendor/deepseek-harness && pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs` | Playwright + Vitest, fixture mode |
+| Browser smoke/screenshots | `apps/soc-agent/tests/browser-smoke.test.mjs` | `pnpm exec vitest run --config apps/soc-agent/tests/vitest.browser.config.mjs` | Playwright + Vitest, fixture mode |
 
 There is **no root test runner and no CI configuration** at the repo root — run suites manually (see [DEVELOPMENT.md](DEVELOPMENT.md) and the residual-risk note in [SECURITY_AND_TRUST_BOUNDARIES.md](SECURITY_AND_TRUST_BOUNDARIES.md)).
 
 ## 2. What each suite proves (highlights)
 
 - **Host JS** — the security-critical contracts: admin credential startup requirements, cookie/session lifecycle, cookie-tier segregation, the scoped API proxy (IDOR), workspace path containment, event redaction, background refresh cadence, the exact tool-policy verdicts (30 read / 42 domain / 12 approval), Full-access bypass-of-states (not of the allowlist), control-channel no-replay semantics, Splunk projection scoping, bridge config/TLS, and the patch↔bridge↔policy naming pins.
-- **SOC browser packages** — the core service contract, route selection, authentication gate, safe admin fallback, isolated sidebar/workspace behavior, workspace lifecycle restoration, branding, admin slot ownership, action modes, attachment conversion/settings, and editable email draft/send views. The app composition suite recursively checks package manifests and production source for official sidebar/workspace imports.
+- **SOC packages** — the core service contract, route selection, authentication gate, safe admin fallback, isolated sidebar/workspace behavior, workspace lifecycle restoration, branding, admin slot ownership, action modes, attachment conversion/settings, editable email draft/send views, foundational replacement contracts, and session migration. The app composition suite recursively checks package manifests, declarations, builds, and production source for official sidebar/workspace imports.
 - **Browser smoke/screenshots** — loads the real built bundles with fixture data, checks branding/sidebar/workspace/picker mounting, verifies expanded/collapsed and workspace screenshots, fails on browser errors or failed requests, and rejects unexpected official sidebar/workspace bundles.
 - **Python** — the exact 27-tool surface (and the absence of `splunk_*`/legacy tools), session lifecycle and redaction, config validation/redaction, Zimbra service/filter semantics (fingerprint concurrency, gates, verified moves, local-only drafts), the subscription client (single login, redirect validation, error-body withholding), attachment limits, control-server protocol (real subprocess), and the retained Splunk implementation's internal contracts (query policy, resource governance, planning, evidence, security queue, CITIC compiler).
 
@@ -71,7 +71,7 @@ Run these before any release; they are the drift fence for the whole tool story:
 | `sections.test.ts` failure after UI edit | Admin guardrail copy or core child-slot mount structure changed — restore or consciously update the guardrail |
 | `test_control_server.py` hangs | Environment lacks a working `uv run python` (the test spawns a real subprocess) |
 | SOC browser-package tests fail on imports | Vendored loaders or workspace links are missing — run `./setup.sh --plugins` first |
-| Browser smoke reports failed requests or loader warnings | Rebuild all eight SOC bundles and verify profile resolution; do not ignore an unexpected official bundle request |
+| Browser smoke reports failed requests or loader warnings | Rebuild the SOC workspace with `pnpm run build` and verify profile resolution; do not ignore an unexpected official bundle request |
 | Host JS tests fail with `ERR_MODULE_NOT_FOUND: '@deepseek-ai/schemastery'` (observed on a fresh environment) | The app's `node_modules` lacks pnpm workspace links — run `./setup.sh --plugins` (harness `pnpm install`); the vendored schemastery `lib/` build must exist first |
 | Python collection errors: `No module named 'mcp'/'zimbra_client'` (observed on a fresh environment) | Virtualenv incomplete — run `uv sync --extra test` in `apps/soc-agent/server` |
 
@@ -88,5 +88,5 @@ Details per file: [reference/TEST_COVERAGE_MATRIX.md](reference/TEST_COVERAGE_MA
 
 ## Evidence in the repository
 
-- Suite configs: `apps/soc-agent/package.json`, the eight `packages/soc-agent-*/package.json` manifests, `apps/soc-agent/tests/vitest.browser.config.mjs`, and `apps/soc-agent/server/pyproject.toml` (`[tool.pytest.ini_options]`).
+- Suite configs: `apps/soc-agent/package.json`, the `packages/soc-agent-*/package.json` manifests, `apps/soc-agent/tests/vitest.browser.config.mjs`, and `apps/soc-agent/server/pyproject.toml` (`[tool.pytest.ini_options]`).
 - Fixture patterns: each test file's header/fixtures as described in the coverage matrix.

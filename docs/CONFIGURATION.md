@@ -7,7 +7,7 @@
 
 **What you will understand:** configuration sources and their exact precedence, which settings are required vs optional, how secrets are provisioned safely, how encrypted values work, per-service configuration, default behavior, and what a configuration change requires (restart vs rebuild). The variable-by-variable reference lives in [reference/CONFIGURATION_REFERENCE.md](reference/CONFIGURATION_REFERENCE.md); this page is the map.
 
-**Plain-language summary.** Everything is deployment-owned: the Python server reads only environment variables (seeded into `apps/soc-agent/server/.env` by the setup doctor), the Node host reads its own env plus that same file, and the admin console can change only the small set of runtime settings stored (encrypted) in PostgreSQL. Nothing is configurable from the browser that would weaken security.
+**Plain-language summary.** Everything is deployment-owned: the Python server reads only environment variables (seeded into the root `.env` and `apps/soc-agent/server/.env` by the setup doctor), the Node host reads its own env plus the server file, and the admin console can change only the small set of runtime settings stored (encrypted) in PostgreSQL. The vendor snapshot has no runtime environment file and remains pristine. Nothing is configurable from the browser that would weaken security.
 
 **Prerequisites:** [GETTING_STARTED.md](GETTING_STARTED.md) §3.
 
@@ -19,7 +19,7 @@
 flowchart TD
     ENV[Process environment<br/>highest priority] --> P[Python server settings<br/>config.py from_env]
     SE[apps/soc-agent/server/.env<br/>chmod 600] --> P
-    WE[workspace .env<br/>loaded with override] --> P
+    WE[root .env<br/>loaded with override] --> P
     EX[.env.example<br/>template only] -.seeded by setup.-> SE
     subgraph Runtime-editable
         AC[(Postgres app_config<br/>encrypted namespaces)]
@@ -29,7 +29,7 @@ flowchart TD
 
 Source: [diagrams/configuration-precedence.mmd](diagrams/configuration-precedence.mmd).
 
-- **Python:** env-only by design ("never from the database or a browser-editable document", `config.py`); `env_loader.load_server_env` reads `server/.env` then workspace `.env` **with override**; process environment still wins for keys set before load.
+- **Python:** env-only by design ("never from the database or a browser-editable document", `config.py`); `env_loader.load_server_env` reads `server/.env` then the root `.env` **with override**; process environment still wins for keys set before load.
 - **Node bridge:** `splunk-bridge.js` reads `process.env` first, then `server/.env`.
 - **Node auth:** `resolveApplicationStorageUri` / `resolveAdminCredentials` follow the same env → `server/.env` order.
 - **Admin-editable runtime settings** (encrypted `app_config`): `soc-action-approval`, `soc-background`, `soc-agent-markitdown-attachments`, `time-context`, `llm-pi-ai` + credential refs. These never include service endpoints — the console says so ("Service configuration is managed by the server environment.").
@@ -68,7 +68,7 @@ Source: [diagrams/configuration-precedence.mmd](diagrams/configuration-precedenc
 | Zimbra | Host + TLS + timeout + seven mutation gates (`ZIMBRA_ALLOW_*`) + attachment limits; legacy `ZIMBRA_EMAIL/PASSWORD` and account-file keys are compat-only |
 | Subscription | URL/user/password/timeout/allow-insecure-http; redirect policy hard-coded (≤5, same host, no downgrades) |
 | MarkItDown | Optional LLM/OCR via key+model; built-in conversion always available |
-| Harness | `vendor/deepseek-harness/.env` receives only the Postgres URI + encryption key from setup |
+| Harness | the pristine `vendor/deepseek-harness` receives no runtime `.env`; the root `.env` and server `.env` hold deployment values |
 
 ## 6. Restart / rebuild implications
 

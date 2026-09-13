@@ -8,7 +8,7 @@
     "sourcePath": "packages/client/ui-sidebar",
     "sourceSha256": "ec18513ac3f4cd5e40ae7d279e53f3326e6afe3c7ce4718170dd7abbd185c904"
   },
-  "socSourceSha256": "9ae062c6ada933665bcbb3f2351280d76dad7a01126e6ca7af57592220e76606",
+  "socSourceSha256": "136439f1d31c0862dd609ab1c72a9b838ddc48456a97e52cb539672e17bdf3b9",
   "screenshots": {
     "expanded": "apps/soc-agent/tests/__screenshots__/sidebar-expanded.png",
     "collapsed": "apps/soc-agent/tests/__screenshots__/sidebar-collapsed.png"

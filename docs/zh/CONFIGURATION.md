@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 配置源及其精确优先级、必填与可选项、机密的安全供给方式、加密值的工作方式、按服务配置、默认行为，以及一次配置变更需要什么（重启 vs 重建）。
 
-**通俗概述。** 一切配置都归部署所有：Python 服务器只读环境变量（由 setup doctor 写入 `apps/soc-agent/server/.env`），Node 宿主读取自己的环境变量加同一文件，管理控制台只能改少数存在 PostgreSQL（加密）中的运行时设置。任何会削弱安全性的东西都不能从浏览器配置。
+**通俗概述。** 一切配置都归部署所有：Python 服务器只读环境变量（由 setup doctor 写入根 `.env` 与 `apps/soc-agent/server/.env`），Node 宿主读取自己的环境变量加服务器文件，管理控制台只能改少数存在 PostgreSQL（加密）中的运行时设置。纯净 vendor 不包含运行时 `.env`。任何会削弱安全性的东西都不能从浏览器配置。
 
 **前置要求:** [GETTING_STARTED.md](GETTING_STARTED.md) §3。
 
@@ -19,7 +19,7 @@
 flowchart TD
     ENV[进程环境变量<br/>最高优先] --> P[Python ServerSettings.from_env]
     SE[apps/soc-agent/server/.env<br/>chmod 600] --> P
-    WE[工作区 .env<br/>带覆盖加载] --> P
+    WE[根 .env<br/>带覆盖加载] --> P
     EX[.env.example<br/>仅模板] -.setup 播种.-> SE
     subgraph 运行时可编辑
         AC[(Postgres app_config<br/>Fernet 加密)]
@@ -30,7 +30,7 @@ flowchart TD
 
 可编辑源: [diagrams/configuration-precedence.mmd](../diagrams/configuration-precedence.mmd)。
 
-- **Python:** 按设计只用环境变量（"never from the database or a browser-editable document"，`config.py`）；`env_loader.load_server_env` 先读 `server/.env` 再读工作区 `.env`（**带覆盖**）；先于加载设置的环境变量仍然最高。
+- **Python:** 按设计只用环境变量（"never from the database or a browser-editable document"，`config.py`）；`env_loader.load_server_env` 先读 `server/.env` 再读根 `.env`（**带覆盖**）；先于加载设置的环境变量仍然最高。
 - **Node 桥接:** `splunk-bridge.js` 先读 `process.env` 再读 `server/.env`。
 - **Node 认证:** `resolveApplicationStorageUri` / `resolveAdminCredentials` 同序（环境 → `server/.env`）。
 - **管理可编辑的运行时设置**（加密 `app_config`）: `soc-action-approval`、`soc-background`、`soc-agent-markitdown-attachments`、`time-context`、`llm-pi-ai` + 凭据引用。这些绝不包含服务端点 — 控制台明说 "Service configuration is managed by the server environment."
@@ -69,7 +69,7 @@ flowchart TD
 | Zimbra | 主机 + TLS + 超时 + 七个变更门（`ZIMBRA_ALLOW_*`）+ 附件限额；遗留 `ZIMBRA_EMAIL/PASSWORD` 与账户文件变量已从模板与代码中移除 |
 | 订阅 | URL/用户/密码/超时/明文选择；重定向策略硬编码（≤5、同主机、不降级） |
 | MarkItDown | 可选 LLM/OCR（key+model）；内建转换始终可用 |
-| Harness | `vendor/deepseek-harness/.env` 只接收 setup 写入的 Postgres URI + 加密密钥 |
+| Harness | 纯净的 `vendor/deepseek-harness` 不接收运行时 `.env`；部署值位于根 `.env` 与服务器 `.env` |
 | Schema 迁移 | 不走环境 — `schema migrate` 从 stdin 接收 URI（防止误初始化别的库） |
 
 ## 6. 重启 / 重建影响

@@ -15,7 +15,7 @@
 
 | 入口 | 调用方式 | 用途 |
 |---|---|---|
-| harness web 运行时 | `cd vendor/deepseek-harness && pnpm dsh web --no-open`（端口 3080） | 启动 Node 宿主 + web 服务器；加载 web profile 插件（SOC bundle） |
+| harness web 运行时 | `pnpm dsh web --no-open`（端口 3080） | 启动纯净 rc.2 Node 宿主 + web 服务器；加载含根 workspace SOC 替代 bundle 的 web profile |
 | `unified-mcp-server` | `uv run unified-mcp-server`（`dsh-mcp-client` 按 `cordis.patch.yml` 拉起；cwd `apps/soc-agent/server`） | `soc_agent` stdio MCP 服务器（`server.py main()`） |
 | `unified_mcp_server.control_server` | `ownership.js startControlChannel` 拉起 | 常驻认证操作通道 |
 | `unified_mcp_server.auth_cli <命令>` | 通道关闭/不可用时按命令拉起（共享 `python-command.js` 运行器） | 一次性认证操作（`login`、`logout`、`send-email` — 现转发 `forward_message_id`、`list-signatures`） |
@@ -91,7 +91,7 @@
 
 ## 9. 到 vendored harness 的补丁接缝
 
-- `apps/soc-agent/cordis.patch.yml`: 启用/禁用上游插件行、设置 `approval.policy: ask`、禁用模型可见编码工具、插入五个 SOC 插件、配置两个 MCP 服务器（原始允许列表、超时）、把 `skill-filesystem.customSkillDirs` 指向 `<repo>/skills`。
-- `patches/dsh-auto-collapse@0.1.4.patch`: 对上游 UI 插件构建 bundle 的 pnpm 补丁 — 英文本地化、英文时长解析、`[data-dshcf-preserve]` 行豁免自动折叠。
+- `apps/soc-agent/cordis.patch.yml`: 启用/禁用上游插件行、设置 `approval.policy: ask`、禁用模型可见编码工具、插入强制替代包与六个可选 SOC 功能包、配置两个 MCP 服务器（原始允许列表、超时）、把 `skill-filesystem.customSkillDirs` 指向 `<repo>/skills`。
+- `patches/`：已退役且没有被跟踪的 pnpm 补丁；自动折叠现在由根 workspace 的 `dsh-soc-agent-auto-collapse` 原生接线实现。
 - 上游 schema 接缝: `packages/host/apiproxy/src/api/rpc.schema.ts` 现声明结构化 `authentication-required`/`admin-authentication-required` RPC 错误码（含测试）。
-- 预设接缝: `vendor/.../agent-presets/citic-soc/agent.cordis.yml` — 人格 "Sentinel"、`instructionFileCandidates`（AGENTS/CLAUDE/BACKGROUND，64 KiB 上限）、压缩阈值（8192/4096/1024）、`tool-ask-user`。
+- 预设接缝: `apps/soc-agent/agent-presets/citic-soc/agent.cordis.yml` — 人格 "Sentinel"、`instructionFileCandidates`（AGENTS/CLAUDE/BACKGROUND，64 KiB 上限）、压缩阈值（8192/4096/1024）、`tool-ask-user`。

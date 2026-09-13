@@ -57,12 +57,11 @@
       </table></div>
 
       <h2 id="config">Configuration preparation (safe)</h2>
-      <p>Setup writes <code>apps/soc-agent/server/.env</code> and <code>vendor/deepseek-harness/.env</code> (both <code>chmod 600</code>), prompts for secrets with echo disabled, and auto-generates the encryption key if left blank. Precedence: <span class="badge component">process env</span> &gt; <span class="badge store">server/.env</span> &gt; template. Required keys: <code>SOC_ADMIN_EMAIL</code>/<code>SOC_ADMIN_PASSWORD</code> (host refuses to start without them), <code>APP_POSTGRES_URI</code> + <code>APP_SETTINGS_ENCRYPTION_KEY</code> (login), <code>ZIMBRA_HOST</code>. The Splunk bridge enables only when <code>SPLUNK_MCP_ENDPOINT</code> <strong>and</strong> <code>SPLUNK_TOKEN</code> are both set.</p>
+      <p>Setup writes the root <code>.env</code> and <code>apps/soc-agent/server/.env</code> (both <code>chmod 600</code>), prompts for secrets with echo disabled, and auto-generates the encryption key if left blank. The pristine vendor tree receives no runtime environment file. Precedence: <span class="badge component">process env</span> &gt; <span class="badge store">server/.env</span> &gt; root <code>.env</code>. Required keys: <code>SOC_ADMIN_EMAIL</code>/<code>SOC_ADMIN_PASSWORD</code> (host refuses to start without them), <code>APP_POSTGRES_URI</code> + <code>APP_SETTINGS_ENCRYPTION_KEY</code> (login), <code>ZIMBRA_HOST</code>. The Splunk bridge enables only when <code>SPLUNK_MCP_ENDPOINT</code> <strong>and</strong> <code>SPLUNK_TOKEN</code> are both set.</p>
       <div class="warning"><strong>Never paste real secrets into shell commands</strong> (shell history) or tickets. Use the prompts or edit the 0600 files.</div>
 
       <h2 id="run">Development startup and first verification</h2>
-      <pre><code>cd vendor/deepseek-harness
-pnpm dsh web --no-open        # then open http://127.0.0.1:3080</code></pre>
+      <pre><code>pnpm dsh web --no-open        # then open http://127.0.0.1:3080</code></pre>
       <ol>
         <li><code>./setup.sh --check</code> — exits 0 only when everything is healthy.</li>
         <li>Open the app: the <strong>Sentinel login</strong> overlay must cover the shell until you sign in.</li>

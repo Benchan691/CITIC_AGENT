@@ -15,7 +15,7 @@ Related: [MCP_TOOL_CATALOG.md](MCP_TOOL_CATALOG.md) (tool-by-tool), [CONFIGURATI
 
 | Entry point | Invocation | Purpose |
 |---|---|---|
-| Harness web runtime | `cd vendor/deepseek-harness && pnpm dsh web --no-open` (port 3080) | Starts the Node host + web server; loads the web profile plugins (SOC bundle) |
+| Harness web runtime | `pnpm dsh web --no-open` (port 3080) | Starts the pristine rc.2 Node host + web server; loads the web profile with the root SOC replacement bundles |
 | `unified-mcp-server` | `uv run unified-mcp-server` (spawned by `dsh-mcp-client` per `cordis.patch.yml`; cwd `apps/soc-agent/server`) | The `soc_agent` stdio MCP server (`server.py main()`) |
 | `unified_mcp_server.control_server` | `uv run python -m unified_mcp_server.control_server` (spawned by `ownership.js startControlChannel`) | Persistent authenticated-operations channel |
 | `unified_mcp_server.auth_cli <command>` | spawned per command when the channel is off/unavailable (shared `python-command.js` runner) | One-shot auth operations (`login`, `logout`, `send-email` — now forwards `forward_message_id`, `list-signatures`) |
@@ -91,7 +91,7 @@ Registered with `authority: 'trusted-host'`; every endpoint re-checks auth (`req
 
 ## 9. Patch seams into the vendored harness
 
-- `apps/soc-agent/cordis.patch.yml`: enables/disables upstream plugin rows, sets `approval.policy: ask`, disables model-facing coding tools, inserts the five SOC plugins, configures both MCP servers (raw allowlists, timeouts), points `skill-filesystem.customSkillDirs` at `<repo>/skills`.
-- `patches/dsh-auto-collapse@0.1.4.patch`: pnpm patch over the upstream UI plugin's built bundle — English localization, English duration parsing, `[data-dshcf-preserve]` rows excluded from auto-collapse (protects the SOC draft card).
-- Upstream schema seam: `packages/host/apiproxy/src/api/rpc.schema.ts` now declares the structured `authentication-required` / `admin-authentication-required` RPC error codes (with tests) — the SOC auth contract is pinned in the vendored API schema too.
-- Preset seam: `vendor/.../agent-presets/citic-soc/agent.cordis.yml` — persona "Sentinel", `instructionFileCandidates` (AGENTS/CLAUDE/BACKGROUND, 64 KiB cap), compaction thresholds (8192/4096/1024), `tool-ask-user`.
+- `apps/soc-agent/cordis.patch.yml`: enables/disables upstream plugin rows, sets `approval.policy: ask`, disables model-facing coding tools, inserts the mandatory SOC replacement roster and six optional feature rows, configures both MCP servers (raw allowlists, timeouts), and points `skill-filesystem.customSkillDirs` at `<repo>/skills`.
+- `tooling/replacement-map.mjs` plus the root `packages/soc-agent-*` manifests: the full replacement map and exact package/build faces live outside the vendor snapshot; setup registers them as direct local profile dependencies.
+- Upstream schema seam: the pristine rc.2 `packages/host/apiproxy` contract supplies the structured `authentication-required` / `admin-authentication-required` RPC error codes consumed by the SOC gateway.
+- Preset seam: `apps/soc-agent/agent-presets/citic-soc/agent.cordis.yml` — persona "Sentinel", `instructionFileCandidates` (AGENTS/CLAUDE/BACKGROUND, 64 KiB cap), compaction thresholds (8192/4096/1024), `tool-ask-user`.

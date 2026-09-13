@@ -3763,9 +3763,9 @@ window.__ModuleLoader__.load({
 			};
 			/** Resident waterfalls retain their event ids across Remote Event generations. */
 			const pendingApprovalEventId = "fx-interaction-approval";
-			let approvalPending = !options.empty;
+			let approvalPending = !options.empty && options.interaction !== "question";
 			const pendingQuestionEventId = "fx-interaction-question";
-			let questionPending = !options.empty;
+			let questionPending = !options.empty && options.interaction !== "approval";
 			const fixtureQuestions = [
 				{
 					id: "harness-profile",
@@ -6153,6 +6153,7 @@ window.__ModuleLoader__.load({
 			const query = new URLSearchParams(location.search);
 			return {
 				empty: query.get("fixture") === "empty",
+				interaction: query.get("fixtureInteraction") === "approval" || query.get("fixtureInteraction") === "question" ? query.get("fixtureInteraction") : "both",
 				rejectPrompt: query.get("fixturePrompt") === "reject",
 				failWorkspaceAttach: query.get("fixtureAttach") === "fail",
 				dropSessionCreateResponse: query.get("fixtureSessionCreate") === "drop-response",

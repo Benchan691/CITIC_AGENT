@@ -7,9 +7,9 @@
 
 **What you will understand:** a complete classification of every tracked first-party path, plus the local-only directories that exist on disk but are not tracked.
 
-**Method:** `git ls-files` at the verified baseline commit (Git-aware discovery; `.gitignore` excludes `node_modules/`, `__pycache__/`, `*.egg-info/`, `.data/`, `.state/`, `.env`). The baseline census recorded **182 tracked first-party files**; the current worktree adds the isolated sidebar/workspace and five optional SOC browser packages, so package/file counts from that baseline are intentionally not reused below. Vendored files remain grouped, not itemized.
+**Method:** `git ls-files` at the verified baseline commit (Git-aware discovery; `.gitignore` excludes `node_modules/`, `__pycache__/`, `*.egg-info/`, `.data/`, `.state/`, `.env`). The baseline census recorded **182 tracked first-party files**; the current worktree adds the full SOC replacement roster, isolated sidebar/workspace, and six optional SOC browser packages, so package/file counts from that baseline are intentionally not reused below. Vendored files remain grouped, not itemized.
 
-**What changed since the previous round (`b26d55d`):** the retired Python Splunk stack (34-file `splunk/` package, `splunk_service.py`, `detection.py`, and 12 related test files) was **deleted**; new `tool-inventory.js` (single tool source of truth), `python-command.js` (shared Python spawn helper), `migrations/*.sql` + `schema.py` (versioned SQL migrations), `tests/python-command.test.js`, `tests/setup.test.js`, `tests/admin-console.test.ts`; client legacy status cards (`SplunkSettings.ts`, `SubscriptionServerSettings.ts`) removed; `hi.txt` removed. The current worktree additionally splits the browser UI into the mandatory core, isolated sidebar/workspace, and five optional SOC feature packages. The maintainer's own implementation report is `docs/SHORTENING_PLAN_IMPLEMENTATION.md` (baseline `d264ca7`).
+**What changed since the previous round (`b26d55d`):** the retired Python Splunk stack (34-file `splunk/` package, `splunk_service.py`, `detection.py`, and 12 related test files) was **deleted**; new `tool-inventory.js` (single tool source of truth), `python-command.js` (shared Python spawn helper), `migrations/*.sql` + `schema.py` (versioned SQL migrations), `tests/python-command.test.js`, `tests/setup.test.js`, `tests/admin-console.test.ts`; client legacy status cards (`SplunkSettings.ts`, `SubscriptionServerSettings.ts`) removed; `hi.txt` removed. The current worktree additionally splits the browser UI into the mandatory core, full foundational replacement roster, isolated sidebar/workspace, and six optional SOC feature packages. The maintainer's own implementation report is `docs/SHORTENING_PLAN_IMPLEMENTATION.md` (baseline `d264ca7`).
 
 Related: [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md) (what each group *does*), [SOURCE_INDEX.md](SOURCE_INDEX.md) (per-file purposes and symbols).
 
@@ -24,7 +24,7 @@ Related: [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md) (what each group *does*), 
 | `BACKGROUND.md` | documentation/governance | Splunk reference context (rule-naming convention from a read-only `Ruleset.csv` review; contains one retained customer naming example). Injected as background context by `host.js` `installBackgroundRefresh`. | Active (model context) |
 | `setup.sh` | setup/administrative script | "SOC Agent setup doctor": bootstrap clone, `--check`, `--plugins` modes; one parameter inventory now drives prompting/checking; **the official Splunk MCP endpoint + token are required** (REST-only Splunk fields removed). | Active (operator-run) |
 | `update.sh` | setup/administrative script | Refuses arguments and dirty trees, `git pull --ff-only`, then re-runs `setup.sh --plugins`. | Active (operator-run) |
-| `requirements.txt` | configuration/deployment wiring | Exactly two external pnpm plugin specs (`@linxin666/dsh-client-ui-skin-center@^0.2.5`, `github:a179-sanae/dsh-auto-collapse#cd21c04…`); count-validated against `PLUGIN_NAMES` in `setup.sh`. | Active (setup input) |
+| `package.json`, `pnpm-workspace.yaml` | configuration/deployment wiring | Root pnpm workspace (`pnpm@11.7.0`, Node `^22.19.0 || >=24.0.0`) with exact Harness runtime pins. | Active (setup input) |
 | `lefthook.yml` | configuration (inert) | Entirely commented-out example jobs; no active Git hooks. | Inactive |
 | `.gitignore` | configuration | Ignores `node_modules/`, `__pycache__/`, `*.egg-info/`, `/.data/`, `**/.state/`, `.cursor/`, `*.tsbuildinfo`, `coverage/`. Note: `packages/soc-agent-*/lib/` is **not** ignored (tracked generated output for the SOC browser packages). | Active |
 | `docs/` | documentation | This documentation set, the execution brief, and the maintainer's shortening-plan report. | Documentation |
@@ -45,7 +45,7 @@ Related: [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md) (what each group *does*), 
 | `python-command.js` | canonical source | Shared one-shot Python runner: `pythonEnvironment()` (strips `SOC_ADMIN_*`, resolves `MCP_SERVER_ROOT`/legacy `MCP_SEVER_ROOT`), `runPythonCommand({module, command, arg, payload, timeoutMs, signal, mapError})` — timeout/abort/exit/parse mapping, stdin JSON payload. Comment: "One-shot helpers only. Persistent delivery and retry decisions stay in ownership.js." |
 | `splunk-bridge.js` | canonical source | Plugin `soc-agent-splunk-official-bridge`: imports the inventory from `tool-inventory.js`; validates `SPLUNK_MCP_ENDPOINT` (HTTP(S), no credentials/query/fragment; plain HTTP requires `SPLUNK_ALLOW_INSECURE_HTTP=true`); `testOfficialSplunkConnection(ctx, signal)` executes a real `splunk_get_info` through the bridge (185 s budget, Bearer token redacted from errors). |
 | `investigation.js` | canonical source | `tools/post-execute` projection: sanitizes (card/SSN) and 50 KB-truncates `mcp__splunk_mcp__splunk_*` output only. |
-| `tests/*.test.js` (11 files, 41 tests) | first-party test | New: `python-command.test.js` (1), `setup.test.js` (5), and composition/import-isolation coverage for the modular browser packages. Grown: `splunk-bridge.test.js` (4: config, TLS default, credential/HTTP validation, live admin probe). See [TEST_COVERAGE_MATRIX.md](TEST_COVERAGE_MATRIX.md). |
+| `tests/*.test.js` (11 files, 42 tests) | first-party test | New: `python-command.test.js` (1), `setup.test.js` (5), and composition/import-isolation coverage for the modular browser packages. Grown: `splunk-bridge.test.js` (4: config, TLS default, credential/HTTP validation, live admin probe). See [TEST_COVERAGE_MATRIX.md](TEST_COVERAGE_MATRIX.md). |
 
 ## 3. `apps/soc-agent/server/` — Python MCP server (package `soc-agent-mcp`, 54 files)
 
@@ -88,10 +88,10 @@ Related: [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md) (what each group *does*), 
 | `soc-agent-action-policy/` | optional action-policy package | end-user Full access/SOC mode menu; the policy schema remains in the core. |
 | `soc-agent-attachments/` | optional attachment package | MarkItDown provider, rail, command, settings card, schema, controller. |
 | `soc-agent-email-draft/` | optional email-draft package | editable draft/forward tool views and signature/send helpers. |
-| each package `lib/index.js`, `lib/client.js`, `lib/client.js.map` | **generated build output — tracked** | one closure-factory artifact per package; `setup.sh` registers and health-checks all eight. |
+| each package `lib/index.js`, `lib/client.js`, `lib/client.js.map` | **generated build output — tracked** | 36 SOC packages plus the `apps/soc-agent` product bundle are registered by the setup matrix; 26 package faces emit browser closure factories. |
 | each package `tests/` | first-party tests | package-local behavior/guardrail tests; browser visual/smoke tests live in `apps/soc-agent/tests/`. |
 
-**Removed from the core during this extraction:** optional feature implementations formerly under `soc-agent-client/src/client/` (admin, brand, action policy, attachments, and email drafts), plus their old compatibility-only settings styling. The official vendor sidebar/workspace source remains frozen and is disabled through the SOC patch.
+**Removed from the core during this extraction:** optional feature implementations formerly under `soc-agent-client/src/client/` (admin, brand, action policy, attachments, and email drafts), plus their old compatibility-only settings styling. The auto-collapse feature is now a first-party optional package too. The official vendor sidebar/workspace source remains frozen and is disabled through the SOC patch.
 
 ## 5. `skills/`
 
@@ -106,13 +106,11 @@ Drift note: `AGENTS.md` still names seven skills; four exist; two of the four re
 
 ## 6. `patches/`
 
-| Path | Class | Purpose |
-|---|---|---|
-| `dsh-auto-collapse@0.1.4.patch` | locally patched vendor behavior | pnpm patch over the built `lib/client.js` of the `dsh-auto-collapse` UI plugin: English localization, English duration parsing, and exclusion of rows containing `[data-dshcf-preserve]` from auto-collapse (used by the SOC draft card). |
+The directory is retired. Auto-collapse and all other SOC behavior are provided by first-party packages in the root workspace; setup no longer copies or installs a pnpm patch.
 
 ## 7. `vendor/deepseek-harness/` — vendored upstream (grouped)
 
-Unchanged integration surface plus one addition this range: `packages/host/apiproxy/src/api/rpc.schema.ts` and `rpc.ts` now declare the structured `authentication-required` / `admin-authentication-required` error codes (with tests) — the SOC RPC auth contract is pinned upstream too. All other surfaces as documented previously: MCP client bridge, cordis loader, base/web patch layers, tools+approval registry, skills, presets (incl. local `citic-soc`), webserver/gateway/static, browser boot. See [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md) §14.
+The vendor directory is now the pristine official `dsh-v0.1.5-rc.2` snapshot (commit `fb2c4b9e698e30edb738bca4cf0618587db7d203`), verified against `vendor/deepseek-harness.upstream.json` by `tooling/verify-upstream.mjs --fresh`. SOC packages, product presets, and configuration live outside vendor; product composition is applied through `apps/soc-agent/cordis.patch.yml`. The remaining integration surface includes the MCP client, cordis loader, base/web layers, tools and approval registry, official skills/presets, webserver/gateway/static, and browser boot. See [COMPONENT_CATALOG.md](COMPONENT_CATALOG.md) §14.
 
 ## 8. Local-only (untracked) paths observed on disk
 
@@ -127,7 +125,7 @@ Unchanged integration surface plus one addition this range: `packages/host/apipr
 
 ## 9. Census decisions worth calling out
 
-- The eight `packages/soc-agent-*/lib/` directories are tracked generated browser output; setup fingerprints and rebuilds them as one authoritative matrix.
+- The 36 SOC packages plus the `apps/soc-agent` product bundle are registered by one authoritative setup matrix; 26 package faces emit tracked generated browser output.
 - The **retained Splunk stack is gone** — the previous "code presence does not prove runtime exposure" example is now "removed entirely" ([DOCUMENTATION_AUDIT.md](../DOCUMENTATION_AUDIT.md) §6).
 - `tool-inventory.js` is the new structural drift fence: policy, bridge, and (via tests) the Python registration all derive from or pin the same inventory.
 - `hi.txt` was deleted; the previous audit question is closed.

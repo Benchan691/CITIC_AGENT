@@ -48,19 +48,19 @@ Bootstrap/repair: schema is `IF NOT EXISTS` at startup (`ensureSchema`); one-tim
 
 | Location | Purpose | Notes |
 |---|---|---|
-| `$DSH_HOME` or `~/.dsh/` | Profile wiring: `profiles/web/pnpm-workspace.yaml`, `profiles/web/package.json` (plugin manifest), `profiles/web/patches/dsh-auto-collapse@0.1.4.patch` | Managed by `setup.sh ensure_profile_patch` / `pnpm dsh plugin` |
+| `$DSH_HOME` or `~/.dsh/` | Profile wiring: `profiles/web/pnpm-workspace.yaml`, `profiles/web/package.json` (direct local SOC package dependencies) | Managed by the setup matrix and the official `pnpm dsh plugin` add/remove mechanism; no third-party patch is copied |
 | `$DSH_HOME` or `~/.dsh` `soc-evidence.sqlite3` | **No owner since this round** — the SQLite evidence store belonged to the deleted Splunk search implementation; stale files may remain on disk | Safe to archive/delete; nothing writes it |
 | `apps/soc-agent/server/.env`, `spl_config.local.json` | Local secrets/config | gitignored (`server/.gitignore`); never read by docs |
-| `vendor/deepseek-harness/.env` | Harness-tier secrets (only `APP_POSTGRES_URI`, `APP_SETTINGS_ENCRYPTION_KEY` written by setup) | chmod 600 |
+| repository-root `.env` and `apps/soc-agent/server/.env` | Runtime secrets/configuration kept outside the tracked vendor snapshot | chmod 600; setup never writes a vendor `.env` |
 
 ## 4. Tracked generated output
 
 | Path | Generated from | Consumer |
 |---|---|---|
 | `packages/soc-agent-*/lib/index.js` | each package's `src/index.ts` (tsdown) | Node half of each plugin (`main`) |
-| `packages/soc-agent-*/lib/client.js` + `.map` | each package's browser `src/client/**` (tsdown closure-factory artifact) | Browser module loader; eight independent SOC bundles, with the core contract shared through the `socClient` service |
+| `packages/soc-agent-*/lib/client.js` + `.map` | each package's browser `src/client/**` (tsdown closure-factory artifact) | Browser module loader; 26 independent browser faces, with the core contract shared through the `socClient` service |
 
-Drift detection: `setup.sh` checks every literal `require()` in all eight SOC browser bundles against the allowlist and rebuilds on violation; `--rebuild` forces regeneration.
+Drift detection: `setup.sh` checks every literal `require()` in all 26 SOC browser faces against the allowlist and rebuilds on violation; `--rebuild` forces regeneration.
 
 ## 5. Transient state (deliberately not persisted)
 

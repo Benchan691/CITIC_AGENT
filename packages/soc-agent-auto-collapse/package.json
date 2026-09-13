@@ -19,6 +19,7 @@
   },
   "scripts": {
     "bundle": "tsdown",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "license": "MIT",

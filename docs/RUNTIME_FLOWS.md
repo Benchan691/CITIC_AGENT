@@ -16,7 +16,7 @@
 ## 1. Installation / bootstrap and update lifecycle
 
 **Trigger:** operator runs `./setup.sh` (or the bootstrap copy) / `./update.sh`.
-**Path:** prerequisites (node/pnpm/uv) → parameter collection (env precedence; secrets via `read -rs`) → write `apps/soc-agent/server/.env` + `vendor/deepseek-harness/.env` (chmod 600) → `uv sync --python 3.12` → fingerprint-gated `pnpm install --frozen-lockfile` + `pnpm run build` (fingerprints in `.data/harness-*.sha256`; `--rebuild` forces) → profile patch copy + plugin add/prune (managed set includes the app, the mandatory core, isolated sidebar/workspace, and five optional SOC browser packages) → SOC bundle registration + resolution verification → summary (masked values; starts nothing).
+**Path:** prerequisites (node/pnpm/uv) → parameter collection (env precedence; secrets via `read -rs`) → write the root `.env` plus `apps/soc-agent/server/.env` (chmod 600; the vendor remains pristine) → `uv sync --python 3.12` → fingerprint-gated pristine Harness install/build plus independent root SOC install/build (fingerprints in `.data/harness-*.sha256`; `--rebuild` forces) → direct local SOC package add/prune (managed set includes the product bundle, mandatory core, isolated sidebar/workspace, and six optional SOC browser features) → SOC bundle registration + resolution verification → summary (masked values; starts nothing).
 **Failures:** missing prerequisites (loop or record warning); dirty tree blocks branch switch (never stashed); any SOC browser bundle drift (`lib/client.js` require-allowlist) triggers rebuild; `--check` exits 1 with the failing count.
 **Evidence:** `setup.sh` stages; `update.sh` (clean-tree ff-only + `--plugins`).
 

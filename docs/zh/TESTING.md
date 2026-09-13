@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 宿主、模块化浏览器包、Python 与浏览器 smoke 层及各自的运行方式、功能包测试断言什么、涉及的前置条件与夹具、守护命名/允许列表契约的测试，以及刻意较薄的覆盖处。
 
-**通俗概述。** 仓库包含可离线运行的 Node、Python、八个 SOC 浏览器包测试，以及确定性的 Playwright fixture lane。浏览器包可以独立测试，因此禁用品牌、管理、动作策略、附件或邮件草稿不会禁用强制核心、隔离侧栏或隔离工作区。测试不需要真实 Splunk/Zimbra/Postgres，并通过装配/导入检查防止官方侧栏/工作区实现重新泄漏。
+**通俗概述。** 仓库包含可离线运行的 Node、Python、36 个 SOC 包测试（包含 product bundle 在内共 37 个 SOC 包）、26 个浏览器 package face，以及确定性的 Playwright fixture lane。浏览器包可以独立测试，因此禁用六个可选 feature 中任一个都不会禁用强制核心、隔离侧栏或隔离工作区。测试不需要真实 Splunk/Zimbra/Postgres，并通过装配/导入检查防止官方侧栏/工作区实现重新泄漏。
 
 **前置要求:** 依赖已安装（`./setup.sh --plugins` 或各套件 `uv sync`）。
 
@@ -18,16 +18,16 @@
 | 层 | 位置 | 命令 | 运行器 |
 |---|---|---|---|
 | 宿主（JS） | `apps/soc-agent/tests/` | `npm test`（在该目录） | `node --test` |
-| SOC 浏览器包（TS/React） | `packages/soc-agent-*/tests/` | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft test` | 各包 Vitest/Node 测试 + vendored 加载器 |
+| SOC 包（TS/React/Node） | `packages/soc-agent-*/tests/` | `pnpm --filter dsh-soc-agent test && pnpm --filter 'dsh-soc-agent-*' test` | 各包 Vitest/Node 测试 |
 | 服务器（Python） | `apps/soc-agent/server/unified_mcp_server/tests/` | `uv run pytest`（先 `uv sync --extra test`） | pytest，`asyncio_mode=auto`，`-q` |
-| 浏览器 smoke/screenshot | `apps/soc-agent/tests/browser-smoke.test.mjs` | `cd vendor/deepseek-harness && pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs` | Playwright + Vitest，fixture mode |
+| 浏览器 smoke/screenshot | `apps/soc-agent/tests/browser-smoke.test.mjs` | `pnpm exec vitest run --config apps/soc-agent/tests/vitest.browser.config.mjs` | Playwright + Vitest，fixture mode |
 
 仓库根**没有**统一测试入口，也**没有 CI 配置** — 手动运行各套件（见 [DEVELOPMENT.md](DEVELOPMENT.md) 与 [SECURITY_AND_TRUST_BOUNDARIES.md](SECURITY_AND_TRUST_BOUNDARIES.md) 的残余风险注记）。
 
 ## 2. 各套件证明什么（要点）
 
 - **宿主 JS** — 安全关键契约：管理员凭据启动要求、Cookie/会话生命周期、Cookie 分层、受限 API 代理（IDOR）、工作区路径包含性、事件脱敏、背景刷新节奏、精确工具策略裁决（**30 读 / 42 域 / 12 审批**）、Full-access 只绕状态不绕允许列表、控制通道不重放语义、Splunk 投影限域、桥接配置/TLS/URL 校验、补丁↔桥接↔策略命名钉扎、`python-command.js` 运行器契约、setup 参数清单。
-- **SOC 浏览器包** — 核心服务契约、路由选择、认证门、管理页安全回退、隔离侧栏/工作区行为、工作区生命周期恢复、品牌、管理槽位、动作模式、附件转换/设置与可编辑邮件草稿/发送视图。应用装配测试递归检查第一方清单与生产源码中不存在官方侧栏/工作区导入。
+- **SOC 包** — 核心服务契约、路由选择、认证门、管理页安全回退、隔离侧栏/工作区行为、工作区生命周期恢复、品牌、管理槽位、动作模式、附件转换/设置、可编辑邮件草稿/发送视图、基础替代包契约与会话迁移。应用装配测试递归检查 manifest、声明、构建产物和生产源码中不存在官方侧栏/工作区导入。
 - **浏览器 smoke/screenshot** — 用 fixture 数据加载真实构建 bundle，检查品牌/侧栏/工作区/选择器挂载，验证展开/收起和工作区截图；浏览器错误、失败请求或意外官方 bundle 都会失败。
 - **Python** — 精确 28 工具面（且无 `splunk_*`/遗留工具）、会话生命周期与脱敏、配置校验/脱敏、Zimbra 服务/过滤器语义（指纹并发、门控、带校验的移动、仅本地草稿、**转发草稿**）、订阅客户端边界、附件限额、控制服务器协议（真实子进程）、迁移运行器（`test_schema.py`）。
 
@@ -70,7 +70,7 @@
 | `sections.test.ts` 在 UI 编辑后失败 | 管理护栏文案或核心子槽位结构变了 — 恢复或有意更新护栏 |
 | `test_control_server.py` 挂起 | 环境没有可用的 `uv run python`（该测试拉起真实子进程） |
 | SOC 浏览器包测试导入失败 | vendored 加载器或 workspace links 缺失 — 先运行 `./setup.sh --plugins` |
-| 浏览器 smoke 报请求或 loader 警告 | SOC 浏览器 bundle 未重建或 profile 解析失败 | 查看失败请求/日志 | 重建八个 SOC 包并重新执行 setup |
+| 浏览器 smoke 报请求或 loader 警告 | SOC workspace bundle 未重建或 profile 解析失败 | 查看失败请求/日志 | 运行 `pnpm run build` 并重新执行 setup |
 | 宿主 JS 测试报 `ERR_MODULE_NOT_FOUND: '@deepseek-ai/schemastery'`（新环境实测） | 应用的 `node_modules` 缺 pnpm 工作区链接 — 运行 `./setup.sh --plugins`（harness `pnpm install`）；vendored schemastery `lib/` 构建须先存在 |
 | Python 收集错误：`No module named 'mcp'/'zimbra_client'`（新环境实测） | 虚拟环境不完整 — 在 `apps/soc-agent/server` 运行 `uv sync --extra test` |
 
@@ -86,5 +86,5 @@
 
 ## 仓库中的证据
 
-- 套件配置: `apps/soc-agent/package.json`、八个 `packages/soc-agent-*/package.json`、`apps/soc-agent/tests/vitest.browser.config.mjs`、`apps/soc-agent/server/pyproject.toml`（`[tool.pytest.ini_options]`）。
+- 套件配置: `apps/soc-agent/package.json`、`packages/soc-agent-*/package.json`、`apps/soc-agent/tests/vitest.browser.config.mjs`、`apps/soc-agent/server/pyproject.toml`（`[tool.pytest.ini_options]`）。
 - 夹具模式: 覆盖矩阵中描述的各测试文件头部/夹具。

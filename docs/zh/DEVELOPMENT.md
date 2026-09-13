@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 布局与工具链、工作区/依赖模型、权威源 vs 生成产物的边界、构建/运行/命令、补丁工作流、安全变更清单（含完整的 MCP 工具契约），以及 vendor 变更如何保持可复现。
 
-**通俗概述。** 第一方代码刻意保持精悍：五个 Node 宿主插件、一个 Python 包、八个相互独立的 SOC 浏览器包。vendored harness 只通过 `cordis.patch.yml` 配置 — 从不编辑；唯一的文件级 vendor 补丁带清单。大部分改动风险是*同步*风险：同一份工具清单现在只有一个来源（`tool-inventory.js`），由测试在两端钉住。
+**通俗概述。** 第一方代码刻意保持精悍：Node 宿主插件、一个 Python 包，以及独立 SOC workspace 中的 37 个包（包含 product bundle）和 26 个浏览器 package face。`vendor/deepseek-harness` 是冻结的纯净 rc.2 快照；SOC profile 通过 `apps/soc-agent/cordis.patch.yml` 和 SOC 自有替代包装配。大部分改动风险是*同步*风险：同一份工具清单现在只有一个来源（`tool-inventory.js`），由测试在两端钉住。
 
 **前置要求:** [GETTING_STARTED.md](GETTING_STARTED.md)；文件地图见 [reference/REPOSITORY_MAP.md](../reference/REPOSITORY_MAP.md)。
 
@@ -29,33 +29,33 @@
 | 任务 | 命令（除注明外自仓库根） |
 |---|---|
 | 安装全部 / 修复装配 | `./setup.sh`（交互）或 `./setup.sh --plugins`（非交互） |
-| Node 测试（宿主） | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent test` |
-| SOC 包测试 | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft test` |
+| Node 测试（宿主） | `pnpm --filter dsh-soc-agent test` |
+| SOC 包测试 | `pnpm --filter dsh-soc-agent test && pnpm --filter 'dsh-soc-agent-*' test` |
 | Python 测试（48） | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
-| 重建 SOC 浏览器 bundle | `./setup.sh --plugins`（或按 [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) 对每个包执行 `build`） |
-| 浏览器 smoke 与截图 | `cd vendor/deepseek-harness && pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs` |
+| 重建 SOC workspace bundle | `pnpm run build`（或运行 `./setup.sh --plugins` 完成安装/构建/profile 装配） |
+| 浏览器 smoke 与截图 | `pnpm exec vitest run --config apps/soc-agent/tests/vitest.browser.config.mjs` |
 | 强制重建 harness | `./setup.sh --plugins --rebuild` |
-| 启动应用 | `cd vendor/deepseek-harness && pnpm dsh web --no-open`（端口 3080） |
+| 启动应用 | 在仓库根运行 `vendor/deepseek-harness/node_modules/.bin/dsh web --no-open`（端口 3080） |
 | 审计安装 | `./setup.sh --check` |
 
 Lint/格式：**没有活跃的 formatter 或 hook** — `lefthook.yml` 全是注释示例，仓库根也没有 lint 配置。手动保持与周边风格一致。
 
 ## 3. 依赖 / 工作区模型
 
-- vendored harness 的 `pnpm-workspace.yaml` **包含本仓库**（`../../apps/*`、`../../packages/*`）— app 与八个 SOC 浏览器包都是工作区成员。可选浏览器包通过 `workspace:*` 依赖 `dsh-soc-agent-client`；app 也通过 `workspace:*` 使用 SOC 包，并通过一个 `link:` 使用 `@deepseek-ai/dsh-mcp-client`。
-- 两个 Python 依赖声明**各有其职**：根 `requirements.txt` 是 harness profile 的 *外部 pnpm 插件* 清单（不是 Python！），服务器的 `pyproject.toml`/`uv.lock` 才是真正的 Python 依赖。`setup.sh` 以硬编码 `PLUGIN_NAMES` 对两个 spec 做数量校验 — 加插件必须同时改两个文件。
+- 根 `pnpm-workspace.yaml` 拥有 SOC workspace；纯净 Harness 不包含本仓库，也不含 SOC 源码引用。运行时 SOC-to-SOC 依赖在 manifest 中使用精确版本，根 lockfile 为本地开发解析 workspace；profile 安装使用官方 `dsh plugin --profile web add` 机制直接加入本地包路径。
+- 根 `package.json` 固定 `pnpm@11.7.0` 与 Node `^22.19.0 || >=24.0.0`。Harness 版本由 `vendor/deepseek-harness.upstream.json` 单独固定，并与 rc.2 新鲜 release archive 比对。
 - Python extras：`markitdown-llm`（可选 OCR）、`test`（pytest）。
-- 生成产物边界：所有 `packages/soc-agent-*/lib/` 浏览器产物都**被跟踪** — 修改浏览器代码后重建所属包，并把源码与 bundle 一起提交（setup 也会自动修复漂移）。
+- 生成产物边界：所有 `packages/soc-agent-*/lib/` 产物都**被跟踪** — 修改源文件后重建所属包，并把声明、bundle 与源码一起提交（setup 也会自动修复漂移）。
 
 ## 4. 补丁工作流
 
 1. **产品补丁**（`apps/soc-agent/cordis.patch.yml`）：切换/配置上游插件行或插入新的产品插件。以插件 id 标识；经 `dsh.bundle.patch` 消费。变更需重启宿主，并由 `skills.test.js`（名册断言）钉住。
-2. **Vendor 文件补丁**（`patches/dsh-auto-collapse@0.1.4.patch`）：对上游插件*构建产物*的 pnpm 补丁。由 setup 复制到 `~/.dsh/profiles/web/patches/`（与仓库副本逐字节比较；不一致即拒绝）。`requirements.txt` 中的提交钉扎（`#cd21c04…`）**因为**补丁针对 0.1.4 — 升级时两者一起改。
-3. **预设**（`vendor/.../agent-presets/citic-soc/agent.cordis.yml`）：vendor 内的本地配置，被 `skills.test.js` 断言。修改它是 vendor 树变更 — 见 §5。
+2. **SOC 替代包**（`packages/soc-agent-*/`）：安全敏感 Harness 实现的独立 fork。每个 fork 都有 `UPSTREAM_BASELINE.json`，记录官方源路径、rc.2 commit 和源码 hash；不要改成 vendor-relative import。
+3. **预设**（`apps/soc-agent/agent-presets/citic-soc/agent.cordis.yml`）：vendor 外的第一方 SOC 配置，通过产品补丁加载，可独立修改而不改变官方 release。
 
 ## 5. 保持 vendor 变更可复现
 
-不要编辑 `vendor/deepseek-harness` 源码。可接受的 vendor 树工件，全部可从第一方文件复现：`citic-soc` 预设（有文档、有测试）、pnpm `overrides`（vendor 根已有 schemastery/cosmokit）、setup 写入的 profile 补丁副本。其他需求应变成 (a) `cordis.patch.yml` 行、(b) `patches/*.patch` 文件、或 (c) 上游贡献。
+不要编辑 `vendor/deepseek-harness`。`tooling/verify-upstream.mjs --fresh` 会将跟踪的快照与官方 rc.2 release archive 比较，并拒绝 SOC 文件、生成产物和源漂移。改动应放在根 SOC workspace、产品装配或第一方 asset/config 目录；不要添加 vendor-relative link/import，未来 Harness 刷新会独立替换冻结快照。
 
 ## 6. 新增或修改工具 — 六合同步清单
 
@@ -77,8 +77,8 @@ Lint/格式：**没有活跃的 formatter 或 hook** — `lefthook.yml` 全是�
 ## 7. Python 与 TypeScript 要点
 
 - **Python:** 请求管线是 `execute()`（关联 id、预算、身份）→ 服务调用 → `success()/failure()` 信封。新增错误请扩展 `ServiceError` 代码分类而非自造形状；绝不让第三方异常文本到达用户。阻塞工作走 `run_blocking`（有界）。**Schema 变更**走新的 `migrations/NNN_*.sql`（advisory 锁、台账跟踪）— 绝不在 Node 或 Python 服务代码里写即兴 DDL。测试用内存替身与假传输 — 无需活服务。
-- **TypeScript/React:** 可选 feature 通过 `dsh-soc-agent-client/client` 的 `SocClientRuntime` 使用 `/soc-agent-config`；设置页用 harness 设置 API + `expectedRevision`；CSS modules（`.module.css`）；每个 bundle 都是闭包工厂 — 不要在 setup 允许列表（react、react-dom、cordis、client-ui 原语/运行时）之外添加裸 `require()`，否则 setup 会重建/拒绝。
+- **TypeScript/React:** 可选 feature 通过 `dsh-soc-agent-client/client` 的 `SocClientRuntime` 使用 `/soc-agent-config`；设置页用 harness 设置 API + `expectedRevision`；CSS modules（`.module.css`）；每个 bundle 都是闭包工厂 — 不要在 setup 允许列表（react、react-dom、cordis、client-ui 原语/运行时、client store 或 SOC gateway client entry）之外添加裸 `require()`，否则 setup 会重建/拒绝。
 
 ## 仓库中的证据
 
-- 两个 `package.json` 的 scripts、`pyproject.toml` + pytest 配置、`setup.sh` 阶段注释（含 schemastery `lib/` 前置与 SOC 漂移修复）、`requirements.txt` 头注释、`skills.test.js`（补丁/预设钉扎）。
+- 根 `package.json`、各 SOC 包 manifest、`pyproject.toml` + pytest 配置、`setup.sh` 阶段注释、`vendor/deepseek-harness.upstream.json` 与 `skills.test.js`（装配/预设钉扎）。

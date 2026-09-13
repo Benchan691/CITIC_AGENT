@@ -79,7 +79,7 @@ One consistent vocabulary for all Markdown pages, diagrams, and the HTML site. A
 |---|---|
 | **Setup doctor** | `setup.sh` — the interactive installer/auditor/repairer (bootstrap clone, `--check` audit, `--plugins` re-wiring, `--rebuild`). |
 | **Profile (web profile)** | The harness deployment record under `~/.dsh/profiles/web/`: which plugins (bundles), patch copies, and settings the web runtime loads. |
-| **pnpm patch** | A file-level patch over a built dependency package; here `patches/dsh-auto-collapse@0.1.4.patch`, copied into the profile by setup and byte-compared on every run. |
+| **pnpm patch** | A pnpm mechanism for patching a dependency in place. The SOC deployment does not use one: auto-collapse and all other SOC behavior are first-party packages outside the pristine Harness vendor snapshot. |
 | **Closure factory / ModuleLoader** | The client bundle format: `lib/client.js` opens with `window.__ModuleLoader__.load({id, factory})`; the harness boot kernel (`window.__DSH_BOOT__`) loads this module table in the browser. |
 | **Preset** | A per-session agent composition file (`agent.cordis.yml`) under the harness's `agent-presets/`; `citic-soc` defines the Sentinel persona, instruction-file candidates, and compaction thresholds. |
 | **CITIC** | The organization (CITICTEL-CPC) whose SOC operates the agent; also the name of the production SPL detection format and the `citic-soc` preset. |

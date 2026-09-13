@@ -37,18 +37,18 @@
         <thead><tr><th scope="col">Task</th><th scope="col">Command</th></tr></thead>
         <tbody>
           <tr><td>Install / repair wiring</td><td><code>./setup.sh</code> or <code>./setup.sh --plugins</code></td></tr>
-          <tr><td>Host JS tests (41)</td><td><code>cd apps/soc-agent &amp;&amp; npm test</code></td></tr>
-          <tr><td>SOC browser-package tests</td><td><code>pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft test</code></td></tr>
+          <tr><td>Host JS tests (42)</td><td><code>pnpm test:host</code></td></tr>
+          <tr><td>SOC browser-package tests</td><td><code>pnpm test</code></td></tr>
           <tr><td>Python tests (48)</td><td><code>cd apps/soc-agent/server &amp;&amp; uv sync --extra test &amp;&amp; uv run pytest</code></td></tr>
-          <tr><td>Rebuild SOC browser bundles</td><td><code>pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft run build</code></td></tr>
-          <tr><td>Browser smoke and screenshots</td><td><code>cd vendor/deepseek-harness &amp;&amp; pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs</code></td></tr>
-          <tr><td>Run the app</td><td><code>cd vendor/deepseek-harness &amp;&amp; pnpm dsh web --no-open</code></td></tr>
+          <tr><td>Rebuild SOC browser bundles</td><td><code>pnpm run build</code></td></tr>
+          <tr><td>Browser smoke and screenshots</td><td><code>pnpm exec vitest run --config apps/soc-agent/tests/vitest.browser.config.mjs</code></td></tr>
+          <tr><td>Run the app</td><td><code>pnpm dsh web --no-open</code></td></tr>
         </tbody>
       </table></div>
       <p>No active lint/format hooks exist (<code>lefthook.yml</code> is commented examples) — match surrounding style manually. All suites run offline (in-memory doubles, fake transports, local subprocesses); nothing is skipped; no CI exists at the root.</p>
 
       <h2 id="deps">Dependency model and generated boundary</h2>
-      <p>The vendored harness's pnpm workspace <em>includes this repo</em> — the eight SOC browser packages resolve via <code>workspace:*</code> and one <code>link:</code>. Two Python dependency files exist by design: root <code>requirements.txt</code> lists <em>external pnpm plugins</em> (count-validated against <code>setup.sh</code>'s hardcoded <code>PLUGIN_NAMES</code>), while the server's <code>pyproject.toml</code>/<code>uv.lock</code> are the real Python dependencies. Each <code>packages/soc-agent-*/lib/</code> directory is <span class="badge sensitive">tracked generated output</span> — rebuild the owning package after source changes and commit source + bundle together.</p>
+      <p>The root pnpm workspace is independent from the pristine Harness vendor — the 36 SOC packages use exact rc.2-compatible runtime pins and never resolve through vendor-relative <code>workspace:*</code> links. The server's <code>pyproject.toml</code>/<code>uv.lock</code> remain the Python dependency source. Each <code>packages/soc-agent-*/lib/</code> directory is <span class="badge sensitive">tracked generated output</span> — 26 package faces emit browser bundles; rebuild the owning package after source changes and commit source + bundle together.</p>
 
       <h2 id="recipe">Adding or changing an MCP tool — six contracts</h2>
       <ol>
@@ -59,13 +59,13 @@
         <li>Tests on both tiers (<code>test_server_tools.py</code> exact set; <code>policy.test.js</code>/<code>skills.test.js</code> counts — currently 30/42/12).</li>
         <li>Documentation (<code>reference/MCP_TOOL_CATALOG.md</code>, routing page, traceability matrix).</li>
       </ol>
-      <p>Vendor changes stay reproducible: configure via <code>cordis.patch.yml</code> rows, file-level changes via <code>patches/*.patch</code> (+ the pinned spec in <code>requirements.txt</code>), persona via the <code>citic-soc</code> preset — never edit vendored sources.</p>
+      <p>Vendor changes stay reproducible: <code>tooling/verify-upstream.mjs --fresh</code> compares the vendor snapshot with the official rc.2 archive; product composition uses <code>cordis.patch.yml</code>, root SOC replacement packages, and the external <code>citic-soc</code> preset. Never edit vendored sources.</p>
 
       <h2 id="tests">What the suites prove</h2>
       <div class="table-wrap"><table>
         <thead><tr><th scope="col">Suite</th><th scope="col">Proves</th></tr></thead>
         <tbody>
-          <tr><td>Host JS (41 tests)</td><td>Credential startup requirements, cookie/session lifecycle, cookie-tier segregation, IDOR scoping, workspace containment, event redaction, background cadence, tool-policy verdicts (30/42/12), control-channel no-replay, bridge config/TLS, patch↔policy↔bridge naming pins</td></tr>
+          <tr><td>Host JS (42 tests)</td><td>Credential startup requirements, cookie/session lifecycle, cookie-tier segregation, IDOR scoping, workspace containment, event redaction, background cadence, tool-policy verdicts (30/42/12), control-channel no-replay, bridge config/TLS, patch↔policy↔bridge naming pins</td></tr>
           <tr><td>SOC browser packages</td><td>Core authentication/runtime contract and admin fallback; isolated sidebar/workspace behavior; branding, admin, action-policy, attachment, and email-draft feature ownership; package-level teardown and disabled-feature boundaries</td></tr>
           <tr><td>Python (312 tests)</td><td>Exact 28-tool surface incl. forward drafts (and absence of Splunk/legacy tools), session lifecycle + redaction, config validation/redaction, Zimbra semantics (fingerprint concurrency, gates, verified moves, local-only drafts), subscription client bounds, attachment limits, control protocol, schema migrations (test_schema)</td></tr>
         </tbody>

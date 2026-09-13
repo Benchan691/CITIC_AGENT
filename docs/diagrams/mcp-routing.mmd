@@ -8,7 +8,7 @@ flowchart LR
     run["delegate"]
 
     subgraph servers["MCP servers"]
-        soca["soc_agent (local stdio)<br/>27 tools: zimbra_* + subscriptions"]
+        soca["soc_agent (local stdio)<br/>28 tools: zimbra_* + subscriptions"]
         splk["splunk_mcp (bridge → external)<br/>13 read tools"]
     end
     ui2["ui__soc_agent__send_email<br/>(UI-confirmed catalog entry — NOT a tool)"]
@@ -16,7 +16,7 @@ flowchart LR
     proj["investigation.js projection<br/>mask PII · truncate 50KB (splunk_mcp only)"]
     ext["External official Splunk MCP"]
 
-    raw1["cordis.patch.yml raw allowlist (27)"] --> soca
+    raw1["cordis.patch.yml raw allowlist (28)"] --> soca
     raw2["OFFICIAL_SPLUNK_TOOL_NAMES (13)"] --> splk
     soca --> gate
     splk --> gate

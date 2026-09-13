@@ -13,9 +13,12 @@
 
 | File | Purpose | Key symbols / facts |
 |---|---|---|
-| `setup.sh` | Setup doctor: bootstrap, `--check`, `--plugins`, `--rebuild` | `run_prereq_checks`, `collect_parameters`, `write_files`, `ensure_python_server`, `ensure_harness_ready` (fingerprint-gated; eight SOC browser-bundle drift repair), `ensure_external_plugins`, `ensure_soc_bundle`, `SOC_CLIENT_MATRIX`, `PLUGIN_NAMES` (hardcoded 2) |
+| `setup.sh` | Setup doctor: bootstrap, `--check`, `--plugins`, `--rebuild` | `run_prereq_checks`, `collect_parameters`, `write_files`, `ensure_python_server`, `ensure_harness_ready`, `ensure_soc_workspace_ready`, `ensure_soc_bundle`, `SOC_PACKAGE_MATRIX` (37 packages / 26 browser faces) |
 | `update.sh` | Clean-tree ff-only update + `setup.sh --plugins` | refuses arguments; never stashes |
-| `requirements.txt` | External plugin specs (2, count-validated) | `@linxin666/dsh-client-ui-skin-center@^0.2.5`, `github:a179-sanae/dsh-auto-collapse#cd21c04…` |
+| `package.json` | Root workspace and build policy | pins `pnpm@11.7.0`, Node engines, declaration/build/typecheck/test/verification scripts |
+| `pnpm-workspace.yaml` | Independent SOC workspace definition | root workspace packages; no vendor-relative links |
+| `vendor/deepseek-harness.upstream.json` | Immutable Harness provenance | repository, tag `dsh-v0.1.5-rc.2`, commit `fb2c4b9e…`, file inventory SHA-256 |
+| `tooling/session-migration.mjs` | Session validation/migration/rollback CLI | `--validate`, `--migrate`, `--rollback`; fail-closed v0/v1/v2 audit and immutable v3 successor publication |
 | `AGENTS.md` | Mandatory agent operating policy | identity, isolation, untrusted content, evidence, email, Splunk, skills list |
 | `BACKGROUND.md` | Splunk reference background (naming convention; retained customer example) | injected by `host.js` background refresh |
 | `README.md` | Human overview | — |
@@ -34,7 +37,7 @@
 | `python-command.js` | Shared one-shot Python runner | `pythonEnvironment()` (strips `SOC_ADMIN_*`; `MCP_SERVER_ROOT`/`MCP_SEVER_ROOT` fallback), `runPythonCommand({module, command, arg, payload, timeoutMs, signal, mapError})` — timeout/abort/exit/parse mapping, stdin JSON payload |
 | `splunk-bridge.js` | External Splunk MCP client bridge | imports `OFFICIAL_SPLUNK_TOOL_NAMES` from `tool-inventory.js`; `resolveOfficialSplunkConfig` (env → `server/.env`; endpoint URL validation — no credentials/query/fragment, plain HTTP needs `SPLUNK_ALLOW_INSECURE_HTTP`; `serverName: 'splunk_mcp'`; timeout 185 s; `failOnStartupError`), `testOfficialSplunkConnection` (live `splunk_get_info` probe, token redaction), `apply(ctx)` |
 | `investigation.js` | Splunk output projection | `projectOfficialSplunkResult` (prefix `mcp__splunk_mcp__splunk_`; 50 000-byte cap; `utf8Prefix`), `sanitizeSplunkText` (CARD/SSN masks; `SPLUNK_SANITIZE_OUTPUT` opt-out), `installInvestigationProjection` (`tools/post-execute`, global) |
-| `cordis.patch.yml` | Product patch manifest | plugin enable/disable roster; `soc-agent-mcp` (27-name raw allowlist, `toolCallTimeoutMs: 185000`), `splunk-official-mcp`, `approval policy: ask`, coding-tool disable block, `skill-filesystem.customSkillDirs`, inserts `soc-agent-auth-host`/`soc-agent-admin-host`/`soc-agent-admin-ui`/`time-context`/`connection` |
+| `cordis.patch.yml` | Product patch manifest | disables every mapped official implementation, inserts the SOC replacement roster, keeps session folders/directory picker/Open In/subagent extras disabled, configures MCP/approval/skills, and enables six optional client rows |
 | `package.json` | Bundle manifest | `dsh-soc-agent`; exports `./host`, `./splunk-bridge`, `./auth-host`, `./ownership`, `./policy` |
 
 ## `apps/soc-agent/server/unified_mcp_server/` — active server
@@ -80,7 +83,7 @@
 | `soc-agent-action-policy/src/client/` | Optional end-user mode selector | `SocActionPolicyMenu`, `readActionMode` / `setActionMode` helper |
 | `soc-agent-attachments/src/client/` | Optional attachments | MarkItDown provider, two-worker controller, composer rail, command, settings card/schema |
 | `soc-agent-email-draft/src/client/` | Optional email draft UI | editable draft/forward tool view, signature helper, `send-email` RPC |
-| each `tsdown.config.ts`, `package.json`, `lib/` | Bundle/build boundary | one tracked `lib/client.js` per package; all eight are registered by `setup.sh` |
+| each `tsdown.config.ts`, `package.json`, `lib/` | Bundle/build boundary | tracked host/browser artifacts; all 37 packages are registered by `setup.sh`, and 26 browser faces are health-checked |
 
 ## Skills, patches, docs
 
@@ -90,5 +93,5 @@
 | `skills/false-positive-analysis/SKILL.md` | Alert explanation/classification + narrowest tuning proposal (10-step) |
 | `skills/splunk-investigation/SKILL.md` | Evidence-based investigation with `mcp__splunk_mcp__*` reads (13-step) |
 | `skills/spl-writing/SKILL.md` | CITIC production SPL + safe backtest SPL via `splunk_compile_citic_detection` (5-step) |
-| `patches/dsh-auto-collapse@0.1.4.patch` | English localization + duration parsing + `data-dshcf-preserve` exclusion |
+| `tooling/verify-upstream.mjs` | Fresh-archive comparison for the pristine rc.2 vendor tree; generated build outputs are excluded by explicit reproducibility rules |
 | `docs/GLM_5_3_REPOSITORY_DOCUMENTATION_INSTRUCTIONS.md` | The durable execution brief for this documentation set (do not overwrite) |

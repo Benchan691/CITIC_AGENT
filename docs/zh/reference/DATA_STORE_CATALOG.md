@@ -41,19 +41,19 @@
 
 | 位置 | 用途 | 备注 |
 |---|---|---|
-| `$DSH_HOME` 或 `~/.dsh/` | profile 装配: `profiles/web/pnpm-workspace.yaml`、`package.json`（插件清单）、`profiles/web/patches/dsh-auto-collapse@0.1.4.patch` | 由 `setup.sh` 管理 |
+| `$DSH_HOME` 或 `~/.dsh/` | profile 装配: `profiles/web/pnpm-workspace.yaml`、`package.json`（SOC 本地包直接依赖） | 由 setup 矩阵与官方 `pnpm dsh plugin` 添加/移除机制管理；不复制第三方补丁 |
 | `$DSH_HOME` 或 `~/.dsh` 的 `soc-evidence.sqlite3` | **本轮起无归属** — SQLite 证据存储属于已删除的 Splunk 搜索实现；磁盘可能残留旧文件 | 可归档/删除；无代码再写入 |
 | `apps/soc-agent/server/.env` | 本地机密/配置 | gitignored；文档从不读取 |
-| `vendor/deepseek-harness/.env` | harness 层机密（setup 仅写两个键） | chmod 600 |
+| 仓库根 `.env` 与 `apps/soc-agent/server/.env` | 保持在跟踪 vendor 快照之外的运行时机密/配置 | chmod 600；setup 不写 vendor `.env` |
 
 ## 4. 被跟踪的生成产物
 
 | 路径 | 生成自 | 消费者 |
 |---|---|---|
 | `packages/soc-agent-*/lib/index.js` | 各包 `src/index.ts`（tsdown） | 各插件的 Node 半（`main`） |
-| `packages/soc-agent-*/lib/client.js` + `.map` | 各包浏览器 `src/client/**`（tsdown 闭包工厂） | 浏览器模块加载器；八个独立 SOC bundle 通过 `socClient` service 共享核心契约 |
+| `packages/soc-agent-*/lib/client.js` + `.map` | 各包浏览器 `src/client/**`（tsdown 闭包工厂） | 浏览器模块加载器；26 个独立浏览器面通过 `socClient` service 共享核心契约 |
 
-漂移检测: `setup.sh` 检查八个 SOC 浏览器 bundle 中每个字面 `require()` 是否在允许列表内，违规即重建；`--rebuild` 强制再生成。
+漂移检测: `setup.sh` 检查 26 个 SOC 浏览器面中每个字面 `require()` 是否在允许列表内，违规即重建；`--rebuild` 强制再生成。
 
 ## 5. 瞬时状态（刻意不持久化）
 

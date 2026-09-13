@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 每个第一方组件以同样的字段描述 — 目的、归属、入口、输入/输出、状态、信任级、依赖、测试、运行状态 — 便于比较与评估改动影响。
 
-**通俗概述。** 系统是一组协作组件：隔离的浏览器表面包、强制 SOC client core 与五个可选功能包、运行产品插件的 Node 宿主（基于 vendored harness）、带 Zimbra/订阅工具的 Python MCP 服务器子进程、连到外部 Splunk MCP 服务器的客户端桥接、认证操作控制通道、管理 CLI、PostgreSQL 持久化。相关页: [REPOSITORY_MAP.md](REPOSITORY_MAP.md)（文件分类）、[TRACEABILITY_MATRIX.md](TRACEABILITY_MATRIX.md)（论断级证据）。
+**通俗概述。** 系统是一组协作组件：隔离的浏览器表面包、强制 SOC client core 与六个可选功能包、运行产品插件的 Node 宿主（基于纯净 vendored harness）、带 Zimbra/订阅工具的 Python MCP 服务器子进程、连到外部 Splunk MCP 服务器的客户端桥接、认证操作控制通道、管理 CLI、PostgreSQL 持久化。相关页: [REPOSITORY_MAP.md](REPOSITORY_MAP.md)（文件分类）、[TRACEABILITY_MATRIX.md](TRACEABILITY_MATRIX.md)（论断级证据）。
 
 **运行状态图例:** **活跃** · **条件性**（配置后启用）· **仅管理员** · **已移除**（本轮删除，原"保留"）· **生成** · **运维工具**。
 
@@ -17,11 +17,11 @@
 
 - **强制核心 `packages/soc-agent-client/`:** 认证遮罩、`SocClientRuntime`/`socClient` service、action-policy schema、`/admin` root takeover 与安全回退；不拥有可选功能 UI，也不导入官方或隔离的 sidebar/workspace 实现。
 - **隔离表面 `packages/soc-agent-sidebar/`、`packages/soc-agent-workspace/`:** 唯一启用的 root sidebar owner、工作区浏览/选择器、标准子槽位与固定样式；workspace 包拥有可恢复的 `api.folders` 守卫。
-- **可选包:** `soc-agent-brand`（品牌）、`soc-agent-admin`（管理台）、`soc-agent-action-policy`（用户模式菜单）、`soc-agent-attachments`（MarkItDown）、`soc-agent-email-draft`（草稿/转发 tool view）。各包只拥有自己的槽位、command、provider 或设置。
+- **可选包:** `soc-agent-brand`（品牌）、`soc-agent-admin`（管理台）、`soc-agent-action-policy`（用户模式菜单）、`soc-agent-attachments`（MarkItDown）、`soc-agent-email-draft`（草稿/转发 tool view）、`soc-agent-auto-collapse`（对话自动折叠）。各包只拥有自己的槽位、command、provider 或设置。
 - **输入/输出:** harness 槽位与 service、`/soc-agent-config`、认证 HTTP 路由，以及各包需要的 settings/connection/conversation/command/toolview API。
 - **信任级:** 不可信客户端。所有强制在服务端。
-- **构建/输出:** 八个包各有被跟踪的 `lib/client.js` 闭包工厂；setup 统一做指纹、构建、注册、解析与健康检查。
-- **运行状态:** core/sidebar/workspace 强制；五个可选包默认启用且可独立禁用。
+- **构建/输出:** 36 个 SOC 包加 `apps/soc-agent` 产品 bundle 由同一 setup 矩阵跟踪；其中 26 个包面生成浏览器产物。setup 统一做指纹、构建、注册、解析与健康检查。
+- **运行状态:** core/sidebar/workspace 与基础替代包强制；六个可选包默认启用且可独立禁用。
 
 ## 2. 管理控制台功能（`dsh-soc-agent-admin`，浏览器 `/admin`）
 
@@ -138,15 +138,15 @@
 
 ## 14. Vendored harness 集成面
 
-- **路径:** `vendor/deepseek-harness/`（`0.1.1-rc.2`）、`cordis.patch.yml`、`patches/`
+- **路径:** 纯净 `vendor/deepseek-harness/`（`dsh-v0.1.5-rc.2`，提交 `fb2c4b9e698e30edb738bca4cf0618587db7d203`）、`vendor/deepseek-harness.upstream.json`、`apps/soc-agent/cordis.patch.yml`、根目录 `packages/soc-agent-*`
 - **职责:** 智能体运行时：cordis 插件加载器、失败关闭审批的工具注册表、MCP 客户端（stdio + streamable-http、重连退避、`allowedToolNames` 过滤、`toolCallTimeoutMs`）、web 服务器/网关、浏览器模块加载器、技能、预设、LLM 提供商。
 - **本轮变更:** `packages/host/apiproxy` 上游声明结构化认证错误码。
-- **钉扎:** vendored 目录；外层仓库经工作区 glob 消费；`schemastery`/`cosmokit` 由 pnpm overrides 钉到 vendored 分叉。
-- **运行状态:** 活跃（vendored）。
+- **钉扎:** `tooling/verify-upstream.mjs` 将 vendor 目录与官方 release archive 比较；其中不得有 SOC 源码、profile 补丁或 vendor-relative workspace link。根 SOC workspace 精确钉扎 `0.1.5-rc.2` Harness 依赖并记录源文件清单。
+- **运行状态:** 活跃（纯净 vendored 上游）。
 
 ## 15. setup doctor + 更新器
 
-- **路径:** `setup.sh`、`update.sh`、`requirements.txt`
+- **路径:** `setup.sh`、`update.sh`、根 `package.json`、`pnpm-workspace.yaml`、`tooling/session-migration.mjs`
 - **职责:** 引导/修复/装配一切：前置（node ≥22.19/24、pnpm、uv）、单一参数清单（官方 Splunk MCP 端点+令牌**必填**）、`.env` 生成（chmod 600）、`uv sync`、指纹门控 `pnpm install/build`、插件添加/清理、SOC bundle 注册、校验。`update.sh` = 干净树 ff-only 拉取 + `setup.sh --plugins`。
 - **运行状态:** 运维工具（运维执行；不启动服务）。
 

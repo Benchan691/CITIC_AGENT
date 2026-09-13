@@ -1766,6 +1766,8 @@ interface ReasoningChunkStormState {
 export interface FixtureOptions {
   /** Start with no real Workspace or Session. */
   empty?: boolean
+  /** Limit resident Remote Event coverage to one interactive surface. */
+  interaction?: 'approval' | 'question' | 'both'
   /** Reject every prompt before appending its user event. */
   rejectPrompt?: boolean
   /** Publish the Session but fail its Workspace account write. */
@@ -2045,9 +2047,9 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
   }
   /** Resident waterfalls retain their event ids across Remote Event generations. */
   const pendingApprovalEventId = 'fx-interaction-approval'
-  let approvalPending = !options.empty
+  let approvalPending = !options.empty && options.interaction !== 'question'
   const pendingQuestionEventId = 'fx-interaction-question'
-  let questionPending = !options.empty
+  let questionPending = !options.empty && options.interaction !== 'approval'
   const fixtureQuestions: readonly FixtureQuestionItem[] = [
     {
       id: 'harness-profile',
@@ -4028,6 +4030,9 @@ function fixtureOptionsFromLocation(): FixtureOptions {
   const query = new URLSearchParams(location.search)
   return {
     empty: query.get('fixture') === 'empty',
+    interaction: query.get('fixtureInteraction') === 'approval' || query.get('fixtureInteraction') === 'question'
+      ? query.get('fixtureInteraction') as 'approval' | 'question'
+      : 'both',
     rejectPrompt: query.get('fixturePrompt') === 'reject',
     failWorkspaceAttach: query.get('fixtureAttach') === 'fail',
     dropSessionCreateResponse: query.get('fixtureSessionCreate') === 'drop-response',

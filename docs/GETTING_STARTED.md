@@ -7,7 +7,7 @@
 
 **What you will understand:** prerequisites, the four setup modes, how configuration is prepared safely, how to start the app, a first non-destructive verification, and the common first-run failures.
 
-**Plain-language summary.** One script — `setup.sh`, the "setup doctor" — checks prerequisites, collects configuration interactively (writing two `.env` files with restrictive permissions), installs dependencies, builds the vendored harness and all eight SOC browser packages, and wires the SOC product into the harness web profile. It starts nothing: you launch the app yourself with one command. A second script, `update.sh`, fast-forwards a clean checkout and re-runs the repair/wiring pass.
+**Plain-language summary.** One script — `setup.sh`, the "setup doctor" — checks prerequisites, collects configuration interactively (writing two `.env` files with restrictive permissions), installs dependencies, builds the pristine Harness and the independent SOC workspace (37 SOC packages and 26 browser faces), and wires the SOC product into the Harness web profile. It starts nothing: you launch the app yourself with one command. A second script, `update.sh`, fast-forwards a clean checkout and re-runs the repair/wiring pass.
 
 **Prerequisites:** none.
 
@@ -17,8 +17,8 @@
 
 | Requirement | Version / check | Notes |
 |---|---|---|
-| Node.js | `^22.19.0` or `>=24` (regex-checked by `run_prereq_checks`) | The vendored workspace requires it |
-| pnpm | any recent; `setup.sh` adds `~/.local/share/pnpm/bin` to PATH if missing (Corepack) | Package manager for the vendored workspace |
+| Node.js | `^22.19.0` or `>=24` (regex-checked by `run_prereq_checks`) | The root SOC workspace and Harness release require it |
+| pnpm | `11.7.0` (Corepack; setup adds `~/.local/share/pnpm/bin` to PATH if missing) | Package manager for the root SOC workspace and Harness |
 | uv | any recent | Runs the Python server (`uv run`, `uv sync`) |
 | Python | 3.12 (managed by uv; `uv sync --python 3.12`) | Server pins `requires-python = ">=3.12"` and setup syncs 3.12 |
 | Git | any recent | Bootstrap/branch handling |
@@ -32,14 +32,14 @@ Services you must provide (external): a Zimbra host, the **official Splunk MCP e
 | Situation | Command | What happens |
 |---|---|---|
 | **Fresh installation (no checkout)** | `bash setup.sh` from anywhere (bootstrap) | Prompts for repository URL, install path (default `~/CITIC_AGENT`), and branch; clones (or fast-forwards a reuse-safe existing checkout); re-execs the clone's own `setup.sh` to continue with the full setup |
-| **Existing checkout, first setup / re-check** | `./setup.sh` (interactive) | `run_prereq_checks` → `collect_parameters` → `write_files` → `ensure_python_server` → `ensure_harness_ready` → `ensure_external_plugins` → `ensure_soc_bundle` → `summary`. Existing values become prompt defaults; only missing/invalid items re-prompt |
+| **Existing checkout, first setup / re-check** | `./setup.sh` (interactive) | `run_prereq_checks` → `collect_parameters` → `write_files` → `ensure_python_server` → `ensure_harness_ready` → `ensure_soc_workspace_ready` → `ensure_soc_bundle` → `summary`. Existing values become prompt defaults; only missing/invalid items re-prompt |
 | **Audit only (no changes)** | `./setup.sh --check` | Report-only; exit 1 when anything is missing or drifted; never writes |
-| **Non-interactive repair / re-wire** | `./setup.sh --plugins` (add `--rebuild` to force harness rebuild) | Prereq checks, Python env, harness build (fingerprint-gated unless `--rebuild`), plugin install/prune/verify, SOC bundle registration. No prompts, no env writing |
+| **Non-interactive repair / re-wire** | `./setup.sh --plugins` (add `--rebuild` to force both builds) | Prereq checks, Python env, pristine Harness build, independent SOC workspace build, plugin install/prune/verify, SOC bundle registration. No prompts, no env writing |
 | **Update an existing deployment** | `./update.sh` | Refuses arguments and dirty trees; `git pull --ff-only` on the current branch; then `setup.sh --plugins`; you restart the app manually |
 
 Branch switching: only via `./setup.sh`, only with a **clean working tree** (`git status --porcelain`); local changes are never stashed or discarded.
 
-**Development vs deployment mode.** The setup stages are identical for both; what differs is where it runs and what happens after. Development mode is the checkout you edit, started manually with `pnpm dsh web`. Deployment mode is the same setup run on a server (the `RUNNING_INSIDE_DOCKER`/`SPLUNK_HOST_FOR_DOCKER` variables imply a container deployment defined outside this repository), with the same manual start unless your service manager wraps it — process supervision is not configured in this repo. Runtime state (`.env`, `.data`, PostgreSQL, `~/.dsh`) lives outside Git and survives updates in both modes.
+**Development vs deployment mode.** The setup stages are identical for both; what differs is where it runs and what happens after. Development mode is the checkout you edit, started manually with the Harness binary from the repository root. Deployment mode is the same setup run on a server (the `RUNNING_INSIDE_DOCKER`/`SPLUNK_HOST_FOR_DOCKER` variables imply a container deployment defined outside this repository), with the same manual start unless your service manager wraps it — process supervision is not configured in this repo. Runtime state (`.env`, `.data`, PostgreSQL, `~/.dsh`) lives outside Git and survives updates in both modes.
 
 ## 3. What setup asks and writes
 
@@ -52,19 +52,18 @@ Branch switching: only via `./setup.sh`, only with a **clean working tree** (`gi
 - Subscription service: `SUBSCRIPTION_SERVER_URL`, user, password, TLS option.
 - MarkItDown LLM: `MARKITDOWN_LLM_ENABLED` (key+model required when true).
 
-Files written (names only — contents never belong in tickets or chats): `apps/soc-agent/server/.env` (seeded from `.env.example`, chmod 600), `vendor/deepseek-harness/.env` (only the Postgres URI + encryption key, chmod 600), `.gitignore` (only if `.env` patterns are absent), and `.data/harness-*.sha256` fingerprints. Outside the repo: `~/.dsh/profiles/web/` (patch copy, `pnpm-workspace.yaml`, plugin manifest). The summary prints **masked** values only.
+Files written (names only — contents never belong in tickets or chats): `apps/soc-agent/server/.env` (seeded from `.env.example`, chmod 600), repository-root `.env` (Harness launch environment, chmod 600), `.gitignore` (only if `.env` patterns are absent), and `.data/*` fingerprints. Outside the repo: `~/.dsh/profiles/web/` (profile manifest and local package links). The summary prints **masked** values only.
 
 ## 4. Development startup
 
 ```bash
 # from the repository root
-cd vendor/deepseek-harness
-pnpm dsh web --no-open
+vendor/deepseek-harness/node_modules/.bin/dsh web --no-open
 ```
 
 Open `http://127.0.0.1:3080` (the summary prints this; remote access typically via `ssh -L 3080:127.0.0.1:3080 user@host`). The Node host loads the web profile, spawns the Python `soc_agent` stdio server, and (when configured) connects the `splunk_mcp` bridge. A failed Python spawn is fatal by design (`failOnStartupError: true`); a missing Splunk endpoint/token merely disables the bridge with a log line.
 
-Rebuilding after browser changes: rebuild the owning package, or run `./setup.sh --plugins`, which detects bundle drift and repairs all eight browser artifacts. See [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
+Rebuilding after SOC changes: run `pnpm run build` from the repository root, or run `./setup.sh --plugins`, which detects missing/drifted artifacts and repairs the independent workspace. See [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## 5. First non-destructive verification
 
@@ -88,13 +87,13 @@ Never paste real secrets into shell commands (shell history). Prefer the interac
 | Admin console rejects login | Wrong `SOC_ADMIN_EMAIL`/`SOC_ADMIN_PASSWORD` env at host start; admin sessions are in-memory so host restarts log you out | Restart host after fixing `.env`; re-login |
 | "Stored Zimbra accounts are no longer supported" | Calling a legacy account RPC | Expected refusal; log in with Zimbra instead |
 | SOC UI looks stale after editing `packages/soc-agent-*/src` | The owning tracked `lib/` bundle was not rebuilt | Rebuild that package or run `./setup.sh --plugins` |
-| Profile has extra/stale plugins | `requirements.txt` vs profile drift | `./setup.sh --plugins` prunes to the managed set |
+| Profile has extra/stale plugins | Manual profile changes or an interrupted migration | `./setup.sh --plugins` prunes to the managed SOC set |
 
 More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md). Next steps: [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md) (what you just started), [CONFIGURATION.md](CONFIGURATION.md) (every variable), [DEPLOYMENT_AND_OPERATIONS.md](DEPLOYMENT_AND_OPERATIONS.md) (operations lifecycle).
 
 ## Evidence in the repository
 
-- `setup.sh` (stages, modes, written files, `PLUGIN_NAMES`), `update.sh`, `requirements.txt`
+- `setup.sh` (stages, modes, written files, authoritative SOC matrix), `update.sh`, `vendor/deepseek-harness.upstream.json`
 - `apps/soc-agent/cordis.patch.yml` (`failOnStartupError`, bridge env), `apps/soc-agent/splunk-bridge.js` (`resolveOfficialSplunkConfig`)
 - `apps/soc-agent/ownership.js` (`resolveAdminCredentials` throwing when unset), `apps/soc-agent/host.js` (`serveAdminPage`)
 - `packages/soc-agent-client/src/client/core/AuthGate.tsx` (Sentinel login), `apps/soc-agent/server/.env.example` (variable names)

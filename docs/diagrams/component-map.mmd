@@ -1,28 +1,28 @@
 %% Component map — first-party modules and ownership (verified against 56c8dd2)
 flowchart TB
     subgraph host["apps/soc-agent (Node plugins)"]
-        policy["policy.js<br/>single tool catalog<br/>29 read · 41 domain · 12 mutation"]
+        policy["policy.js<br/>single tool catalog<br/>30 read · 42 domain · 12 mutation"]
         hostjs["host.js<br/>tools/pre-execute gate · /soc-agent-config RPC<br/>background refresh · admin surface"]
         auth["auth-host.js + ownership.js<br/>sessions · scoped API proxy · control channel"]
         bridge["splunk-bridge.js<br/>splunk_mcp client (13 reads)"]
         inv["investigation.js<br/>Splunk output projection"]
     end
     subgraph python["apps/soc-agent/server/unified_mcp_server"]
-        server["server.py<br/>FastMCP · 27 tools · 180s budget"]
+        server["server.py<br/>FastMCP · 28 tools · 180s budget"]
         mail["zimbra/ mail+filters"]
         subsm["email/ subscriptions"]
         stores["postgres_store · config · auth"]
-        retained["splunk/ (34 files) · splunk_service.py<br/>RETAINED — not registered"]
+        retained["former Splunk stack<br/>REMOVED — bridge is the only Splunk path"]
     end
     subgraph client["packages/soc-agent-*/ (browser packages)"]
         core["soc-agent-client<br/>auth · socClient runtime · policy schema · admin fallback"]
         surfaces["soc-agent-sidebar + soc-agent-workspace<br/>isolated standard slot owners"]
-        features["optional features<br/>brand · admin · action-policy<br/>attachments · email-draft"]
-        lib["eight tracked lib/client.js<br/>generated browser bundles"]
+        features["optional features<br/>brand · admin · action-policy<br/>attachments · email-draft · auto-collapse"]
+        lib["26 tracked browser faces<br/>generated bundles"]
     end
     skills["skills/ (4 SKILL.md)"]
-    patch["cordis.patch.yml + patches/"]
-    vendor["vendor/deepseek-harness<br/>(cordis loader · tools registry · approval · web)"]
+    patch["cordis.patch.yml + SOC replacement packages"]
+    vendor["vendor/deepseek-harness<br/>pristine dsh-v0.1.5-rc.2 snapshot"]
 
     patch --> vendor
     hostjs --> policy

@@ -719,7 +719,7 @@ write_files() {
 # Specifiers a SOC browser bundle may require externally (module-table rows).
 # Anything else found as a literal require() in a SOC browser bundle is drift.
 client_external_violations() { # $1 = SOC browser bundle path
-  local allow='^(react|react/jsx-runtime|react-dom|react-dom/client|@deepseek-ai/cordis|@deepseek-ai/dsh-client-ui-slots|@deepseek-ai/dsh-client-ui-primitives|@deepseek-ai/dsh-client-runtime/client)$'
+  local allow='^(react|react/jsx-runtime|react-dom|react-dom/client|@deepseek-ai/cordis|@deepseek-ai/dsh-client-store|@deepseek-ai/dsh-client-ui-slots|@deepseek-ai/dsh-client-ui-primitives|@deepseek-ai/dsh-client-runtime/client|dsh-soc-agent-api-gateway/client)$'
   grep -o 'require("[^"]*")' "$1" 2>/dev/null \
     | sed -e 's/^require("//' -e 's/")$//' \
     | sort -u \
@@ -1013,6 +1013,64 @@ stale_external_plugin_names() { # $1 = profile dir; migration cleanup only
   done
 }
 
+remove_stale_profile_patches() { # $1 = profile dir; migration cleanup only
+  local pdir="$1" workspace="$1/pnpm-workspace.yaml"
+  [ -f "$workspace" ] || return 0
+  node - "$workspace" "$pdir" <<'NODE'
+const fs = require('fs')
+const path = require('path')
+
+const workspacePath = process.argv[2]
+const profileDir = path.resolve(process.argv[3])
+const stalePatchKey = 'dsh-auto-collapse@0.1.4'
+const stalePatchBasename = 'dsh-auto-collapse@0.1.4.patch'
+const stalePatchPattern = new RegExp(`^\\s*${stalePatchKey.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}:\\s*(\\S+)\\s*$`)
+const lines = fs.readFileSync(workspacePath, 'utf8').split(/\r?\n/)
+const output = []
+const stalePaths = []
+let changed = false
+
+for (let index = 0; index < lines.length;) {
+  if (lines[index].trim() !== 'patchedDependencies:') {
+    output.push(lines[index++])
+    continue
+  }
+
+  const header = lines[index]
+  const block = []
+  let cursor = index + 1
+  while (cursor < lines.length && (lines[cursor].trim() === '' || /^[ \t]/.test(lines[cursor]))) {
+    const match = lines[cursor].match(stalePatchPattern)
+    if (match) {
+      stalePaths.push(match[1])
+      changed = true
+    } else {
+      block.push(lines[cursor])
+    }
+    cursor += 1
+  }
+
+  const keptEntries = block.filter((line) => line.trim() !== '')
+  if (keptEntries.length > 0) {
+    output.push(header, ...block)
+  }
+  index = cursor
+}
+
+if (changed) {
+  fs.writeFileSync(workspacePath, output.join('\n'))
+  for (const patchPath of stalePaths) {
+    const resolved = path.resolve(profileDir, patchPath)
+    if (path.basename(resolved) !== stalePatchBasename) continue
+    if (resolved !== profileDir && resolved.startsWith(profileDir + path.sep) && fs.existsSync(resolved)) {
+      fs.unlinkSync(resolved)
+    }
+  }
+  process.stdout.write('removed obsolete dsh-auto-collapse pnpm patch\n')
+}
+NODE
+}
+
 prune_legacy_plugins() { # $1 = profile dir
   local pdir="$1" legacy name
   legacy="$(stale_external_plugin_names "$pdir")"
@@ -1020,6 +1078,7 @@ prune_legacy_plugins() { # $1 = profile dir
   local -a legacy_arr=()
   while IFS= read -r name; do [ -n "$name" ] && legacy_arr+=("$name"); done <<< "$legacy"
   echo "Removing replaced third-party plugins: ${legacy_arr[*]}"
+  remove_stale_profile_patches "$pdir"
   if ! (cd "$HARNESS_DIR" && pnpm dsh plugin --profile "$DSH_PROFILE" remove "${legacy_arr[@]}"); then
     bad "failed to remove replaced third-party plugins"
     return 1

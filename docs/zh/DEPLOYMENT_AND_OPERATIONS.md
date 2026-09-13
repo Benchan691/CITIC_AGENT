@@ -7,7 +7,7 @@
 
 **读完后你将了解:** 受支持的拓扑、setup doctor 的逐阶段职责、构建/装配生命周期、启动与健康检查、带干净树规则的更新流程、源码中真实存在的回滚/恢复选项、日志/可观测性，以及值得定期执行的运维安全检查。
 
-**通俗概述。** 一台主机、三个外部服务、一个数据库。`setup.sh` 可复现地安装并修复一切（指纹、逐字节补丁比较、受管插件集合）；`update.sh` 是守纪律的快进；重启是手动的，状态按设计保留（Postgres 会话在；管理员会话不在）。
+**通俗概述。** 一台主机、三个外部服务、一个数据库。`setup.sh` 可复现地安装并修复纯净 rc.2 Harness 与独立 SOC workspace（指纹、profile 装配、受管插件集合）；`update.sh` 是守纪律的快进；重启是手动的，状态按设计保留（Postgres 会话在；管理员会话不在）。
 
 **前置要求:** [GETTING_STARTED.md](GETTING_STARTED.md)；[CONFIGURATION.md](CONFIGURATION.md)。
 
@@ -21,34 +21,34 @@
 
 | 阶段（`setup.sh`） | 职责 | 修复 |
 |---|---|---|
-| 布局守卫 | 要求 `vendor/deepseek-harness`、`apps/soc-agent/server/`、`server/.env.example`、`requirements.txt`、补丁文件 | 无 — 直接拒绝 |
+| 布局守卫 | 要求纯净 `vendor/deepseek-harness`、根 `packages/` workspace、`apps/soc-agent/server/`、`server/.env.example` 与产品补丁 | 无 — 直接拒绝 |
 | 前置检查 | Node `^22.19.0\|>=24`、pnpm、uv（pnpm PATH 修复） | 带安装提示循环；`skip` 记录警告 |
 | 参数收集 | 单一清单驱动提示与检查：PostgreSQL、管理员凭据、加密密钥、**官方 Splunk MCP 端点+令牌（必填）**、Zimbra、订阅、MarkItDown；校验 Postgres URI（正则 + `psql` 探测）；留空自动生成加密密钥。传统 REST Splunk 字段已移除 | 仅缺失/非法项重新询问；已有值成为默认 |
-| `write_files` | 播种/更新 `server/.env`（保留注释；可选键仅在有值时写入）与 harness `.env`（仅两个键）；chmod 600；确保 `.gitignore` 覆盖 `.env` | 当 shell 导出值与写入值不同时给出警告（导出优先） |
+| `write_files` | 播种/更新 `server/.env`（保留注释；可选键仅在有值时写入）与仓库根 `.env`（Harness 启动使用）；chmod 600；确保 `.gitignore` 覆盖 `.env` | 当 shell 导出值与写入值不同时给出警告（导出优先） |
 | `ensure_python_server` | `uv sync --python 3.12`（启用 LLM 时加 `--extra markitdown-llm`） | 失败记录警告并继续 |
-| `ensure_harness_ready` | 指纹门控的 `pnpm install --frozen-lockfile` + 构建（指纹：锁文件+包清单 → 安装；harness+八个 SOC 浏览器包源码 → 构建）；校验 `apps/web/dist/index.html`、`mcp-client/lib/index.js` 与每个 `packages/soc-agent-*/lib/client.js` | `--rebuild` 绕过指纹；任一 SOC 浏览器 bundle 漂移会触发浏览器包重建 |
-| `ensure_external_plugins` | 把 pnpm 补丁复制进 profile（逐字节比较）、编辑 `pnpm-workspace.yaml` 的 `patchedDependencies`、安装 `requirements.txt` 两个 spec（`pnpm dsh plugin --profile web add`）、**清理受管集合之外的过期插件**、复核 deps+bundles | 重跑即修复；从 `requirements.txt` 删除一行会在下次运行传播到所有机器 |
-| `ensure_soc_bundle` | 把 `apps/soc-agent`、强制核心、隔离侧栏/工作区及五个可选 SOC 浏览器包注册进 web profile；校验全部包与 `dsh-soc-agent/auth-host`、`dsh-soc-agent/host`、`@deepseek-ai/dsh-time-context` 及外部插件的解析 | 可重入 |
+| `ensure_harness_ready` | 指纹门控的 `pnpm install --frozen-lockfile` + 纯净 Harness 构建；校验官方 framework/web 产物与 release manifest | `--rebuild` 绕过指纹；vendor 漂移直接失败 |
+| `ensure_soc_workspace_ready` | 指纹门控的根 `pnpm install --frozen-lockfile` + 37 个 SOC 包的声明和 bundle 构建（26 个浏览器 face）；校验浏览器 external | `--rebuild` 绕过指纹；缺产物或漂移会修复 |
+| `ensure_soc_bundle` | 清理过时的第三方 skin/auto-collapse 条目，然后通过官方 `dsh plugin --profile web add` 将 app 与全部必需/可选 SOC 包注册进 web profile；校验每个包解析 | 可重入；迁移清理会删除 profile 中过时补丁 |
 | 摘要 | 打印掩码值、写入文件、警告、下一步 | **不启动任何服务** |
 
-`--check` 执行只读审计（前置、按优先级的每个参数、Splunk MCP 必配、明文 HTTP 策略、插件解析、profile 补丁/注册、过期插件、构建产物、SOC 漂移、解析）并以失败数 exit 1。
+`--check` 执行只读审计（前置、按优先级的每个参数、Splunk MCP 必配、明文 HTTP 策略、纯净 release 校验、profile 注册、过期插件、构建产物、SOC 漂移与解析）并以失败数 exit 1。
 
 ## 3. 构建/装配生命周期
 
 生命周期图见英文站 [site/operations.html](../site/operations.html)；可编辑源 [diagrams/build-test-deploy.mmd](../diagrams/build-test-deploy.mmd)。
 
-权威源 →（八个 SOC 浏览器包：tsdown → **被跟踪**的 `lib/`；harness：pnpm 构建 → 未跟踪 dist）→ profile 装配（`~/.dsh/profiles/web`：manifest bundle、补丁副本）→ 运行时（Node 宿主加载 profile；浏览器挂载被选择的功能插件；拉起 Python 子进程）。指纹让生命周期可复现：相同输入跳过相同工作。
+权威源 →（根 SOC workspace：声明构建 + 26 个浏览器 face 经 tsdown → **被跟踪**的 `lib/`；纯净 Harness：pnpm 构建 → 忽略的产物）→ profile 装配（`~/.dsh/profiles/web`：本地直接依赖与 bundle manifest）→ 运行时（Node 宿主加载 profile；浏览器挂载被选择的功能插件；拉起 Python 子进程）。指纹让生命周期可复现：相同输入跳过相同工作。
 
 ## 4. 启动、重启、健康
 
-- **启动:** `cd vendor/deepseek-harness && pnpm dsh web --no-open` → 打开 `http://127.0.0.1:3080`。
+- **启动:** 在仓库根目录运行 `vendor/deepseek-harness/node_modules/.bin/dsh web --no-open` → 打开 `http://127.0.0.1:3080`。
 - **可用健康检查:**
   - `./setup.sh --check` — 完整静态审计（随时可跑）。
   - 管理控制台 → Connections → Splunk / Subscription 的 *Check*（Splunk 是**经桥接的实时 `splunk_get_info` 调用**；Zimbra/MarkItDown 只显示环境托管状态）。
   - 浏览器 `/auth/me`（会话探测）与管理员 `/admin/auth/me`。
   - 启动日志行：桥接启用/禁用、插件注册、Python 拉起（`failOnStartupError` 使 Python 死亡在启动时即致命）。
 - **重启:** 停止进程再启动。会话、归属、设置存活（Postgres）。管理员会话、会话动作模式覆盖、内存缓存不存活 — 按设计。
-- **生成的环境文件:** `server/.env`、`vendor/deepseek-harness/.env`（均 0600）、`.data/harness-*.sha256`；profile 文件在 `~/.dsh/profiles/web/`。
+- **生成的环境文件:** `server/.env`、仓库根 `.env`（均 0600）、`.data/*` 指纹；profile 文件在 `~/.dsh/profiles/web/`。
 
 ## 5. 更新流程
 
@@ -61,6 +61,8 @@
 | 一次糟糕的更新 | **手动** `git reset`/`git checkout` 上一提交（update.sh 从不操纵历史），然后 `./setup.sh --plugins`；重启 |
 | profile 装配损坏 | `./setup.sh --plugins` 重新添加/清理/复核受管插件集合；`--rebuild` 强制完整 harness 重建 |
 | SOC 浏览器 bundle 漂移 | setup 检测并自动重建受影响的 SOC 浏览器包（require 允许列表检查） |
+| 会话格式切换 | 在复制的数据根上运行 `pnpm run sessions:validate`；只有通过后才用显式备份目录和 ownership manifest 运行 `pnpm run sessions:migrate`。迁移失败关闭，并发布不可变 v3 successor。 |
+| 会话切换回滚 | 使用已校验备份与显式 `--yes` 运行 `pnpm run sessions:rollback`；恢复前会校验备份字节。 |
 | Python 环境失败 | 在 `apps/soc-agent/server` 执行 `uv sync --python 3.12`；重跑 setup |
 | `.env` 编辑错误 | 重跑 `./setup.sh`（已有值成为默认；仅非法项重问）— 或从你自己的 0600 文件备份恢复 |
 | 密钥轮换后加密行不可读 | 恢复旧的 `APP_SETTINGS_ENCRYPTION_KEY`（运行时拒绝静默继续；错误指明修复方法） |
@@ -82,7 +84,7 @@
 2. 部署改动的 checkout 前运行三个测试套件（[TESTING.md](TESTING.md)）— 尤其是命名栅栏。
 3. 核对桥接姿态：Splunk 未配置时确认日志显示 disabled（缺失即安全的工具面）。
 4. 确认管理员凭据环境变量在启动时已设置（启动抛错正是控制在工作）。
-5. 手动 `pnpm dsh plugin` 操作后复查 `~/.dsh/profiles/web` 有无未管插件。
+5. 手动 `pnpm dsh plugin` 操作后复查 `~/.dsh/profiles/web` 有无未管插件；`setup.sh --check` 必须报告完整 SOC 包集合。
 6. 备份: PostgreSQL + `APP_SETTINGS_ENCRYPTION_KEY` + 两个 `.env` 文件（[DATA_AND_PERSISTENCE.md](DATA_AND_PERSISTENCE.md)）。
 
 ## 仓库中的证据

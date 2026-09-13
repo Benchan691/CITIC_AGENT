@@ -8,7 +8,7 @@
     "sourcePath": "packages/client/ui-workspace",
     "sourceSha256": "6047e802715cadbe965ec3f31fb7c5fd39e0d80c395f272428514fd48875f7ad"
   },
-  "socSourceSha256": "5835fc3b3df53490839fd789d51d04274fc58d0a6a596c711a896438b63ab346",
+  "socSourceSha256": "7044c982d435018e61caab77ffbe6b3b4bb56c315dba489dbad29da58e8dccf6",
   "screenshots": {
     "list": "apps/soc-agent/tests/__screenshots__/workspace-list.png",
     "picker": "apps/soc-agent/tests/__screenshots__/workspace-picker.png"
