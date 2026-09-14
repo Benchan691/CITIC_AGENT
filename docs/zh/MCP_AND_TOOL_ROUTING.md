@@ -82,10 +82,10 @@ mcp__ splunk_mcp __ splunk_run_query
 
 | 漂移风险 | 守卫 |
 |---|---|
-| Python 服务器注册 28 个之外的东西 | `test_server_tools.py`（`len(tools) == 28`；也禁止 `ctx`/`account_id` 参数） |
-| 补丁允许列表 ≠ Python 面 | `skills.test.js` 钉住补丁的 28 名单；JS 与 Python 独立钉住**同一**名单 |
+| Python 服务器注册 27 个之外的东西 | `test_server_tools.py`（`len(tools) == 27`；也禁止 `ctx`/`account_id` 参数） |
+| 补丁允许列表 ≠ Python 面 | `skills.test.js` 钉住补丁的 27 名单；JS 与 Python 独立钉住**同一**名单 |
 | 桥接允许列表混入写工具 | `splunk-bridge.test.js` + `skills.test.js` 断言无 `splunk_(create|update|delete|write)_` 且读名单精确 |
-| 策略集合偏离清单 | `policy.test.js` 钉住 30/42/12；`ACTION_TOOLS` 从 `ACTION_CATALOG` 派生（构造上单一事实源），且两者都派生自 `tool-inventory.js` |
+| 策略集合偏离清单 | `policy.test.js` 钉住 29/41/12；`ACTION_TOOLS` 从 `ACTION_CATALOG` 派生（构造上单一事实源），且两者都派生自 `tool-inventory.js` |
 | 客户端自造模式或绕过端点 | `action-policy.test.ts`（精确 RPC 三元组；失败关闭） |
 | vendored 客户端改变允许列表语义 | `mcp-discovery.test.js` |
 

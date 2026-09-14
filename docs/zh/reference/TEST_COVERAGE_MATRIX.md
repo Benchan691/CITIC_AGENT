@@ -19,10 +19,10 @@
 | `control-channel.test.js` | 2 | 并发控制请求共享一个 Python 进程；传输后丢响应 → `operation_outcome_unknown` 且**无** CLI 兜底重放 |
 | `investigation.test.js` | 1 | 卡号/SSN 掩码只作用于 `mcp__splunk_mcp__*` 输出 |
 | `mcp-discovery.test.js` | 1 | `allowedToolNames` 在 stdio 与 streamable-http 下对 undefined/`[]`/显式列表的往返 |
-| `policy.test.js` | 4 | 精确产品工具集（**30/42/12** 逐字钉扎）；pre-execute 裁决；SOC 模式部署状态 + RPC 契约；Full access 绕过每工具状态 |
+| `policy.test.js` | 4 | 精确产品工具集（**29/41/12** 逐字钉扎）；pre-execute 裁决；SOC 模式部署状态 + RPC 契约；Full access 绕过每工具状态 |
 | `python-command.test.js` | 1 | 新: `runPythonCommand` 拉起/超时/中止/解析契约（子环境剔除管理凭据） |
 | `setup.test.js` | 5 | 新: setup doctor 参数清单与校验逻辑（官方 MCP 端点+令牌必填；明文 HTTP 选择规则） |
-| `skills.test.js` | 5 | 补丁启用技能/计划层；citic-soc 预设指令候选（BACKGROUND.md 恰一次）+ 技能内容断言；补丁禁用原生 shell/权限工具；桥接只接线读工具；`soc_agent` 允许列表 = 精确 **28** 名单且无 `splunk_` |
+| `skills.test.js` | 5 | 补丁启用技能/计划层；citic-soc 预设指令候选（BACKGROUND.md 恰一次）+ 技能内容断言；补丁禁用原生 shell/权限工具；桥接只接线读工具；`soc_agent` 允许列表 = 精确 **27** 名单且无 `splunk_` |
 | `splunk-bridge.test.js` | 4 | 桥接读部署配置、转发 Bearer、允许列表 = 13 读名；TLS 默认校验；**新:** 配置要求 MCP 凭据与显式明文 HTTP 选择（端点 URL 校验）；**新:** 管理连接检查使用活跃允许工具（`splunk_get_info`）并保留授权、错误脱敏与取消 |
 | `user-mode.test.js` | 1 | 动作模式已认证、按会话隔离、被强制（`full` 放行、`soc` 询问）、登出撤销 |
 
@@ -37,19 +37,19 @@
 | `soc-agent-admin` | 4 | 管理状态、凭据护栏、访问策略护栏、核心子槽位挂载 |
 | `soc-agent-action-policy` | 3 | `readActionMode` 精确 RPC、畸形/失败响应拒绝、采纳服务端确认模式 |
 | `soc-agent-attachments` | 1 | 双 worker 转换、保序、重试、缓存、截断注记、`release()` 清理 |
-| `soc-agent-email-draft` | 3 | 收件人解析/去重、规范草稿字段、转发字段映射、签名/发送视图行为 |
+| `soc-agent-email-draft` | 4 | 收件人解析/去重、统一 send/reply/forward 元数据、空 To 回复处理、安全来源预览、动作确认与签名/发送视图行为 |
 
 八个浏览器包各自产生被跟踪的 `lib/client.js`；应用装配测试另外递归扫描第一方源码/清单，确保没有官方侧栏/工作区导入。
 
-## 3. Python 测试 — `unified_mcp_server/tests`（10 文件 / 48 测试）
+## 3. Python 测试 — `unified_mcp_server/tests`（10 文件 / 52 测试）
 
 | 文件 | 数 | 覆盖行为 |
 |---|---|---|
-| `test_server_tools.py` | 1 | **精确 28 工具面**（含 `zimbra_forward_email` 的参数/必填/`readOnlyHint`）；无 `splunk_*`/`catalog_*`/`scheduled_task_*`/`system_get_status`；无 `ctx`/`account_id` 参数；逐工具 schema |
+| `test_server_tools.py` | 1 | **精确 27 工具面**，含统一 `zimbra_send_email` schema（`action` 枚举 `send|reply|forward`，工具文档声明条件字段规则，`readOnlyHint`）；无 `splunk_*`/`catalog_*`/`scheduled_task_*`/`system_get_status`；无 `ctx`/`account_id` 参数；逐工具 schema |
 | `test_schema.py` | 3 | 新: 迁移运行器 — 有序应用、`soc_schema_migrations` 台账（不重复应用）、advisory 锁序列化 |
 | `test_auth.py` | 4 | Postgres 上的会话生命周期: 规范化用户创建、不暴露密码/令牌、24 h 过期、登出、上游令牌失效 |
 | `test_config.py` | 7 | 未配置时安全默认；env-only 来源；`public_status` 脱敏**含 `official_mcp_enabled`**；拒绝带凭据端点；精简 Splunk 设置形状 |
-| `test_zimbra_service.py` | 14 | 元数据/正文分离；联网前查询校验；身份绑定令牌 + 拒绝账户选择；门控+校验的移动；仅本地草稿；**转发草稿**（`create_forward_draft` — 本地、内嵌元数据）；发送路径含 `forward_message_id`；签名门 |
+| `test_zimbra_service.py` | 18 | 元数据/正文分离；联网前查询校验；身份绑定令牌 + 拒绝账户选择；门控+校验的移动；仅本地 send/reply/forward 草稿；生成主题；Reply-To/Reply-All 收件人派生；HTML/文本 MIME 替代；转发附件；身份绑定投递；签名门 |
 | `test_zimbra_filters.py` | 4 | 预览 diff/指纹门；写门；redirect/discard 门；并发修改拒绝 |
 | `test_email_service.py` | 3 | 订阅客户端: 每批一次登录、401 恰好一次重认证、拒绝不安全重定向 |
 | `test_control_server.py` | 1 | 控制通道行协议 + 真实子进程端到端 |
@@ -62,8 +62,8 @@
 
 | 不变量 | 守护测试 |
 |---|---|
-| Python 服务器恰暴露 28 个允许列表工具 | `test_server_tools.py` ↔ `skills.test.js`（同 28 名单） |
-| 策略集合从 `tool-inventory.js` 精确派生（30/42/12） | `policy.test.js` — 清单现在是**结构性**栅栏（policy 与桥接都导入它） |
+| Python 服务器恰暴露 27 个允许列表工具 | `test_server_tools.py` ↔ `skills.test.js`（同 27 名单） |
+| 策略集合从 `tool-inventory.js` 精确派生（29/41/12） | `policy.test.js` — 清单现在是**结构性**栅栏（policy 与桥接都导入它） |
 | 桥接允许列表只读且与清单一致 | `splunk-bridge.test.js` ↔ `skills.test.js` |
 | 桥接端点/凭据配置被校验 | `splunk-bridge.test.js` "official configuration requires MCP credentials…" |
 | vendored 客户端的 `allowedToolNames` 语义保留 | `mcp-discovery.test.js` |
@@ -77,7 +77,7 @@
 ## 5. 已知覆盖缺口（缺口，非已证缺陷）
 
 1. 浏览器 smoke/screenshot 使用 fixture 数据并仅拦截认证；不覆盖真实 Zimbra、Splunk、订阅或 PostgreSQL 行为。
-2. **转发端到端**（`zimbra_forward_email` → 草稿卡 → `send-email` RPC → `zimbra_forward_message` 投递）分段测试，未做一体化。
+2. **邮件动作端到端**（`zimbra_send_email` → 动作草稿卡 → `send-email` RPC → send/reply/forward 投递）分段测试，未做一体化浏览器到真实 Zimbra 的流程。
 3. **Postgres 路径**用内存 SQL 替身；迁移运行器有直接测试但未在无 CI 环境对真库执行。
 4. **`setup.sh` 行为**由 `--plugins`/`--check` 验证与参数清单测试覆盖，但没有为每种 profile 状态提供 hermetic CI fixture。
 5. **仓库根无 CI** — 套件需手动运行。

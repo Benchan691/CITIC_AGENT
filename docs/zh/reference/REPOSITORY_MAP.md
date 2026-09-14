@@ -36,9 +36,9 @@
 | 路径 | 分类 | 用途 |
 |---|---|---|
 | `package.json` | 清单 | 插件 bundle `dsh-soc-agent`；导出 `./host`、`./splunk-bridge`、`./auth-host`、`./ownership`、`./policy`、`./python-command`、`./tool-inventory`；`dsh.bundle.patch: ./cordis.patch.yml`。 |
-| `cordis.patch.yml` | 配置/部署装配 | 产品补丁：启用/禁用上游插件、注册 `soc_agent`（stdio，**28** 个原始允许名）与 `splunk-official-mcp`（桥接）、把 `skill-filesystem` 指向 `skills/`。 |
-| `tool-inventory.js` | 权威源码 | **单一运行时无关事实源**：`OFFICIAL_SPLUNK_TOOL_NAMES`（13 个原始名）、`TOOL_CATALOG`（26 条：13 个 Zimbra 读含 `zimbra_forward_email`、12 个变更、1 个 UI 确认）、`SUBSCRIPTION_READ_TOOLS`（3）。被 `policy.js` 与 `splunk-bridge.js` 共同导入。头注释："Draft preparation never delivers mail." |
-| `policy.js` | 权威源码 | 从清单派生全部策略集：`OFFICIAL_SPLUNK_READ_TOOLS`（13 限定名）、`ZIMBRA_READ_TOOLS`（13）、`READ_ONLY_TOOLS`（**30**）、`ACTION_CATALOG`（**12**）、`ACTION_TOOLS`、`TOOL_CATALOG`（再导出，26）、`MANAGED_TOOL_NAMES`（25）、`DOMAIN_TOOLS`（**42**）、`APPROVAL_TOOLS`。 |
+| `cordis.patch.yml` | 配置/部署装配 | 产品补丁：启用/禁用上游插件、注册 `soc_agent`（stdio，**27** 个原始允许名）与 `splunk-official-mcp`（桥接）、把 `skill-filesystem` 指向 `skills/`。 |
+| `tool-inventory.js` | 权威源码 | **单一运行时无关事实源**：`OFFICIAL_SPLUNK_TOOL_NAMES`（13 个原始名）、`TOOL_CATALOG`（25 条：12 个 Zimbra 读、9 个变更、3 个订阅读、1 个 UI 确认）、`SUBSCRIPTION_READ_TOOLS`（3）。被 `policy.js` 与 `splunk-bridge.js` 共同导入。头注释："Draft preparation never delivers mail." |
+| `policy.js` | 权威源码 | 从清单派生全部策略集：`OFFICIAL_SPLUNK_READ_TOOLS`（13 限定名）、`ZIMBRA_READ_TOOLS`（12）、`READ_ONLY_TOOLS`（**29**）、`ACTION_CATALOG`（**12**）、`ACTION_TOOLS`、`TOOL_CATALOG`（再导出，25）、`MANAGED_TOOL_NAMES`（24）、`DOMAIN_TOOLS`（**41**）、`APPROVAL_TOOLS`。 |
 | `host.js` | 权威源码 | 插件 `soc-agent-host`：`/soc-agent-config` RPC、`tools/pre-execute` 策略门、动作模式、背景刷新、管理页。`runAdmin` 委托 `runPythonCommand`；`test-splunk` 调 `testOfficialSplunkConnection`（实时桥接探测）。 |
 | `auth-host.js` | 权威源码 | 插件 `soc-agent-auth-host`：构造 `SocAuthService`、`mcp/request-meta` 元数据、传输圈栏、特权请求授权。 |
 | `ownership.js` | 权威源码 | 认证/归属边界：登录路由、受限 API 代理、Postgres `SocStateStore`、到 Python 的控制通道。`ensureSchema` 不再含 DDL — 它调用 `unified_mcp_server.schema migrate` 并经 stdin 传入 URI。 |
@@ -53,7 +53,7 @@
 |---|---|---|
 | `pyproject.toml`、`uv.lock` | 清单/锁文件 | "SOC Agent MCP server for Zimbra and subscriptions"，Python ≥3.12，入口 `unified-mcp-server`；`migrations/*.sql` 作为 package-data；构建中已无 `splunk.*` 包。 |
 | `.env.example`、`.gitignore`、`README.md` | 配置模板/文档 | 模板只列**活跃**变量；README 声明：不注册 Splunk 工具、管理检查经桥接探测 `splunk_get_info`、退役的 Python Splunk API 不再随附。 |
-| `unified_mcp_server/server.py` | 权威源码，活跃入口 | FastMCP 构造、`Runtime`（`zimbra: ZimbraMailService`）、`execute()` 信封、身份解析、从三个模块注册 **28 个工具**（mail 含 `zimbra_forward_email`）；使用 `zimbra.core.service` 的 `_EmptyAccountStore`。 |
+| `unified_mcp_server/server.py` | 权威源码，活跃入口 | FastMCP 构造、`Runtime`（`zimbra: ZimbraMailService`）、`execute()` 信封、身份解析、从三个模块注册 **27 个工具**（mail 使用统一 `zimbra_send_email` 动作）；使用 `zimbra.core.service` 的 `_EmptyAccountStore`。 |
 | `config.py` | 权威源码 | `ServerSettings` + 精简 `SplunkSettings`（**仅** `mcp_endpoint`、`token`、`verify_ssl`、`allow_insecure_http`、`sanitize_output`）+ `ZimbraSettings` + `MarkItDownSettings` + `EmailServerSettings`；env-only；`public_status()` 报告 `official_mcp_enabled`。 |
 | `schema.py` | 权威源码 | **版本化 SQL 迁移运行器**：`apply_migrations(connection)` 取 `pg_advisory_xact_lock`，在 `soc_schema_migrations` 记录已应用文件，按序执行待应用的 `migrations/*.sql`（package data）。独立 `main()` 从 **stdin** 读 `{"uri": …}`（刻意不读 `.env`），超时 15000ms，输出 `{"migrated": true}` 或 `schema_migration_failed`。 |
 | `migrations/001_initial.sql` | Schema 定义 | `IF NOT EXISTS` 创建 `app_config`、`zimbra_accounts`、`soc_users`、`soc_app_sessions`（+索引）、`soc_session_revocations`、`soc_workspace_owners`、`soc_session_owners`（+索引）、`soc_folder_owners`、`soc_bootstrap`。 |
@@ -64,13 +64,13 @@
 | `errors.py`、`responses.py` | 权威源码 | `ServiceError` 分类；`success`/`failure` 信封。 |
 | `blocking_io.py` | 权威源码 | 有界线程卸载：全局信号量 8、每主体 2、shielded 任务。 |
 | `env_loader.py` | 权威源码 | 加载 `server/.env` 再工作区 `.env`（覆盖）；从 Python 进程剔除 `SOC_ADMIN_*`。 |
-| `zimbra_service.py` + `zimbra/`（11 文件） | 权威源码 | SOAP 客户端（`zimbra.py`，含 `zimbra_forward_message` — 供发送路径转发原信与附件）、身份绑定核心（`core/service.py`，现含 `_EmptyAccountStore`）、mail 服务/工具（**13 个工具**，含 `create_forward_draft`）、filter 服务/工具（9 个工具，指纹并发）。 |
+| `zimbra_service.py` + `zimbra/`（11 文件） | 权威源码 | SOAP 客户端（`zimbra.py`，含 `zimbra_reply_message` 与 `zimbra_forward_message` — 回复/转发默认 HTML，均生成文本替代；转发保留原信与附件）、身份绑定核心（`core/service.py`，现含 `_EmptyAccountStore`）、mail 服务/工具（**12 个工具**，含统一 send/reply/forward 草稿）、filter 服务/工具（9 个工具，指纹并发）。 |
 | `email/`（3 文件） | 权威源码 | `EmailSubscriptionService`（外部 REST）+ 6 个订阅工具。 |
 | `attachment_converter.py` | 权威源码 | MarkItDown 转换：限额、归档安全、内存 LRU 缓存。 |
 | `control_server.py` | 权威源码 | 常驻私有控制通道（stdio JSON 行），分发 `auth_cli` 命令。 |
 | `admin_cli.py` | 权威源码（运维工具） | 一次性管理命令：`get-settings`、`test-subscription-server`、`convert-attachment`、`migrate`（现执行 `migrate(store)` — 应用 Schema）。**`test-splunk` 已移除**。拒绝设置写入与邮件操作。 |
-| `auth_cli.py` | 权威源码 | 一次性认证命令：`login`、`logout`、`send-email`（现转发 `forward_message_id`）、`list-signatures`；也是控制通道的分发表。 |
-| `tests/`（10 测试文件 + `__init__.py`，48 测试） | 第一方测试 | 全部留存 Splunk 测试文件删除；新增 `test_schema.py`（3）。见 [TEST_COVERAGE_MATRIX.md](TEST_COVERAGE_MATRIX.md)。 |
+| `auth_cli.py` | 权威源码 | 一次性认证命令：`login`、`logout`、`send-email`（传递统一 action/source 元数据）、`list-signatures`；也是控制通道的分发表。 |
+| `tests/`（10 测试文件 + `__init__.py`，52 测试） | 第一方测试 | 全部留存 Splunk 测试文件删除；新增 `test_schema.py`（3）及统一邮件动作覆盖。见 [TEST_COVERAGE_MATRIX.md](TEST_COVERAGE_MATRIX.md)。 |
 
 **本区间移除（原"保留"）：** `unified_mcp_server/splunk/**`（34 文件）、`splunk_service.py`、`detection.py`、以及 `test_citic_compiler.py`、`test_citic_format.py`、`test_official_splunk_mcp_client.py`、`test_search_evidence.py`、`test_security_queue.py`、`test_splunk_*.py`（6）、`citic_fixtures.py`。磁盘上可能残留未跟踪目录（`splunk/`、`catalog/`、`__pycache__/`）— 它们**未被跟踪**也不在构建中（`pyproject.toml` 已不打包）。
 
@@ -84,7 +84,7 @@
 | `soc-agent-sidebar/`、`soc-agent-workspace/` | 隔离表面包 | 标准 sidebar/workspace owner、子槽位、浏览/选择/操作与固定样式快照；来源在 `snapshot-baseline.json`。 |
 | `soc-agent-brand/`、`soc-agent-admin/` | 可选功能包 | 品牌贡献与完整 `/admin` 控制台；管理 UI 通过核心 `soc.admin.content` 子槽位挂载。 |
 | `soc-agent-action-policy/` | 可选功能包 | 终端用户 Full access/SOC mode 菜单；动作策略 schema 仍由核心注册。 |
-| `soc-agent-attachments/`、`soc-agent-email-draft/` | 可选功能包 | MarkItDown provider/rail/command/设置卡，以及可编辑草稿/转发 tool view。 |
+| `soc-agent-attachments/`、`soc-agent-email-draft/` | 可选功能包 | MarkItDown provider/rail/command/设置卡，以及可编辑 send/reply/forward 草稿 tool view。 |
 | 每个包的 `lib/index.js`、`lib/client.js`、`lib/client.js.map` | **被跟踪的生成产物** | 每个包一个闭包工厂；`setup.sh` 注册并健康检查八个包。 |
 | 每个包的 `tests/` | 第一方测试 | 各包行为/护栏测试；浏览器视觉/smoke 测试在 `apps/soc-agent/tests/`。 |
 **本次抽取从核心移除：** 原先位于 `soc-agent-client/src/client/` 的可选功能实现（管理、品牌、动作策略、附件、邮件草稿）及旧的兼容设置样式。官方 vendor 侧栏/工作区源码保持冻结，并通过 SOC patch 禁用。

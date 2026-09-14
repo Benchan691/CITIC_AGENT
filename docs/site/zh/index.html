@@ -25,8 +25,8 @@
 <div class="table-wrap"><table><tbody>
 <tr><th scope="row">这是什么？</th><td>带工具调用 AI 的网页版安全运营调查助手；一个 Node 宿主进程 + Python 子进程。</td></tr>
 <tr><th scope="row">谁在用？</th><td>经认证的 SOC 分析师与管理员（独立静态管理员登录）。</td></tr>
-<tr><th scope="row">两个 MCP 服务器</th><td><code>soc_agent</code> — 本地 Python stdio 服务器，28 个 Zimbra/订阅工具；<code>splunk_mcp</code> — 到外部官方 Splunk MCP 端点的客户端桥接，13 个只读工具。</td></tr>
-<tr><th scope="row">安全模型</th><td>仅允许列表内工具；默认只读；每工具 ask/auto/disabled；Full access vs SOC mode；邮件仅经界面 Send 确认投递；harness shell/文件系统工具禁用。</td></tr>
+<tr><th scope="row">两个 MCP 服务器</th><td><code>soc_agent</code> — 本地 Python stdio 服务器，27 个 Zimbra/订阅工具；<code>splunk_mcp</code> — 到外部官方 Splunk MCP 端点的客户端桥接，13 个只读工具。</td></tr>
+<tr><th scope="row">安全模型</th><td>仅允许列表内工具；默认只读；每工具 ask/auto/disabled；Full access vs SOC mode；邮件 send/reply/forward 仅经界面动作确认投递；harness shell/文件系统工具禁用。</td></tr>
 <tr><th scope="row">持久化</th><td>PostgreSQL（会话、归属、加密配置）、<code>.data/soc-workspaces/</code> 按用户工作区、被跟踪的 <code>lib/</code> 生成产物。</td></tr>
 </tbody></table></div>
 <h2 id="diagram">最精简架构图（节点可点击）</h2>
@@ -45,7 +45,7 @@
 </tbody></table></div>
 <h2 id="product">产品概述（十分钟）</h2>
 <p><strong>业务问题：</strong>分析师在 Zimbra 邮件、Splunk 告警与订阅记录之间往返。本产品把三者放进一个聊天窗口：分析师以本人身份登录，智能体经严格允许、默认只读的工具集调查。</p>
-<p><strong>刻意不做：</strong>不自主监控；Splunk 零变更（Splunk 代码已整体移除）；不部署检测；无模型驱动的邮件投递（草稿/转发只生成本地草稿）；不存储邮箱凭据；模型无 shell/文件系统工具。</p>
+<p><strong>刻意不做：</strong>不自主监控；Splunk 零变更（Splunk 代码已整体移除）；不部署检测；无模型驱动的邮件投递（send/reply/forward 只生成本地草稿）；不存储邮箱凭据；模型无 shell/文件系统工具。</p>
 <div class="warning"><strong>运维警告。</strong>本文档不授权对 Splunk、Zimbra 或订阅服务的任何运维操作。</div>
 
     </article>

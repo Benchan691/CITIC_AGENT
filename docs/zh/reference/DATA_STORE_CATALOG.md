@@ -59,7 +59,7 @@
 
 | 对象 | 存在位置 | 生命周期 |
 |---|---|---|
-| `zimbra_send_email` / `zimbra_forward_email` / `zimbra_use_signature_on_email` 的邮件草稿 | 仅工具结果 JSON（界面表单状态） | 直至对话渲染；无存储写入 |
+| `zimbra_send_email`（send/reply/forward）/ `zimbra_use_signature_on_email` 的邮件草稿 | 仅工具结果 JSON（界面表单状态） | 直至对话渲染；无存储写入 |
 | 会话级动作模式 | `ownership.js actionModes` Map（内存） | 登出/撤销/宿主重启 |
 | 管理员会话 | 以 SHA-256 令牌为键的内存 Map | 8 h TTL 或宿主重启 |
 | 附件转换缓存 | `AttachmentConverter` LRU（64 项 / 4 MB，内存） | 进程生命周期 |

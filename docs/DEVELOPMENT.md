@@ -31,7 +31,7 @@
 | Install everything / repair wiring | `./setup.sh` (interactive) or `./setup.sh --plugins` (non-interactive) |
 | Node tests (host) | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent test` |
 | SOC package tests | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft test` |
-| Python tests (48) | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
+| Python tests (52) | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
 | Rebuild SOC browser bundles | `./setup.sh --plugins` (or run `build` for each package listed in [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md)) |
 | Browser smoke and screenshots | `cd vendor/deepseek-harness && pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs` |
 | Rebuild harness (forced) | `./setup.sh --plugins --rebuild` |

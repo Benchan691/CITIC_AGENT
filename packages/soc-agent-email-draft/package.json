@@ -2,7 +2,7 @@
   "name": "dsh-soc-agent-email-draft",
   "private": true,
   "version": "0.1.0",
-  "description": "Optional editable Zimbra email draft and forward tool views.",
+  "description": "Optional editable Zimbra send, reply, and forward draft views.",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

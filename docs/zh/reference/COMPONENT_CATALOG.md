@@ -60,7 +60,7 @@
 
 - **路径:** `apps/soc-agent/server/unified_mcp_server/`（入口 `server.py`；包 `soc-agent-mcp`；脚本 `unified-mcp-server`）
 - **职责:** 经 MCP stdio 暴露精确 **27** 个域工具（12 邮件、9 过滤器、6 订阅；邮件用一个 `zimbra_send_email` 支持 send/reply/forward 草稿），以每请求认证身份与 180 秒操作预算执行。
-- **入口:** `dsh-mcp-client` 按 `cordis.patch.yml` 拉起（原始允许列表 28、`toolCallTimeoutMs: 185000`、`failOnStartupError: true`）。
+- **入口:** `dsh-mcp-client` 按 `cordis.patch.yml` 拉起（原始允许列表 27、`toolCallTimeoutMs: 185000`、`failOnStartupError: true`）。
 - **输入/输出:** 入：带元数据的 MCP 调用；出：`success`/`failure` 信封；SOAP 到 Zimbra；HTTPS 到订阅；Postgres 读。
 - **状态:** Postgres 应用会话（令牌解密）、LRU 32 的身份绑定邮件服务；**不持久化草稿**。
 - **信任级:** 以认证用户的 Zimbra 令牌执行；拒绝 `account_id` 选择。

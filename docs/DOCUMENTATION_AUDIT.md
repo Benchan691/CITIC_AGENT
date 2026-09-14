@@ -6,6 +6,8 @@
 
 **Verification rounds.** Round 1 verified the documentation set against `b26d55d274cf298a456d84edfbcb42b8dc90134b` (2026-09-11T15:35:35Z). Round 2 (this page) re-verified everything against `56c8dd2` after the maintainer's refactoring commits `d264ca7` (auth error handling), `576c7c9` (docs/instructions), `aac5cda` (Zimbra/subscription tool refactor), and `56c8dd2` (Zimbra email forwarding). The maintainer's own implementation report for that refactor is [SHORTENING_PLAN_IMPLEMENTATION.md](SHORTENING_PLAN_IMPLEMENTATION.md) (baseline `d264ca7`).
 
+**Current-tree note (2026-09-14).** This page is a historical audit of the 2026-09-12 snapshot. Its forwarding entries intentionally preserve that snapshot's names and counts; the current tree supersedes them with one `zimbra_send_email` action surface (`send | reply | forward`), 27 registered tools, and policy sets of 29 read-only / 41 domain / 12 approval tools.
+
 ---
 
 ## 1. Baseline

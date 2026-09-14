@@ -9,15 +9,15 @@
 
 | # | 论断 | 源码路径 · 符号 | 守护测试 | 解释于 | 置信 | 运行状态 |
 |---|---|---|---|---|---|---|
-| 1 | `soc_agent` 恰暴露 28 个 Zimbra+订阅工具（含 `zimbra_forward_email`） | `cordis.patch.yml` `allowedToolNames`（28）；`server.py`（3 个 `register_tools` 调用） | `test_server_tools.py`（`len == 28` + 转发 schema）；`skills.test.js` | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md)、[MCP_AND_TOOL_ROUTING](../MCP_AND_TOOL_ROUTING.md) | 已确认 | 活跃 |
+| 1 | `soc_agent` 恰暴露 27 个 Zimbra+订阅工具，邮件由统一 `zimbra_send_email` 动作面覆盖 | `cordis.patch.yml` `allowedToolNames`（27）；`server.py`（3 个 `register_tools` 调用） | `test_server_tools.py`（`len == 27` + 统一 action schema）；`skills.test.js` | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md)、[MCP_AND_TOOL_ROUTING](../MCP_AND_TOOL_ROUTING.md) | 已确认 | 活跃 |
 | 2 | 工具清单单一来源于 `tool-inventory.js`，策略与桥接共同消费 | `tool-inventory.js`；两处 import | `policy.test.js`；`skills.test.js` | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md) | 已确认 | 活跃 |
 | 3 | `splunk_mcp` 是连外部端点的客户端桥，13 读工具，缺端点+令牌即禁用；端点 URL 被校验 | `splunk-bridge.js` | `splunk-bridge.test.js`（4） | [COMPONENT_CATALOG](COMPONENT_CATALOG.md) §8 | 已确认 | 条件性 |
 | 4 | 全限定名 = `mcp__<server>__<tool>`；`splunk` 可在两段出现 | `tool-inventory.js` 派生 | `policy.test.js` | [MCP_AND_TOOL_ROUTING](../MCP_AND_TOOL_ROUTING.md) | 已确认 | 活跃 |
-| 5 | `zimbra_send_email` 与 `zimbra_forward_email` 只建本地草稿，从不发送/持久化 | 两个工具的 docstring；`create_email_draft`/`create_forward_draft` | `test_zimbra_service.py`；`test_server_tools.py` | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md)、[RUNTIME_FLOWS](../RUNTIME_FLOWS.md) 流程 8 | 已确认 | 活跃 |
-| 6 | 转发投递复用人工确认的发送路径，携带 `forward_message_id` | `mail/service.py send_email`；`auth_cli.py`；`zimbra.py zimbra_forward_message` | `test_zimbra_service.py`；客户端转发测试 | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md) §6 | 已确认 | 活跃 |
+| 5 | `zimbra_send_email` 的 send/reply/forward 动作只建本地草稿，从不发送/持久化 | 统一工具 docstring；`create_email_action_draft` | `test_zimbra_service.py`；`test_server_tools.py` | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md)、[RUNTIME_FLOWS](../RUNTIME_FLOWS.md) 流程 8 | 已确认 | 活跃 |
+| 6 | send-email 复用人工确认的发送路径，携带统一 action/source 元数据；转发保留附件，回复引用原信但不重新附加文件 | `mail/service.py send_email`；`auth_cli.py`；`zimbra.py zimbra_reply_message/zimbra_forward_message` | `test_zimbra_service.py`；客户端邮件动作测试 | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md) §6 | 已确认 | 活跃 |
 | 7 | 邮件投递仅经 UI 确认 RPC；界面要求 `window.confirm` 与 `sent === true` | `EmailDraftToolview.tsx`；`auth_cli.py send-email`（门 `ZIMBRA_ALLOW_SEND`） | `email-draft-toolview.test.ts`；`sections.test.ts` | [USER_INTERFACE_AND_ACTION_MODES](../USER_INTERFACE_AND_ACTION_MODES.md) | 已确认（确认对话框本身是界面级控制） | 活跃 |
 | 8 | 宿主策略拒绝 `DOMAIN_TOOLS ∪ CONTROL_TOOLS` 之外的一切 | `host.js` `tools/pre-execute` | `policy.test.js` | [SECURITY_AND_TRUST_BOUNDARIES](../SECURITY_AND_TRUST_BOUNDARIES.md) | 已确认 | 活跃 |
-| 9 | 策略集现为 30 只读 / 42 域 / 12 审批，从清单派生 | `policy.js` | `policy.test.js`（逐字） | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md) | 已确认 | 活跃 |
+| 9 | 策略集现为 29 只读 / 41 域 / 12 审批，从清单派生 | `policy.js` | `policy.test.js`（逐字） | [MCP_TOOL_CATALOG](MCP_TOOL_CATALOG.md) | 已确认 | 活跃 |
 | 10 | Full access 运行每个被允许工具；SOC mode 遵循每工具状态；模式不扩大允许列表 | `host.js` 状态解析 | `policy.test.js`；`user-mode.test.js` | [USER_INTERFACE_AND_ACTION_MODES](../USER_INTERFACE_AND_ACTION_MODES.md) | 已确认 | 活跃 |
 | 11 | 部署策略存于设置 `soc-action-approval`；会话覆盖在内存、登出即撤销 | `action-approval-settings.ts`；`ownership.js setActionMode` | `user-mode.test.js`；`action-policy.test.ts` | [AUTHENTICATION_AND_OWNERSHIP](../AUTHENTICATION_AND_OWNERSHIP.md) | 已确认 | 活跃 |
 | 12 | 服务端身份权威；拒绝 `account_id` 选择 | `server.py fresh_runtime`；`zimbra/core/service.py resolve_account`；`_EmptyAccountStore` | `test_zimbra_service.py`；`test_server_tools.py` | [AUTHENTICATION_AND_OWNERSHIP](../AUTHENTICATION_AND_OWNERSHIP.md) | 已确认 | 活跃 |

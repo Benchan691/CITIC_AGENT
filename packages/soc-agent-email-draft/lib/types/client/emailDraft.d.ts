@@ -35,6 +35,7 @@ export interface EmailDraftFormFields {
 }
 export interface EmailDraftMetadata {
     action?: EmailDraftAction;
+    body_format?: 'text' | 'html';
     source_message_id?: string;
     reply_all?: boolean;
 }

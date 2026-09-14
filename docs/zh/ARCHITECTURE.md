@@ -92,7 +92,7 @@ flowchart TB
 |---|---|---|---|
 | Node 插件 | `apps/soc-agent/*.js`（含 `tool-inventory.js`、`python-command.js`） | — | `tests/*.test.js`（41） |
 | 装配 | `apps/soc-agent/cordis.patch.yml`、`package.json` | — | `skills.test.js`（补丁断言） |
-| Python 服务器 | `server/unified_mcp_server/**`（活跃：`server.py`、`config.py`、`auth.py`、`request_context.py`、`schema.py`、`migrations/`、`postgres_store.py`、`errors/responses`、`blocking_io`、`env_loader`、`zimbra/**`、`email/`、`attachment_converter.py`、`control_server.py`、`admin_cli.py`、`auth_cli.py`） | — | 48 个测试 |
+| Python 服务器 | `server/unified_mcp_server/**`（活跃：`server.py`、`config.py`、`auth.py`、`request_context.py`、`schema.py`、`migrations/`、`postgres_store.py`、`errors/responses`、`blocking_io`、`env_loader`、`zimbra/**`、`email/`、`attachment_converter.py`、`control_server.py`、`admin_cli.py`、`auth_cli.py`） | — | 52 个测试 |
 | 已移除 | Python Splunk 栈（`splunk/**`、`splunk_service.py`、`detection.py`）及其 12 个测试文件 | — | — |
 | 浏览器包 | `packages/soc-agent-*/src/**` | `packages/soc-agent-*/lib/*`（**被跟踪**） | 各包测试 + 浏览器 smoke/screenshot |
 | 技能 | `skills/*/SKILL.md` | — | `skills.test.js` 内容断言 |

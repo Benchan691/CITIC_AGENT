@@ -5,6 +5,8 @@
 
 **核对轮次。** 第一轮以 `b26d55d274cf298a456d84edfbcb42b8dc90134b`（2026-09-11T15:35:35Z）核对英文文档集。第二轮（本页）在维护者的四个重构提交（`d264ca7`、`576c7c9`、`aac5cda`、`56c8dd2` — Splunk 栈移除、转发功能等）之后对 `56c8dd2` 全量重核，并新增中文本地化（`docs/zh/` 与 `docs/site/zh/`）。维护者自己的实施报告是 [SHORTENING_PLAN_IMPLEMENTATION.md](../SHORTENING_PLAN_IMPLEMENTATION.md)（基线 `d264ca7`）。
 
+**当前树说明（2026-09-14）。** 本页是对 2026-09-12 快照的历史审计；其中转发条目有意保留该快照的名称和计数。当前树已用统一的 `zimbra_send_email` 动作面（`send | reply | forward`）取代它们，现为 27 个注册工具，策略集为 29 只读 / 41 域 / 12 审批工具。
+
 ---
 
 ## 1. 基线

@@ -57,7 +57,7 @@ sequenceDiagram
 
 ## 5. MCP 服务器发现与工具允许列表
 
-三层按序：(1) **注册** — `dsh-mcp-client` 只注册原始 `allowedToolNames` 中的名字（`soc_agent` 28 个；`splunk_mcp` 13 个），全部源自 `tool-inventory.js`；(2) **限制** — `agent/created` 时宿主尽力把 agent 工具集限制为 `DOMAIN_TOOLS ∪ CONTROL_TOOLS`；(3) **执行** — `tools/pre-execute`（全局）拒绝该并集之外的任何名字，再应用模式/状态逻辑。迟到的 MCP 工具由第 3 层兜底（代码注释原话）。测试钉住三层与精确计数（30/42/12）。
+三层按序：(1) **注册** — `dsh-mcp-client` 只注册原始 `allowedToolNames` 中的名字（`soc_agent` 27 个；`splunk_mcp` 13 个），全部源自 `tool-inventory.js`；(2) **限制** — `agent/created` 时宿主尽力把 agent 工具集限制为 `DOMAIN_TOOLS ∪ CONTROL_TOOLS`；(3) **执行** — `tools/pre-execute`（全局）拒绝该并集之外的任何名字，再应用模式/状态逻辑。迟到的 MCP 工具由第 3 层兜底（代码注释原话）。测试钉住三层与精确计数（29/41/12）。
 **证据:** `cordis.patch.yml`、`tool-inventory.js`、`host.js apply` + `savedActionPolicy`、`policy.test.js`、`mcp-discovery.test.js`。
 
 ## 6. 经 `splunk_mcp` 的一次只读 Splunk 请求

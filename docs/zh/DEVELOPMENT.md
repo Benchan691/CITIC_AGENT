@@ -31,7 +31,7 @@
 | 安装全部 / 修复装配 | `./setup.sh`（交互）或 `./setup.sh --plugins`（非交互） |
 | Node 测试（宿主） | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent test` |
 | SOC 包测试 | `cd vendor/deepseek-harness && pnpm --filter dsh-soc-agent-client --filter dsh-soc-agent-sidebar --filter dsh-soc-agent-workspace --filter dsh-soc-agent-brand --filter dsh-soc-agent-admin --filter dsh-soc-agent-action-policy --filter dsh-soc-agent-attachments --filter dsh-soc-agent-email-draft test` |
-| Python 测试（48） | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
+| Python 测试（52） | `cd apps/soc-agent/server && uv sync --extra test && uv run pytest` |
 | 重建 SOC 浏览器 bundle | `./setup.sh --plugins`（或按 [SOC_CLIENT_PLUGINS.md](SOC_CLIENT_PLUGINS.md) 对每个包执行 `build`） |
 | 浏览器 smoke 与截图 | `cd vendor/deepseek-harness && pnpm exec vitest run --config ../../apps/soc-agent/tests/vitest.browser.config.mjs` |
 | 强制重建 harness | `./setup.sh --plugins --rebuild` |
@@ -65,7 +65,7 @@ Lint/格式：**没有活跃的 formatter 或 hook** — `lefthook.yml` 全是�
 2. **Python 注册** — 在对应 `register_tools` 模块（mail/filters/email）实现并从 `server.py create_server` 调用；读工具标 `readOnlyHint`；绝不暴露 `ctx`/`account_id`。
 3. **原始允许列表** — 把原始名加入 `cordis.patch.yml` 的 `soc-agent-mcp.allowedToolNames`（补丁同时配置服务器环境）。
 4. **限定名策略** — `policy.js` 现在从清单派生一切；除非改分类逻辑本身，这里无需再加。
-5. **双端测试** — 扩展 `test_server_tools.py`（精确工具集）与 `policy.test.js`/`skills.test.js` 计数（当前 30 读 / 42 域 / 12 审批 — 它们会变，这正是目的）。
+5. **双端测试** — 扩展 `test_server_tools.py`（精确工具集）与 `policy.test.js`/`skills.test.js` 计数（当前 29 读 / 41 域 / 12 审批）。
 6. **文档** — 更新 [reference/MCP_TOOL_CATALOG.md](reference/MCP_TOOL_CATALOG.md)、[MCP_AND_TOOL_ROUTING.md](MCP_AND_TOOL_ROUTING.md) 与可追溯矩阵。
 
 **Splunk 桥接**工具变更另需：`splunk-bridge.js` 从 `tool-inventory.js` 取名（外部服务器必须真的暴露它），并注意投影前缀 `mcp__splunk_mcp__splunk_` 自动生效。

@@ -34,7 +34,7 @@
 4. **误报分析**（技能 `false-positive-analysis`）：解释告警为何触发、判定恶意/良性/不确定、提出最窄的安全调参建议。
 5. **检测工程**（技能 `detection-engineering`、`spl-writing`）：检视现有规则、编译 CITIC 生产 SPL、验证、安全回测 — 然后把**禁用状态**的定义交给外部人工 Splunk 部署流程。应用自身从不部署。*本轮提示：相关编译工具已随 Splunk 栈移除，这两个技能暂为陈旧状态。*
 6. **邮箱变更**（需审批）：移动邮件、建文件夹、管理签名、创建/更新/重排过滤规则（带指纹乐观并发）。
-7. **邮件起草与发送**：智能体起草（含**转发草稿** — 读取原信并附带转发元数据）；分析师在草稿视图编辑并发送。
+7. **邮件起草与发送**：统一的 `zimbra_send_email` 支持 send/reply/forward 草稿；回复/转发读取原信并保留来源元数据，分析师在草稿视图编辑并发送。
 8. **订阅管理**（需审批）：在外部服务上列出/预览/创建/更新/删除邮件订阅。
 
 ## 4. 非目标（刻意的，已在代码中验证）
@@ -42,7 +42,7 @@
 - **不自主监控。** 智能体只按请求行动（`AGENTS.md`：不轮询、不盯屏）。
 - **不对 Splunk 做任何变更 — 也没有任何 Splunk 代码。** 桥接允许列表只含读工具，而且本轮已把整个进程内 Python Splunk 栈删除（`test_server_tools.py` 仍断言 `soc_agent` 上不存在 `splunk_*` 工具）。
 - **不部署检测。** 应用从不写检测；此前负责准备交接定义的 CITIC 编译器本轮已移除，检测工作完全发生在应用之外（见下方技能漂移提示）。
-- **没有模型驱动的邮件投递。** `zimbra_send_email` 与 `zimbra_forward_email` 只生成本地草稿；只有界面 Send 确认才触发投递。
+- **没有模型驱动的邮件投递。** `zimbra_send_email` 的 send/reply/forward 动作只生成本地草稿；只有界面上的动作确认才触发投递。
 - **不存储邮箱凭据。** 遗留账户存储在运行时被 `EmptyAccountStore` 中和；智能体使用登录用户自己的会话令牌。
 - **模型没有 shell、文件系统、编码工具。** cordis 补丁禁用了这些插件族；模型只能用允许列表内的 SOC 工具。
 - **不处理跨客户数据。** `AGENTS.md` 禁止把一个客户的数据暴露给另一个客户；身份永远是认证用户本人。
@@ -58,7 +58,7 @@
 | 强制浏览器核心（认证门、`socClient`、策略 schema、管理页回退） | `packages/soc-agent-client` |
 | 隔离侧栏与工作区浏览/选择器 | `packages/soc-agent-sidebar`、`packages/soc-agent-workspace` |
 | 可选浏览器功能（品牌、管理、动作策略、附件、邮件草稿） | `packages/soc-agent-brand`、`packages/soc-agent-admin`、`packages/soc-agent-action-policy`、`packages/soc-agent-attachments`、`packages/soc-agent-email-draft` |
-| 28 个域工具（Zimbra 22 含转发草稿，订阅 6） | `apps/soc-agent/server/unified_mcp_server/` |
+| 27 个域工具（Zimbra 邮件/过滤 21，订阅 6；统一 send/reply/forward 草稿） | `apps/soc-agent/server/unified_mcp_server/` |
 | 13 个只读 Splunk 工具（外部端点；必配） | `apps/soc-agent/splunk-bridge.js` |
 | 认证、归属权隔离、事件脱敏 | `apps/soc-agent/auth-host.js`、`ownership.js` |
 | 工具允许列表 + 动作策略 | `apps/soc-agent/tool-inventory.js`、`policy.js`、`host.js` |

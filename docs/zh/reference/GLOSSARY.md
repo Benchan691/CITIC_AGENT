@@ -20,7 +20,7 @@
 | 术语 | 含义 |
 |---|---|
 | **MCP** | Model Context Protocol — harness 连接工具服务器的标准。此处用两种传输：`stdio`（本地子进程）与 `streamable-http`（HTTP 端点）。 |
-| **`soc_agent`** | 本地 Python MCP 服务器（包 `soc-agent-mcp`，脚本 `unified-mcp-server`），精确暴露 28 个 Zimbra + 订阅工具。 |
+| **`soc_agent`** | 本地 Python MCP 服务器（包 `soc-agent-mcp`，脚本 `unified-mcp-server`），精确暴露 27 个 Zimbra + 订阅工具；`zimbra_send_email` 统一 send/reply/forward 草稿动作。 |
 | **`splunk_mcp`** | 桥接注册外部官方 Splunk MCP 服务器读工具所用的 MCP *命名空间*。不是本仓库的软件 — 桥接是客户端。 |
 | **原始工具名** | 工具在其服务器内的名字，如 `splunk_run_query`。 |
 | **全限定工具名** | `mcp__<server>__<raw-tool>`，如 `mcp__splunk_mcp__splunk_run_query`。同一词可出现在两段；不代表两个服务器。 |
@@ -71,7 +71,7 @@
 | **MarkItDown** | 用于附件的文档→Markdown 转换库（全内存、有界）。 |
 | **工具清单（tool inventory）** | `apps/soc-agent/tool-inventory.js` — 每个工具名的单一运行时无关事实源；策略集与桥接允许列表由其派生。 |
 | **Schema 迁移** | `unified_mcp_server/migrations/*.sql` 的版本化 SQL，由 `schema.py` 在 PostgreSQL advisory 锁下应用，台账为 `soc_schema_migrations`；Node 层无 DDL。 |
-| **转发草稿（forward draft）** | `zimbra_forward_email` 从既有消息生成的本地可编辑草稿（`forward_message_id` + `forwarded_message` 元数据）。投递只经确认后的发送路径。 |
+| **邮件动作草稿（email action draft）** | `zimbra_send_email` 通过 `action: send | reply | forward` 生成的本地可编辑草稿；回复/转发保留 `source_message_id` 与有界 `source_message` 预览。投递只经确认后的发送路径。 |
 | **指纹（fingerprint）** | 三处用于漂移/并发的哈希：setup 构建指纹、Zimbra 过滤器集 SHA-256（`expected_fingerprint`）、附件转换缓存键。 |
 
 ## 运行状态词汇（全文档统一）

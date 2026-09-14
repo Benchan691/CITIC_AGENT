@@ -25,7 +25,7 @@
 | 工具策略清单 | 新增 `tool-inventory.js` 作为单一来源；`policy.js` 与 `splunk-bridge.js` 从中派生/导入 |
 | Python 子进程处理 | 共享 `python-command.js`（环境净化、超时/中止/解析）；Schema 初始化迁至 `schema.py` + `migrations/*.sql`（advisory 锁、stdin URI） |
 | 管理界面 | 遗留状态卡移除；`StatusNotice` 结构化状态与重试 |
-| 邮件转发 | 新增 `zimbra_forward_email` 转发草稿工具（只读分类）；投递仍仅经 UI 确认的发送路径 |
+| 邮件动作整合 | `zimbra_send_email` 统一 send/reply/forward 草稿（只读分类）；回复/转发默认 HTML，投递仍仅经 UI 确认的发送路径 |
 
 ## 与本套文档的关系
 
