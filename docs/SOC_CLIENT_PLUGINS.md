@@ -19,7 +19,7 @@ while allowing optional SOC features to be disabled one at a time.
 | `dsh-soc-agent-admin` | `soc-agent-admin-ui` | enabled | The four-page `/admin` console and its settings UI |
 | `dsh-soc-agent-action-policy` | `soc-agent-action-policy-ui` | enabled | End-user Full access/SOC mode selector |
 | `dsh-soc-agent-attachments` | `soc-agent-attachments-ui` | enabled | MarkItDown provider, document rail, file command, settings card, and attachment schema |
-| `dsh-soc-agent-email-draft` | `soc-agent-email-draft-ui` | enabled | Editable Zimbra send/forward/signature tool views |
+| `dsh-soc-agent-email-draft` | `soc-agent-email-draft-ui` | enabled | Editable Zimbra send/reply/forward/signature tool views |
 
 The five feature rows are optional. The core, isolated sidebar, and isolated
 workspace are mandatory. All eight browser artifacts are installed and built

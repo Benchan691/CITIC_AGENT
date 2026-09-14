@@ -26,8 +26,8 @@
 
 | File | Purpose | Key exports / symbols |
 |---|---|---|
-| `tool-inventory.js` | **Single runtime-independent tool inventory** ("Draft preparation never delivers mail.") | `OFFICIAL_SPLUNK_TOOL_NAMES` (13 raw), `TOOL_CATALOG` (26 entries: 13 Zimbra reads incl. `zimbra_forward_email`, 12 mutations, 1 `ui-confirmed`), `SUBSCRIPTION_READ_TOOLS` (3) |
-| `policy.js` | Derived policy sets (imports the inventory) | `OFFICIAL_SPLUNK_READ_TOOLS` (13 qualified), `READ_ONLY_TOOLS` (30), `ZIMBRA_READ_TOOLS` (13, derived), `ACTION_CATALOG` (12, derived), `ACTION_TOOLS`, `TOOL_CATALOG` (re-export), `MANAGED_TOOL_NAMES` (25), `ALWAYS_ASK_ACTION_TOOLS` (empty), `DOMAIN_TOOLS` (42), `APPROVAL_TOOLS` |
+| `tool-inventory.js` | **Single runtime-independent tool inventory** ("Draft preparation never delivers mail.") | `OFFICIAL_SPLUNK_TOOL_NAMES` (13 raw), `TOOL_CATALOG` (25 entries: 12 Zimbra reads, 9 mutations, 3 subscription reads, 1 `ui-confirmed`), `SUBSCRIPTION_READ_TOOLS` (3) |
+| `policy.js` | Derived policy sets (imports the inventory) | `OFFICIAL_SPLUNK_READ_TOOLS` (13 qualified), `READ_ONLY_TOOLS` (29), `ZIMBRA_READ_TOOLS` (12, derived), `ACTION_CATALOG` (12, derived), `ACTION_TOOLS`, `TOOL_CATALOG` (re-export), `MANAGED_TOOL_NAMES` (24), `ALWAYS_ASK_ACTION_TOOLS` (empty), `DOMAIN_TOOLS` (41), `APPROVAL_TOOLS` |
 | `host.js` | Host plugin: policy gate + RPC + background + admin page | `name 'soc-agent-host'`, `inject`, `apply(ctx)`, `CHANNEL '/soc-agent-config'`, `handleEndpoint`, `requireUser/requireAdmin`, `savedActionPolicy`, `normalizedActionPolicy`, `defaultActionState`, `policyValue`, `installBackgroundRefresh`, `readBackgroundMessage`, `runAdmin` (→ `runPythonCommand`), `testOfficialSplunkConnection` for `test-splunk`, `validateAttachmentPayload`, `CONTROL_TOOLS` (`ask_user_question`, `exit_plan_mode`) |
 | `auth-host.js` | Auth plugin wiring | `name 'soc-agent-auth-host'`, `apply(ctx)`, `mcp/request-meta` hook (adds `soc_session_id`, `soc_investigation_id`, `soc_customer_id: ''`, `soc_correlation_id`, `soc_deadline_ms`), `ctx.provide('socAuth')`, `connectionAuthorization.authorizePrivilegedRequest` |
 | `ownership.js` | Auth/ownership boundary | `SocAuthService` (`handleAuthRoute`, `handleAdminAuthRoute`, `registerRoutes`, `installTransport`, `mcpRequestMeta`, `actionMode/setActionMode`, `revokeApplicationSession`, `stopUserChatSessions`, `principalForRequest`, `authorizePrivilegedRequest`, `adminPasswordMatches` via `timingSafeEqual`), `SocStateStore` (`ensureSchema` → Python `schema migrate` with URI on stdin, `session`, `claimWorkspace/Session/Folder`, `consumeSessionRevocation`, `userSessionIds`), `createScopedApiProxy` (9 domains; `authorize`, `postprocess`, `respond` guard), `runAuthCommand`, `startControlChannel`, `closeAuthControlChannel`, `resolveAdminCredentials`, `resolveApplicationStorageUri`, `sameSiteRequest`, `readJson` (32 KiB), `isWithinPath`, `userWorkspaceRoot` |
@@ -41,7 +41,7 @@
 
 | File | Purpose | Key symbols |
 |---|---|---|
-| `server.py` | FastMCP server + request execution (28 tools) | `create_server`, `Runtime` (`create`, `for_identity`, `close`, `config_revision`), `EmptyAccountStore`, `execute`, `fresh_runtime`, `McpFailureEnvelope`, `operation_budget` wiring, `register_mail_tools`/`register_filter_tools`/`register_email_tools` call sites, `main` |
+| `server.py` | FastMCP server + request execution (27 tools) | `create_server`, `Runtime` (`create`, `for_identity`, `close`, `config_revision`), `EmptyAccountStore`, `execute`, `fresh_runtime`, `McpFailureEnvelope`, `operation_budget` wiring, `register_mail_tools`/`register_filter_tools`/`register_email_tools` call sites, `main` |
 | `config.py` | Settings (env-only) | `ServerSettings.from_env`, `public_status`, `public_readiness`, `SplunkSettings` (retained), `ZimbraSettings` (gates), `MarkItDownSettings`, `EmailServerSettings`, `redact_endpoint`, `_validate_http_endpoint`, `_preferred` legacy aliases |
 | `auth.py` | Identity model | `ZimbraIdentity`, `identity_for_session`, `public_session`, `normalize_zimbra_email` |
 | `request_context.py` | Operation budget/scope | `OperationContext` (`evidence_scope`), `operation_budget` (min 180 s / deadline), `remaining_seconds` |
@@ -50,16 +50,16 @@
 | `errors.py` / `responses.py` | Error/envelope taxonomy | `ServiceError(code, message, retryable, details)`, `ConfigurationError`, `success`, `failure` |
 | `blocking_io.py` | Bounded thread offload | `BlockingIO.run` (global 8 / per-principal 2, `asyncio.shield`), `run_blocking` |
 | `env_loader.py` | `.env` loading + admin-var stripping | `load_server_env` (server then workspace, override; `_NODE_ONLY_ENV_NAMES`) |
-| `zimbra_service.py` | Zimbra domain logic (legacy-level service) | `ZimbraService.create_email_draft` ("Build a local draft without contacting or writing to Zimbra"), `send_email` (gate `ZIMBRA_ALLOW_SEND`), `move_email/_move_email` (verify + rollback), `_upstream_error`, `_validate_search_query`, `_recipients`, `get_attachment_text` |
+| `zimbra_service.py` | Zimbra domain logic (legacy-level service) | `ZimbraService.create_email_action_draft` (send/reply/forward local drafts), `send_email` (gate `ZIMBRA_ALLOW_SEND`, generic action dispatch), `move_email/_move_email` (verify + rollback), `_upstream_error`, `_validate_search_query`, `_recipients`, `get_attachment_text` |
 | `zimbra/zimbra.py` | SOAP transport | `soap_request`, `_TokenClient`, `zimbra_login` (returns token only), `_validate_zimbra_host`, `download_attachment`, `zimbra_modify_filter_rules` |
 | `zimbra/core/service.py` | Identity binding | `ZimbraCore.resolve_account` (`account_selection_disabled`), `_EmptyAccountStore` |
-| `zimbra/mail/service.py` / `mail/tools.py` | Mail service + 12 tools | `ZimbraMailService`, `register_mail_tools` |
+| `zimbra/mail/service.py` / `mail/tools.py` | Mail service + 12 tools | `ZimbraMailService.create_email_action_draft` (action/source metadata), `send_email` (send/reply/forward), `register_mail_tools` |
 | `zimbra/filters/{model,service,tools}.py` | Filters + 9 tools | `ZimbraFilterService` (`_fingerprint`, `_require_expected`, `_require_write`, `_validate` redirect/discard gates, `_lossy_metadata`), `register_filter_tools` |
 | `email/service.py` / `email/tools.py` | Subscription client + 6 tools | `EmailSubscriptionService` (`_login`, `_request` re-login once, `_validate_redirect`), `register_email_tools` |
 | `attachment_converter.py` | MarkItDown conversion | `AttachmentConverter.convert` (LRU 64/4 MB), `AttachmentConversionLimits` (10 MB/200 k defaults; 100 MB/2 M hard), `_validate_archive_safety`, `_validate_structured_text`, `create_markitdown` |
 | `schema.py` + `migrations/*.sql` | **Versioned SQL migrations** | `apply_migrations(connection)` (advisory lock, `soc_schema_migrations` ledger, ordered `.sql` execution), standalone `main()` reading `{"uri"}` from stdin; `001_initial.sql` (all tables), `002_remove_catalog.sql` (marker-gated legacy-table drop) |
 | `control_server.py` | Persistent control channel | `ControlServer.serve` (ready handshake, 8 MB lines, 8 concurrent), `dispatch_command` (from `auth_cli`), `_expire_session_on_auth_error` |
-| `auth_cli.py` | Auth commands (and dispatch table) | `dispatch_command`: `login` (`zimbra_login` → `create_user_session` → `public_session` + `replaced_session_ids`), `logout`, `send_email`/`send-email` (gate), `list-signatures`, `command_failure`, `command_runtime` |
+| `auth_cli.py` | Auth commands (and dispatch table) | `dispatch_command`: `login` (`zimbra_login` → `create_user_session` → `public_session` + `replaced_session_ids`), `logout`, `send_email`/`send-email` (generic action metadata + gate), `list-signatures`, `command_failure`, `command_runtime` |
 | `admin_cli.py` | Admin commands | `get-settings` (`_public_settings`), `test-splunk` (`SplunkService.test_connection`), `test-subscription-server`, `convert-attachment`, `migrate` (no-op); refuses `update-settings`, account CRUD, mail ops |
 
 ## Removed in this round
@@ -79,7 +79,7 @@
 | `soc-agent-admin/src/client/` | Optional admin UI | `AdminConsole`, RPC helper, `soc.admin.content` child-slot owner |
 | `soc-agent-action-policy/src/client/` | Optional end-user mode selector | `SocActionPolicyMenu`, `readActionMode` / `setActionMode` helper |
 | `soc-agent-attachments/src/client/` | Optional attachments | MarkItDown provider, two-worker controller, composer rail, command, settings card/schema |
-| `soc-agent-email-draft/src/client/` | Optional email draft UI | editable draft/forward tool view, signature helper, `send-email` RPC |
+| `soc-agent-email-draft/src/client/` | Optional email draft UI | editable send/reply/forward tool view, source preview, signature helper, `send-email` RPC |
 | each `tsdown.config.ts`, `package.json`, `lib/` | Bundle/build boundary | one tracked `lib/client.js` per package; all eight are registered by `setup.sh` |
 
 ## Skills, patches, docs

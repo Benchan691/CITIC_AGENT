@@ -30,12 +30,15 @@ test('normalizes editable recipient fields without duplicating addresses', () =>
   })
 })
 
-test('preserves the original message ID when editing a forward without copying its preview into the body', () => {
-  assert.deepEqual(draftFromForm({ ...form, subject: 'Fwd: update', body: 'Please review.' }, '42'), {
+test('preserves action metadata when editing a forward without copying its preview into the body', () => {
+  assert.deepEqual(draftFromForm({ ...form, subject: 'Fwd: update', body: 'Please review.' }, {
+    action: 'forward', source_message_id: '42',
+  }), {
     ...draftFromForm(form),
     subject: 'Fwd: update',
     body: 'Please review.',
-    forward_message_id: '42',
+    action: 'forward',
+    source_message_id: '42',
   })
 })
 
@@ -73,8 +76,8 @@ test('forward editor requires confirmation, retains its source after edits, and 
     },
   }
   const block = { kind: 'tool-result', content: [{ type: 'text', text: JSON.stringify({ data: { draft: {
-    ...draftFromForm(form, '42'),
-    forwarded_message: {
+    ...draftFromForm(form, { action: 'forward', source_message_id: '42' }),
+    source_message: {
       subject: 'Original subject', from: 'sender@example.com', body: '<img src=x onerror="alert(1)">',
       body_truncated: true, attachments: [{ filename: 'report.pdf', part: '2' }],
     },
@@ -88,7 +91,7 @@ test('forward editor requires confirmation, retains its source after edits, and 
     await act(async () => root.render(createElement(EmailDraftToolview,
       { block, socClient } as unknown as Parameters<typeof EmailDraftToolview>[0])))
     assert.match(document.body.textContent!, /report\.pdf/)
-    assert.match(document.body.textContent!, /full original message will be forwarded/)
+    assert.match(document.body.textContent!, /full original message will be included/)
     assert.equal(document.querySelector('img'), null, 'Original HTML is shown as text')
     const body = document.querySelector('textarea[aria-label="Body"]') as HTMLTextAreaElement
     await act(async () => {
@@ -100,7 +103,8 @@ test('forward editor requires confirmation, retains its source after edits, and 
     confirmed = true
     await click('Send')
     assert.deepEqual(calls[0], ['send-email', {
-      ...draftFromForm({ ...form, body: 'Edited note' }, '42'), body_format: 'text',
+      ...draftFromForm({ ...form, body: 'Edited note' }, { action: 'forward', source_message_id: '42' }),
+      body_format: 'html',
     }])
     assert.match(document.querySelector('[role="alert"]')!.textContent!, /did not confirm/)
     assert.equal(body.value, 'Edited note')
@@ -108,6 +112,67 @@ test('forward editor requires confirmation, retains its source after edits, and 
     await click('Retry')
     assert.equal(calls.length, 2)
     assert.match(document.body.textContent!, /Email sent successfully/)
+  } finally {
+    await act(async () => root.unmount())
+    cssHook.deregister()
+    dom.window.close()
+    for (const key of ['window', 'document', 'IS_REACT_ACT_ENVIRONMENT']) Reflect.deleteProperty(globalThis, key)
+  }
+})
+
+test('reply editor permits derived recipients and preserves reply metadata', async () => {
+  const require = createRequire(import.meta.url)
+  const { JSDOM } = require('../../../vendor/deepseek-harness/node_modules/jsdom')
+  const dom = new JSDOM('<div id="root"></div>', { url: 'https://soc.example/' })
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true })
+  const cssHook = registerHooks({
+    load(url, context, nextLoad) {
+      return url.endsWith('.css')
+        ? { format: 'module', shortCircuit: true, source: 'export default new Proxy({}, {get: (_, name) => name})' }
+        : nextLoad(url, context)
+    },
+  })
+  const { createRoot } = require('../../../vendor/deepseek-harness/packages/client/web/node_modules/react-dom/client')
+  const { EmailDraftToolview } = await import('../src/client/EmailDraftToolview.tsx')
+  const root = createRoot(document.getElementById('root'))
+  const calls: unknown[][] = []
+  dom.window.confirm = (message: string) => {
+    assert.equal(message, 'Reply to this email now?')
+    return true
+  }
+  const socClient = {
+    surface: 'workspace' as const,
+    rpc: async (name: string, payload?: Record<string, unknown>) => {
+      calls.push([name, payload ?? {}])
+      return { sent: true }
+    },
+  }
+  const block = { kind: 'tool-result', content: [{ type: 'text', text: JSON.stringify({ data: { draft: {
+    ...draftFromForm({ ...form, to: '' }, {
+      action: 'reply', source_message_id: '42', reply_all: true,
+    }),
+    source_message: {
+      subject: 'Original subject', from: 'sender@example.com', body: 'Original body',
+      body_truncated: false, attachments: [{ filename: 'report.pdf', part: '2' }],
+    },
+  } } }) }] }
+  const click = (label: string) => act(async () => {
+    const button = [...document.querySelectorAll('button')].find(item => item.textContent === label)
+    assert.ok(button, `Button is rendered: ${label}`)
+    button.click()
+  })
+  try {
+    await act(async () => root.render(createElement(EmailDraftToolview,
+      { block, socClient } as unknown as Parameters<typeof EmailDraftToolview>[0])))
+    assert.match(document.body.textContent!, /Reply to email/)
+    assert.match(document.body.textContent!, /attachments will not be reattached/)
+    await click('Send')
+    assert.deepEqual(calls[0], ['send-email', {
+      ...draftFromForm({ ...form, to: '' }, {
+        action: 'reply', source_message_id: '42', reply_all: true,
+      }),
+      body_format: 'html',
+    }])
   } finally {
     await act(async () => root.unmount())
     cssHook.deregister()

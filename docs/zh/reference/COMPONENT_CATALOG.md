@@ -17,7 +17,7 @@
 
 - **强制核心 `packages/soc-agent-client/`:** 认证遮罩、`SocClientRuntime`/`socClient` service、action-policy schema、`/admin` root takeover 与安全回退；不拥有可选功能 UI，也不导入官方或隔离的 sidebar/workspace 实现。
 - **隔离表面 `packages/soc-agent-sidebar/`、`packages/soc-agent-workspace/`:** 唯一启用的 root sidebar owner、工作区浏览/选择器、标准子槽位与固定样式；workspace 包拥有可恢复的 `api.folders` 守卫。
-- **可选包:** `soc-agent-brand`（品牌）、`soc-agent-admin`（管理台）、`soc-agent-action-policy`（用户模式菜单）、`soc-agent-attachments`（MarkItDown）、`soc-agent-email-draft`（草稿/转发 tool view）。各包只拥有自己的槽位、command、provider 或设置。
+- **可选包:** `soc-agent-brand`（品牌）、`soc-agent-admin`（管理台）、`soc-agent-action-policy`（用户模式菜单）、`soc-agent-attachments`（MarkItDown）、`soc-agent-email-draft`（send/reply/forward 草稿 tool view）。各包只拥有自己的槽位、command、provider 或设置。
 - **输入/输出:** harness 槽位与 service、`/soc-agent-config`、认证 HTTP 路由，以及各包需要的 settings/connection/conversation/command/toolview API。
 - **信任级:** 不可信客户端。所有强制在服务端。
 - **构建/输出:** 八个包各有被跟踪的 `lib/client.js` 闭包工厂；setup 统一做指纹、构建、注册、解析与健康检查。
@@ -43,7 +43,7 @@
 - **输入/输出:** 入：工具调用裁决、RPC 请求、设置；出：deny/ask/delegate 裁决、管理子进程（`runPythonCommand`）、`test-splunk` 走 `testOfficialSplunkConnection`。
 - **状态:** 设置键 `soc-action-approval`；`soc-background`；读 `BACKGROUND.md`（≤1 MiB 源，64 KiB 渲染）。
 - **信任级:** 可信宿主边界 — 主要允许列表执行点。
-- **测试:** `policy.test.js`（精确计数 **30/42/12**）、`background.test.js`、`investigation.test.js`、`user-mode.test.js`。
+- **测试:** `policy.test.js`（精确计数 **29/41/12**）、`background.test.js`、`investigation.test.js`、`user-mode.test.js`。
 - **运行状态:** 活跃。
 
 ## 4. 认证宿主插件 + 归属边界
@@ -59,21 +59,21 @@
 ## 5. Python MCP 服务器（`soc_agent`）
 
 - **路径:** `apps/soc-agent/server/unified_mcp_server/`（入口 `server.py`；包 `soc-agent-mcp`；脚本 `unified-mcp-server`）
-- **职责:** 经 MCP stdio 暴露精确 **28** 个域工具（13 邮件含转发草稿、9 过滤器、6 订阅），以每请求认证身份与 180 秒操作预算执行。
+- **职责:** 经 MCP stdio 暴露精确 **27** 个域工具（12 邮件、9 过滤器、6 订阅；邮件用一个 `zimbra_send_email` 支持 send/reply/forward 草稿），以每请求认证身份与 180 秒操作预算执行。
 - **入口:** `dsh-mcp-client` 按 `cordis.patch.yml` 拉起（原始允许列表 28、`toolCallTimeoutMs: 185000`、`failOnStartupError: true`）。
 - **输入/输出:** 入：带元数据的 MCP 调用；出：`success`/`failure` 信封；SOAP 到 Zimbra；HTTPS 到订阅；Postgres 读。
 - **状态:** Postgres 应用会话（令牌解密）、LRU 32 的身份绑定邮件服务；**不持久化草稿**。
 - **信任级:** 以认证用户的 Zimbra 令牌执行；拒绝 `account_id` 选择。
-- **测试:** 10 个 Python 测试文件 / 48 测试，含 `test_server_tools.py`（精确 28 工具面）与 `test_schema.py`（迁移）。
+- **测试:** 10 个 Python 测试文件 / 52 测试，含 `test_server_tools.py`（精确 27 工具面）与 `test_schema.py`（迁移）。
 - **运行状态:** 活跃（配置后拉起失败即致命）。
 
 ## 6. Zimbra 域服务
 
 - **路径:** `unified_mcp_server/zimbra_service.py`、`zimbra/{zimbra.py, core/, mail/, filters/}`
-- **职责:** 对认证用户邮箱的 SOAP 访问：文件夹、搜索、读取、头部、附件文本、签名、移动、草稿（含**转发草稿**）、过滤器。
-- **输入/输出:** SOAP `{ZIMBRA_HOST}/service/soap`（`zimbra-client`），每次调用携带会话令牌；`zimbra_forward_message` 在发送路径投递原信与附件。
+- **职责:** 对认证用户邮箱的 SOAP 访问：文件夹、搜索、读取、头部、附件文本、签名、移动、send/reply/forward 草稿、过滤器。
+- **输入/输出:** SOAP `{ZIMBRA_HOST}/service/soap`（`zimbra-client`），每次调用携带会话令牌；`zimbra_reply_message` 与 `zimbra_forward_message` 在确认发送路径分别引用原信或投递原信与附件，默认 HTML 并生成 text alternative。
 - **信任级:** 身份绑定；拒绝账户选择；环境门 `ZIMBRA_ALLOW_SEND|MOVE|FOLDER_WRITE|SIGNATURE_WRITE|FILTER_WRITE|FILTER_REDIRECT|FILTER_DISCARD`。
-- **测试:** `test_zimbra_service.py`（14，含转发）、`test_zimbra_filters.py`（4）。
+- **测试:** `test_zimbra_service.py`（18，含 send/reply/forward）、`test_zimbra_filters.py`（4）。
 - **运行状态:** 活跃。
 
 ## 7. 订阅服务客户端
@@ -107,7 +107,7 @@
 ## 10. 控制通道 + 认证操作
 
 - **路径:** `ownership.js`（`runAuthCommand`、`startControlChannel`）、`control_server.py`、`auth_cli.py`
-- **职责:** **不可被模型调用**的会话级邮件操作：`login`、`logout`、`send-email`（现支持 `forward_message_id` 转发投递）、`list-signatures`。
+- **职责:** **不可被模型调用**的会话级邮件操作：`login`、`logout`、`send-email`（统一路由 send/reply/forward）、`list-signatures`。
 - **入口:** 常驻子进程 `uv run python -m unified_mcp_server.control_server`（stdio JSON 行；60 秒握手；8 MB 行上限；8 并发；每操作 185 秒）；`SOC_CONTROL_CHANNEL=off` → 一次性 `auth_cli`；仅在**传输前**失败才回退；歧义结果抛 `operation_outcome_unknown` 且绝不重放。
 - **信任级:** 私有父子管道（无通道机密）；授权 = 载荷中的 `session_id` 对 Postgres 校验。
 - **测试:** `control-channel.test.js`、`test_control_server.py`。

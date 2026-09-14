@@ -47,8 +47,8 @@
 
 发布前运行；它们是整个工具故事的漂移栅栏：
 
-1. `test_server_tools.py`（Python，`len(tools) == 28`）↔ `skills.test.js` "soc_agent MCP allowlist…"（同样的 28 名单，两种语言）。
-2. `policy.test.js` "interactive analyst policy exposes the exact product tool set"（30/42/12 计数，派生自 `tool-inventory.js`）。
+1. `test_server_tools.py`（Python，`len(tools) == 27`）↔ `skills.test.js` "soc_agent MCP allowlist…"（同样的 27 名单，两种语言）。
+2. `policy.test.js` "interactive analyst policy exposes the exact product tool set"（29/41/12 计数，派生自 `tool-inventory.js`）。
 3. `splunk-bridge.test.js`（只读桥接允许列表、Bearer、TLS 默认、凭据/HTTP 校验、live 管理探测）↔ `skills.test.js` 桥接断言。
 4. `action-policy.test.ts`（客户端只用授权 RPC 三元组、失败关闭）。
 5. `packages/soc-agent-admin/tests/sections.test.ts`（管理控制台不能绕过只写凭据或脱离核心子槽位挂载）。

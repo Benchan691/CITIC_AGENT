@@ -21,7 +21,7 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 
 - **Mandatory core — `packages/soc-agent-client/`:** authentication overlay, `SocClientRuntime`/`socClient` service, action-policy schema, `/admin` root takeover, and safe admin-disabled fallback. It owns no optional feature UI and does not import the isolated or official sidebar/workspace implementations. Tests: `tests/core-contract.test.ts`.
 - **Isolated surfaces — `packages/soc-agent-sidebar/` and `packages/soc-agent-workspace/`:** the only enabled root sidebar owner and the workspace browser/conversation picker. They preserve standard host-facing slots, pinned styling snapshots, search/grouping/reordering and session lifecycle behavior. The workspace package owns the reversible `api.folders` guard. Tests live beside each package; visual baselines are recorded in each `snapshot-baseline.json`.
-- **Selectable features:** `packages/soc-agent-brand/` (sidebar/hero branding), `packages/soc-agent-admin/` (admin console), `packages/soc-agent-action-policy/` (end-user mode menu), `packages/soc-agent-attachments/` (MarkItDown provider, rail, command, settings), and `packages/soc-agent-email-draft/` (editable draft/forward tool views). Each depends on the core and fills only its own slots/commands/settings.
+- **Selectable features:** `packages/soc-agent-brand/` (sidebar/hero branding), `packages/soc-agent-admin/` (admin console), `packages/soc-agent-action-policy/` (end-user mode menu), `packages/soc-agent-attachments/` (MarkItDown provider, rail, command, settings), and `packages/soc-agent-email-draft/` (editable send/reply/forward draft views). Each depends on the core and fills only its own slots/commands/settings.
 - **Inputs/outputs:** harness slots and runtime services; SOC RPC channel `/soc-agent-config`; HTTP auth routes; settings, credentials, LLM, connection, conversation, command, and tool-view APIs as needed by each package.
 - **Trust level:** untrusted client. All enforcement is server-side; UI packages are convenience surfaces.
 - **Build/output:** every package has a tracked `lib/client.js` closure-factory artifact; `setup.sh` fingerprints, builds, registers, resolves, and health-checks all eight packages.
@@ -48,7 +48,7 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 - **State:** settings key `soc-action-approval` (`{mode, actionStates}`); `soc-background` (`{enabled, repeatEveryUserPrompts}`); reads `BACKGROUND.md` (≤1 MiB source, 64 KiB render).
 - **Trust level:** trusted host boundary — the primary allowlist enforcement point.
 - **Dependencies:** `socAuth` service (from auth-host), harness `settings`, `tools` registry.
-- **Tests:** `policy.test.js` (4 tests incl. exact counts **30/42/12**), `background.test.js`, `investigation.test.js`, `user-mode.test.js`.
+- **Tests:** `policy.test.js` (4 tests incl. exact counts **29/41/12**), `background.test.js`, `investigation.test.js`, `user-mode.test.js`.
 - **Runtime status:** Active.
 
 ## 4. Auth host plugin (`soc-agent-auth-host` → `dsh-soc-agent/auth-host`) + ownership boundary
@@ -67,21 +67,21 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 ## 5. Python MCP server (`soc_agent`)
 
 - **Paths:** `apps/soc-agent/server/unified_mcp_server/` (entry `server.py`; package `soc-agent-mcp`; script `unified-mcp-server`)
-- **Purpose:** expose exactly 28 domain tools (13 mail incl. the new `zimbra_forward_email` forward-draft tool, 9 filters, 6 subscriptions) over MCP stdio, executing with a per-request authenticated identity and one 180-second operation budget.
+- **Purpose:** expose exactly 27 domain tools (12 mail, 9 filters, 6 subscriptions) over MCP stdio, including one `zimbra_send_email` tool with send/reply/forward draft actions, executing with a per-request authenticated identity and one 180-second operation budget.
 - **Owner/responsibility:** domain logic for Zimbra and subscriptions; identity resolution (`identity_for_session`); envelope/error taxonomy; no Splunk tools.
 - **Entry points:** spawned by `dsh-mcp-client` per `cordis.patch.yml` (`command: uv, args: ['run','unified-mcp-server']`, `serverName: soc_agent`, raw allowlist of 27, `toolCallTimeoutMs: 185000`, `failOnStartupError: true`).
 - **Inputs/outputs:** in: MCP tool calls with metadata `soc_session_id`/`soc_deadline_ms`/… ; out: `success`/`failure` envelopes; SOAP to Zimbra; HTTPS to subscription service; Postgres reads.
 - **State:** Postgres app sessions (token decryption), LRU 32 identity-bound mail services; **no persisted drafts** (`zimbra_send_email` returns a draft dict, nothing stored).
 - **Trust level:** executes with the authenticated user's Zimbra token; rejects `account_id` selection (`account_selection_disabled`).
 - **Dependencies:** `mcp` (FastMCP), `zimbra-client`, `httpx`, `psycopg[pool]`, `cryptography`, `markitdown`.
-- **Tests:** 10 Python test files / 48 tests, incl. `test_server_tools.py` (exact 28-tool surface) and `test_schema.py` (migrations).
+- **Tests:** 10 Python test files / 52 tests, incl. `test_server_tools.py` (exact 27-tool surface) and `test_schema.py` (migrations).
 - **Runtime status:** Active (Conditional in the sense that the host fails startup if it cannot spawn when configured — `failOnStartupError`).
 
 ## 6. Zimbra domain services
 
 - **Paths:** `unified_mcp_server/zimbra_service.py`, `unified_mcp_server/zimbra/{zimbra.py, core/, mail/, filters/}`
-- **Purpose:** SOAP access to the authenticated user's mailbox: folders, search, read, headers, attachment text, signatures, folders, moves, drafts, filters.
-- **Entry points:** tool registration (`register_mail_tools`, `register_filter_tools`) and `auth_cli` (`send-email`, `list-signatures`).
+- **Purpose:** SOAP access to the authenticated user's mailbox: folders, search, read, headers, attachment text, signatures, moves, send/reply/forward drafts, and filters.
+- **Entry points:** tool registration (`register_mail_tools`, `register_filter_tools`) and `auth_cli` (`send-email`, `list-signatures`); `send-email` routes generic action metadata to the selected transport helper.
 - **Inputs/outputs:** SOAP `{ZIMBRA_HOST}/service/soap` via `zimbra-client` with the session token; per-call token auth, no stored credentials.
 - **State:** none locally beyond the request; filter writes use full-ruleset replacement with SHA-256 fingerprint optimistic concurrency.
 - **Trust level:** identity-bound; account selection rejected; env gates `ZIMBRA_ALLOW_SEND|MOVE|FOLDER_WRITE|SIGNATURE_WRITE|FILTER_WRITE|FILTER_REDIRECT|FILTER_DISCARD`.
@@ -121,7 +121,7 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 ## 10. Control channel + authenticated operations
 
 - **Paths:** `apps/soc-agent/ownership.js` (`runAuthCommand`, `startControlChannel`), `unified_mcp_server/control_server.py`, `unified_mcp_server/auth_cli.py`
-- **Purpose:** authenticated, session-scoped mail operations that are **not** model-callable tools: `login`, `logout`, `send-email`, `list-signatures`.
+- **Purpose:** authenticated, session-scoped mail operations that are **not** model-callable tools: `login`, `logout`, `send-email` (send/reply/forward), `list-signatures`.
 - **Entry points:** persistent child `uv run python -m unified_mcp_server.control_server` (JSON lines over stdio; `{"ready":true}` handshake ≤60 s; 8 MB line cap; 8 concurrent; per-op timeout 185 s default); `SOC_CONTROL_CHANNEL=off` → one-shot `auth_cli` spawn per command; fallback to spawn only **before transmission**; ambiguous outcomes raise `operation_outcome_unknown` and are never replayed.
 - **Trust level:** private parent-child pipe (no per-connection secret); authorization = the `session_id` in each payload validated against Postgres.
 - **Tests:** `control-channel.test.js` (2), `test_control_server.py` (1, real subprocess).

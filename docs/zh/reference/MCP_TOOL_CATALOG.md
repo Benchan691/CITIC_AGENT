@@ -10,11 +10,11 @@
 
 **单一事实源（本轮新增）:** `apps/soc-agent/tool-inventory.js` 导出 `OFFICIAL_SPLUNK_TOOL_NAMES`、`TOOL_CATALOG`、`SUBSCRIPTION_READ_TOOLS`；`policy.js` 从它派生策略集，`splunk-bridge.js` 导入原始名。
 
-本提交计数: **28** 个 `soc_agent` 注册工具（Python `test_server_tools.py` 断言 `len(tools) == 28`；JS `skills.test.js` 钉住同一名单）、**13** 个 `splunk_mcp` 只读工具、**1** 个 `skill` 宿主工具、另有 2 个 harness 控制工具（`ask_user_question`、`exit_plan_mode`）。派生策略集: **30** 只读、**42** 域、**12** 审批（`policy.test.js` 逐字钉扎）。
+本提交计数: **27** 个 `soc_agent` 注册工具（Python `test_server_tools.py` 断言 `len(tools) == 27`；JS `skills.test.js` 钉住同一名单）、**13** 个 `splunk_mcp` 只读工具、**1** 个 `skill` 宿主工具、另有 2 个 harness 控制工具（`ask_user_question`、`exit_plan_mode`）。派生策略集: **29** 只读、**41** 域、**12** 审批（`policy.test.js` 逐字钉扎）。
 
 ---
 
-## 1. `soc_agent` — Zimbra 邮件工具（13）
+## 1. `soc_agent` — Zimbra 邮件工具（12）
 
 全部身份源: 认证应用会话（`soc_session_id` 元数据 → `identity_for_session` → 用户本人 Zimbra 令牌；`account_id` 选择被 `account_selection_disabled` 拒绝）。外部依赖: Zimbra SOAP（`ZIMBRA_HOST`）。
 
@@ -25,8 +25,7 @@
 | `zimbra_get_email` | `…zimbra_get_email` | 单封邮件；正文默认 20 k、钳制 ≤100 k 字符 | 读 | auto | — | 同上 |
 | `zimbra_get_email_headers` | `…zimbra_get_email_headers` | 仅选定认证/路由头（允许列表 12 个；每次 1–12 个） | 读 | auto | — | 同上 |
 | `zimbra_get_attachment_text` | `…zimbra_get_attachment_text` | 有界附件 → Markdown | 读 | auto | 尺寸/字符限额；`attachment_*` 错误码 | 同上 |
-| `zimbra_send_email` | `…zimbra_send_email` | **仅创建本地草稿 — 从不发送、从不持久化。** UI 标签 "Create email draft" | 读类 | auto | 收件人校验；草稿随工具结果返回 | 同上 |
-| `zimbra_forward_email` | `…zimbra_forward_email` | **新增：** 从一封邮件准备可编辑**转发草稿**（"Forward email (draft)"）；读取原信并内嵌 `forward_message_id` + `forwarded_message` 元数据（主题/发件人/日期/正文/附件）。**从不发送或写入 Zimbra** | 读类（`readOnlyHint: true`） | auto | 参数 `{message_id, to, cc, bcc, subject, body}`；必填 `{message_id, to}` | `test_server_tools.py`（转发 schema）、`test_zimbra_service.py` |
+| `zimbra_send_email` | `…zimbra_send_email` | **仅创建本地草稿 — 从不发送、从不持久化。** 一个工具支持 `action: send | reply | forward`；新发信默认 text，回复/转发默认 HTML，并在投递时生成两种 MIME alternative。 | 读类（`readOnlyHint: true`） | auto | 参数 `{action, message_id, to, cc, bcc, subject, body, body_format, reply_all}`；send 要求 To+主题，forward 要求 message ID+To，reply 要求 message ID 且可从 Reply-To/from 派生 To；投递仍需 UI 确认 | `test_server_tools.py`、`test_zimbra_service.py`、`email-draft-toolview.test.ts` |
 | `zimbra_use_signature_on_email` | `…zimbra_use_signature_on_email` | 合并签名的可编辑草稿；docstring "it never sends" | 读类 | auto | — | 同上 |
 | `zimbra_list_signatures` | `…zimbra_list_signatures` | 列签名（text+HTML） | 读 | auto | — | — |
 | `zimbra_create_folder` | `…zimbra_create_folder` | 建一级子文件夹 | 变更 | ask | `ZIMBRA_ALLOW_FOLDER_WRITE` | `ACTION_CATALOG` |
@@ -81,15 +80,15 @@
 |---|---|---|
 | `skill` | harness `tool-skill` 插件工具：加载技能指令 | 读（`READ_ONLY_TOOLS`），默认 auto；无 `mcp__` 前缀 |
 | `ask_user_question`、`exit_plan_mode` | harness 交互工具 | 经 `host.js` `CONTROL_TOOLS` 连同 `DOMAIN_TOOLS` 允许 |
-| `ui__soc_agent__send_email` | 目录条目（`kind: 'ui-confirmed'`），管理清单中带 "Explicit confirmation" 徽章 | 不是工具；不可自动化。投递路径: 草稿视图 → `window.confirm` → `send-email` RPC → 控制通道 → `ZimbraMailService.send_email`（门 `ZIMBRA_ALLOW_SEND`；现接受 `forward_message_id` 转发投递） |
+| `ui__soc_agent__send_email` | 目录条目（`kind: 'ui-confirmed'`），管理清单中带 "Explicit confirmation" 徽章 | 不是工具；不可自动化。投递路径: 草稿视图 → 按动作 `window.confirm` → `send-email` RPC → 控制通道 → `ZimbraMailService.send_email`（门 `ZIMBRA_ALLOW_SEND`；经统一动作元数据路由 send/reply/forward） |
 
-## 6. 转发流程（本轮新增）
+## 6. 邮件动作流程（send、reply、forward）
 
-1. 模型调用 `zimbra_forward_email {message_id, to, …}` → `ZimbraMailService.create_forward_draft` 读取原信，构建**本地**草稿（主题 `Fwd: …`），附加 `forward_message_id` 与 `forwarded_message` 元数据。不发送、不保存。
-2. 草稿卡（键于转发工具名）显示原信元数据；用户编辑并确认 Send。
-3. `send-email` RPC 携带 `forward_message_id`；`auth_cli send-email` 传给 `ZimbraMailService.send_email`，经 `zimbra_forward_message`（SOAP）**连同原信与附件**投递，仍受 `ZIMBRA_ALLOW_SEND` 门控。
+1. 模型调用 `zimbra_send_email {action, …}`。send 在本地校验收件人/主题；reply/forward 校验数字原信 ID、读取认证邮箱中的原信、必要时生成 `Re:`/`Fwd:`，并附加 `action`、`source_message_id`、`source_message`、`reply_all`、`body_format` 元数据。不发送、不保存。
+2. 统一草稿卡按动作显示标题、校验、确认文案与安全的有界原信预览。reply 可留空 To 以便派生；forward 必须填写 To。回复引用原信但不重新附加文件；转发连同原信与附件。
+3. `send-email` RPC 携带可编辑字段与 `action`、`source_message_id`、`reply_all`、`body_format`；`auth_cli send-email` 传给 `ZimbraMailService.send_email`，在 `ZIMBRA_ALLOW_SEND` 门控下路由到 `zimbra_send_message`、`zimbra_reply_message` 或 `zimbra_forward_message`。
 
-转发 = 一个只读草稿步骤 + 与任何邮件相同的人确认发送路径 — 模型依然没有发信工具。
+所有邮件动作都是一个只读草稿步骤 + 人工确认发送路径 — 模型依然没有投递工具。
 
 ## 7. 已移除的实现（原"保留"）
 

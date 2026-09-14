@@ -26,10 +26,10 @@ There is **no root test runner and no CI configuration** at the repo root — ru
 
 ## 2. What each suite proves (highlights)
 
-- **Host JS** — the security-critical contracts: admin credential startup requirements, cookie/session lifecycle, cookie-tier segregation, the scoped API proxy (IDOR), workspace path containment, event redaction, background refresh cadence, the exact tool-policy verdicts (30 read / 42 domain / 12 approval), Full-access bypass-of-states (not of the allowlist), control-channel no-replay semantics, Splunk projection scoping, bridge config/TLS, and the patch↔bridge↔policy naming pins.
+- **Host JS** — the security-critical contracts: admin credential startup requirements, cookie/session lifecycle, cookie-tier segregation, the scoped API proxy (IDOR), workspace path containment, event redaction, background refresh cadence, the exact tool-policy verdicts (29 read / 41 domain / 12 approval), Full-access bypass-of-states (not of the allowlist), control-channel no-replay semantics, Splunk projection scoping, bridge config/TLS, and the patch↔bridge↔policy naming pins.
 - **SOC browser packages** — the core service contract, route selection, authentication gate, safe admin fallback, isolated sidebar/workspace behavior, workspace lifecycle restoration, branding, admin slot ownership, action modes, attachment conversion/settings, and editable email draft/send views. The app composition suite recursively checks package manifests and production source for official sidebar/workspace imports.
 - **Browser smoke/screenshots** — loads the real built bundles with fixture data, checks branding/sidebar/workspace/picker mounting, verifies expanded/collapsed and workspace screenshots, fails on browser errors or failed requests, and rejects unexpected official sidebar/workspace bundles.
-- **Python** — the exact 27-tool surface (and the absence of `splunk_*`/legacy tools), session lifecycle and redaction, config validation/redaction, Zimbra service/filter semantics (fingerprint concurrency, gates, verified moves, local-only drafts), the subscription client (single login, redirect validation, error-body withholding), attachment limits, control-server protocol (real subprocess), and the retained Splunk implementation's internal contracts (query policy, resource governance, planning, evidence, security queue, CITIC compiler).
+- **Python** — the exact 27-tool surface (and the absence of `splunk_*`/legacy tools), session lifecycle and redaction, config validation/redaction, Zimbra service/filter semantics (fingerprint concurrency, gates, verified moves, local-only send/reply/forward drafts), the subscription client (single login, redirect validation, error-body withholding), attachment limits, and the control-server protocol (real subprocess).
 
 ## 3. Prerequisites, fixtures, mocks
 
@@ -48,8 +48,8 @@ There is **no root test runner and no CI configuration** at the repo root — ru
 
 Run these before any release; they are the drift fence for the whole tool story:
 
-1. `test_server_tools.py` (Python) ↔ `skills.test.js` "soc_agent MCP allowlist contains only Zimbra and subscription tools" (same 28 names, two languages).
-2. `policy.test.js` "interactive analyst policy exposes the exact product tool set" (30/42/12 counts, derived from `tool-inventory.js`).
+1. `test_server_tools.py` (Python) ↔ `skills.test.js` "soc_agent MCP allowlist contains only Zimbra and subscription tools" (same 27 names, two languages).
+2. `policy.test.js` "interactive analyst policy exposes the exact product tool set" (29/41/12 counts, derived from `tool-inventory.js`).
 3. `splunk-bridge.test.js` (read-only bridge allowlist, Bearer, TLS default) ↔ `skills.test.js` bridge patch assertions.
 4. `packages/soc-agent-action-policy/tests/action-policy.test.ts` (the optional menu uses the exact authorized RPC triple and fails closed).
 5. `packages/soc-agent-admin/tests/sections.test.ts` (the optional admin console cannot bypass credential write-only behavior and mounts only through the core child slot).

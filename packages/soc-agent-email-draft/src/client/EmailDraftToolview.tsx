@@ -7,8 +7,8 @@ import css from './EmailDraftToolview.module.css'
 import {
   draftFromForm,
   ZIMBRA_DRAFT_TOOL_NAME,
-  ZIMBRA_FORWARD_DRAFT_TOOL_NAME,
   ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME,
+  type EmailDraftAction,
   type EmailDraftFields,
   type EmailDraftFormFields,
 } from './emailDraft.ts'
@@ -17,10 +17,9 @@ export {
   draftFromForm,
   parseRecipientText,
   ZIMBRA_DRAFT_TOOL_NAME,
-  ZIMBRA_FORWARD_DRAFT_TOOL_NAME,
   ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME,
 } from './emailDraft.ts'
-export type { EmailDraftFields, EmailDraftFormFields } from './emailDraft.ts'
+export type { EmailDraftAction, EmailDraftFields, EmailDraftFormFields, EmailDraftMetadata } from './emailDraft.ts'
 
 interface DraftEnvelope {
   draft: Partial<EmailDraftFields>
@@ -77,6 +76,15 @@ function formFromEnvelope(envelope: DraftEnvelope): EmailDraftFormFields {
   }
 }
 
+function actionFromEnvelope(value: unknown): EmailDraftAction {
+  return value === 'reply' || value === 'forward' ? value : 'send'
+}
+
+function defaultBodyFormat(action: EmailDraftAction, value: unknown): 'text' | 'html' {
+  if (value === 'text' || value === 'html') return value
+  return action === 'send' ? 'text' : 'html'
+}
+
 function errorMessage(envelope: DraftEnvelope | null): string | null {
   const error = envelope?.error
   if (typeof error === 'object' && error !== null && 'message' in error) {
@@ -93,12 +101,13 @@ interface EmailDraftProps extends ToolCallViewProps {
 export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
   const envelope = useMemo(() => parseEnvelope(block), [block])
   const sourceKey = useMemo(() => JSON.stringify(envelope?.draft ?? null), [envelope])
+  const action = actionFromEnvelope(envelope?.draft.action)
   const [fields, setFields] = useState<EmailDraftFormFields>(() => envelope ? formFromEnvelope(envelope) : {
     to: '', cc: '', bcc: '', subject: '', body: '',
   })
   const [status, setStatus] = useState<'editing' | 'sending' | 'sent' | 'failed' | 'discarded'>('editing')
   const [sendError, setSendError] = useState<string | null>(null)
-  const [bodyFormat, setBodyFormat] = useState<'text' | 'html'>(envelope?.draft.body_format === 'html' ? 'html' : 'text')
+  const [bodyFormat, setBodyFormat] = useState<'text' | 'html'>(() => defaultBodyFormat(action, envelope?.draft.body_format))
   const [signaturePanel, setSignaturePanel] = useState(false)
   const [signatures, setSignatures] = useState<Signature[]>([])
   const [signatureId, setSignatureId] = useState('')
@@ -111,7 +120,7 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
       setFields(formFromEnvelope(envelope))
       setStatus('editing')
       setSendError(null)
-      setBodyFormat(envelope.draft.body_format === 'html' ? 'html' : 'text')
+      setBodyFormat(defaultBodyFormat(action, envelope.draft.body_format))
       setSignaturePanel(false)
       setSignatureStatus(null)
     }
@@ -141,22 +150,30 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
     setFields(current => ({ ...current, [field]: event.target.value }))
   }
 
-  const forwardMessageId = envelope?.draft.forward_message_id
-  const forwardedMessage = envelope?.draft.forwarded_message
+  const sourceMessageId = envelope?.draft.source_message_id
+  const sourceMessage = envelope?.draft.source_message
+  const replyAll = envelope?.draft.reply_all === true
 
   const submit = async () => {
-    const draft = draftFromForm(fields, forwardMessageId)
-    if (draft.to.length === 0) {
+    const draft = draftFromForm(fields, {
+      action,
+      ...(sourceMessageId === undefined ? {} : { source_message_id: sourceMessageId }),
+      ...(action === 'reply' ? { reply_all: replyAll } : {}),
+    })
+    if (action !== 'reply' && draft.to.length === 0) {
       setSendError('Add at least one To recipient.')
       return
     }
-    if (!draft.subject) {
+    if (action === 'send' && !draft.subject) {
       setSendError('Subject cannot be empty.')
       return
     }
-    if (typeof window !== 'undefined' && !window.confirm(forwardMessageId
-      ? 'Forward this email with the original message and all its attachments now?'
-      : 'Send this email now?')) return
+    const confirmation = action === 'reply'
+      ? 'Reply to this email now?'
+      : action === 'forward'
+        ? 'Forward this email with the original message and all its attachments now?'
+        : 'Send this email now?'
+    if (typeof window !== 'undefined' && !window.confirm(confirmation)) return
     setStatus('sending')
     setSendError(null)
     try {
@@ -219,7 +236,7 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
     <section className={css.card} data-dshcf-preserve="true" aria-label="Editable Zimbra email draft">
       <div className={css.header}>
         <div>
-          <div className={css.title}>{forwardMessageId ? 'Forward email' : 'Email draft'}</div>
+          <div className={css.title}>{action === 'reply' ? 'Reply to email' : action === 'forward' ? 'Forward email' : 'Email draft'}</div>
         </div>
       </div>
       <div className={css.content}>
@@ -234,19 +251,21 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
             <input className={css.input} aria-label="Subject" value={fields.subject} onChange={update('subject')} maxLength={998} />
           </label>
           <label className={css.field}>
-            <span className={css.label}>{forwardMessageId ? 'Your message (optional)' : 'Body'}</span>
+            <span className={css.label}>{action === 'send' ? 'Body' : 'Your message (optional)'}</span>
             <textarea className={css.textarea} aria-label="Body" value={fields.body} onChange={update('body')} maxLength={18_000} />
           </label>
-          {forwardMessageId && (
+          {action !== 'send' && (
             <div className={css.field}>
-              <div className={css.label}>Original message and all attachments will be included.</div>
+              <div className={css.label}>{action === 'forward'
+                ? 'Original message and all attachments will be included.'
+                : 'The original message will be quoted in the reply; its attachments will not be reattached.'}</div>
               <details>
-                <summary>{forwardedMessage?.subject || 'Original message'}</summary>
-                <div>{forwardedMessage?.from} {forwardedMessage?.date}</div>
-                <textarea className={css.textarea} aria-label="Original message preview" value={forwardedMessage?.body || ''} readOnly />
-                {forwardedMessage?.body_truncated && <div>Preview shortened; the full original message will be forwarded.</div>}
+                <summary>{sourceMessage?.subject || 'Original message'}</summary>
+                <div>{sourceMessage?.from} {sourceMessage?.date}</div>
+                <textarea className={css.textarea} aria-label="Original message preview" value={sourceMessage?.body || ''} readOnly />
+                {sourceMessage?.body_truncated && <div>Preview shortened; the full original message will be included.</div>}
               </details>
-              {forwardedMessage?.attachments?.map(attachment => (
+              {sourceMessage?.attachments?.map(attachment => (
                 <div key={attachment.part}>{attachment.filename || 'Unnamed attachment'}</div>
               ))}
             </div>
@@ -298,7 +317,7 @@ export const emailDraftToolview = {
   inject: ['slots', 'socClient'],
   apply(ctx: Context): void {
     const socClient = ctx.get('socClient') as SocClientRuntime
-    for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_FORWARD_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) {
+    for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) {
       ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
         name: 'tool.call.toolview',
         key,

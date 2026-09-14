@@ -111,10 +111,12 @@ async def send_email(payload: dict[str, Any]) -> dict[str, Any]:
         payload.get("to", []),
         payload.get("subject", ""),
         payload.get("body", ""),
+        action=payload.get("action", "send"),
         cc=payload.get("cc"),
         bcc=payload.get("bcc"),
-        body_format=payload.get("body_format", "text"),
-        forward_message_id=payload.get("forward_message_id"),
+        body_format=payload.get("body_format"),
+        source_message_id=payload.get("source_message_id"),
+        reply_all=payload.get("reply_all", False),
     )
 
 

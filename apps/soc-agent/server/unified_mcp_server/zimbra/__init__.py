@@ -18,6 +18,7 @@ from .zimbra import (
     zimbra_move_message,
     zimbra_password,
     zimbra_search_messages,
+    zimbra_reply_message,
     zimbra_send_message,
 )
 
@@ -41,5 +42,6 @@ __all__ = [
     "zimbra_move_message",
     "zimbra_password",
     "zimbra_search_messages",
+    "zimbra_reply_message",
     "zimbra_send_message",
 ]

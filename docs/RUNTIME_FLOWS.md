@@ -57,7 +57,7 @@ Every API call from the browser passes `createScopedApiProxy`: nine domains (`se
 
 ## 5. MCP server discovery and tool allowlisting
 
-Three layers, in order: (1) **registration** — `dsh-mcp-client` registers only names in the raw `allowedToolNames` (28 for `soc_agent`; 13 for `splunk_mcp`), all sourced from `tool-inventory.js`; (2) **restriction** — on `agent/created` the host best-effort restricts the agent's tool set to `DOMAIN_TOOLS ∪ CONTROL_TOOLS`; (3) **enforcement** — `tools/pre-execute` (global) denies any name outside that union, then applies mode/state logic. Late-arriving MCP tools are caught by layer 3 (the comment says exactly that). Tests pin all three layers and the exact counts (30/42/12).
+Three layers, in order: (1) **registration** — `dsh-mcp-client` registers only names in the raw `allowedToolNames` (27 for `soc_agent`; 13 for `splunk_mcp`), all sourced from `tool-inventory.js`; (2) **restriction** — on `agent/created` the host best-effort restricts the agent's tool set to `DOMAIN_TOOLS ∪ CONTROL_TOOLS`; (3) **enforcement** — `tools/pre-execute` (global) denies any name outside that union, then applies mode/state logic. Late-arriving MCP tools are caught by layer 3 (the comment says exactly that). Tests pin all three layers and the exact counts (29/41/12).
 **Evidence:** `cordis.patch.yml`, `host.js apply` + `savedActionPolicy`, `policy.test.js`, `mcp-discovery.test.js`.
 
 ## 6. A read-only Splunk request through `splunk_mcp`
@@ -99,14 +99,14 @@ sequenceDiagram
     participant H as Host RPC (host.js)
     participant C as Control channel
     participant Z as Zimbra
-    M->>S: zimbra_send_email / zimbra_forward_email {to,cc,bcc,subject,body[,message_id]}
-    S->>S: validate; build LOCAL draft (no store, no send); forwards embed forward_message_id + forwarded_message metadata
+    M->>S: zimbra_send_email {action,to,cc,bcc,subject,body[,message_id,body_format,reply_all]}
+    S->>S: validate action-specific fields; build LOCAL draft (no store, no send); add action/source metadata
     S-->>U: tool result {draft…} → editable card (status: editing)
-    U->>U: user edits; validation (≥1 To, subject non-empty)
-    U->>U: window.confirm('Send this email now?')
-    U->>H: rpc /soc-agent-config send-email {to[],cc[],bcc[],subject,body,body_format}
+    U->>U: user edits; action-specific validation (To required except derived replies; subject required for send)
+    U->>U: action-specific window.confirm
+    U->>H: rpc /soc-agent-config send-email {action,to[],cc[],bcc[],subject,body,body_format,source_message_id,reply_all}
     H->>C: runAuthCommand('send-email', {…, session_id})
-    C->>Z: ZimbraMailService.send_email (gate ZIMBRA_ALLOW_SEND; forward_message_id → zimbra_forward_message with original + attachments)
+    C->>Z: ZimbraMailService.send_email (gate ZIMBRA_ALLOW_SEND; route send/reply/forward)
     Z-->>C: sent
     C-->>H: {sent:true}
     H-->>U: result.sent === true → status 'sent'
@@ -115,7 +115,7 @@ sequenceDiagram
 **State machine:** `editing → sending → sent | failed | discarded` (discarded offers Reopen; failure shows the message with a Retry label). **The confirmation is a UI-level control**: the server enforces authentication (`requireUser`), the session-scoped identity, the `ZIMBRA_ALLOW_SEND` gate, and requires Zimbra's own success before reporting `sent`; no separate server-side confirmation token exists. Lost responses after transmission are surfaced as `operation_outcome_unknown` — "Check its result before trying again" — and never replayed. No model-callable tool can deliver email.
 **Evidence:** `EmailDraftToolview.tsx`, `host.js send-email`, `auth_cli.py send-email`, `zimbra_service.py send_email`; `email-draft-toolview.test.ts`, `test_zimbra_service.py`, `control-channel.test.js`.
 
-`zimbra_forward_email` uses the same editor and delivery path. It reads one numeric `message_id` in the authenticated mailbox, returns an optional editable note plus a bounded original-message preview, and retains `forward_message_id` through edits. The confirmation states that the original message and all attachments are included. The private command passes the ID to `zimbra-client.forward_message`, which fetches the full original and forwards attachments by MIME-part reference; the shortened preview is never used as the outgoing original body.
+`zimbra_send_email` uses the same editor for all actions. A forward requires a numeric `message_id` in the authenticated mailbox and a recipient, generates `Fwd:` when needed, and retains `source_message_id` through edits; the confirmed path fetches the full source and includes its attachments. A reply requires a numeric source ID, generates `Re:` when needed, derives Reply-To/from recipients when To is blank (and adds Reply-All recipients when requested), quotes the original, and does not reattach files. The bounded preview is never used as the outgoing source content.
 
 ## 9. Subscription read, preview, and mutation
 

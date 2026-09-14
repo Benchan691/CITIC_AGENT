@@ -14,11 +14,11 @@ Non-MCP shapes: `ui__soc_agent__send_email` (UI-confirmed catalog entry, calls t
 
 **Single source of truth (new this round):** `apps/soc-agent/tool-inventory.js` exports `OFFICIAL_SPLUNK_TOOL_NAMES`, `TOOL_CATALOG`, and `SUBSCRIPTION_READ_TOOLS`; `policy.js` derives its sets from it and `splunk-bridge.js` imports the raw names from it. The Python registration count is pinned to the same inventory by tests.
 
-Counts at this commit: **28** `soc_agent` tools registered (asserted exact by Python `test_server_tools.py` — `len(tools) == 28` — and by the JS patch-allowlist test), **13** `splunk_mcp` read tools, **1** `skill` host tool, plus 2 harness control tools (`ask_user_question`, `exit_plan_mode`). Derived policy sets: **30** read-only, **42** domain, **12** approval tools (pinned by `policy.test.js`: `READ_ONLY_TOOLS.length == 30`, `DOMAIN_TOOLS.size == 42`).
+Counts at this commit: **27** `soc_agent` tools registered (asserted exact by Python `test_server_tools.py` — `len(tools) == 27` — and by the JS patch-allowlist test), **13** `splunk_mcp` read tools, **1** `skill` host tool, plus 2 harness control tools (`ask_user_question`, `exit_plan_mode`). Derived policy sets: **29** read-only, **41** domain, **12** approval tools (pinned by `policy.test.js`: `READ_ONLY_TOOLS.length == 29`, `DOMAIN_TOOLS.size == 41`).
 
 ---
 
-## 1. `soc_agent` — Zimbra mail tools (13)
+## 1. `soc_agent` — Zimbra mail tools (12)
 
 Identity source for all: the authenticated app session (`soc_session_id` metadata → `identity_for_session` → the user's own Zimbra token; `account_id` selection is rejected with `account_selection_disabled`). External dependency: Zimbra SOAP (`ZIMBRA_HOST`).
 
@@ -29,8 +29,7 @@ Identity source for all: the authenticated app session (`soc_session_id` metadat
 | `zimbra_get_email` | `mcp__soc_agent__zimbra_get_email` | One message; bounded body (default 20 k, clamped ≤100 k chars) | read | auto | — | `test_zimbra_service.py` |
 | `zimbra_get_email_headers` | `mcp__soc_agent__zimbra_get_email_headers` | Selected auth/routing headers only (allowlist of 12; 1–12 per call) | read | auto | — | `test_zimbra_service.py` |
 | `zimbra_get_attachment_text` | `mcp__soc_agent__zimbra_get_attachment_text` | Bounded attachment → Markdown | read | auto | size/char limits; converter codes `attachment_*` | `test_zimbra_service.py` |
-| `zimbra_send_email` | `mcp__soc_agent__zimbra_send_email` | **Creates a local draft only — never sends, never persists.** UI label: "Create email draft" | read-classified (in `READ_ONLY_TOOLS`) | auto | recipients validated; draft returned in the tool result for the UI | `test_zimbra_service.py`, `email-draft-toolview.test.ts` |
-| `zimbra_forward_email` | `mcp__soc_agent__zimbra_forward_email` | **New:** prepares a browser-editable **forward draft** from one message ("Forward email (draft)"); reads the source message and embeds `forward_message_id` + `forwarded_message` metadata (subject/from/date/body/attachments). **Never sends or saves to Zimbra** | read-classified (`readOnlyHint: true`) | auto | params `{message_id, to, cc, bcc, subject, body}`; required `{message_id, to}` | `test_server_tools.py` (forward schema), `test_zimbra_service.py` |
+| `zimbra_send_email` | `mcp__soc_agent__zimbra_send_email` | **Creates a local draft only — never sends, never persists.** One tool supports `action: send | reply | forward`; new sends default to text, replies/forwards default to HTML and include both MIME alternatives at delivery. | read-classified (`readOnlyHint: true`, in `READ_ONLY_TOOLS`) | auto | params `{action, message_id, to, cc, bcc, subject, body, body_format, reply_all}`; `send` requires To + subject, `forward` requires message ID + To, `reply` requires message ID and may derive To from Reply-To/from; delivery remains UI-confirmed | `test_server_tools.py`, `test_zimbra_service.py`, `email-draft-toolview.test.ts` |
 | `zimbra_use_signature_on_email` | `mcp__soc_agent__zimbra_use_signature_on_email` | Editable draft with signature merged; docstring: "it never sends" | read-classified | auto | — | `test_zimbra_service.py` |
 | `zimbra_list_signatures` | `mcp__soc_agent__zimbra_list_signatures` | List signatures (text + HTML) | read | auto | — | — |
 | `zimbra_create_folder` | `mcp__soc_agent__zimbra_create_folder` | Create one direct child folder | mutation | ask | `ZIMBRA_ALLOW_FOLDER_WRITE` | `ACTION_CATALOG`, `test_zimbra_service.py` |
@@ -95,15 +94,15 @@ No `splunk_(create|update|delete|write)_*` name exists in the inventory (asserte
 |---|---|---|---|
 | `skill` | Harness `tool-skill` plugin tool: load a skill's instructions | read (`READ_ONLY_TOOLS`), default auto | Unprefixed (no `mcp__`); part of `DOMAIN_TOOLS` |
 | `ask_user_question`, `exit_plan_mode` | Harness interaction tools | allowed via `host.js` `CONTROL_TOOLS` in addition to `DOMAIN_TOOLS` | Deny list catches everything else |
-| `ui__soc_agent__send_email` | Catalog entry (`kind: 'ui-confirmed'`) rendered in the admin checklist with an "Explicit confirmation" badge | Not a tool. Cannot be automated | Delivery path: draft view → `window.confirm` → `send-email` RPC → control channel → `ZimbraMailService.send_email` (gate `ZIMBRA_ALLOW_SEND`; now accepts `forward_message_id` for forward delivery) |
+| `ui__soc_agent__send_email` | Catalog entry (`kind: 'ui-confirmed'`) rendered in the admin checklist with an "Explicit confirmation" badge | Not a tool. Cannot be automated | Delivery path: draft view → action-specific `window.confirm` → `send-email` RPC → control channel → `ZimbraMailService.send_email` (gate `ZIMBRA_ALLOW_SEND`; routes send/reply/forward using generic action metadata) |
 
-## 6. Forwarding flow (new this round)
+## 6. Email action flow (send, reply, forward)
 
-1. Model calls `zimbra_forward_email {message_id, to, …}` → `ZimbraMailService.create_forward_draft` reads the source message, builds a **local** draft with subject `Fwd: …`, attaches `forward_message_id` and `forwarded_message` metadata. Nothing is sent or saved.
-2. The draft card (keyed on the forward tool name) shows the original message metadata; the user edits and confirms Send.
-3. The `send-email` RPC carries `forward_message_id`; `auth_cli send-email` passes it to `ZimbraMailService.send_email`, which delivers **with the original message and its attachments** via `zimbra_forward_message` (SOAP), still gated by `ZIMBRA_ALLOW_SEND`.
+1. Model calls `zimbra_send_email {action, …}`. `send` validates recipients and subject locally; `reply`/`forward` validate the numeric source ID, read the source from the authenticated mailbox, generate `Re:`/`Fwd:` when needed, and attach `action`, `source_message_id`, `source_message`, `reply_all`, and `body_format` metadata. Nothing is sent or saved.
+2. The unified draft card shows action-specific titles, validation, confirmation text, and a safe bounded source preview. Reply To may remain blank for recipient derivation; forward requires To. Replies quote the source without reattaching files; forwards include the original message and all attachments.
+3. The `send-email` RPC carries the editable fields plus `action`, `source_message_id`, `reply_all`, and `body_format`; `auth_cli send-email` passes them to `ZimbraMailService.send_email`, which routes through `zimbra_send_message`, `zimbra_reply_message`, or `zimbra_forward_message` under `ZIMBRA_ALLOW_SEND`.
 
-So a forward is one read-classified draft step plus the same human-confirmed send path as any other email — the model still has no send tool.
+So every email action is one read-classified draft step plus the same human-confirmed send path — the model still has no delivery tool.
 
 ## 7. Removed implementations (previously "retained")
 

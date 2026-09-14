@@ -97,14 +97,14 @@ sequenceDiagram
     participant H as 宿主 RPC (host.js)
     participant C as 控制通道
     participant Z as Zimbra
-    M->>S: zimbra_send_email / zimbra_forward_email {…[,message_id]}
-    S->>S: 校验；构建 LOCAL 草稿（不存储、不发送）；转发内嵌 forward_message_id + forwarded_message 元数据
+    M->>S: zimbra_send_email {action,…[,message_id,body_format,reply_all]}
+    S->>S: 按动作校验；构建 LOCAL 草稿（不存储、不发送）；加入 action/source 元数据
     S-->>U: 工具结果 {draft…} → 可编辑卡片（状态 editing）
-    U->>U: 用户编辑；校验（≥1 个收件人、主题非空）
-    U->>U: window.confirm('Send this email now?')
-    U->>H: rpc /soc-agent-config send-email {to[],cc[],bcc[],subject,body,body_format[,forward_message_id]}
+    U->>U: 用户编辑；按动作校验（回复可留空 To；新发信需主题）
+    U->>U: 按动作 window.confirm
+    U->>H: rpc /soc-agent-config send-email {action,to[],cc[],bcc[],subject,body,body_format,source_message_id,reply_all}
     H->>C: runAuthCommand('send-email', {…, session_id})
-    C->>Z: ZimbraMailService.send_email（门 ZIMBRA_ALLOW_SEND；转发经 zimbra_forward_message 附原信与附件）
+    C->>Z: ZimbraMailService.send_email（门 ZIMBRA_ALLOW_SEND；路由 send/reply/forward）
     Z-->>C: sent
     C-->>H: {sent:true}
     H-->>U: result.sent === true → 状态 'sent'
@@ -112,6 +112,8 @@ sequenceDiagram
 
 **状态机:** `editing → sending → sent | failed | discarded`（discarded 可 Reopen；失败后按钮变 Retry）。**确认是界面级控制**: 服务端强制认证（`requireUser`）、会话身份、`ZIMBRA_ALLOW_SEND` 门，并要求 Zimbra 的成功回执才报告 `sent`；没有服务端确认令牌。传输后丢响应以 `operation_outcome_unknown` 呈现 — "请先核实结果再试" — 且绝不重放。不存在模型可调用的发信工具。
 **证据:** `EmailDraftToolview.tsx`、`host.js send-email`、`auth_cli.py send-email`、`zimbra_service.py send_email`；`email-draft-toolview.test.ts`、`test_zimbra_service.py`、`control-channel.test.js`。
+
+统一工具的 `forward` 动作读取认证邮箱中的原信，生成 `Fwd:` 主题并在确认后连同附件转发；`reply` 动作生成 `Re:` 主题，To 为空时按 Reply-To/from 派生收件人，Reply-All 可加入原 To/Cc，引用原信但不重新附加文件。回复/转发默认 HTML，同时生成纯文本 MIME alternative；缩短的预览不会被当作外发原信内容。
 
 ## 9. 订阅读取、预览与变更
 

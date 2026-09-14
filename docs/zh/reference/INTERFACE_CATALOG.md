@@ -18,7 +18,7 @@
 | harness web 运行时 | `cd vendor/deepseek-harness && pnpm dsh web --no-open`（端口 3080） | 启动 Node 宿主 + web 服务器；加载 web profile 插件（SOC bundle） |
 | `unified-mcp-server` | `uv run unified-mcp-server`（`dsh-mcp-client` 按 `cordis.patch.yml` 拉起；cwd `apps/soc-agent/server`） | `soc_agent` stdio MCP 服务器（`server.py main()`） |
 | `unified_mcp_server.control_server` | `ownership.js startControlChannel` 拉起 | 常驻认证操作通道 |
-| `unified_mcp_server.auth_cli <命令>` | 通道关闭/不可用时按命令拉起（共享 `python-command.js` 运行器） | 一次性认证操作（`login`、`logout`、`send-email` — 现转发 `forward_message_id`、`list-signatures`） |
+| `unified_mcp_server.auth_cli <命令>` | 通道关闭/不可用时按命令拉起（共享 `python-command.js` 运行器） | 一次性认证操作（`login`、`logout`、`send-email` — 携带 `action`、`source_message_id`、`body_format`、`reply_all`，以及 `list-signatures`） |
 | `unified_mcp_server.admin_cli <命令>` | `host.js runAdmin` → `python-command.js` 拉起 | 一次性管理操作: `get-settings`、`test-subscription-server`、`convert-attachment`、`migrate`。`test-splunk` 已移除 |
 | `unified_mcp_server.schema migrate` | `ownership.js ensureSchema` 与管理 `migrate` RPC 拉起；**PostgreSQL URI 以 JSON 经 stdin 传入** | 在 `pg_advisory_xact_lock` 下应用待处理 `migrations/*.sql`；输出 `{"migrated": true}` 或 `schema_migration_failed` |
 | `setup.sh [--check|--plugins]` / `update.sh` | 运维 | 安装/审计/修复/更新（Splunk 参数仅 MCP：端点+令牌必填） |
@@ -48,7 +48,7 @@
 | `get-settings` | 管理员 | `{}` → 脱敏服务状态（含 `official_mcp_enabled`） | `runAdmin` |
 | `update-settings` / `delete-setting` | 管理员 | 恒 `bad-request` — "Service configuration is managed by the server environment." | `host.js` |
 | `list/add/update/delete/test-account` | — | 恒拒绝 — "Stored Zimbra accounts are no longer supported" | 遗留桩 |
-| `send-email` | 用户 | `{to[], cc[], bcc[], subject, body, body_format[, forward_message_id]}` → UI 要求 `{sent: true}` | `runAuthCommand('send-email', {…, session_id})` |
+| `send-email` | 用户 | `{action, to[], cc[], bcc[], subject, body, body_format, source_message_id, reply_all}` → UI 要求 `{sent: true}`；`action` 路由 send/reply/forward，原信字段只用于 reply/forward | `runAuthCommand('send-email', {…, session_id})` |
 | `list-signatures` | 用户 | `{}` → `{signatures: [{id,name,text,html}]}` | `runAuthCommand` |
 | `test-splunk` / `test-subscription-server` | 管理员 | `{}` → 状态/失败。`test-splunk` **经桥接实时执行 `splunk_get_info`**（185 秒预算、Bearer 脱敏）；订阅检查保持管理 CLI 子进程 | `host.js`、`splunk-bridge.js` |
 | `convert-attachment` | 管理员 | `{filename, content_type, data(base64), limits}` → `{text, text_truncated?…}`；≤100 MB、≤2 M 字符、文件名 ≤255 | `validateAttachmentPayload` + admin_cli |
@@ -64,7 +64,7 @@
 
 - 传输: stdio JSON 行；首行 `{"ready":true}`；请求 `{id, command, payload}`；响应 `{id, ok, result}` / `{id, ok:false, error:{…}}`。
 - 边界: 8 000 000 字节行上限（溢出杀通道）、8 并发、60 秒启动握手、每操作 185 秒默认超时。
-- 命令: `login`、`logout`、`send-email`（含 `forward_message_id`）、`list-signatures`（分发表 = `auth_cli.dispatch_command`）；`zimbra_auth_error` 触发会话过期清理。
+- 命令: `login`、`logout`、`send-email`（含统一动作/原信元数据）、`list-signatures`（分发表 = `auth_cli.dispatch_command`）；`zimbra_auth_error` 触发会话过期清理。
 - 兜底规则: 仅**传输前**失败才回退一次性 `auth_cli`；传输后丢响应抛 `operation_outcome_unknown` 且绝不重放。
 - 认证: 无通道机密（私有管道）；每命令的 `session_id` 对 Postgres 校验。
 
@@ -85,7 +85,7 @@
 
 ## 8. UI 交接边界
 
-- **邮件草稿交接:** 草稿工具结果（草稿 JSON，转发含 `forwarded_message`）→ `EmailDraftToolview` 渲染可编辑表单 → 显式确认 → `send-email` RPC → `{sent:true}` 或失败卡。无其他投递路径；无模型可调用发送。
+- **邮件草稿交接:** `zimbra_send_email` 结果（草稿 JSON，动作与 reply/forward 原信元数据）→ `EmailDraftToolview` 渲染按动作的可编辑表单 → 显式确认 → `send-email` RPC → `{sent:true}` 或失败卡。无其他投递路径；无模型可调用发送。
 - **附件边界:** 编辑器文件 → base64 → `convert-attachment`（管理 RPC）或邮箱 `zimbra_get_attachment_text` → MarkItDown Markdown（`text_truncated` 标记）→ 模型上下文。
 - **浏览器 bundle 边界:** `lib/client.js` 闭包工厂经 `window.__ModuleLoader__` + `__DSH_BOOT__` 图加载（harness `packages/client/web/src/boot.ts`）。
 

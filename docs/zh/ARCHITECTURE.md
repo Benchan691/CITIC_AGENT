@@ -44,7 +44,7 @@ flowchart LR
 | 进程 | 是什么 | 由谁启动 | 通信对象 |
 |---|---|---|---|
 | **Node 宿主**（单进程） | vendored harness web 运行时 + cordis 插件 | `pnpm dsh web --no-open` | 浏览器（HTTP/WS）、PostgreSQL（`pg` 连接池）、Python 子进程、外部 Splunk MCP |
-| **`soc_agent` Python 服务器** | FastMCP stdio 服务器，28 个工具 | `dsh-mcp-client` 按 `cordis.patch.yml`（`uv run unified-mcp-server`，`failOnStartupError: true`） | Zimbra SOAP、订阅 REST、PostgreSQL |
+| **`soc_agent` Python 服务器** | FastMCP stdio 服务器，27 个工具 | `dsh-mcp-client` 按 `cordis.patch.yml`（`uv run unified-mcp-server`，`failOnStartupError: true`） | Zimbra SOAP、订阅 REST、PostgreSQL |
 | **控制服务器**（`unified_mcp_server.control_server`） | 认证操作的常驻 JSON 行通道 | `ownership.js startControlChannel`（`SOC_CONTROL_CHANNEL=off` 时改为一次性 `auth_cli`） | PostgreSQL、Zimbra（发送） |
 | **管理 CLI 子进程**（`unified_mcp_server.admin_cli`） | 每个管理操作一次性运行 | `host.js runAdmin` → `python-command.js` | 订阅服务（测试）、PostgreSQL（migrate） |
 | **schema 迁移子进程**（`unified_mcp_server.schema migrate`） | 应用 SQL 迁移（URI 经 stdin 传入） | `ownership.js ensureSchema` / 管理 `migrate` RPC | PostgreSQL |
@@ -68,7 +68,7 @@ flowchart TB
     end
     subgraph Python[soc_agent stdio 服务器]
         RT[server.py Runtime]
-        MAIL[zimbra/ mail+filters（13 读，12 变更）]
+        MAIL[zimbra/ mail+filters（12 读，12 变更）]
         SUB[email/ 订阅]
         MIG[schema.py + migrations/]
     end
@@ -82,7 +82,7 @@ flowchart TB
 
 依赖要点：
 
-- **`tool-inventory.js` 是词汇表**：一个与运行时无关的模块导出全部工具名；`policy.js` 从它派生策略集合，桥接从它导入原始名。Python 的 28 个注册工具通过测试与之对齐（`policy.test.js`、`skills.test.js`、`splunk-bridge.test.js`、`test_server_tools.py`）— 漂移现在会导致导入失败或测试失败，而不是仅靠评审发现。
+- **`tool-inventory.js` 是词汇表**：一个与运行时无关的模块导出全部工具名；`policy.js` 从它派生策略集合，桥接从它导入原始名。Python 的 27 个注册工具通过测试与之对齐（`policy.test.js`、`skills.test.js`、`splunk-bridge.test.js`、`test_server_tools.py`）— 漂移现在会导致导入失败或测试失败，而不是仅靠评审发现。
 - **`ownership.js` 是最大的第一方模块**（本轮精简后仍是）：既是认证服务，也是把 harness 自身 API 变得按用户安全的受限 API 代理。数据库 DDL 已全部移入 Python 迁移。
 - **harness 是被配置的，不是被分叉的**：`cordis.patch.yml` 切换上游插件行并插入 SOC 插件；唯一的文件级 vendor 补丁是 `patches/dsh-auto-collapse@0.1.4.patch`（本地化 + `data-dshcf-preserve` 豁免，用于草稿卡片）。
 

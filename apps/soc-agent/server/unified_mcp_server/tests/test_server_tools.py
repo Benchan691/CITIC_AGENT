@@ -21,7 +21,6 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "zimbra_get_email_headers",
         "zimbra_get_attachment_text",
         "zimbra_send_email",
-        "zimbra_forward_email",
         "zimbra_use_signature_on_email",
         "zimbra_move_email",
         "zimbra_list_email_filters",
@@ -40,7 +39,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "update_subscription",
         "delete_subscription",
     }
-    assert len(tools) == 28
+    assert len(tools) == 27
     assert not {tool.name for tool in tools if tool.name.startswith("splunk_")}
     assert "system_get_status" not in {tool.name for tool in tools}
     assert not {tool.name for tool in tools if tool.name.startswith("catalog_")}
@@ -60,12 +59,12 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert preview_tool.parameters.get("required", []) == []
 
     draft_tool = next(tool for tool in tools if tool.name == "zimbra_send_email")
-    assert set(draft_tool.parameters["properties"]) == {"to", "cc", "bcc", "subject", "body"}
-    assert set(draft_tool.parameters["required"]) == {"to", "subject", "body"}
-    forward_tool = next(tool for tool in tools if tool.name == "zimbra_forward_email")
-    assert set(forward_tool.parameters["properties"]) == {"message_id", "to", "cc", "bcc", "subject", "body"}
-    assert set(forward_tool.parameters["required"]) == {"message_id", "to"}
-    assert forward_tool.annotations.readOnlyHint is True
+    assert set(draft_tool.parameters["properties"]) == {
+        "action", "message_id", "to", "cc", "bcc", "subject", "body", "body_format", "reply_all",
+    }
+    assert draft_tool.parameters.get("required", []) == []
+    assert draft_tool.parameters["properties"]["action"]["enum"] == ["send", "reply", "forward"]
+    assert draft_tool.annotations.readOnlyHint is True
     assert "zimbra_create_email_draft" not in {tool.name for tool in tools}
     list_signatures_tool = next(tool for tool in tools if tool.name == "zimbra_list_signatures")
     assert set(list_signatures_tool.parameters["properties"]) == set()

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from mcp.server.fastmcp import Context
 
@@ -68,19 +68,37 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         """Download one bounded Zimbra attachment and return MarkItDown Markdown evidence."""
         return await execute(ctx, "zimbra", "get_attachment_text", lambda: get_runtime(ctx).zimbra_mail.get_attachment_text(message_id, part, max_chars=max_chars))
 
-    @server.tool()
+    @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_send_email(
         ctx: Context,
-        to: list[str],
-        subject: str,
-        body: str,
+        action: Literal["send", "reply", "forward"] = "send",
+        to: list[str] | None = None,
+        subject: str = "",
+        body: str = "",
+        message_id: str | None = None,
         cc: list[str] | None = None,
         bcc: list[str] | None = None,
+        body_format: Literal["text", "html"] | None = None,
+        reply_all: bool = False,
     ) -> dict[str, Any]:
-        """Create a browser-editable local email draft; sending requires the draft's explicit Send button."""
+        """Prepare a browser-editable local email draft for sending, replying, or forwarding; delivery requires the draft's explicit Send button.
+
+        Use action='send' for a new message, action='reply' with message_id to
+        reply to the source (recipients are derived unless supplied), or
+        action='forward' with message_id and at least one To recipient. Reply
+        and forward drafts default to HTML; new-message drafts default to text.
+        """
         async def create_draft() -> dict[str, Any]:
-            return get_runtime(ctx).zimbra_mail.create_email_draft(
-                to, subject, body, cc, bcc,
+            return await get_runtime(ctx).zimbra_mail.create_email_action_draft(
+                action=action,
+                to=to,
+                subject=subject,
+                body=body,
+                message_id=message_id,
+                cc=cc,
+                bcc=bcc,
+                body_format=body_format,
+                reply_all=reply_all,
             )
 
         return await execute(
@@ -88,22 +106,6 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
             "zimbra",
             "create_email_draft",
             create_draft,
-        )
-
-    @server.tool(annotations={"readOnlyHint": True})
-    async def zimbra_forward_email(
-        ctx: Context,
-        message_id: str,
-        to: list[str],
-        body: str = "",
-        subject: str = "",
-        cc: list[str] | None = None,
-        bcc: list[str] | None = None,
-    ) -> dict[str, Any]:
-        """Prepare a browser-editable forward draft from one message in your mailbox. Body is an optional note; the original message and its attachments are included automatically when the user confirms Send. Never sends or saves to Zimbra."""
-        return await execute(
-            ctx, "zimbra", "create_forward_draft",
-            lambda: get_runtime(ctx).zimbra_mail.create_forward_draft(message_id, to, body, subject, cc, bcc),
         )
 
     @server.tool()

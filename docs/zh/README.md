@@ -30,7 +30,7 @@
 ```mermaid
 flowchart LR
     A[SOC 分析师浏览器] -->|HTTPS 会话 Cookie| B[Node 宿主<br/>harness web 服务]
-    B -->|stdio，28 个工具| C[Python MCP 服务器<br/>soc_agent]
+    B -->|stdio，27 个工具| C[Python MCP 服务器<br/>soc_agent]
     C -->|SOAP| Z[Zimbra]
     C -->|HTTPS| S[订阅服务]
     B -->|streamable HTTP，13 个只读工具| SP[外部官方<br/>Splunk MCP 服务器]

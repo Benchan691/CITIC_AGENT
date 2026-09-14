@@ -39,7 +39,7 @@ Source: [diagrams/runtime-containers.mmd](diagrams/runtime-containers.mmd).
 | Process | What it is | Started by | Talks to |
 |---|---|---|---|
 | **Node host** (single process) | Vendored harness web runtime + cordis plugins | `pnpm dsh web --no-open` | Browser (HTTP/WS), PostgreSQL (`pg` pool), Python children, external Splunk MCP |
-| **`soc_agent` Python server** | FastMCP stdio server, 28 tools | `dsh-mcp-client` per `cordis.patch.yml` (`uv run unified-mcp-server`, `failOnStartupError: true`) | Zimbra SOAP, subscription REST, PostgreSQL |
+| **`soc_agent` Python server** | FastMCP stdio server, 27 tools | `dsh-mcp-client` per `cordis.patch.yml` (`uv run unified-mcp-server`, `failOnStartupError: true`) | Zimbra SOAP, subscription REST, PostgreSQL |
 | **Control server** (`unified_mcp_server.control_server`) | Persistent JSON-line channel for authenticated ops | `ownership.js startControlChannel` (or one-shot `auth_cli` when `SOC_CONTROL_CHANNEL=off`) | PostgreSQL, Zimbra (send) |
 | **Admin CLI child** (`unified_mcp_server.admin_cli`) | One-shot per admin operation | `host.js runAdmin` → `python-command.js` | Subscription service (test), PostgreSQL (migrate) |
 | **Browser** | Harness web runtime + eight SOC browser bundles (`lib/client.js` closure factories loaded via `window.__ModuleLoader__`): core, isolated sidebar/workspace, and five optional feature packages | — | Node host only |
@@ -88,7 +88,7 @@ Dependency highlights:
 |---|---|---|---|
 | Node plugins | `apps/soc-agent/*.js` | — | `apps/soc-agent/tests/*.test.js` |
 | Wiring | `apps/soc-agent/cordis.patch.yml`, `package.json` | — | `skills.test.js` (patch assertions) |
-| Python server | `apps/soc-agent/server/unified_mcp_server/**` (active: `server.py`, `config.py`, `auth.py`, `request_context.py`, `schema.py`, `migrations/`, `postgres_store.py`, `errors/responses`, `blocking_io`, `env_loader`, `zimbra/**`, `email/`, `attachment_converter.py`, `control_server.py`, `admin_cli.py`, `auth_cli.py`) | — | `unified_mcp_server/tests/` (48 tests) |
+| Python server | `apps/soc-agent/server/unified_mcp_server/**` (active: `server.py`, `config.py`, `auth.py`, `request_context.py`, `schema.py`, `migrations/`, `postgres_store.py`, `errors/responses`, `blocking_io`, `env_loader`, `zimbra/**`, `email/`, `attachment_converter.py`, `control_server.py`, `admin_cli.py`, `auth_cli.py`) | — | `unified_mcp_server/tests/` (52 tests) |
 | Schema | `unified_mcp_server/schema.py`, `migrations/*.sql` | — | `test_schema.py` (3) |
 | Browser packages | `packages/soc-agent-*/src/**` | `packages/soc-agent-*/lib/*` (**tracked**) | package-local tests plus `apps/soc-agent/tests/browser-smoke.test.mjs` |
 | Skills | `skills/*/SKILL.md` | — | `skills.test.js` content invariants |

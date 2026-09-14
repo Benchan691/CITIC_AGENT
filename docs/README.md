@@ -21,7 +21,7 @@
 | What is it? | A web-based SOC investigation assistant with tool-using AI, deployed as one Node host process plus Python child processes. |
 | Who uses it? | Authenticated SOC staff (analysts) and an administrator (separate static admin login). |
 | Main external systems | Zimbra (mail, identity), an external official Splunk MCP server, a subscription web service, PostgreSQL. |
-| Two MCP servers | `soc_agent` — local Python stdio server, Zimbra + subscription tools only (28 tools incl. forward drafts). `splunk_mcp` — a client-side bridge to the external official Splunk MCP endpoint, read-only by allowlist (13 tools). |
+| Two MCP servers | `soc_agent` — local Python stdio server, Zimbra + subscription tools only (27 tools; `zimbra_send_email` supports send/reply/forward drafts). `splunk_mcp` — a client-side bridge to the external official Splunk MCP endpoint, read-only by allowlist (13 tools). |
 | Safety model | Allowlisted tools only; read-only by default; per-tool ask/auto-run/disabled states; Full access vs SOC mode; email delivery only via an explicit UI Send confirmation; harness shell/filesystem tools disabled. |
 | Persistence | PostgreSQL (sessions, ownership, encrypted config), per-user workspace directories under `.data/soc-workspaces/`, optional SQLite evidence store, tracked generated browser bundles in each SOC package's `lib/`. |
 
@@ -30,7 +30,7 @@
 ```mermaid
 flowchart LR
     A[SOC analyst browser] -->|HTTPS session cookie| B[Node host<br/>harness web server]
-    B -->|stdio, 28 tools| C[Python MCP server<br/>soc_agent]
+    B -->|stdio, 27 tools| C[Python MCP server<br/>soc_agent]
     C -->|SOAP| Z[Zimbra]
     C -->|HTTPS| S[Subscription service]
     B -->|streamable HTTP, 13 read tools| SP[External official<br/>Splunk MCP server]

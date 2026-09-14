@@ -61,19 +61,18 @@ window.__ModuleLoader__.load({
 		//#endregion
 		//#region src/client/emailDraft.ts
 		const ZIMBRA_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_send_email";
-		const ZIMBRA_FORWARD_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_forward_email";
 		const ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME = "mcp__soc_agent__zimbra_use_signature_on_email";
 		function parseRecipientText(value) {
 			return [...new Set(value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean))];
 		}
-		function draftFromForm(fields, forwardMessageId) {
+		function draftFromForm(fields, metadata = {}) {
 			return {
 				to: parseRecipientText(fields.to),
 				cc: parseRecipientText(fields.cc),
 				bcc: parseRecipientText(fields.bcc),
 				subject: fields.subject.trim(),
 				body: fields.body,
-				...forwardMessageId === void 0 ? {} : { forward_message_id: forwardMessageId }
+				...metadata
 			};
 		}
 		//#endregion
@@ -115,6 +114,13 @@ window.__ModuleLoader__.load({
 				body: typeof draft.body === "string" ? draft.body : ""
 			};
 		}
+		function actionFromEnvelope(value) {
+			return value === "reply" || value === "forward" ? value : "send";
+		}
+		function defaultBodyFormat(action, value) {
+			if (value === "text" || value === "html") return value;
+			return action === "send" ? "text" : "html";
+		}
 		function errorMessage(envelope) {
 			const error = envelope?.error;
 			if (typeof error === "object" && error !== null && "message" in error) {
@@ -126,6 +132,7 @@ window.__ModuleLoader__.load({
 		function EmailDraftToolview({ block, socClient }) {
 			const envelope = (0, react.useMemo)(() => parseEnvelope(block), [block]);
 			const sourceKey = (0, react.useMemo)(() => JSON.stringify(envelope?.draft ?? null), [envelope]);
+			const action = actionFromEnvelope(envelope?.draft.action);
 			const [fields, setFields] = (0, react.useState)(() => envelope ? formFromEnvelope(envelope) : {
 				to: "",
 				cc: "",
@@ -135,7 +142,7 @@ window.__ModuleLoader__.load({
 			});
 			const [status, setStatus] = (0, react.useState)("editing");
 			const [sendError, setSendError] = (0, react.useState)(null);
-			const [bodyFormat, setBodyFormat] = (0, react.useState)(envelope?.draft.body_format === "html" ? "html" : "text");
+			const [bodyFormat, setBodyFormat] = (0, react.useState)(() => defaultBodyFormat(action, envelope?.draft.body_format));
 			const [signaturePanel, setSignaturePanel] = (0, react.useState)(false);
 			const [signatures, setSignatures] = (0, react.useState)([]);
 			const [signatureId, setSignatureId] = (0, react.useState)("");
@@ -147,7 +154,7 @@ window.__ModuleLoader__.load({
 					setFields(formFromEnvelope(envelope));
 					setStatus("editing");
 					setSendError(null);
-					setBodyFormat(envelope.draft.body_format === "html" ? "html" : "text");
+					setBodyFormat(defaultBodyFormat(action, envelope.draft.body_format));
 					setSignaturePanel(false);
 					setSignatureStatus(null);
 				}
@@ -197,19 +204,25 @@ window.__ModuleLoader__.load({
 					[field]: event.target.value
 				}));
 			};
-			const forwardMessageId = envelope?.draft.forward_message_id;
-			const forwardedMessage = envelope?.draft.forwarded_message;
+			const sourceMessageId = envelope?.draft.source_message_id;
+			const sourceMessage = envelope?.draft.source_message;
+			const replyAll = envelope?.draft.reply_all === true;
 			const submit = async () => {
-				const draft = draftFromForm(fields, forwardMessageId);
-				if (draft.to.length === 0) {
+				const draft = draftFromForm(fields, {
+					action,
+					...sourceMessageId === void 0 ? {} : { source_message_id: sourceMessageId },
+					...action === "reply" ? { reply_all: replyAll } : {}
+				});
+				if (action !== "reply" && draft.to.length === 0) {
 					setSendError("Add at least one To recipient.");
 					return;
 				}
-				if (!draft.subject) {
+				if (action === "send" && !draft.subject) {
 					setSendError("Subject cannot be empty.");
 					return;
 				}
-				if (typeof window !== "undefined" && !window.confirm(forwardMessageId ? "Forward this email with the original message and all its attachments now?" : "Send this email now?")) return;
+				const confirmation = action === "reply" ? "Reply to this email now?" : action === "forward" ? "Forward this email with the original message and all its attachments now?" : "Send this email now?";
+				if (typeof window !== "undefined" && !window.confirm(confirmation)) return;
 				setStatus("sending");
 				setSendError(null);
 				try {
@@ -269,7 +282,7 @@ window.__ModuleLoader__.load({
 					className: EmailDraftToolview_module_css_default.header,
 					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: EmailDraftToolview_module_css_default.title,
-						children: forwardMessageId ? "Forward email" : "Email draft"
+						children: action === "reply" ? "Reply to email" : action === "forward" ? "Forward email" : "Email draft"
 					}) })
 				}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: EmailDraftToolview_module_css_default.content,
@@ -308,7 +321,7 @@ window.__ModuleLoader__.load({
 							className: EmailDraftToolview_module_css_default.field,
 							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 								className: EmailDraftToolview_module_css_default.label,
-								children: forwardMessageId ? "Your message (optional)" : "Body"
+								children: action === "send" ? "Body" : "Your message (optional)"
 							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
 								className: EmailDraftToolview_module_css_default.textarea,
 								"aria-label": "Body",
@@ -317,29 +330,29 @@ window.__ModuleLoader__.load({
 								maxLength: 18e3
 							})]
 						}),
-						forwardMessageId && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						action !== "send" && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 							className: EmailDraftToolview_module_css_default.field,
 							children: [
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 									className: EmailDraftToolview_module_css_default.label,
-									children: "Original message and all attachments will be included."
+									children: action === "forward" ? "Original message and all attachments will be included." : "The original message will be quoted in the reply; its attachments will not be reattached."
 								}),
 								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", { children: [
-									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: forwardedMessage?.subject || "Original message" }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: sourceMessage?.subject || "Original message" }),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
-										forwardedMessage?.from,
+										sourceMessage?.from,
 										" ",
-										forwardedMessage?.date
+										sourceMessage?.date
 									] }),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
 										className: EmailDraftToolview_module_css_default.textarea,
 										"aria-label": "Original message preview",
-										value: forwardedMessage?.body || "",
+										value: sourceMessage?.body || "",
 										readOnly: true
 									}),
-									forwardedMessage?.body_truncated && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: "Preview shortened; the full original message will be forwarded." })
+									sourceMessage?.body_truncated && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: "Preview shortened; the full original message will be included." })
 								] }),
-								forwardedMessage?.attachments?.map((attachment) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: attachment.filename || "Unnamed attachment" }, attachment.part))
+								sourceMessage?.attachments?.map((attachment) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: attachment.filename || "Unnamed attachment" }, attachment.part))
 							]
 						}),
 						sendError && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
@@ -465,11 +478,7 @@ window.__ModuleLoader__.load({
 			inject: ["slots", "socClient"],
 			apply(ctx) {
 				const socClient = ctx.get("socClient");
-				for (const key of [
-					ZIMBRA_DRAFT_TOOL_NAME,
-					ZIMBRA_FORWARD_DRAFT_TOOL_NAME,
-					ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME
-				]) ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
+				for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
 					name: "tool.call.toolview",
 					key,
 					inject: () => ({ socClient })
@@ -490,7 +499,6 @@ window.__ModuleLoader__.load({
 		//#endregion
 		exports.EmailDraftToolview = EmailDraftToolview;
 		exports.ZIMBRA_DRAFT_TOOL_NAME = ZIMBRA_DRAFT_TOOL_NAME;
-		exports.ZIMBRA_FORWARD_DRAFT_TOOL_NAME = ZIMBRA_FORWARD_DRAFT_TOOL_NAME;
 		exports.ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME = ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME;
 		exports.apply = apply;
 		exports.draftFromForm = draftFromForm;

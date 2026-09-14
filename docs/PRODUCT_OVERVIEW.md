@@ -58,7 +58,7 @@ See [reference/GLOSSARY.md](reference/GLOSSARY.md) for the full vocabulary (MCP,
 | Mandatory browser core (auth gate, `socClient`, policy schema, admin fallback) | `packages/soc-agent-client` |
 | Isolated sidebar and workspace browser/picker | `packages/soc-agent-sidebar`, `packages/soc-agent-workspace` |
 | Selectable browser features (branding, admin, action policy, attachments, email drafts) | `packages/soc-agent-brand`, `packages/soc-agent-admin`, `packages/soc-agent-action-policy`, `packages/soc-agent-attachments`, `packages/soc-agent-email-draft` |
-| 28 domain tools (Zimbra 22 incl. forward drafts, subscriptions 6) | `apps/soc-agent/server/unified_mcp_server/` |
+| 27 domain tools (Zimbra mail/filter 21, subscriptions 6; unified send/reply/forward drafts) | `apps/soc-agent/server/unified_mcp_server/` |
 | 13 read-only Splunk tools (external endpoint; required configuration) | `apps/soc-agent/splunk-bridge.js` |
 | Authentication, ownership isolation, event redaction | `apps/soc-agent/auth-host.js`, `ownership.js` |
 | Tool allowlist + action policy | `apps/soc-agent/policy.js`, `host.js` |

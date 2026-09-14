@@ -19,6 +19,7 @@ from unified_mcp_server.zimbra import (
     zimbra_list_signatures,
     zimbra_login,
     zimbra_move_message,
+    zimbra_reply_message,
     zimbra_search_messages,
     zimbra_send_message,
 )
@@ -51,10 +52,35 @@ _DEFAULT_HEADER_NAMES = (
 _INVALID_DATE_ALIAS = re.compile(r"(?:^|(?<=[\s(-]))d\s*:\s*(?P<value>[^\s()]+)", re.IGNORECASE)
 
 
-def _forward_message_id(value: str) -> str:
+_EMAIL_ACTIONS = {"send", "reply", "forward"}
+
+
+def _email_action(value: str | None) -> str:
+    action = str(value or "send").strip().lower()
+    if action not in _EMAIL_ACTIONS:
+        raise ServiceError("invalid_input", "action must be send, reply, or forward")
+    return action
+
+
+def _source_message_id(value: str) -> str:
     if not isinstance(value, str) or not re.fullmatch(r"[1-9][0-9]*", value.strip()):
         raise ServiceError("invalid_input", "message_id must be a numeric ID from your own Zimbra mailbox")
     return value.strip()
+
+
+def _has_recipients(value: list[str] | str | None) -> bool:
+    if isinstance(value, (list, tuple, set)):
+        return any(str(item).strip() for item in value)
+    return bool(str(value or "").strip())
+
+
+def _body_format(value: str | None, action: str) -> str:
+    body_format = str(value or "").strip().lower()
+    if not body_format:
+        return "html" if action in {"reply", "forward"} else "text"
+    if body_format not in {"text", "html"}:
+        raise ServiceError("invalid_input", "body_format must be text or html")
+    return body_format
 
 
 def _validate_search_query(query: str) -> None:
@@ -364,9 +390,11 @@ class ZimbraMailService(ZimbraCore):
         cc: list[str] | str | None = None,
         bcc: list[str] | str | None = None,
         account_id: str = "",
+        *,
+        require_to: bool = True,
     ) -> dict[str, Any]:
         """Build a local draft without contacting or writing to Zimbra."""
-        recipients = self._recipients(to, "to")
+        recipients = self._recipients(to, "to") if require_to or _has_recipients(to) else []
         carbon_copy = self._recipients(cc, "cc")
         blind_carbon_copy = self._recipients(bcc, "bcc")
         subject = str(subject or "").strip()
@@ -386,72 +414,144 @@ class ZimbraMailService(ZimbraCore):
             "editable_fields": ["to", "cc", "bcc", "subject", "body"],
         }
 
-    async def create_forward_draft(
+    async def create_email_action_draft(
         self,
-        message_id: str,
-        to: list[str] | str,
-        body: str = "",
+        *,
+        action: str = "send",
+        to: list[str] | str | None = None,
         subject: str = "",
+        body: str = "",
+        message_id: str | None = None,
         cc: list[str] | str | None = None,
         bcc: list[str] | str | None = None,
+        body_format: str | None = None,
+        reply_all: bool = False,
     ) -> dict[str, Any]:
-        """Read one source message and prepare a local draft; never send or save it."""
-        message_id = _forward_message_id(message_id)
-        result = self.create_email_draft(to, subject or "Fwd:", body, cc, bcc)
-        source = await self.get_email(message_id)
+        """Prepare a local draft for a new message, reply, or forward."""
+        action = _email_action(action)
+        body_format = _body_format(body_format, action)
+        supplied_message_id = None if message_id is None or not str(message_id).strip() else str(message_id)
+        if action == "send":
+            if supplied_message_id is not None:
+                raise ServiceError("invalid_input", "message_id is only valid for reply or forward")
+            if reply_all:
+                raise ServiceError("invalid_input", "reply_all is only valid for reply")
+            result = self.create_email_draft(to or [], subject, body, cc, bcc)
+            result["draft"]["action"] = action
+            result["draft"]["body_format"] = body_format
+            return result
+
+        if supplied_message_id is None:
+            raise ServiceError("invalid_input", "message_id is required for reply or forward")
+        if action != "reply" and reply_all:
+            raise ServiceError("invalid_input", "reply_all is only valid for reply")
+        source_message_id = _source_message_id(supplied_message_id)
+        if action == "forward":
+            recipients = self._recipients(to, "to")
+        elif _has_recipients(to) or _has_recipients(cc) or _has_recipients(bcc):
+            recipients = self._recipients(to, "to")
+        else:
+            recipients = []
+        carbon_copy = self._recipients(cc, "cc")
+        blind_carbon_copy = self._recipients(bcc, "bcc")
+        source = await self.get_email(source_message_id)
+        original_subject = str(source.get("subject", "")).strip()
+        subject = str(subject or "").strip()
         if not subject:
-            original_subject = str(source.get("subject", "")).strip()
-            result["draft"]["subject"] = (
-                original_subject if original_subject.lower().startswith("fwd:")
-                else f"Fwd: {original_subject}".strip()
+            prefix = "Re:" if action == "reply" else "Fwd:"
+            subject = (
+                original_subject if original_subject.lower().startswith(prefix.casefold())
+                else f"{prefix} {original_subject}".strip()
             )
-        result["draft"]["forward_message_id"] = message_id
-        result["draft"]["forwarded_message"] = {
+        result = self.create_email_draft(
+            recipients,
+            subject,
+            body,
+            carbon_copy,
+            blind_carbon_copy,
+            require_to=False,
+        )
+        result["draft"]["action"] = action
+        result["draft"]["body_format"] = body_format
+        result["draft"]["source_message_id"] = source_message_id
+        result["draft"]["source_message"] = {
             key: source[key] for key in (
                 "subject", "from", "to", "cc", "date", "body", "body_type", "body_truncated", "attachments",
             ) if key in source
         }
+        if action == "reply":
+            result["draft"]["reply_all"] = bool(reply_all)
         return result
 
     async def send_email(
         self,
-        to: list[str] | str,
-        subject: str,
-        body: str,
+        to: list[str] | str | None,
+        subject: str = "",
+        body: str = "",
         account_id: str = "",
         *,
+        action: str = "send",
         cc: list[str] | str | None = None,
         bcc: list[str] | str | None = None,
-        body_format: str = "text",
-        forward_message_id: str | None = None,
+        body_format: str | None = None,
+        source_message_id: str | None = None,
+        reply_all: bool = False,
     ) -> dict[str, Any]:
         if not self.settings.allow_send:
             raise ServiceError(
                 "operation_disabled",
                 "Zimbra sending is disabled. Set ZIMBRA_ALLOW_SEND=true after review.",
             )
-        body_format = str(body_format or "").strip().lower()
-        if body_format not in {"text", "html"}:
-            raise ServiceError("invalid_input", "body_format must be text or html")
-        if forward_message_id is not None:
-            forward_message_id = _forward_message_id(forward_message_id)
-        recipients = self._recipients(to, "to")
-        carbon_copy = self._recipients(cc, "cc")
-        blind_carbon_copy = self._recipients(bcc, "bcc")
+        action = _email_action(action)
+        body_format = _body_format(body_format, action)
+        supplied_message_id = None if source_message_id is None or not str(source_message_id).strip() else str(source_message_id)
+        if action == "send":
+            if supplied_message_id is not None:
+                raise ServiceError("invalid_input", "source_message_id is only valid for reply or forward")
+            if reply_all:
+                raise ServiceError("invalid_input", "reply_all is only valid for reply")
+            recipients = self._recipients(to, "to")
+            delivery_to: list[str] | None = recipients
+            carbon_copy = self._recipients(cc, "cc")
+            blind_carbon_copy = self._recipients(bcc, "bcc")
+            delivery_cc: list[str] | None = carbon_copy
+            delivery_bcc: list[str] | None = blind_carbon_copy
+        else:
+            if supplied_message_id is None:
+                raise ServiceError("invalid_input", "source_message_id is required for reply or forward")
+            if action != "reply" and reply_all:
+                raise ServiceError("invalid_input", "reply_all is only valid for reply")
+            supplied_message_id = _source_message_id(supplied_message_id)
+            if action == "reply" and not (_has_recipients(to) or _has_recipients(cc) or _has_recipients(bcc)):
+                recipients = []
+                delivery_to = None
+                carbon_copy = []
+                blind_carbon_copy = []
+                delivery_cc = None
+                delivery_bcc = None
+            else:
+                recipients = self._recipients(to, "to")
+                delivery_to = recipients
+                carbon_copy = self._recipients(cc, "cc")
+                blind_carbon_copy = self._recipients(bcc, "bcc")
+                delivery_cc = carbon_copy
+                delivery_bcc = blind_carbon_copy
         subject = str(subject or "").strip()
-        if not subject:
+        if action == "send" and not subject:
             raise ServiceError("invalid_input", "subject cannot be empty")
         account = self.resolve_account(account_id)
         result = await self._run(
             self._send_email,
             account,
-            recipients,
+            delivery_to,
             subject,
             str(body or ""),
-            carbon_copy,
-            blind_carbon_copy,
+            delivery_cc,
+            delivery_bcc,
             body_format,
-            forward_message_id,
+            action,
+            supplied_message_id,
+            bool(reply_all),
         )
         return {
             "sent": True,
@@ -540,19 +640,30 @@ class ZimbraMailService(ZimbraCore):
     def _send_email(
         self,
         account: StoredAccount,
-        recipients: list[str],
+        recipients: list[str] | None,
         subject: str,
         body: str,
-        cc: list[str],
-        bcc: list[str],
+        cc: list[str] | None,
+        bcc: list[str] | None,
         body_format: str,
-        forward_message_id: str | None = None,
+        action: str,
+        source_message_id: str | None,
+        reply_all: bool,
     ) -> dict[str, Any]:
         token = self._token(account)
-        if forward_message_id is not None:
+        if action == "forward":
             return zimbra_forward_message(
-                self.settings.host, token, forward_message_id, recipients, subject, body,
+                self.settings.host, token, source_message_id, recipients, subject, body,
                 cc=cc, bcc=bcc, body_format=body_format,
+                verify_ssl=self.settings.verify_ssl,
+                timeout=remaining_seconds(self.settings.timeout),
+                allow_insecure_http=self.settings.allow_insecure_http,
+            )
+        if action == "reply":
+            return zimbra_reply_message(
+                self.settings.host, token, source_message_id, recipients, subject, body,
+                cc=cc, bcc=bcc, body_format=body_format, reply_all=reply_all,
+                email=account.email,
                 verify_ssl=self.settings.verify_ssl,
                 timeout=remaining_seconds(self.settings.timeout),
                 allow_insecure_http=self.settings.allow_insecure_http,
@@ -560,11 +671,11 @@ class ZimbraMailService(ZimbraCore):
         return zimbra_send_message(
             self.settings.host,
             token,
-            recipients,
+            recipients or [],
             subject,
             body,
-            cc=cc,
-            bcc=bcc,
+            cc=cc or [],
+            bcc=bcc or [],
             body_format=body_format,
             verify_ssl=self.settings.verify_ssl,
             timeout=remaining_seconds(self.settings.timeout),

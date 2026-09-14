@@ -20,7 +20,7 @@ One consistent vocabulary for all Markdown pages, diagrams, and the HTML site. A
 | Term | Meaning |
 |---|---|
 | **MCP** | Model Context Protocol — the standard by which the harness connects tool servers. Two transports are used here: `stdio` (local child process) and `streamable-http` (HTTP endpoint). |
-| **`soc_agent`** | The local Python MCP server (package `soc-agent-mcp`, script `unified-mcp-server`), exposing exactly 28 Zimbra + subscription tools. |
+| **`soc_agent`** | The local Python MCP server (package `soc-agent-mcp`, script `unified-mcp-server`), exposing exactly 27 Zimbra + subscription tools. |
 | **`splunk_mcp`** | The MCP *server namespace* under which the bridge registers the external official Splunk MCP server's read tools. Not software in this repo — the bridge is the client. |
 | **Raw tool name** | A tool's name inside its server, e.g. `splunk_run_query`. |
 | **Fully qualified tool name** | `mcp__<server>__<raw-tool>`, e.g. `mcp__splunk_mcp__splunk_run_query`. The same word may appear in both portions; that does not imply two servers. |
@@ -69,7 +69,7 @@ One consistent vocabulary for all Markdown pages, diagrams, and the HTML site. A
 | **Settings namespace** | A durable key/value group in `app_config` (e.g. `soc-action-approval`, `soc-background`, `soc-agent-markitdown-attachments`, `time-context`, `llm-pi-ai`). |
 | **Tool inventory** | `apps/soc-agent/tool-inventory.js` — the single runtime-independent source of truth for every tool name; policy sets and the bridge's allowlist are derived from it. |
 | **Schema migrations** | Versioned SQL files (`unified_mcp_server/migrations/*.sql`) applied by `schema.py` under a PostgreSQL advisory lock, with an applied-version ledger (`soc_schema_migrations`). The Node tier contains no DDL. |
-| **Forward draft** | A local, browser-editable draft produced by `zimbra_forward_email` from an existing message (`forward_message_id` + `forwarded_message` metadata). Delivery happens only through the confirmed send path. |
+| **Email action draft** | A local, browser-editable draft produced by `zimbra_send_email` with `action: send | reply | forward`. Reply/forward drafts retain `source_message_id` and a bounded `source_message` preview; delivery happens only through the confirmed send path. |
 | **Evidence store** | *Removed this round* — the SQLite store (`SOC_EVIDENCE_STORE`) belonged to the deleted Splunk search implementation; stale files may remain on disk. |
 | **MarkItDown** | The document→Markdown converter library used for attachments (in-memory, bounded). |
 

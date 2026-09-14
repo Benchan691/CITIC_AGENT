@@ -9,10 +9,9 @@ export {
   draftFromForm,
   parseRecipientText,
   ZIMBRA_DRAFT_TOOL_NAME,
-  ZIMBRA_FORWARD_DRAFT_TOOL_NAME,
   ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME,
 } from './EmailDraftToolview.tsx'
-export type { EmailDraftFields, EmailDraftFormFields } from './EmailDraftToolview.tsx'
+export type { EmailDraftAction, EmailDraftFields, EmailDraftFormFields, EmailDraftMetadata } from './EmailDraftToolview.tsx'
 
 /** Optional editable email draft tool views. */
 export const inject = ['slots', 'socClient'] as const

@@ -41,12 +41,12 @@
 
 状态机: `editing → sending → sent | failed | discarded`（discarded 可 Reopen；失败后按钮变 Retry）。
 
-1. 模型调用 `zimbra_send_email`、`zimbra_use_signature_on_email` 或 **`zimbra_forward_email`**（新增：读取原信，内嵌 `forward_message_id` 与 `forwarded_message` 元数据 — 主题/发件人/日期/正文/附件）→ **本地草稿**作为工具结果返回 → 卡片渲染可编辑表单（To/CC/BCC 分隔符感知解析并去重；主题 ≤998；正文 ≤18 000；text/HTML 格式）。转发草稿在笔记旁显示原信元数据。
+1. 模型调用 `zimbra_send_email`（`action: send | reply | forward`）或 `zimbra_use_signature_on_email` → **本地草稿**作为工具结果返回 → 卡片渲染可编辑表单（To/CC/BCC 分隔符感知解析并去重；主题 ≤998；正文 ≤18 000；text/HTML 格式）。回复/转发草稿保留 `source_message_id` 与安全的原信预览；回复可留空 To 以便派生，转发必须填写 To。回复/转发默认 HTML，新发信默认 text。
 2. **Add signature** 加载 `list-signatures` 并按签名格式把所选签名合并到正文上方/下方。
-3. 点 Send：客户端校验（≥1 个 To 收件人、主题非空）→ **`window.confirm('Send this email now?')`** → 携带精确字段的 `send-email` RPC。
+3. 点 Send：按动作校验（回复可留空 To；新发信要求主题；转发要求 To）→ 按动作显示 **`window.confirm`** → 携带动作/原信元数据的 `send-email` RPC。
 4. 仅当响应满足 `result.sent === true` 才翻到 "Email sent successfully"；其他一律成为 `failed` 卡（`role="alert"` 展示错误）。缺少回执时明确显示 "Zimbra did not confirm that the email was sent."
 
-**便利 vs 强制：** `window.confirm` 对话框是界面级控制。服务端强制：RPC 的用户认证、会话身份、`ZIMBRA_ALLOW_SEND` 门、以及 Zimbra 回执校验后才报告成功。没有服务端确认令牌（见 [TRACEABILITY_MATRIX](../reference/TRACEABILITY_MATRIX.md) #34）。模型**没有**发信路径 — 它拥有的工具只构建草稿；转发投递时由服务端附上原信与附件。
+**便利 vs 强制：** `window.confirm` 对话框是界面级控制。服务端强制：RPC 的用户认证、会话身份、`ZIMBRA_ALLOW_SEND` 门、以及 Zimbra 回执校验后才报告成功。没有服务端确认令牌（见 [TRACEABILITY_MATRIX](../reference/TRACEABILITY_MATRIX.md) #34）。模型**没有**发信路径 — 它拥有的工具只构建草稿；转发附上原信与附件，回复引用原信但不重新附加文件。
 
 ## 4. 便利 vs 强制（摘要表）
 

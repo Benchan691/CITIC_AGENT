@@ -65,8 +65,8 @@ An MCP tool touches **six contracts**. Miss one and either the tool silently nev
 2. **Python registration** — implement the tool in the matching `register_tools` module (mail/filters/email); annotate reads with `readOnlyHint`; never expose `ctx`/`account_id`.
 3. **Raw allowlist** — add the raw name to `soc-agent-mcp.allowedToolNames` in `cordis.patch.yml` (the patch also env-configures the server).
 4. **Qualified policy** — `policy.js` now derives everything from the inventory; add nothing there unless the classification logic itself changes.
-5. **Client labels/views** — only if the tool needs special presentation (like the forward-draft card). Admin checklists render automatically from the catalogs.
-6. **Tests, both tiers** — extend `test_server_tools.py` (exact tool set) and `policy.test.js`/`skills.test.js` counts (currently 30 read / 42 domain / 12 approval — they will change and that is the point).
+5. **Client labels/views** — only if the tool needs special presentation (like the unified send/reply/forward draft card). Admin checklists render automatically from the catalogs.
+6. **Tests, both tiers** — extend `test_server_tools.py` (exact tool set) and `policy.test.js`/`skills.test.js` counts (currently 29 read / 41 domain / 12 approval).
 7. **Documentation** — update [reference/MCP_TOOL_CATALOG.md](reference/MCP_TOOL_CATALOG.md), [MCP_AND_TOOL_ROUTING.md](MCP_AND_TOOL_ROUTING.md), and the traceability matrix.
 
 For a **Splunk bridge** tool change, additionally: `OFFICIAL_SPLUNK_TOOL_NAMES` in `splunk-bridge.js` (and the external server must actually expose it), noting the projection prefix `mcp__splunk_mcp__splunk_` applies automatically.
