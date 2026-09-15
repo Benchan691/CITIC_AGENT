@@ -126,8 +126,17 @@ test('admin forms retain drafts, show request failures, retry loading, and submi
     assert.equal(route.value, 'my-provider')
     assert.equal(button(providers, 'Add provider').disabled, false)
 
-    await select(providers.querySelector('select[aria-label="Reasoning capability 1"]') as HTMLSelectElement, 'enabled')
+    const firstReasoning = providers.querySelector('select[aria-label="Reasoning capability 1"]') as HTMLSelectElement
+    assert.equal(firstReasoning.value, 'all')
+    assert.deepEqual([...firstReasoning.options].map((option) => [option.value, option.textContent]), [
+      ['all', 'Select all'],
+      ['disabled', 'Disable'],
+      ['customize', 'Customize'],
+    ])
+    await select(firstReasoning, 'customize')
     await click(providers.querySelector('input[aria-label="High 1"]') as HTMLElement)
+    await click(button(providers, 'Add model'))
+    await input(providers.querySelector('input[aria-label="Model ID 2"]') as HTMLInputElement, 'model-b')
     await select(providers.querySelector('select[aria-label="Default reasoning effort"]') as HTMLSelectElement, 'high')
     mutationResult = request => Promise.resolve(success(namespace(request.ns, {})))
     await click(button(providers, 'Add provider'))
@@ -136,9 +145,12 @@ test('admin forms retain drafts, show request failures, retry loading, and submi
       op: 'set',
       path: ['providers', 'my-provider'],
       value: {
-        api: 'openai-completions',
-        baseURL: 'https://models.example/v1',
-        models: [{ id: 'model-a', reasoningEfforts: { off: null, high: 'high' } }],
+      api: 'openai-completions',
+      baseURL: 'https://models.example/v1',
+        models: [
+          { id: 'model-a', reasoningEfforts: { off: null, high: 'high' } },
+          { id: 'model-b', reasoningEfforts: { off: null, minimal: 'minimal', low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' } },
+        ],
         reasoning: 'high',
       },
     })

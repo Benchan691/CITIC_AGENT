@@ -250,30 +250,38 @@ window.__ModuleLoader__.load({
 				mode: "disabled",
 				levels: []
 			};
+			if (!Object.prototype.hasOwnProperty.call(model, "reasoningEfforts")) return {
+				mode: "all",
+				levels: [...REASONING_LEVELS]
+			};
 			const configured = objectValue(model.reasoningEfforts);
 			const levels = REASONING_LEVELS.filter((level) => Object.prototype.hasOwnProperty.call(configured, level));
-			return Object.keys(configured).length > 0 ? {
-				mode: "enabled",
+			return {
+				mode: levels.length === REASONING_LEVELS.length ? "all" : "customize",
 				levels
-			} : {
-				mode: "unset",
-				levels: []
 			};
 		}
 		function reasoningEffortsValue(draft) {
-			if (draft.mode === "unset") return void 0;
 			if (draft.mode === "disabled") return false;
+			const levels = draft.mode === "all" ? REASONING_LEVELS : draft.levels;
 			return {
 				off: null,
-				...Object.fromEntries(draft.levels.map((level) => [level, level]))
+				...Object.fromEntries(levels.map((level) => [level, level]))
 			};
 		}
 		function withReasoningDraft(model, draft) {
 			const next = { ...model };
-			const value = reasoningEffortsValue(draft);
-			if (value === void 0) delete next.reasoningEfforts;
-			else next.reasoningEfforts = value;
+			next.reasoningEfforts = reasoningEffortsValue(draft);
 			return next;
+		}
+		function newProviderModel(id = "") {
+			return {
+				id,
+				reasoningEfforts: reasoningEffortsValue({
+					mode: "all",
+					levels: []
+				})
+			};
 		}
 		function persistableModels(models) {
 			return models.map((model) => ({
@@ -292,16 +300,16 @@ window.__ModuleLoader__.load({
 				if (seen.has(id)) return `Model ID "${id}" is listed more than once.`;
 				seen.add(id);
 				const reasoning = reasoningDraft(model);
-				if (reasoning.mode === "enabled" && reasoning.levels.length === 0) return `Model ${index + 1} needs at least one reasoning level.`;
+				if (reasoning.mode === "customize" && reasoning.levels.length === 0) return `Model ${index + 1} needs at least one reasoning level.`;
 			}
 		}
 		function commonReasoningEfforts(models) {
 			let common;
 			for (const model of models) {
 				const reasoning = reasoningDraft(model);
-				if (reasoning.mode === "unset") return /* @__PURE__ */ new Set();
 				const supported = new Set(["off"]);
-				if (reasoning.mode === "enabled") for (const level of reasoning.levels) supported.add(level);
+				if (reasoning.mode === "all") for (const level of REASONING_LEVELS) supported.add(level);
+				else if (reasoning.mode === "customize") for (const level of reasoning.levels) supported.add(level);
 				if (common === void 0) common = supported;
 				else common = new Set([...common].filter((value) => supported.has(value)));
 			}
@@ -1503,7 +1511,7 @@ window.__ModuleLoader__.load({
 				onChange(models.map((model, modelIndex) => modelIndex === index ? next : model));
 			}
 			function addModel() {
-				onChange([...models, { id: "" }]);
+				onChange([...models, newProviderModel()]);
 			}
 			function removeModel(index) {
 				onChange(models.filter((_, modelIndex) => modelIndex !== index));
@@ -1551,28 +1559,28 @@ window.__ModuleLoader__.load({
 										const mode = event.target.value;
 										patch(index, withReasoningDraft(model, {
 											mode,
-											levels: mode === "enabled" ? reasoning.levels : []
+											levels: mode === "customize" && reasoning.mode === "customize" ? reasoning.levels : []
 										}));
 									},
 									"aria-label": `Reasoning capability ${index + 1}`,
 									disabled,
 									children: [
 										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
-											value: "unset",
-											children: "Not configured"
+											value: "all",
+											children: "Select all"
 										}),
 										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
 											value: "disabled",
-											children: "Reasoning disabled"
+											children: "Disable"
 										}),
 										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
-											value: "enabled",
-											children: "Supports selected levels"
+											value: "customize",
+											children: "Customize"
 										})
 									]
 								})]
 							}),
-							reasoning.mode === "enabled" ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+							reasoning.mode === "customize" ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
 								className: AdminConsole_module_css_default.checkboxGroup,
 								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", { children: "Supported reasoning efforts" }), REASONING_LEVELS.map((level) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
 									className: AdminConsole_module_css_default.checkLabel,
@@ -1581,7 +1589,7 @@ window.__ModuleLoader__.load({
 										checked: reasoning.levels.includes(level),
 										onChange: (event) => {
 											patch(index, withReasoningDraft(model, {
-												mode: "enabled",
+												mode: "customize",
 												levels: event.target.checked ? [...reasoning.levels, level] : reasoning.levels.filter((item) => item !== level)
 											}));
 										},
@@ -1590,7 +1598,7 @@ window.__ModuleLoader__.load({
 									}), REASONING_LABELS[level]]
 								}, level))]
 							}) : null,
-							reasoning.mode === "enabled" && reasoning.levels.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+							reasoning.mode === "customize" && reasoning.levels.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
 								className: AdminConsole_module_css_default.fieldError,
 								children: "Choose at least one supported reasoning level."
 							}) : null
@@ -1668,7 +1676,7 @@ window.__ModuleLoader__.load({
 			const modelsError = isCustomProvider ? modelValidation(models) : void 0;
 			const defaultError = isCustomProvider ? defaultReasoningValidation(defaultEffort, models) : void 0;
 			function addDiscoveredModel(id) {
-				if (!models.map((model) => stringValue(model.id).trim()).includes(id)) setModels([...models, { id }]);
+				if (!models.map((model) => stringValue(model.id).trim()).includes(id)) setModels([...models, newProviderModel(id)]);
 			}
 			async function save() {
 				if (!namespace || !row.writable || modelsError || defaultError) return;
@@ -2003,7 +2011,7 @@ window.__ModuleLoader__.load({
 			const [displayName, setDisplayName] = (0, react.useState)("");
 			const [baseURL, setBaseURL] = (0, react.useState)("");
 			const [api, setApi] = (0, react.useState)("openai-completions");
-			const [models, setModels] = (0, react.useState)([{ id: "" }]);
+			const [models, setModels] = (0, react.useState)([newProviderModel()]);
 			const [defaultEffort, setDefaultEffort] = (0, react.useState)("");
 			const [secret, setSecret] = (0, react.useState)("");
 			const [savedRoute, setSavedRoute] = (0, react.useState)("");

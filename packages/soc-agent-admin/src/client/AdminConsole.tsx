@@ -87,7 +87,7 @@ const REASONING_LABELS: Record<ReasoningLevel, string> = {
 
 type ReasoningLevel = typeof REASONING_LEVELS[number]
 type ReasoningOption = 'off' | ReasoningLevel
-type ReasoningMode = 'unset' | 'disabled' | 'enabled'
+type ReasoningMode = 'all' | 'disabled' | 'customize'
 type ProviderModelDraft = Record<string, unknown>
 type ReasoningDraft = { mode: ReasoningMode; levels: ReasoningLevel[] }
 
@@ -125,28 +125,30 @@ function modelIds(profile: ProviderProfile): string[] {
 
 function reasoningDraft(model: ProviderModelDraft): ReasoningDraft {
   if (model.reasoningEfforts === false) return { mode: 'disabled', levels: [] }
+  if (!Object.prototype.hasOwnProperty.call(model, 'reasoningEfforts')) return { mode: 'all', levels: [...REASONING_LEVELS] }
   const configured = objectValue(model.reasoningEfforts)
   const levels = REASONING_LEVELS.filter(level => Object.prototype.hasOwnProperty.call(configured, level))
-  return Object.keys(configured).length > 0
-    ? { mode: 'enabled', levels }
-    : { mode: 'unset', levels: [] }
+  return { mode: levels.length === REASONING_LEVELS.length ? 'all' : 'customize', levels }
 }
 
-function reasoningEffortsValue(draft: ReasoningDraft): false | Record<string, unknown> | undefined {
-  if (draft.mode === 'unset') return undefined
+function reasoningEffortsValue(draft: ReasoningDraft): false | Record<string, unknown> {
   if (draft.mode === 'disabled') return false
+  const levels = draft.mode === 'all' ? REASONING_LEVELS : draft.levels
   return {
     off: null,
-    ...Object.fromEntries(draft.levels.map(level => [level, level])),
+    ...Object.fromEntries(levels.map(level => [level, level])),
   }
 }
 
 function withReasoningDraft(model: ProviderModelDraft, draft: ReasoningDraft): ProviderModelDraft {
   const next = { ...model }
   const value = reasoningEffortsValue(draft)
-  if (value === undefined) delete next.reasoningEfforts
-  else next.reasoningEfforts = value
+  next.reasoningEfforts = value
   return next
+}
+
+function newProviderModel(id = ''): ProviderModelDraft {
+  return { id, reasoningEfforts: reasoningEffortsValue({ mode: 'all', levels: [] }) }
 }
 
 function persistableModels(models: readonly ProviderModelDraft[]): ProviderModelDraft[] {
@@ -164,7 +166,7 @@ function modelValidation(models: readonly ProviderModelDraft[]): string | undefi
     if (seen.has(id)) return `Model ID "${id}" is listed more than once.`
     seen.add(id)
     const reasoning = reasoningDraft(model)
-    if (reasoning.mode === 'enabled' && reasoning.levels.length === 0) {
+    if (reasoning.mode === 'customize' && reasoning.levels.length === 0) {
       return `Model ${index + 1} needs at least one reasoning level.`
     }
   }
@@ -175,9 +177,10 @@ function commonReasoningEfforts(models: readonly ProviderModelDraft[]): Set<Reas
   let common: Set<ReasoningOption> | undefined
   for (const model of models) {
     const reasoning = reasoningDraft(model)
-    if (reasoning.mode === 'unset') return new Set()
     const supported = new Set<ReasoningOption>(['off'])
-    if (reasoning.mode === 'enabled') {
+    if (reasoning.mode === 'all') {
+      for (const level of REASONING_LEVELS) supported.add(level)
+    } else if (reasoning.mode === 'customize') {
       for (const level of reasoning.levels) supported.add(level)
     }
     if (common === undefined) common = supported
@@ -970,7 +973,7 @@ function ModelRows({ models, onChange, disabled }: { models: ProviderModelDraft[
   }
 
   function addModel() {
-    onChange([...models, { id: '' }])
+    onChange([...models, newProviderModel()])
   }
 
   function removeModel(index: number) {
@@ -1007,17 +1010,18 @@ function ModelRows({ models, onChange, disabled }: { models: ProviderModelDraft[
                 value={reasoning.mode}
                 onChange={(event) => {
                   const mode = event.target.value as ReasoningMode
-                  patch(index, withReasoningDraft(model, { mode, levels: mode === 'enabled' ? reasoning.levels : [] }))
+                  const levels = mode === 'customize' && reasoning.mode === 'customize' ? reasoning.levels : []
+                  patch(index, withReasoningDraft(model, { mode, levels }))
                 }}
                 aria-label={`Reasoning capability ${index + 1}`}
                 disabled={disabled}
               >
-                <option value="unset">Not configured</option>
-                <option value="disabled">Reasoning disabled</option>
-                <option value="enabled">Supports selected levels</option>
+                <option value="all">Select all</option>
+                <option value="disabled">Disable</option>
+                <option value="customize">Customize</option>
               </select>
             </label>
-            {reasoning.mode === 'enabled' ? (
+            {reasoning.mode === 'customize' ? (
               <fieldset className={styles.checkboxGroup}>
                 <legend>Supported reasoning efforts</legend>
                 {REASONING_LEVELS.map(level => (
@@ -1029,7 +1033,7 @@ function ModelRows({ models, onChange, disabled }: { models: ProviderModelDraft[
                         const levels = event.target.checked
                           ? [...reasoning.levels, level]
                           : reasoning.levels.filter(item => item !== level)
-                        patch(index, withReasoningDraft(model, { mode: 'enabled', levels }))
+                        patch(index, withReasoningDraft(model, { mode: 'customize', levels }))
                       }}
                       aria-label={`${REASONING_LABELS[level]} ${index + 1}`}
                       disabled={disabled}
@@ -1039,7 +1043,7 @@ function ModelRows({ models, onChange, disabled }: { models: ProviderModelDraft[
                 ))}
               </fieldset>
             ) : null}
-            {reasoning.mode === 'enabled' && reasoning.levels.length === 0 ? (
+            {reasoning.mode === 'customize' && reasoning.levels.length === 0 ? (
               <small className={styles.fieldError}>Choose at least one supported reasoning level.</small>
             ) : null}
           </div>
@@ -1088,7 +1092,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
 
   function addDiscoveredModel(id: string) {
     const current = models.map(model => stringValue(model.id).trim())
-    if (!current.includes(id)) setModels([...models, { id }])
+    if (!current.includes(id)) setModels([...models, newProviderModel(id)])
   }
 
   async function save() {
@@ -1267,7 +1271,7 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
   const [displayName, setDisplayName] = useState('')
   const [baseURL, setBaseURL] = useState('')
   const [api, setApi] = useState('openai-completions')
-  const [models, setModels] = useState<ProviderModelDraft[]>([{ id: '' }])
+  const [models, setModels] = useState<ProviderModelDraft[]>([newProviderModel()])
   const [defaultEffort, setDefaultEffort] = useState('')
   const [secret, setSecret] = useState('')
   const [savedRoute, setSavedRoute] = useState('')
