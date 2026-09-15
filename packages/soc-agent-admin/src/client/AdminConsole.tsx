@@ -75,6 +75,21 @@ const SUPPORTED_PROTOCOLS = [
   { value: 'openai-responses', label: 'OpenAI Responses' },
   { value: 'anthropic-messages', label: 'Anthropic Messages' },
 ] as const
+const REASONING_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+const REASONING_LABELS: Record<ReasoningLevel, string> = {
+  minimal: 'Minimal',
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  xhigh: 'X-high',
+  max: 'Max',
+}
+
+type ReasoningLevel = typeof REASONING_LEVELS[number]
+type ReasoningOption = 'off' | ReasoningLevel
+type ReasoningMode = 'unset' | 'disabled' | 'enabled'
+type ProviderModelDraft = Record<string, unknown>
+type ReasoningDraft = { mode: ReasoningMode; levels: ReasoningLevel[] }
 
 function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -108,9 +123,75 @@ function modelIds(profile: ProviderProfile): string[] {
     .filter(Boolean)
 }
 
-function mergeModels(profile: ProviderProfile, ids: string[]): Record<string, unknown>[] {
-  const existing = new Map(modelEntries(profile).map((model) => [stringValue(model.id), model]))
-  return ids.map((id) => ({ ...(existing.get(id) ?? {}), id }))
+function reasoningDraft(model: ProviderModelDraft): ReasoningDraft {
+  if (model.reasoningEfforts === false) return { mode: 'disabled', levels: [] }
+  const configured = objectValue(model.reasoningEfforts)
+  const levels = REASONING_LEVELS.filter(level => Object.prototype.hasOwnProperty.call(configured, level))
+  return Object.keys(configured).length > 0
+    ? { mode: 'enabled', levels }
+    : { mode: 'unset', levels: [] }
+}
+
+function reasoningEffortsValue(draft: ReasoningDraft): false | Record<string, unknown> | undefined {
+  if (draft.mode === 'unset') return undefined
+  if (draft.mode === 'disabled') return false
+  return {
+    off: null,
+    ...Object.fromEntries(draft.levels.map(level => [level, level])),
+  }
+}
+
+function withReasoningDraft(model: ProviderModelDraft, draft: ReasoningDraft): ProviderModelDraft {
+  const next = { ...model }
+  const value = reasoningEffortsValue(draft)
+  if (value === undefined) delete next.reasoningEfforts
+  else next.reasoningEfforts = value
+  return next
+}
+
+function persistableModels(models: readonly ProviderModelDraft[]): ProviderModelDraft[] {
+  return models.map(model => ({ ...model, id: stringValue(model.id).trim() }))
+}
+
+function modelValidation(models: readonly ProviderModelDraft[]): string | undefined {
+  if (models.length === 0) return 'Add at least one model.'
+  const seen = new Set<string>()
+  for (let index = 0; index < models.length; index += 1) {
+    const model = models[index]
+    if (model === undefined) return `Model ${index + 1} needs a model ID.`
+    const id = stringValue(model?.id).trim()
+    if (!id) return `Model ${index + 1} needs a model ID.`
+    if (seen.has(id)) return `Model ID "${id}" is listed more than once.`
+    seen.add(id)
+    const reasoning = reasoningDraft(model)
+    if (reasoning.mode === 'enabled' && reasoning.levels.length === 0) {
+      return `Model ${index + 1} needs at least one reasoning level.`
+    }
+  }
+  return undefined
+}
+
+function commonReasoningEfforts(models: readonly ProviderModelDraft[]): Set<ReasoningOption> {
+  let common: Set<ReasoningOption> | undefined
+  for (const model of models) {
+    const reasoning = reasoningDraft(model)
+    if (reasoning.mode === 'unset') return new Set()
+    const supported = new Set<ReasoningOption>(['off'])
+    if (reasoning.mode === 'enabled') {
+      for (const level of reasoning.levels) supported.add(level)
+    }
+    if (common === undefined) common = supported
+    else common = new Set([...common].filter(value => supported.has(value)))
+  }
+  return common ?? new Set()
+}
+
+function defaultReasoningValidation(defaultEffort: string, models: readonly ProviderModelDraft[]): string | undefined {
+  if (!defaultEffort) return undefined
+  if (!commonReasoningEfforts(models).has(defaultEffort as ReasoningOption)) {
+    return 'The default reasoning effort must be supported by every model.'
+  }
+  return undefined
 }
 
 function deriveCredentialRef(provider: ConfigurableProviderView, profile: ProviderProfile): string {
@@ -883,27 +964,135 @@ function ProviderSettings({ connection }: { connection: any }) {
   )
 }
 
+function ModelRows({ models, onChange, disabled }: { models: ProviderModelDraft[]; onChange: (models: ProviderModelDraft[]) => void; disabled: boolean }) {
+  function patch(index: number, next: ProviderModelDraft) {
+    onChange(models.map((model, modelIndex) => modelIndex === index ? next : model))
+  }
+
+  function addModel() {
+    onChange([...models, { id: '' }])
+  }
+
+  function removeModel(index: number) {
+    onChange(models.filter((_, modelIndex) => modelIndex !== index))
+  }
+
+  return (
+    <div className={styles.modelRows}>
+      {models.map((model, index) => {
+        const reasoning = reasoningDraft(model)
+        return (
+          <div className={styles.modelEntry} key={index}>
+            <div className={styles.modelEntryHeading}>
+              <strong>Model {index + 1}</strong>
+              <button className={styles.textButton} type="button" onClick={() => removeModel(index)} disabled={disabled} aria-label={`Remove model ${index + 1}`}>
+                Remove
+              </button>
+            </div>
+            <label className={styles.field}>
+              <span>Model ID</span>
+              <input
+                className={styles.input}
+                value={stringValue(model.id)}
+                onChange={(event) => { patch(index, { ...model, id: event.target.value }) }}
+                placeholder="model-name"
+                aria-label={`Model ID ${index + 1}`}
+                disabled={disabled}
+              />
+            </label>
+            <label className={styles.field}>
+              <span>Reasoning capability</span>
+              <select
+                className={styles.input}
+                value={reasoning.mode}
+                onChange={(event) => {
+                  const mode = event.target.value as ReasoningMode
+                  patch(index, withReasoningDraft(model, { mode, levels: mode === 'enabled' ? reasoning.levels : [] }))
+                }}
+                aria-label={`Reasoning capability ${index + 1}`}
+                disabled={disabled}
+              >
+                <option value="unset">Not configured</option>
+                <option value="disabled">Reasoning disabled</option>
+                <option value="enabled">Supports selected levels</option>
+              </select>
+            </label>
+            {reasoning.mode === 'enabled' ? (
+              <fieldset className={styles.checkboxGroup}>
+                <legend>Supported reasoning efforts</legend>
+                {REASONING_LEVELS.map(level => (
+                  <label className={styles.checkLabel} key={level}>
+                    <input
+                      type="checkbox"
+                      checked={reasoning.levels.includes(level)}
+                      onChange={(event) => {
+                        const levels = event.target.checked
+                          ? [...reasoning.levels, level]
+                          : reasoning.levels.filter(item => item !== level)
+                        patch(index, withReasoningDraft(model, { mode: 'enabled', levels }))
+                      }}
+                      aria-label={`${REASONING_LABELS[level]} ${index + 1}`}
+                      disabled={disabled}
+                    />
+                    {REASONING_LABELS[level]}
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
+            {reasoning.mode === 'enabled' && reasoning.levels.length === 0 ? (
+              <small className={styles.fieldError}>Choose at least one supported reasoning level.</small>
+            ) : null}
+          </div>
+        )
+      })}
+      <button className={styles.button} type="button" onClick={addModel} disabled={disabled}>Add model</button>
+    </div>
+  )
+}
+
+function DefaultReasoningField({ models, value, onChange, disabled }: { models: readonly ProviderModelDraft[]; value: string; onChange: (value: string) => void; disabled: boolean }) {
+  const common = commonReasoningEfforts(models)
+  const options = REASONING_LEVELS.filter(level => common.has(level))
+  const hasStoredValue = value === 'off' || REASONING_LEVELS.includes(value as ReasoningLevel)
+  return (
+    <label className={styles.field}>
+      <span>Default reasoning effort <em>optional</em></span>
+      <select className={styles.input} value={value} onChange={(event) => { onChange(event.target.value) }} aria-label="Default reasoning effort" disabled={disabled}>
+        <option value="">Provider default</option>
+        {common.has('off') || value === 'off' ? <option value="off">Off</option> : null}
+        {options.map(level => <option value={level} key={level}>{REASONING_LABELS[level]}</option>)}
+        {value && !hasStoredValue ? <option value={value}>{value}</option> : null}
+        {value && hasStoredValue && value !== 'off' && !common.has(value as ReasoningOption) ? <option value={value}>{REASONING_LABELS[value as ReasoningLevel]} (not supported by every model)</option> : null}
+      </select>
+      <small className={styles.fieldHint}>Only an effort supported by every model can be used as the provider default.</small>
+    </label>
+  )
+}
+
 function ProviderEditor({ connection, row, onChanged }: { connection: any; row: ProviderRow; onChanged: () => Promise<void> }) {
   const { provider, namespace, profile } = row
-  const initialModels = modelIds(profile)
+  const initialModels = modelEntries(profile)
   const [displayName, setDisplayName] = useState(stringValue(profile.displayName))
   const [baseURL, setBaseURL] = useState(stringValue(profile.baseURL))
   const [api, setApi] = useState(stringValue(profile.api))
-  const [models, setModels] = useState(initialModels.join('\n'))
+  const [models, setModels] = useState<ProviderModelDraft[]>(() => initialModels)
+  const [defaultEffort, setDefaultEffort] = useState(stringValue(profile.reasoning))
   const [secret, setSecret] = useState('')
   const [discovered, setDiscovered] = useState<DiscoveredModelView[]>([])
   const { message, setMessage, busy, run } = useStatus()
   const isCustomProvider = provider.declared === true
   const canEditProtocol = provider.settingsNs === 'llm-pi-ai' && isCustomProvider
   const canRemoveProvider = provider.declared === true && Boolean(namespace) && provider.settingsPath.length > 0
+  const modelsError = isCustomProvider ? modelValidation(models) : undefined
+  const defaultError = isCustomProvider ? defaultReasoningValidation(defaultEffort, models) : undefined
 
   function addDiscoveredModel(id: string) {
-    const current = models.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
-    if (!current.includes(id)) setModels([...current, id].join('\n'))
+    const current = models.map(model => stringValue(model.id).trim())
+    if (!current.includes(id)) setModels([...models, { id }])
   }
 
   async function save() {
-    if (!namespace || !row.writable) return
+    if (!namespace || !row.writable || modelsError || defaultError) return
     return run(async () => {
       const ops: SettingsPathOpView[] = []
       if (canEditProtocol && displayName.trim() !== stringValue(profile.displayName)) {
@@ -916,11 +1105,17 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
       if (canEditProtocol && api.trim() !== stringValue(profile.api)) {
         ops.push(api.trim() ? { op: 'set', path: [...provider.settingsPath, 'api'], value: api.trim() } : { op: 'unset', path: [...provider.settingsPath, 'api'] })
       }
-      const nextModels = models.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
-      if (JSON.stringify(nextModels) !== JSON.stringify(initialModels)) {
+      const nextModels = persistableModels(models)
+      if (JSON.stringify(nextModels) !== JSON.stringify(persistableModels(initialModels))) {
         ops.push(nextModels.length
-          ? { op: 'set', path: [...provider.settingsPath, 'models'], value: mergeModels(profile, nextModels) }
+          ? { op: 'set', path: [...provider.settingsPath, 'models'], value: nextModels }
           : { op: 'unset', path: [...provider.settingsPath, 'models'] })
+      }
+      const originalDefault = stringValue(profile.reasoning).trim()
+      if (canEditProtocol && defaultEffort.trim() !== originalDefault) {
+        ops.push(defaultEffort.trim()
+          ? { op: 'set', path: [...provider.settingsPath, 'reasoning'], value: defaultEffort.trim() }
+          : { op: 'unset', path: [...provider.settingsPath, 'reasoning'] })
       }
       if (secret.trim() && !stringValue(profile.apiKeyEnv)) {
         ops.push({ op: 'set', path: [...provider.settingsPath, 'apiKeyEnv'], value: row.credentialRef })
@@ -978,7 +1173,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
         </label>
 
         {isCustomProvider ? (
-          <details className={styles.advanced} open={Boolean(baseURL || api || initialModels.length)}>
+          <details className={styles.advanced} open={Boolean(baseURL || api || initialModels.length || defaultEffort)}>
             <summary>Advanced provider settings</summary>
             <div className={styles.advancedBody}>
               {canEditProtocol ? (
@@ -1000,10 +1195,13 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
                   </select>
                 </label>
               ) : null}
-              <label className={styles.field}>
-                <span>Model IDs <em>one per line</em></span>
-                <textarea className={`${styles.input} ${styles.textarea}`} value={models} onChange={(event) => setModels(event.target.value)} placeholder="deepseek-chat" rows={4} disabled={!row.writable || busy} />
-              </label>
+              <div className={styles.field}>
+                <span>Models</span>
+                <ModelRows models={models} onChange={setModels} disabled={!row.writable || busy} />
+                {modelsError ? <small className={styles.fieldError}>{modelsError}</small> : null}
+              </div>
+              <DefaultReasoningField models={models} value={defaultEffort} onChange={setDefaultEffort} disabled={!row.writable || busy} />
+              {defaultError ? <small className={styles.fieldError}>{defaultError}</small> : null}
               <div className={styles.discoveryRow}>
                 <button className={styles.button} type="button" onClick={() => void discover()} disabled={busy || !provider.settingsNs}>
                   {busy ? 'Working…' : 'Discover models'}
@@ -1022,7 +1220,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
 
       <StatusNotice message={message} />
       <div className={styles.actions}>
-        <button className={`${styles.button} ${styles.primary}`} type="button" onClick={() => void save()} disabled={!row.writable || busy}>{busy ? 'Saving…' : 'Save provider'}</button>
+        <button className={`${styles.button} ${styles.primary}`} type="button" onClick={() => void save()} disabled={!row.writable || busy || Boolean(modelsError || defaultError)}>{busy ? 'Saving…' : 'Save provider'}</button>
         {row.credential?.configured ? <button className={styles.button} type="button" onClick={() => void removeCredential()} disabled={!row.credential.writable || busy}>Remove credential</button> : null}
         {canRemoveProvider ? <CustomProviderRemoval connection={connection} row={row} onChanged={onChanged} disabled={busy} /> : null}
       </div>
@@ -1069,7 +1267,8 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
   const [displayName, setDisplayName] = useState('')
   const [baseURL, setBaseURL] = useState('')
   const [api, setApi] = useState('openai-completions')
-  const [model, setModel] = useState('')
+  const [models, setModels] = useState<ProviderModelDraft[]>([{ id: '' }])
+  const [defaultEffort, setDefaultEffort] = useState('')
   const [secret, setSecret] = useState('')
   const [savedRoute, setSavedRoute] = useState('')
   const { message, setMessage, busy, run } = useStatus()
@@ -1077,7 +1276,9 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
   const normalizedRoute = route.trim().toLowerCase()
   const routeTaken = providers.some((row) => row.provider.provider === normalizedRoute)
   const routeValid = PROVIDER_ROUTE_PATTERN.test(normalizedRoute)
-  const canSave = Boolean(namespace && writable && routeValid && !routeTaken && baseURL.trim() && model.trim())
+  const modelsError = modelValidation(models)
+  const defaultError = defaultReasoningValidation(defaultEffort, models)
+  const canSave = Boolean(namespace && writable && routeValid && !routeTaken && baseURL.trim() && !modelsError && !defaultError)
   const credentialRef = `${normalizedRoute.replace(/[^a-z0-9]+/gi, '_').toUpperCase()}_API_KEY`
 
   async function save() {
@@ -1095,7 +1296,8 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
               ...(secret.trim() ? { apiKeyEnv: credentialRef } : {}),
               api,
               baseURL: baseURL.trim(),
-              models: [{ id: model.trim() }],
+              models: persistableModels(models),
+              ...(defaultEffort ? { reasoning: defaultEffort } : {}),
             },
           }],
           expectedRevision: namespace.revision,
@@ -1121,33 +1323,37 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
         <span className={styles.customBadge}>Custom</span>
       </div>
       <div className={styles.editorForm}>
-        <div className={styles.fieldGrid}>
-          <label className={styles.field}>
-            <span>Provider route</span>
-            <input className={styles.input} value={route} onChange={(event) => setRoute(event.target.value)} placeholder="my-provider" disabled={Boolean(savedRoute) || busy} autoComplete="off" />
-            <small className={styles.fieldHint}>{route && !routeValid ? 'Use lowercase letters, numbers, and hyphens.' : routeTaken ? 'That provider already exists.' : 'This becomes the provider identifier.'}</small>
-          </label>
-          <label className={styles.field}>
-            <span>Display name <em>optional</em></span>
-            <input className={styles.input} value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="My AI provider" disabled={busy} />
-          </label>
-        </div>
         <label className={styles.field}>
-          <span>Base URL</span>
-          <input className={styles.input} type="url" value={baseURL} onChange={(event) => setBaseURL(event.target.value)} placeholder="https://api.example.com/v1" disabled={busy} required />
+          <span>Provider route</span>
+          <input className={styles.input} value={route} onChange={(event) => setRoute(event.target.value)} placeholder="my-provider" disabled={Boolean(savedRoute) || busy} autoComplete="off" />
+          <small className={styles.fieldHint}>{route && !routeValid ? 'Use lowercase letters, numbers, and hyphens.' : routeTaken ? 'That provider already exists.' : 'This becomes the provider identifier.'}</small>
         </label>
-        <div className={styles.fieldGrid}>
-          <label className={styles.field}>
-            <span>API protocol</span>
-            <select className={styles.input} value={api} onChange={(event) => setApi(event.target.value)} disabled={busy}>
-              {SUPPORTED_PROTOCOLS.map((protocol) => <option value={protocol.value} key={protocol.value}>{protocol.label}</option>)}
-            </select>
-          </label>
-          <label className={styles.field}>
-            <span>Model ID</span>
-            <input className={styles.input} value={model} onChange={(event) => setModel(event.target.value)} placeholder="model-name" disabled={busy} required />
-          </label>
-        </div>
+        <details className={styles.advanced} open>
+          <summary>Advanced provider settings</summary>
+          <div className={styles.advancedBody}>
+            <label className={styles.field}>
+              <span>Display name <em>optional</em></span>
+              <input className={styles.input} value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="My AI provider" disabled={busy} />
+            </label>
+            <label className={styles.field}>
+              <span>Base URL</span>
+              <input className={styles.input} type="url" value={baseURL} onChange={(event) => setBaseURL(event.target.value)} placeholder="https://api.example.com/v1" disabled={busy} required />
+            </label>
+            <label className={styles.field}>
+              <span>API protocol</span>
+              <select className={styles.input} value={api} onChange={(event) => setApi(event.target.value)} disabled={busy}>
+                {SUPPORTED_PROTOCOLS.map((protocol) => <option value={protocol.value} key={protocol.value}>{protocol.label}</option>)}
+              </select>
+            </label>
+            <div className={styles.field}>
+              <span>Models</span>
+              <ModelRows models={models} onChange={setModels} disabled={busy} />
+              {modelsError ? <small className={styles.fieldError}>{modelsError}</small> : null}
+            </div>
+            <DefaultReasoningField models={models} value={defaultEffort} onChange={setDefaultEffort} disabled={busy} />
+            {defaultError ? <small className={styles.fieldError}>{defaultError}</small> : null}
+          </div>
+        </details>
         <label className={styles.field}>
           <span>API key <em>optional for provider-native auth</em></span>
           <input className={styles.input} type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="Enter the provider API key" autoComplete="new-password" disabled={busy} />

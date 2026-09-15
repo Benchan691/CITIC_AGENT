@@ -130,6 +130,10 @@ textarea.input { resize:vertical; }
 .advanced { border:1px solid var(--line); border-radius:7px; background:#fafbf9; margin-top:8px; }
 .advanced summary { padding:13px 16px; cursor:pointer; color:#425e4e; font-size:12px; font-weight:600; }
 .advancedBody { display:flex; flex-direction:column; gap:16px; padding:0 16px 18px; }
+.modelRows { display:flex; flex-direction:column; gap:12px; }
+.modelEntry { display:flex; flex-direction:column; gap:14px; padding:14px; border:1px solid #dfe7e1; border-radius:7px; background:#fff; }
+.modelEntryHeading { display:flex; align-items:center; justify-content:space-between; gap:12px; color:#40584a; font-size:12px; }
+.modelEntryHeading .textButton { margin-top:0; }
 .discoveryRow, .discovered { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
 .modelChip { background:#edf5ef; border:1px solid #cadecf; color:#3e6d50; padding:7px 10px; border-radius:5px; cursor:pointer; font-size:12px; }
 .actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:8px; }

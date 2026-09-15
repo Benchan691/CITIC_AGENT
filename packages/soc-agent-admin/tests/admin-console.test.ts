@@ -69,6 +69,11 @@ test('admin forms retain drafts, show request failures, retry loading, and submi
     Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(field, value)
     field.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
   })
+  const select = async (field: HTMLSelectElement, value: string) => act(async () => {
+    field.value = value
+    field.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  })
+  const click = async (field: HTMLElement) => act(async () => { field.click() })
   try {
     await act(async () => root.render(createElement(AdminConsole, { connection, socClient })))
     const context = section('agent-context')
@@ -120,6 +125,118 @@ test('admin forms retain drafts, show request failures, retry loading, and submi
     await navigate('providers')
     assert.equal(route.value, 'my-provider')
     assert.equal(button(providers, 'Add provider').disabled, false)
+
+    await select(providers.querySelector('select[aria-label="Reasoning capability 1"]') as HTMLSelectElement, 'enabled')
+    await click(providers.querySelector('input[aria-label="High 1"]') as HTMLElement)
+    await select(providers.querySelector('select[aria-label="Default reasoning effort"]') as HTMLSelectElement, 'high')
+    mutationResult = request => Promise.resolve(success(namespace(request.ns, {})))
+    await click(button(providers, 'Add provider'))
+    const providerMutation = mutations.at(-1)!
+    assert.deepEqual(providerMutation.ops[0], {
+      op: 'set',
+      path: ['providers', 'my-provider'],
+      value: {
+        api: 'openai-completions',
+        baseURL: 'https://models.example/v1',
+        models: [{ id: 'model-a', reasoningEfforts: { off: null, high: 'high' } }],
+        reasoning: 'high',
+      },
+    })
+  } finally {
+    await act(async () => root.unmount())
+    cssHook.deregister()
+    globalThis.fetch = originalFetch
+    dom.window.close()
+    Reflect.deleteProperty(globalThis, 'window')
+    Reflect.deleteProperty(globalThis, 'document')
+    Reflect.deleteProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT')
+  }
+})
+
+test('custom provider editor preserves model fields and validates reasoning defaults', async () => {
+  const dom = new JSDOM('<div id="root"></div>', { url: 'https://soc.example/admin#providers' })
+  const originalFetch = globalThis.fetch
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true })
+  globalThis.fetch = async () => new Response(JSON.stringify({ authenticated: true, email: 'admin@example.com' }))
+  const cssHook = registerHooks({
+    load(url, context, nextLoad) {
+      return url.endsWith('.css')
+        ? { format: 'module', shortCircuit: true, source: 'export default new Proxy({}, {get: (_, name) => name})' }
+        : nextLoad(url, context)
+    },
+  })
+  const { createRoot } = require('../../../vendor/deepseek-harness/packages/client/web/node_modules/react-dom/client')
+  const { AdminConsole } = await import('../src/client/AdminConsole.tsx')
+  const root = createRoot(document.getElementById('root'))
+  const namespace = (ns: string, value: unknown) => ({ ns, revision: 11, value })
+  const namespaces = [
+    namespace('llm-pi-ai', {
+      providers: {
+        'custom-gateway': {
+          displayName: 'Custom Gateway',
+          api: 'openai-completions',
+          baseURL: 'https://gateway.example/v1',
+          reasoning: 'high',
+          models: [
+            { id: 'model-a', reasoningEfforts: { off: null, high: 'high' }, keepMe: 'yes' },
+            { id: 'model-b', reasoningEfforts: { off: null, low: 'low' } },
+          ],
+        },
+      },
+    }),
+  ]
+  const success = (value: unknown) => ({ result: { ok: true, value } })
+  const mutations: Array<{ ns: string; expectedRevision: number; ops: any[] }> = []
+  const connection = {
+    api: {
+      settings: {
+        describe: async () => success({ namespaces, writable: true }),
+        mutate: async (request: typeof mutations[number]) => { mutations.push(request); return success(namespace(request.ns, {})) },
+      },
+      llm: {
+        providers: async () => success({ providers: [{
+          provider: 'custom-gateway',
+          displayName: 'Custom Gateway',
+          settingsNs: 'llm-pi-ai',
+          settingsPath: ['providers', 'custom-gateway'],
+          declared: true,
+        }] }),
+      },
+      credentials: { describe: async () => success({ credentials: {} }) },
+    },
+  }
+  const socClient = { surface: 'admin' as const, rpc: async () => ({}) }
+  const section = () => document.querySelector('[aria-labelledby="provider-settings-title"]') as HTMLElement
+  const button = (container: HTMLElement, label: string) => {
+    const found = [...container.querySelectorAll('button')].find((item) => item.textContent === label)
+    assert.ok(found, `Button is rendered: ${label}`)
+    return found
+  }
+  const select = async (field: HTMLSelectElement, value: string) => act(async () => {
+    field.value = value
+    field.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  })
+  const click = async (field: HTMLElement) => act(async () => { field.click() })
+  try {
+    await act(async () => root.render(createElement(AdminConsole, { connection, socClient })))
+    const providers = section()
+    const save = button(providers, 'Save provider') as HTMLButtonElement
+    assert.equal(save.disabled, true, 'A default unsupported by one model is rejected')
+    await select(providers.querySelector('select[aria-label="Reasoning capability 2"]') as HTMLSelectElement, 'disabled')
+    await select(providers.querySelector('select[aria-label="Default reasoning effort"]') as HTMLSelectElement, '')
+    assert.equal(save.disabled, false)
+    await click(save)
+    assert.deepEqual(mutations[0]!.ops, [
+      {
+        op: 'set',
+        path: ['providers', 'custom-gateway', 'models'],
+        value: [
+          { id: 'model-a', reasoningEfforts: { off: null, high: 'high' }, keepMe: 'yes' },
+          { id: 'model-b', reasoningEfforts: false },
+        ],
+      },
+      { op: 'unset', path: ['providers', 'custom-gateway', 'reasoning'] },
+    ])
   } finally {
     await act(async () => root.unmount())
     cssHook.deregister()
