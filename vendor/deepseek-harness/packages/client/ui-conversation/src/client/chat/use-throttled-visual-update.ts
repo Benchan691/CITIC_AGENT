@@ -1,7 +1,10 @@
 /** Frame-throttled scheduling for non-essential visual alignment. */
 import { useCallback, useLayoutEffect, useRef } from 'react'
 
-const DEFAULT_INTERVAL_FRAMES = 3
+// Keep the visual alignment on the same cadence as the conversation snapshot.
+// A three-frame delay made a running Think row visibly update at roughly 20 Hz
+// on a 60 Hz display, even though its text was already present in the snapshot.
+const DEFAULT_INTERVAL_FRAMES = 1
 
 /**
  * Return a stable scheduler that coalesces visual updates over a frame interval.

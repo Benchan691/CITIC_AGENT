@@ -65,8 +65,6 @@ describe('ReasoningRow', () => {
       />,
     )
     expect(summary.scrollLeft).toBe(0)
-    flushAnimationFrames(2)
-    expect(summary.scrollLeft).toBe(0)
     flushAnimationFrames(1)
     expect(summary.scrollLeft).toBe(200)
     expect(summary.getAttribute('data-follow-end')).toBe('true')

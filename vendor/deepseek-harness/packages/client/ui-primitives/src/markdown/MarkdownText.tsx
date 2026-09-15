@@ -25,6 +25,35 @@ import css from './MarkdownText.module.css'
 
 export type { MarkdownCodeLabels, MarkdownFileMentions } from './render.tsx'
 
+/**
+ * Above this size, reparsing a still-growing plain paragraph on every frame is
+ * wasted work: there is no Markdown boundary that can change its meaning.
+ * Keep the threshold high enough that ordinary short streaming messages retain
+ * the exact incremental Markdown path and only long replies take the fast path.
+ */
+const STREAMING_PLAIN_TEXT_THRESHOLD = 2_048
+
+/** Markdown punctuation that can change the structure or inline meaning. */
+const STREAMING_MARKDOWN_SYNTAX = /[`*_~#[\]()>|!\\]/
+
+/** Block-level Markdown prefixes that are meaningful even without inline syntax. */
+const STREAMING_BLOCK_SYNTAX = /(?:^|\n)\s*(?:#{1,6}\s|>\s|[-+*]\s|\d+[.)]\s|(?:---+|___+|\*\*\*+)\s*$|```|~~~)/m
+
+/**
+ * Render a long, syntax-free streaming paragraph without invoking the Markdown
+ * parser. The settled render still runs the full sanitizer/formatter, and any
+ * Markdown-looking input immediately falls back to the existing incremental
+ * renderer. Returning a paragraph keeps the streaming DOM and typography
+ * aligned with the normal Markdown paragraph arm.
+ */
+function streamingPlainParagraph(text: string): ReactNode[] | null {
+  if (text.length < STREAMING_PLAIN_TEXT_THRESHOLD
+    || text.includes('\n\n')
+    || STREAMING_MARKDOWN_SYNTAX.test(text)
+    || STREAMING_BLOCK_SYNTAX.test(text)) return null
+  return [<p key="streaming-plain">{text}</p>]
+}
+
 /** One settled full render: parse with math, resolve references, append the footnote section. */
 function renderSettled(
   text: string,
@@ -78,6 +107,12 @@ class StreamingRenderer {
    */
   render(text: string): ReactNode[] {
     if (text === this.lastText) return this.lastRendered
+    const plain = streamingPlainParagraph(text)
+    if (plain !== null) {
+      this.lastText = text
+      this.lastRendered = plain
+      return plain
+    }
     const { frozen, tail, generation } = this.parser.update(text)
     if (generation !== this.generation) {
       this.generation = generation

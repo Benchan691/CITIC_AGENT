@@ -292,6 +292,13 @@ describe('MarkdownText', () => {
     expect(screen.getByText('**unfinished')).toBeTruthy()
   })
 
+  it('keeps long plain streaming prose on the cheap text path', () => {
+    const text = 'plain streaming prose '.repeat(128)
+    const { container } = render(<MarkdownText text={text} streaming />)
+    expect(container.querySelector('p')?.textContent).toBe(text)
+    expect(container.querySelectorAll('p')).toHaveLength(1)
+  })
+
   it('renders inline and display TeX through KaTeX without enabling trusted commands', () => {
     const source = [
       'Einstein wrote $E = mc^2$.',
