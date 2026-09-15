@@ -192,6 +192,7 @@ test('custom provider editor preserves model fields and validates reasoning defa
           models: [
             { id: 'model-a', reasoningEfforts: { off: null, high: 'high' }, keepMe: 'yes' },
             { id: 'model-b', reasoningEfforts: { off: null, low: 'low' } },
+            { id: 'legacy-model', keepMe: 'preserve-me' },
           ],
         },
       },
@@ -245,6 +246,7 @@ test('custom provider editor preserves model fields and validates reasoning defa
         value: [
           { id: 'model-a', reasoningEfforts: { off: null, high: 'high' }, keepMe: 'yes' },
           { id: 'model-b', reasoningEfforts: false },
+          { id: 'legacy-model', reasoningEfforts: { off: null, minimal: 'minimal', low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' }, keepMe: 'preserve-me' },
         ],
       },
       { op: 'unset', path: ['providers', 'custom-gateway', 'reasoning'] },

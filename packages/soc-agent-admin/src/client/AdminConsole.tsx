@@ -151,6 +151,12 @@ function newProviderModel(id = ''): ProviderModelDraft {
   return { id, reasoningEfforts: reasoningEffortsValue({ mode: 'all', levels: [] }) }
 }
 
+function defaultReasoningModel(model: ProviderModelDraft): ProviderModelDraft {
+  return Object.prototype.hasOwnProperty.call(model, 'reasoningEfforts')
+    ? model
+    : { ...model, reasoningEfforts: reasoningEffortsValue({ mode: 'all', levels: [] }) }
+}
+
 function persistableModels(models: readonly ProviderModelDraft[]): ProviderModelDraft[] {
   return models.map(model => ({ ...model, id: stringValue(model.id).trim() }))
 }
@@ -1076,15 +1082,15 @@ function DefaultReasoningField({ models, value, onChange, disabled }: { models: 
 function ProviderEditor({ connection, row, onChanged }: { connection: any; row: ProviderRow; onChanged: () => Promise<void> }) {
   const { provider, namespace, profile } = row
   const initialModels = modelEntries(profile)
+  const isCustomProvider = provider.declared === true
   const [displayName, setDisplayName] = useState(stringValue(profile.displayName))
   const [baseURL, setBaseURL] = useState(stringValue(profile.baseURL))
   const [api, setApi] = useState(stringValue(profile.api))
-  const [models, setModels] = useState<ProviderModelDraft[]>(() => initialModels)
+  const [models, setModels] = useState<ProviderModelDraft[]>(() => isCustomProvider ? initialModels.map(defaultReasoningModel) : initialModels)
   const [defaultEffort, setDefaultEffort] = useState(stringValue(profile.reasoning))
   const [secret, setSecret] = useState('')
   const [discovered, setDiscovered] = useState<DiscoveredModelView[]>([])
   const { message, setMessage, busy, run } = useStatus()
-  const isCustomProvider = provider.declared === true
   const canEditProtocol = provider.settingsNs === 'llm-pi-ai' && isCustomProvider
   const canRemoveProvider = provider.declared === true && Boolean(namespace) && provider.settingsPath.length > 0
   const modelsError = isCustomProvider ? modelValidation(models) : undefined

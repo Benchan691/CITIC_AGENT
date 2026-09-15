@@ -283,6 +283,15 @@ window.__ModuleLoader__.load({
 				})
 			};
 		}
+		function defaultReasoningModel(model) {
+			return Object.prototype.hasOwnProperty.call(model, "reasoningEfforts") ? model : {
+				...model,
+				reasoningEfforts: reasoningEffortsValue({
+					mode: "all",
+					levels: []
+				})
+			};
+		}
 		function persistableModels(models) {
 			return models.map((model) => ({
 				...model,
@@ -1662,15 +1671,15 @@ window.__ModuleLoader__.load({
 		function ProviderEditor({ connection, row, onChanged }) {
 			const { provider, namespace, profile } = row;
 			const initialModels = modelEntries(profile);
+			const isCustomProvider = provider.declared === true;
 			const [displayName, setDisplayName] = (0, react.useState)(stringValue(profile.displayName));
 			const [baseURL, setBaseURL] = (0, react.useState)(stringValue(profile.baseURL));
 			const [api, setApi] = (0, react.useState)(stringValue(profile.api));
-			const [models, setModels] = (0, react.useState)(() => initialModels);
+			const [models, setModels] = (0, react.useState)(() => isCustomProvider ? initialModels.map(defaultReasoningModel) : initialModels);
 			const [defaultEffort, setDefaultEffort] = (0, react.useState)(stringValue(profile.reasoning));
 			const [secret, setSecret] = (0, react.useState)("");
 			const [discovered, setDiscovered] = (0, react.useState)([]);
 			const { message, setMessage, busy, run } = useStatus();
-			const isCustomProvider = provider.declared === true;
 			const canEditProtocol = provider.settingsNs === "llm-pi-ai" && isCustomProvider;
 			const canRemoveProvider = provider.declared === true && Boolean(namespace) && provider.settingsPath.length > 0;
 			const modelsError = isCustomProvider ? modelValidation(models) : void 0;
