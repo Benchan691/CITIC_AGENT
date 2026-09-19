@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from email import policy as email_policy
 from email.errors import MessageParseError
 from email.parser import BytesParser
-from html import unescape
 from html.parser import HTMLParser
 from pathlib import PurePath
 from typing import Any
@@ -133,7 +132,7 @@ class _EmailHTMLText(HTMLParser):
 
     def handle_data(self, data: str) -> None:
         if self._skip_depth == 0:
-            self.parts.append(unescape(data))
+            self.parts.append(data)
 
 
 def _email_html_to_text(value: str) -> str:
@@ -341,7 +340,10 @@ class AttachmentConverter:
             "text": markdown[:max_chars],
             "title": title,
             "format": {"content_type": content_type, "extension": extension or ""},
-            "converter": {"name": converter_name, "version": markitdown_version if converter_name == "markitdown" else "stdlib"},
+            "converter": {
+                "name": converter_name,
+                "version": markitdown_version if converter_name == "markitdown" else "stdlib",
+            },
             "llm_enabled": self.settings.llm_enabled,
         }
         size = len(json.dumps(converted, ensure_ascii=True).encode())

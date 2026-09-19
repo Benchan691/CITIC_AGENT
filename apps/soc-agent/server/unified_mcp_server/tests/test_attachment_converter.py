@@ -68,10 +68,6 @@ MIME-Version: 1.0\r
 Content-Type: multipart/related; boundary="boundary"\r
 \r
 --boundary\r
-Content-Type: text/plain; charset=utf-8\r
-\r
-Plain nested email text.\r
---boundary\r
 Content-Type: text/html; charset=utf-8\r
 \r
 <html><body>HTML nested text<img src="https://untrusted.example/pixel.png"></body></html>\r
@@ -89,7 +85,7 @@ iVBORw0KGgo=\r
     result = converter.convert(raw_email, "", "message/rfc822")
 
     assert result["filename"] == "attachment.eml"
-    assert result["text"] == "Plain nested email text."
+    assert result["text"] == "HTML nested text"
     assert "untrusted.example" not in result["text"]
     assert "iVBORw0KGgo" not in result["text"]
     assert result["converter"]["name"] == "email-rfc822"
