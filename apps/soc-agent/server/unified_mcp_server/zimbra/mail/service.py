@@ -53,6 +53,14 @@ _INVALID_DATE_ALIAS = re.compile(r"(?:^|(?<=[\s(-]))d\s*:\s*(?P<value>[^\s()]+)"
 
 
 _EMAIL_ACTIONS = {"send", "reply", "forward"}
+_NON_FATAL_ATTACHMENT_CONVERSION_CODES = frozenset({
+    "attachment_unsupported",
+    "attachment_converter_unavailable",
+    "attachment_malformed",
+    "attachment_encrypted",
+    "attachment_invalid_filename",
+    "attachment_conversion_failed",
+})
 
 
 def _email_action(value: str | None) -> str:
@@ -795,9 +803,25 @@ class ZimbraMailService(ZimbraCore):
             raise
         filename = str(attachment.get("filename", ""))
         content_type = str(attachment.get("content_type", "")).split(";", 1)[0].lower()
-        converted = self._attachment_converter.convert(data, filename, content_type, AttachmentConversionLimits(
-            max_bytes=self.settings.max_attachment_bytes, max_chars=max_chars,
-        ))
+        try:
+            converted = self._attachment_converter.convert(data, filename, content_type, AttachmentConversionLimits(
+                max_bytes=self.settings.max_attachment_bytes, max_chars=max_chars,
+            ))
+        except ServiceError as exc:
+            if exc.code not in _NON_FATAL_ATTACHMENT_CONVERSION_CODES:
+                raise
+            return {
+                "account_id": account.id,
+                "account": account.agent_dict(),
+                "message_id": message_id,
+                "part": part,
+                "filename": filename,
+                "content_type": content_type,
+                "readable": False,
+                "skipped": True,
+                "skip_reason": exc.code,
+                "notice": "Attachment text was unavailable; continue with the message body and other attachments.",
+            }
         return {
             **converted,
             "account_id": account.id,

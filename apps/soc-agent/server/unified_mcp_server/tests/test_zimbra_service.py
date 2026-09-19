@@ -54,6 +54,35 @@ async def test_search_returns_metadata_but_body_requires_get(monkeypatch):
     assert message["body_truncated"] is False
 
 
+def test_get_message_omits_inline_images_but_keeps_explicit_attachments(monkeypatch):
+    calls = []
+    source_xml = '''<GetMsgResponse xmlns="urn:zimbraMail"><m id="42">
+      <su>Inline image sample</su>
+      <mp part="2" ct="multipart/related">
+        <mp part="2.1" ct="text/plain" body="1"><content>Body text</content></mp>
+        <mp part="2.2" ct="text/html" body="1"><content>&lt;img src="https://example.test/logo.png"&gt;</content></mp>
+        <mp part="2.3" filename="logo.jpg" ct="image/jpeg" ci="cid:logo" s="1"/>
+        <mp part="2.4" filename="remote.jpg" ct="image/jpeg" cl="https://example.test/remote.jpg" s="1"/>
+        <mp part="2.5" filename="inline.jpg" ct="image/jpeg" cd="inline" s="1"/>
+        <mp part="2.6" filename="photo.jpg" ct="image/jpeg" ci="cid:photo" cd="attachment" s="1"/>
+        <mp part="2.7" filename="report.pdf" ct="application/pdf" cd="attachment" s="10"/>
+      </mp>
+    </m></GetMsgResponse>'''
+
+    def fake_soap(host, body, token, **options):
+        calls.append((host, body, token, options))
+        return ET.fromstring(source_xml)
+
+    monkeypatch.setattr(transport, "soap_request", fake_soap)
+
+    result = transport.zimbra_get_message("mail.example.com", "token", "42")
+
+    assert [item["filename"] for item in result["attachments"]] == ["photo.jpg", "report.pdf"]
+    assert result["inline_images_skipped"] == 3
+    assert result["body"] == "Body text"
+    assert len(calls) == 1
+
+
 @pytest.mark.asyncio
 async def test_invalid_search_query_returns_validation_error_before_network(monkeypatch):
     monkeypatch.setattr(module, "zimbra_login", lambda *args, **kwargs: pytest.fail("login should not be called"))
@@ -525,6 +554,46 @@ async def test_attachment_limits_and_unsupported_types_return_stable_errors(monk
 
     service.settings = settings(max_attachment_bytes=100, max_attachment_text_chars=20)
     monkeypatch.setattr(module, "download_attachment", lambda *args, **kwargs: b"binary")
-    with pytest.raises(ServiceError) as unsupported:
-        await service.get_attachment_text("42", "2")
-    assert unsupported.value.code == "attachment_unsupported"
+    unsupported = await service.get_attachment_text("42", "2")
+    assert unsupported["skipped"] is True
+    assert unsupported["readable"] is False
+    assert unsupported["skip_reason"] == "attachment_unsupported"
+
+
+@pytest.mark.asyncio
+async def test_attachment_conversion_failure_is_skipped_and_other_parts_remain_readable(monkeypatch):
+    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
+    monkeypatch.setattr(
+        module,
+        "zimbra_get_message",
+        lambda *args, **kwargs: {
+            "id": "42",
+            "attachments": [
+                {"part": "2", "filename": "image.jpg", "content_type": "image/jpeg", "size": 4},
+                {"part": "3", "filename": "notes.txt", "content_type": "text/plain", "size": 4},
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "download_attachment",
+        lambda *args, **kwargs: b"bad" if args[3] == "2" else b"good",
+    )
+
+    class Converter:
+        def convert(self, data, filename, content_type, limits):
+            if data == b"bad":
+                raise ServiceError("attachment_unsupported", "not readable")
+            return {"filename": filename, "content_type": content_type, "text": "readable"}
+
+    service = ZimbraService(settings(max_attachment_bytes=100),)
+    service._attachment_converter = Converter()
+
+    skipped = await service.get_attachment_text("42", "2")
+    readable = await service.get_attachment_text("42", "3")
+
+    assert skipped["readable"] is False
+    assert skipped["skipped"] is True
+    assert skipped["skip_reason"] == "attachment_unsupported"
+    assert "text" not in skipped
+    assert readable["text"] == "readable"

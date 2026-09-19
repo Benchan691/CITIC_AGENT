@@ -55,7 +55,14 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
 
     @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_get_email(ctx: Context, message_id: str, max_body_chars: int = 20_000) -> dict[str, Any]:
-        """Retrieve one message with attachment metadata and a bounded body."""
+        """Retrieve one message with a bounded body and normal attachment metadata.
+
+        Body-embedded image parts such as inline CID/logo images are omitted
+        from attachments and reported only by a bounded skipped-image count.
+        Review each listed attachment separately with
+        ``zimbra_get_attachment_text``; a skipped result is non-fatal and
+        should not stop review of the remaining attachments.
+        """
         return await execute(ctx, "zimbra", "get_email", lambda: get_runtime(ctx).zimbra_mail.get_email(message_id, max_body_chars=max_body_chars))
 
     @server.tool(annotations={"readOnlyHint": True})
@@ -65,7 +72,13 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
 
     @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_get_attachment_text(ctx: Context, message_id: str, part: str, max_chars: int = 20_000) -> dict[str, Any]:
-        """Download one bounded Zimbra attachment and return MarkItDown Markdown evidence."""
+        """Download one bounded Zimbra attachment and return MarkItDown Markdown evidence.
+
+        For conversion-only failures such as unsupported or unavailable OCR,
+        return ``skipped: true`` with a safe reason code so the caller can
+        continue with the message body and other attachments. Authentication,
+        download, invalid-part, and size-limit failures remain errors.
+        """
         return await execute(ctx, "zimbra", "get_attachment_text", lambda: get_runtime(ctx).zimbra_mail.get_attachment_text(message_id, part, max_chars=max_chars))
 
     @server.tool(annotations={"readOnlyHint": True})

@@ -298,6 +298,35 @@ def _message_date(value):
         return ""
 
 
+_MAX_INLINE_IMAGES_REPORTED = 256
+
+
+def _mime_type(value):
+    return str(value or "").split(";", 1)[0].strip().casefold()
+
+
+def _content_disposition(value):
+    return str(value or "").split(";", 1)[0].strip().casefold()
+
+
+def _is_inline_image_part(element):
+    """Return whether a Zimbra MIME image part is body-embedded content.
+
+    Zimbra exposes the MIME Content-Disposition, Content-ID, and
+    Content-Location values as ``cd``, ``ci``, and ``cl``.  An explicit
+    ``attachment`` disposition wins over the embedded-image hints because a
+    sender can attach an image while also assigning it a content ID.
+    """
+    if not _mime_type(element.get("ct")).startswith("image/"):
+        return False
+    disposition = _content_disposition(element.get("cd"))
+    if disposition == "attachment":
+        return False
+    return disposition == "inline" or bool(str(element.get("ci", "")).strip()) or bool(
+        str(element.get("cl", "")).strip()
+    )
+
+
 def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
     """Search once and normalize the summary metadata returned by Zimbra."""
     query = str(query or "").strip()
@@ -361,20 +390,24 @@ def zimbra_get_message(host, token, message_id, *, verify_ssl=True, timeout=60, 
     attachments = []
     plain_parts = []
     html_parts = []
+    inline_images_skipped = 0
     for elem in msg.iter():
         name = _local_name(elem.tag)
         if name == "e":
             addresses.append({"type": elem.get("t", ""), "email": elem.get("a", "")})
-        elif name == "mp" and (elem.get("filename") or elem.get("cd") == "attachment"):
-            attachments.append(
-                {
-                    "filename": elem.get("filename", ""),
-                    "part": elem.get("part", ""),
-                    "content_type": elem.get("ct", ""),
-                    "size": int(elem.get("s", "0") or 0),
-                }
-            )
         elif name == "mp":
+            if _is_inline_image_part(elem):
+                inline_images_skipped = min(inline_images_skipped + 1, _MAX_INLINE_IMAGES_REPORTED)
+                continue
+            if elem.get("filename") or _content_disposition(elem.get("cd")) == "attachment":
+                attachments.append(
+                    {
+                        "filename": elem.get("filename", ""),
+                        "part": elem.get("part", ""),
+                        "content_type": elem.get("ct", ""),
+                        "size": int(elem.get("s", "0") or 0),
+                    }
+                )
             content = next((child for child in elem if _local_name(child.tag) == "content"), None)
             if content is not None:
                 text = "".join(content.itertext()).strip()
@@ -396,6 +429,7 @@ def zimbra_get_message(host, token, message_id, *, verify_ssl=True, timeout=60, 
         "body": "\n\n".join(plain_parts) or "\n\n".join(html_parts),
         "body_type": "text/plain" if plain_parts else ("text/html" if html_parts else ""),
         "attachments": attachments,
+        "inline_images_skipped": inline_images_skipped,
     }
 
 

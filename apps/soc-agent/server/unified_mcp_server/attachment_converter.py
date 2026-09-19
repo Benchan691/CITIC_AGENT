@@ -42,6 +42,9 @@ ARCHIVE_CONTENT_TYPES = {
     "application/vnd.oasis.opendocument.text",
     "application/zip",
 }
+IMAGE_EXTENSIONS = {
+    ".avif", ".bmp", ".gif", ".ico", ".jpeg", ".jpg", ".png", ".svg", ".tif", ".tiff", ".webp",
+}
 
 
 @dataclass(frozen=True)
@@ -74,6 +77,15 @@ def create_markitdown(settings: MarkItDownSettings, markitdown_type: type[MarkIt
     return markitdown_type(**kwargs)
 
 
+def _create_builtin_markitdown(markitdown_type: type[MarkItDown] = MarkItDown) -> MarkItDown:
+    """Create the always-available, non-LLM MarkItDown converter."""
+    return markitdown_type(enable_builtins=True, enable_plugins=False)
+
+
+def _is_image_attachment(filename: str, content_type: str) -> bool:
+    return content_type.startswith("image/") or PurePath(filename).suffix.lower() in IMAGE_EXTENSIONS
+
+
 class AttachmentConverter:
     """Convert attachments to Markdown with a bounded cache of successes.
 
@@ -90,9 +102,44 @@ class AttachmentConverter:
         self.settings = settings
         self.markitdown = markitdown
         self._factory = factory or create_markitdown
+        self._using_builtin_fallback = False
         self._lock = threading.RLock()
         self._cache_bytes = 0
         self._cache: OrderedDict[tuple, dict[str, Any]] = OrderedDict()
+
+    def _ensure_markitdown(self) -> None:
+        if self.markitdown is not None:
+            return
+        try:
+            self.markitdown = self._factory(self.settings)
+        except ServiceError as exc:
+            if exc.code != "attachment_converter_unavailable":
+                raise
+            self.markitdown = _create_builtin_markitdown()
+            self._using_builtin_fallback = True
+        except (ImportError, MissingDependencyException):
+            self.markitdown = _create_builtin_markitdown()
+            self._using_builtin_fallback = True
+
+    def _convert_stream(self, data: bytes, filename: str, content_type: str, extension: str | None):
+        stream_info = StreamInfo(
+            filename=filename or None,
+            mimetype=content_type or None,
+            extension=extension,
+        )
+        self._ensure_markitdown()
+        try:
+            return self.markitdown.convert_stream(io.BytesIO(data), stream_info=stream_info)
+        except MissingDependencyException:
+            # An enabled optional plugin must not make ordinary text/document
+            # attachments unreadable. Retry once with the built-in converter;
+            # image conversion will be reported as unsupported if it produces
+            # no text.
+            if self._using_builtin_fallback or not self.settings.llm_enabled:
+                raise
+            self.markitdown = _create_builtin_markitdown()
+            self._using_builtin_fallback = True
+            return self.markitdown.convert_stream(io.BytesIO(data), stream_info=stream_info)
 
     def _cache_key(
         self,
@@ -146,16 +193,7 @@ class AttachmentConverter:
         if content_type == "application/octet-stream" and extension in {None, ".bin"}:
             raise ServiceError("attachment_unsupported", "This attachment type cannot be converted to Markdown.")
         try:
-            if self.markitdown is None:
-                self.markitdown = self._factory(self.settings)
-            result = self.markitdown.convert_stream(
-                io.BytesIO(data),
-                stream_info=StreamInfo(
-                    filename=filename or None,
-                    mimetype=content_type or None,
-                    extension=extension,
-                ),
-            )
+            result = self._convert_stream(data, filename, content_type, extension)
         except UnsupportedFormatException as exc:
             raise ServiceError("attachment_unsupported", "This attachment type cannot be converted to Markdown.") from exc
         except MissingDependencyException as exc:
@@ -176,7 +214,9 @@ class AttachmentConverter:
                 "The attachment conversion failed.",
                 details={"exception_type": type(exc).__name__},
             ) from exc
-        markdown = result.markdown
+        markdown = str(result.markdown or "")
+        if _is_image_attachment(filename, content_type) and not markdown.strip():
+            raise ServiceError("attachment_unsupported", "No readable text was found in the image attachment.")
         converted = {
             "filename": filename,
             "content_type": content_type,

@@ -65,7 +65,10 @@ Standalone MCP clients should set `cwd` to this directory and pass `MCP_SERVER_R
 Zimbra supports bounded metadata/body pagination, header-only evidence,
 MarkItDown-based attachment-to-Markdown conversion for PDF, Word, PowerPoint,
 Excel, images, ZIP, EPUB, CSV, JSON, XML, HTML, and text files; attachment
-hashes; and verified reversible message moves. The authenticated email
+hashes; and verified reversible message moves. Body-embedded CID/content-
+location images are omitted from normal attachment metadata, and conversion-
+only failures are reported as skipped attachment results so other message
+content can still be read. The authenticated email
 webserver exposes subscription listing, preview, creation, updates, and
 deletion. Sends, moves, folders, filters, and subscription mutations remain
 approval-gated by the host.
