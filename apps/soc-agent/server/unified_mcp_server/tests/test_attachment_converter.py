@@ -59,3 +59,37 @@ def test_image_without_optional_ocr_is_reported_as_unsupported(monkeypatch):
         converter.convert(b"image bytes", "screenshot.jpg", "image/jpeg")
 
     assert error.value.code == "attachment_unsupported"
+
+
+def test_attached_email_is_read_without_ocr_and_does_not_resolve_html_images():
+    raw_email = b"""From: sender@example.test\r
+Subject: Nested evidence\r
+MIME-Version: 1.0\r
+Content-Type: multipart/related; boundary="boundary"\r
+\r
+--boundary\r
+Content-Type: text/plain; charset=utf-8\r
+\r
+Plain nested email text.\r
+--boundary\r
+Content-Type: text/html; charset=utf-8\r
+\r
+<html><body>HTML nested text<img src="https://untrusted.example/pixel.png"></body></html>\r
+--boundary\r
+Content-Type: image/png\r
+Content-ID: <logo@example.test>\r
+Content-Transfer-Encoding: base64\r
+\r
+iVBORw0KGgo=\r
+--boundary--\r
+"""
+
+    converter = AttachmentConverter(MarkItDownSettings(llm_enabled=False))
+
+    result = converter.convert(raw_email, "", "message/rfc822")
+
+    assert result["filename"] == "attachment.eml"
+    assert result["text"] == "Plain nested email text."
+    assert "untrusted.example" not in result["text"]
+    assert "iVBORw0KGgo" not in result["text"]
+    assert result["converter"]["name"] == "email-rfc822"

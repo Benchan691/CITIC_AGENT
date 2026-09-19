@@ -10,6 +10,11 @@ import zipfile
 import xml.etree.ElementTree as ET
 from collections import OrderedDict
 from dataclasses import dataclass
+from email import policy as email_policy
+from email.errors import MessageParseError
+from email.parser import BytesParser
+from html import unescape
+from html.parser import HTMLParser
 from pathlib import PurePath
 from typing import Any
 
@@ -45,6 +50,12 @@ ARCHIVE_CONTENT_TYPES = {
 IMAGE_EXTENSIONS = {
     ".avif", ".bmp", ".gif", ".ico", ".jpeg", ".jpg", ".png", ".svg", ".tif", ".tiff", ".webp",
 }
+EMAIL_CONTENT_TYPES = {
+    "application/eml",
+    "message/global",
+    "message/rfc822",
+}
+EMAIL_EXTENSIONS = {".eml", ".emlx"}
 
 
 @dataclass(frozen=True)
@@ -84,6 +95,99 @@ def _create_builtin_markitdown(markitdown_type: type[MarkItDown] = MarkItDown) -
 
 def _is_image_attachment(filename: str, content_type: str) -> bool:
     return content_type.startswith("image/") or PurePath(filename).suffix.lower() in IMAGE_EXTENSIONS
+
+
+def _is_email_attachment(filename: str, content_type: str) -> bool:
+    return content_type in EMAIL_CONTENT_TYPES or PurePath(filename).suffix.lower() in EMAIL_EXTENSIONS
+
+
+class _EmailHTMLText(HTMLParser):
+    """Extract text from an email HTML body without resolving any URLs."""
+
+    _BLOCK_TAGS = {
+        "address", "article", "aside", "blockquote", "br", "dd", "div", "dl", "dt",
+        "h1", "h2", "h3", "h4", "h5", "h6", "header", "li", "main", "ol", "p",
+        "pre", "section", "table", "td", "th", "tr", "ul",
+    }
+    _SKIP_TAGS = {"script", "style", "template"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self._skip_depth = 0
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        tag = tag.casefold()
+        if tag in self._SKIP_TAGS:
+            self._skip_depth += 1
+        elif self._skip_depth == 0 and tag in self._BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_startendtag(self, tag: str, attrs) -> None:
+        self.handle_starttag(tag, attrs)
+        self.handle_endtag(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() in self._SKIP_TAGS and self._skip_depth:
+            self._skip_depth -= 1
+
+    def handle_data(self, data: str) -> None:
+        if self._skip_depth == 0:
+            self.parts.append(unescape(data))
+
+
+def _email_html_to_text(value: str) -> str:
+    parser = _EmailHTMLText()
+    parser.feed(value)
+    parser.close()
+    lines = [line.strip() for line in "".join(parser.parts).splitlines()]
+    return "\n".join(line for line in lines if line).strip()
+
+
+def _email_part_text(part) -> str:
+    try:
+        value = part.get_content()
+    except (AttributeError, LookupError, UnicodeError):
+        payload = part.get_payload(decode=True)
+        if payload is None:
+            value = part.get_payload()
+        else:
+            charset = part.get_content_charset() or "utf-8"
+            try:
+                value = payload.decode(charset, errors="replace")
+            except LookupError:
+                value = payload.decode("utf-8", errors="replace")
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+    return str(value or "")
+
+
+def _convert_rfc822(data: bytes) -> tuple[str, str]:
+    """Read an attached email's text parts without processing embedded media."""
+    try:
+        message = BytesParser(policy=email_policy.default).parsebytes(data)
+    except (MessageParseError, TypeError, ValueError) as exc:
+        raise ServiceError("attachment_malformed", "The attached email could not be parsed.") from exc
+
+    plain_parts: list[str] = []
+    html_parts: list[str] = []
+    for part in message.walk():
+        if part.is_multipart() or part.get_content_disposition() == "attachment":
+            continue
+        content_type = str(part.get_content_type() or "").casefold()
+        if content_type == "text/plain":
+            text = _email_part_text(part).strip()
+            if text:
+                plain_parts.append(text)
+        elif content_type == "text/html":
+            text = _email_html_to_text(_email_part_text(part))
+            if text:
+                html_parts.append(text)
+
+    text = "\n\n".join(plain_parts) or "\n\n".join(html_parts)
+    if not text.strip():
+        raise ServiceError("attachment_unsupported", "No readable text was found in the attached email.")
+    return text, str(message.get("Subject", "") or "").strip()
 
 
 class AttachmentConverter:
@@ -176,8 +280,11 @@ class AttachmentConverter:
         content_type: str,
         limits: AttachmentConversionLimits = AttachmentConversionLimits(),
     ) -> dict[str, Any]:
-        filename = _safe_filename(filename)
-        content_type = content_type.split(";", 1)[0].strip().lower()
+        content_type = str(content_type or "").split(";", 1)[0].strip().lower()
+        raw_filename = str(filename or "").strip()
+        if not raw_filename and content_type in EMAIL_CONTENT_TYPES:
+            raw_filename = "attachment.eml"
+        filename = _safe_filename(raw_filename)
         max_bytes = min(max(1, limits.max_bytes), HARD_MAX_ATTACHMENT_BYTES)
         max_chars = min(max(1, limits.max_chars), HARD_MAX_MARKDOWN_CHARS)
         key = self._cache_key(data, filename, content_type, max_bytes, max_chars)
@@ -192,8 +299,16 @@ class AttachmentConverter:
         _validate_structured_text(data, filename, content_type)
         if content_type == "application/octet-stream" and extension in {None, ".bin"}:
             raise ServiceError("attachment_unsupported", "This attachment type cannot be converted to Markdown.")
+        converter_name = "markitdown"
+        title = None
         try:
-            result = self._convert_stream(data, filename, content_type, extension)
+            if _is_email_attachment(filename, content_type):
+                markdown, title = _convert_rfc822(data)
+                converter_name = "email-rfc822"
+            else:
+                result = self._convert_stream(data, filename, content_type, extension)
+                markdown = str(result.markdown or "")
+                title = result.title
         except UnsupportedFormatException as exc:
             raise ServiceError("attachment_unsupported", "This attachment type cannot be converted to Markdown.") from exc
         except MissingDependencyException as exc:
@@ -214,7 +329,6 @@ class AttachmentConverter:
                 "The attachment conversion failed.",
                 details={"exception_type": type(exc).__name__},
             ) from exc
-        markdown = str(result.markdown or "")
         if _is_image_attachment(filename, content_type) and not markdown.strip():
             raise ServiceError("attachment_unsupported", "No readable text was found in the image attachment.")
         converted = {
@@ -225,9 +339,9 @@ class AttachmentConverter:
             "characters": len(markdown),
             "text_truncated": len(markdown) > max_chars,
             "text": markdown[:max_chars],
-            "title": result.title,
+            "title": title,
             "format": {"content_type": content_type, "extension": extension or ""},
-            "converter": {"name": "markitdown", "version": markitdown_version},
+            "converter": {"name": converter_name, "version": markitdown_version if converter_name == "markitdown" else "stdlib"},
             "llm_enabled": self.settings.llm_enabled,
         }
         size = len(json.dumps(converted, ensure_ascii=True).encode())

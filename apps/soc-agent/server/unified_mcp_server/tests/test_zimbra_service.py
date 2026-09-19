@@ -66,6 +66,7 @@ def test_get_message_omits_inline_images_but_keeps_explicit_attachments(monkeypa
         <mp part="2.5" filename="inline.jpg" ct="image/jpeg" cd="inline" s="1"/>
         <mp part="2.6" filename="photo.jpg" ct="image/jpeg" ci="cid:photo" cd="attachment" s="1"/>
         <mp part="2.7" filename="report.pdf" ct="application/pdf" cd="attachment" s="10"/>
+        <mp part="2.8" ct="message/rfc822" s="12"/>
       </mp>
     </m></GetMsgResponse>'''
 
@@ -77,7 +78,9 @@ def test_get_message_omits_inline_images_but_keeps_explicit_attachments(monkeypa
 
     result = transport.zimbra_get_message("mail.example.com", "token", "42")
 
-    assert [item["filename"] for item in result["attachments"]] == ["photo.jpg", "report.pdf"]
+    assert [item["filename"] for item in result["attachments"]] == [
+        "photo.jpg", "report.pdf", "attachment-2-8.eml",
+    ]
     assert result["inline_images_skipped"] == 3
     assert result["body"] == "Body text"
     assert len(calls) == 1
@@ -597,3 +600,31 @@ async def test_attachment_conversion_failure_is_skipped_and_other_parts_remain_r
     assert skipped["skip_reason"] == "attachment_unsupported"
     assert "text" not in skipped
     assert readable["text"] == "readable"
+
+
+@pytest.mark.asyncio
+async def test_unexpected_converter_exception_is_skipped_after_successful_download(monkeypatch):
+    monkeypatch.setattr(module, "zimbra_login", lambda cfg: "token")
+    monkeypatch.setattr(
+        module,
+        "zimbra_get_message",
+        lambda *args, **kwargs: {
+            "id": "42",
+            "attachments": [{"part": "3", "filename": "forwarded.eml", "content_type": "message/rfc822", "size": 4}],
+        },
+    )
+    monkeypatch.setattr(module, "download_attachment", lambda *args, **kwargs: b"mail")
+
+    class Converter:
+        def convert(self, *args, **kwargs):
+            raise RuntimeError("converter plugin crashed")
+
+    service = ZimbraService(settings(max_attachment_bytes=100))
+    service._attachment_converter = Converter()
+
+    result = await service.get_attachment_text("42", "3")
+
+    assert result["readable"] is False
+    assert result["skipped"] is True
+    assert result["skip_reason"] == "attachment_conversion_failed"
+    assert "text" not in result

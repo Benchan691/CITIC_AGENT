@@ -299,6 +299,7 @@ def _message_date(value):
 
 
 _MAX_INLINE_IMAGES_REPORTED = 256
+_EMAIL_ATTACHMENT_CONTENT_TYPES = frozenset({"application/eml", "message/global", "message/rfc822"})
 
 
 def _mime_type(value):
@@ -325,6 +326,20 @@ def _is_inline_image_part(element):
     return disposition == "inline" or bool(str(element.get("ci", "")).strip()) or bool(
         str(element.get("cl", "")).strip()
     )
+
+
+def _is_attached_email_part(element):
+    return _mime_type(element.get("ct")) in _EMAIL_ATTACHMENT_CONTENT_TYPES
+
+
+def _attachment_filename(element):
+    filename = str(element.get("filename", "")).strip()
+    if filename:
+        return filename
+    if _is_attached_email_part(element):
+        part = str(element.get("part", "")).strip().replace(".", "-") or "part"
+        return f"attachment-{part}.eml"
+    return ""
 
 
 def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
@@ -399,10 +414,14 @@ def zimbra_get_message(host, token, message_id, *, verify_ssl=True, timeout=60, 
             if _is_inline_image_part(elem):
                 inline_images_skipped = min(inline_images_skipped + 1, _MAX_INLINE_IMAGES_REPORTED)
                 continue
-            if elem.get("filename") or _content_disposition(elem.get("cd")) == "attachment":
+            if (
+                elem.get("filename")
+                or _content_disposition(elem.get("cd")) == "attachment"
+                or _is_attached_email_part(elem)
+            ):
                 attachments.append(
                     {
-                        "filename": elem.get("filename", ""),
+                        "filename": _attachment_filename(elem),
                         "part": elem.get("part", ""),
                         "content_type": elem.get("ct", ""),
                         "size": int(elem.get("s", "0") or 0),

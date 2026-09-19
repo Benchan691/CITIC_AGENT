@@ -61,6 +61,7 @@ _NON_FATAL_ATTACHMENT_CONVERSION_CODES = frozenset({
     "attachment_invalid_filename",
     "attachment_conversion_failed",
 })
+_EMAIL_ATTACHMENT_CONTENT_TYPES = frozenset({"application/eml", "message/global", "message/rfc822"})
 
 
 def _email_action(value: str | None) -> str:
@@ -801,8 +802,10 @@ class ZimbraMailService(ZimbraCore):
             if str(exc) == "attachment_too_large":
                 raise ServiceError("attachment_too_large", "The attachment exceeds the configured byte limit.") from exc
             raise
-        filename = str(attachment.get("filename", ""))
+        filename = str(attachment.get("filename", "") or "").strip()
         content_type = str(attachment.get("content_type", "")).split(";", 1)[0].lower()
+        if not filename and content_type in _EMAIL_ATTACHMENT_CONTENT_TYPES:
+            filename = f"attachment-{part.replace('.', '-')}.eml"
         try:
             converted = self._attachment_converter.convert(data, filename, content_type, AttachmentConversionLimits(
                 max_bytes=self.settings.max_attachment_bytes, max_chars=max_chars,
@@ -820,6 +823,23 @@ class ZimbraMailService(ZimbraCore):
                 "readable": False,
                 "skipped": True,
                 "skip_reason": exc.code,
+                "notice": "Attachment text was unavailable; continue with the message body and other attachments.",
+            }
+        except Exception:
+            # The converter is optional and third-party converters can still
+            # raise an unexpected conversion-only exception. Keep the
+            # attachment read fail-soft without swallowing download/auth
+            # failures, which occur before this boundary.
+            return {
+                "account_id": account.id,
+                "account": account.agent_dict(),
+                "message_id": message_id,
+                "part": part,
+                "filename": filename,
+                "content_type": content_type,
+                "readable": False,
+                "skipped": True,
+                "skip_reason": "attachment_conversion_failed",
                 "notice": "Attachment text was unavailable; continue with the message body and other attachments.",
             }
         return {

@@ -72,7 +72,11 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
 
     @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_get_attachment_text(ctx: Context, message_id: str, part: str, max_chars: int = 20_000) -> dict[str, Any]:
-        """Download one bounded Zimbra attachment and return MarkItDown Markdown evidence.
+        """Download one bounded Zimbra attachment and return readable Markdown evidence.
+
+        This includes attached email parts such as ``message/rfc822``. Review
+        each normal attachment independently; if one file returns
+        ``skipped: true``, continue with the message body and the other parts.
 
         For conversion-only failures such as unsupported or unavailable OCR,
         return ``skipped: true`` with a safe reason code so the caller can
