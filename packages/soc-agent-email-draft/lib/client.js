@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
 		react = __toESM(react, 1);
 		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-email-draft/src/client/EmailDraftToolview.module.css.mjs
-		const css = ".a5LXvW_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}.a5LXvW_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}.a5LXvW_title{font-weight:600}.a5LXvW_account{color:var(--dsw-alias-text-l2);font-size:12px}.a5LXvW_content{gap:9px;padding:12px;display:grid}.a5LXvW_field{gap:4px;display:grid}.a5LXvW_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}.a5LXvW_input,.a5LXvW_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}.a5LXvW_textarea{resize:vertical;min-height:180px;line-height:1.45}.a5LXvW_editorGrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:12px;display:grid}.a5LXvW_previewPanel{grid-template-rows:auto minmax(180px,1fr);gap:4px;min-width:0;display:grid}.a5LXvW_preview{border:1px solid var(--dsw-alias-border-l2);background:#fff;border-radius:6px;width:100%;height:100%;min-height:180px}.a5LXvW_attachmentPanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:7px;padding:10px;display:grid}.a5LXvW_hiddenInput{clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.a5LXvW_attachmentList{gap:5px;display:grid}.a5LXvW_attachmentItem{background:var(--dsw-alias-surface-l0,transparent);overflow-wrap:anywhere;border-radius:5px;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;display:flex}.a5LXvW_removeButton{color:var(--dsw-alias-danger,#b42318);cursor:pointer;font:inherit;white-space:nowrap;background:0 0;border:0;padding:2px 4px}.a5LXvW_removeButton:disabled{cursor:wait;opacity:.6}.a5LXvW_help{color:var(--dsw-alias-text-l2);font-size:12px}.a5LXvW_input:focus,.a5LXvW_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}.a5LXvW_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}.a5LXvW_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}.a5LXvW_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}.a5LXvW_primary:hover{background:#1d4ed8;border-color:#1d4ed8}.a5LXvW_danger{color:#fff;background:#dc2626;border-color:#dc2626}.a5LXvW_danger:hover{background:#b91c1c;border-color:#b91c1c}.a5LXvW_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}.a5LXvW_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}.a5LXvW_button:disabled{cursor:wait;opacity:.6}.a5LXvW_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}.a5LXvW_error{color:var(--dsw-alias-danger,#b42318)}@media (width<=700px){.a5LXvW_editorGrid{grid-template-columns:1fr}}";
+		const css = ".a5LXvW_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}.a5LXvW_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}.a5LXvW_title{font-weight:600}.a5LXvW_account{color:var(--dsw-alias-text-l2);font-size:12px}.a5LXvW_content{gap:9px;padding:12px;display:grid}.a5LXvW_field{gap:4px;display:grid}.a5LXvW_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}.a5LXvW_input,.a5LXvW_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}.a5LXvW_textarea{resize:vertical;min-height:180px;line-height:1.45}.a5LXvW_bodyEditor{gap:4px;min-width:0;display:grid}.a5LXvW_editorHeader{justify-content:space-between;align-items:center;gap:12px;min-width:0;display:flex}.a5LXvW_viewTabs{flex-shrink:0;align-items:center;gap:2px;display:flex}.a5LXvW_viewTab{color:var(--dsw-alias-text-l2);cursor:pointer;font:inherit;white-space:nowrap;background:0 0;border:0;border-radius:6px;padding:6px 10px;line-height:1.2}.a5LXvW_viewTab:hover,.a5LXvW_viewTab[data-active=true]{color:inherit}.a5LXvW_viewTab[data-active=true]{background:var(--dsw-alias-surface-l2,#e5e7eb);font-weight:600}.a5LXvW_viewTab:focus-visible{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_bodyPanel{min-width:0;min-height:240px}.a5LXvW_bodyPanel[hidden]{display:none}.a5LXvW_bodySource{height:240px;min-height:240px}.a5LXvW_preview{border:1px solid var(--dsw-alias-border-l2);background:#fff;border-radius:6px;width:100%;height:240px;min-height:240px;display:block}.a5LXvW_preview:focus-visible,.a5LXvW_bodySource:focus-visible{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_attachmentPanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:7px;padding:10px;display:grid}.a5LXvW_hiddenInput{clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.a5LXvW_attachmentList{gap:5px;display:grid}.a5LXvW_attachmentItem{background:var(--dsw-alias-surface-l0,transparent);overflow-wrap:anywhere;border-radius:5px;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;display:flex}.a5LXvW_removeButton{color:var(--dsw-alias-danger,#b42318);cursor:pointer;font:inherit;white-space:nowrap;background:0 0;border:0;padding:2px 4px}.a5LXvW_removeButton:disabled{cursor:wait;opacity:.6}.a5LXvW_help{color:var(--dsw-alias-text-l2);font-size:12px}.a5LXvW_input:focus,.a5LXvW_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}.a5LXvW_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}.a5LXvW_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}.a5LXvW_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}.a5LXvW_primary:hover{background:#1d4ed8;border-color:#1d4ed8}.a5LXvW_danger{color:#fff;background:#dc2626;border-color:#dc2626}.a5LXvW_danger:hover{background:#b91c1c;border-color:#b91c1c}.a5LXvW_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}.a5LXvW_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}.a5LXvW_button:disabled{cursor:wait;opacity:.6}.a5LXvW_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}.a5LXvW_error{color:var(--dsw-alias-danger,#b42318)}@media (width<=700px){.a5LXvW_editorHeader{flex-wrap:wrap;align-items:flex-start}.a5LXvW_viewTabs{margin-left:auto}}";
 		const tagId = "dsh-soc-agent-email-draft/EmailDraftToolview.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -45,11 +45,14 @@ window.__ModuleLoader__.load({
 			"attachmentItem": "a5LXvW_attachmentItem",
 			"attachmentList": "a5LXvW_attachmentList",
 			"attachmentPanel": "a5LXvW_attachmentPanel",
+			"bodyEditor": "a5LXvW_bodyEditor",
+			"bodyPanel": "a5LXvW_bodyPanel",
+			"bodySource": "a5LXvW_bodySource",
 			"button": "a5LXvW_button",
 			"card": "a5LXvW_card",
 			"content": "a5LXvW_content",
 			"danger": "a5LXvW_danger",
-			"editorGrid": "a5LXvW_editorGrid",
+			"editorHeader": "a5LXvW_editorHeader",
 			"error": "a5LXvW_error",
 			"field": "a5LXvW_field",
 			"header": "a5LXvW_header",
@@ -59,13 +62,14 @@ window.__ModuleLoader__.load({
 			"label": "a5LXvW_label",
 			"message": "a5LXvW_message",
 			"preview": "a5LXvW_preview",
-			"previewPanel": "a5LXvW_previewPanel",
 			"primary": "a5LXvW_primary",
 			"removeButton": "a5LXvW_removeButton",
 			"signatureButton": "a5LXvW_signatureButton",
 			"signaturePanel": "a5LXvW_signaturePanel",
 			"textarea": "a5LXvW_textarea",
-			"title": "a5LXvW_title"
+			"title": "a5LXvW_title",
+			"viewTab": "a5LXvW_viewTab",
+			"viewTabs": "a5LXvW_viewTabs"
 		};
 		//#endregion
 		//#region src/client/emailDraft.ts
@@ -313,6 +317,13 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region src/client/EmailDraftToolview.tsx
+		const BODY_VIEW_TABS = [{
+			id: "preview",
+			label: "Preview"
+		}, {
+			id: "source",
+			label: "HTML source"
+		}];
 		let attachmentId = 0;
 		function resultText(block) {
 			if (!("kind" in block)) return "";
@@ -391,6 +402,9 @@ window.__ModuleLoader__.load({
 			const [signaturePlacement, setSignaturePlacement] = (0, react.useState)("below");
 			const [signatureStatus, setSignatureStatus] = (0, react.useState)(null);
 			const attachmentInput = (0, react.useRef)(null);
+			const bodyViewId = (0, react.useId)();
+			const bodyViewTabRefs = (0, react.useRef)([]);
+			const [bodyView, setBodyView] = (0, react.useState)("preview");
 			(0, react.useEffect)(() => {
 				if (envelope?.draft) {
 					setFields(formFromEnvelope(envelope));
@@ -400,6 +414,7 @@ window.__ModuleLoader__.load({
 					setAttachmentError(null);
 					setSignaturePanel(false);
 					setSignatureStatus(null);
+					setBodyView("preview");
 				}
 			}, [sourceKey]);
 			if (!("kind" in block)) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
@@ -424,6 +439,7 @@ window.__ModuleLoader__.load({
 				setSelectedAttachments([]);
 				setAttachmentError(null);
 				setSendError(null);
+				setBodyView("preview");
 				setStatus("editing");
 			};
 			if (status === "discarded") return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -450,6 +466,28 @@ window.__ModuleLoader__.load({
 					...current,
 					[field]: event.target.value
 				}));
+			};
+			const moveBodyView = (event, index) => {
+				let nextIndex;
+				switch (event.key) {
+					case "ArrowRight":
+						nextIndex = (index + 1) % BODY_VIEW_TABS.length;
+						break;
+					case "ArrowLeft":
+						nextIndex = (index - 1 + BODY_VIEW_TABS.length) % BODY_VIEW_TABS.length;
+						break;
+					case "Home":
+						nextIndex = 0;
+						break;
+					case "End":
+						nextIndex = BODY_VIEW_TABS.length - 1;
+						break;
+					default: return;
+				}
+				event.preventDefault();
+				const nextTab = BODY_VIEW_TABS[nextIndex];
+				setBodyView(nextTab.id);
+				bodyViewTabRefs.current[nextIndex]?.focus();
 			};
 			const chooseAttachments = (event) => {
 				const files = Array.from(event.currentTarget.files ?? []);
@@ -591,31 +629,68 @@ window.__ModuleLoader__.load({
 							})]
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							className: EmailDraftToolview_module_css_default.editorGrid,
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-								className: EmailDraftToolview_module_css_default.field,
-								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-									className: EmailDraftToolview_module_css_default.label,
-									children: action === "send" ? "HTML body source" : "Your HTML message (optional)"
-								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
-									className: EmailDraftToolview_module_css_default.textarea,
-									"aria-label": "Body",
-									value: fields.body,
-									onChange: update("body"),
-									maxLength: 18e3
-								})]
-							}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-								className: EmailDraftToolview_module_css_default.previewPanel,
-								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-									className: EmailDraftToolview_module_css_default.label,
-									children: "Rendered preview"
-								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
-									className: EmailDraftToolview_module_css_default.preview,
-									title: "Rendered HTML preview",
-									sandbox: "",
-									srcDoc: renderEmailPreviewDocument(fields.body)
-								})]
-							})]
+							className: EmailDraftToolview_module_css_default.bodyEditor,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: EmailDraftToolview_module_css_default.editorHeader,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: EmailDraftToolview_module_css_default.label,
+										children: action === "send" ? "HTML body" : "Your HTML message (optional)"
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+										className: EmailDraftToolview_module_css_default.viewTabs,
+										role: "tablist",
+										"aria-label": "Email body view",
+										children: BODY_VIEW_TABS.map((tab, index) => {
+											const selected = bodyView === tab.id;
+											const tabId = `${bodyViewId}-tab-${tab.id}`;
+											const panelId = `${bodyViewId}-panel-${tab.id}`;
+											return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+												ref: (element) => {
+													bodyViewTabRefs.current[index] = element;
+												},
+												id: tabId,
+												className: EmailDraftToolview_module_css_default.viewTab,
+												type: "button",
+												role: "tab",
+												"aria-selected": selected,
+												"aria-controls": panelId,
+												tabIndex: selected ? 0 : -1,
+												"data-active": selected ? "true" : void 0,
+												onClick: () => setBodyView(tab.id),
+												onKeyDown: (event) => moveBodyView(event, index),
+												children: tab.label
+											}, tab.id);
+										})
+									})]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									id: `${bodyViewId}-panel-preview`,
+									className: EmailDraftToolview_module_css_default.bodyPanel,
+									role: "tabpanel",
+									"aria-labelledby": `${bodyViewId}-tab-preview`,
+									hidden: bodyView !== "preview",
+									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
+										className: EmailDraftToolview_module_css_default.preview,
+										title: "Rendered HTML preview",
+										sandbox: "",
+										srcDoc: renderEmailPreviewDocument(fields.body)
+									})
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									id: `${bodyViewId}-panel-source`,
+									className: EmailDraftToolview_module_css_default.bodyPanel,
+									role: "tabpanel",
+									"aria-labelledby": `${bodyViewId}-tab-source`,
+									hidden: bodyView !== "source",
+									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+										className: `${EmailDraftToolview_module_css_default.textarea} ${EmailDraftToolview_module_css_default.bodySource}`,
+										"aria-label": "HTML body source",
+										value: fields.body,
+										onChange: update("body"),
+										maxLength: 18e3
+									})
+								})
+							]
 						}),
 						action !== "send" && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 							className: EmailDraftToolview_module_css_default.field,

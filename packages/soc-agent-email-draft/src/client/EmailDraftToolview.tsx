@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SocClientRuntime } from 'dsh-soc-agent-client/client'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import css from './EmailDraftToolview.module.css'
 import {
   draftFromForm,
@@ -49,6 +49,13 @@ interface SelectedAttachment {
   id: string
   file: File
 }
+
+type BodyView = 'preview' | 'source'
+
+const BODY_VIEW_TABS: ReadonlyArray<{ id: BodyView; label: string }> = [
+  { id: 'preview', label: 'Preview' },
+  { id: 'source', label: 'HTML source' },
+]
 
 let attachmentId = 0
 
@@ -142,6 +149,9 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
   const [signaturePlacement, setSignaturePlacement] = useState<'above' | 'below'>('below')
   const [signatureStatus, setSignatureStatus] = useState<string | null>(null)
   const attachmentInput = useRef<HTMLInputElement>(null)
+  const bodyViewId = useId()
+  const bodyViewTabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const [bodyView, setBodyView] = useState<BodyView>('preview')
 
   useEffect(() => {
     if (envelope?.draft) {
@@ -152,6 +162,7 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
       setAttachmentError(null)
       setSignaturePanel(false)
       setSignatureStatus(null)
+      setBodyView('preview')
     }
   }, [sourceKey])
 
@@ -169,6 +180,7 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
     setSelectedAttachments([])
     setAttachmentError(null)
     setSendError(null)
+    setBodyView('preview')
     setStatus('editing')
   }
 
@@ -185,6 +197,30 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
 
   const update = (field: keyof EmailDraftFormFields) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFields(current => ({ ...current, [field]: event.target.value }))
+  }
+
+  const moveBodyView = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex: number
+    switch (event.key) {
+      case 'ArrowRight':
+        nextIndex = (index + 1) % BODY_VIEW_TABS.length
+        break
+      case 'ArrowLeft':
+        nextIndex = (index - 1 + BODY_VIEW_TABS.length) % BODY_VIEW_TABS.length
+        break
+      case 'Home':
+        nextIndex = 0
+        break
+      case 'End':
+        nextIndex = BODY_VIEW_TABS.length - 1
+        break
+      default:
+        return
+    }
+    event.preventDefault()
+    const nextTab = BODY_VIEW_TABS[nextIndex]!
+    setBodyView(nextTab.id)
+    bodyViewTabRefs.current[nextIndex]?.focus()
   }
 
   const chooseAttachments = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,18 +346,62 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
           <span className={css.label}>Subject</span>
           <input className={css.input} aria-label="Subject" value={fields.subject} onChange={update('subject')} maxLength={998} />
         </label>
-        <div className={css.editorGrid}>
-          <label className={css.field}>
-            <span className={css.label}>{action === 'send' ? 'HTML body source' : 'Your HTML message (optional)'}</span>
-            <textarea className={css.textarea} aria-label="Body" value={fields.body} onChange={update('body')} maxLength={18_000} />
-          </label>
-          <div className={css.previewPanel}>
-            <div className={css.label}>Rendered preview</div>
+        <div className={css.bodyEditor}>
+          <div className={css.editorHeader}>
+            <span className={css.label}>{action === 'send' ? 'HTML body' : 'Your HTML message (optional)'}</span>
+            <div className={css.viewTabs} role="tablist" aria-label="Email body view">
+              {BODY_VIEW_TABS.map((tab, index) => {
+                const selected = bodyView === tab.id
+                const tabId = `${bodyViewId}-tab-${tab.id}`
+                const panelId = `${bodyViewId}-panel-${tab.id}`
+                return (
+                  <button
+                    key={tab.id}
+                    ref={element => { bodyViewTabRefs.current[index] = element }}
+                    id={tabId}
+                    className={css.viewTab}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    aria-controls={panelId}
+                    tabIndex={selected ? 0 : -1}
+                    data-active={selected ? 'true' : undefined}
+                    onClick={() => setBodyView(tab.id)}
+                    onKeyDown={event => moveBodyView(event, index)}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div
+            id={`${bodyViewId}-panel-preview`}
+            className={css.bodyPanel}
+            role="tabpanel"
+            aria-labelledby={`${bodyViewId}-tab-preview`}
+            hidden={bodyView !== 'preview'}
+          >
             <iframe
               className={css.preview}
               title="Rendered HTML preview"
               sandbox=""
               srcDoc={renderEmailPreviewDocument(fields.body)}
+            />
+          </div>
+          <div
+            id={`${bodyViewId}-panel-source`}
+            className={css.bodyPanel}
+            role="tabpanel"
+            aria-labelledby={`${bodyViewId}-tab-source`}
+            hidden={bodyView !== 'source'}
+          >
+            <textarea
+              className={`${css.textarea} ${css.bodySource}`}
+              aria-label="HTML body source"
+              value={fields.body}
+              onChange={update('body')}
+              maxLength={18_000}
             />
           </div>
         </div>

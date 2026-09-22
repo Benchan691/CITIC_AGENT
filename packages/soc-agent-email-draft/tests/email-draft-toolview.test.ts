@@ -136,11 +136,60 @@ test('forward editor requires confirmation, retains its source after edits, and 
     assert.match(document.body.textContent!, /report\.pdf/)
     assert.match(document.body.textContent!, /full original message will be included/)
     assert.equal(document.querySelector('img'), null, 'Original HTML is shown as text')
-    const body = document.querySelector('textarea[aria-label="Body"]') as HTMLTextAreaElement
+    const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+    assert.deepEqual(tabs.map(tab => tab.textContent), ['Preview', 'HTML source'])
+    const previewTab = tabs[0]!
+    const sourceTab = tabs[1]!
+    assert.equal(previewTab.getAttribute('aria-selected'), 'true')
+    assert.equal(sourceTab.getAttribute('aria-selected'), 'false')
+    assert.equal(previewTab.tabIndex, 0)
+    assert.equal(sourceTab.tabIndex, -1)
+    const previewPanel = document.getElementById(previewTab.getAttribute('aria-controls')!)
+    const sourcePanel = document.getElementById(sourceTab.getAttribute('aria-controls')!)
+    assert.ok(previewPanel)
+    assert.ok(sourcePanel)
+    assert.equal(previewPanel!.getAttribute('role'), 'tabpanel')
+    assert.equal(sourcePanel!.getAttribute('role'), 'tabpanel')
+    assert.equal(previewPanel!.getAttribute('aria-labelledby'), previewTab.id)
+    assert.equal(sourcePanel!.getAttribute('aria-labelledby'), sourceTab.id)
+    assert.equal(previewPanel!.hasAttribute('hidden'), false)
+    assert.equal(sourcePanel!.hasAttribute('hidden'), true)
+    assert.equal(previewPanel!.querySelector('iframe')!.hasAttribute('sandbox'), true)
+
+    await click('HTML source')
+    const body = document.querySelector('textarea[aria-label="HTML body source"]') as HTMLTextAreaElement
+    assert.equal(sourceTab.getAttribute('aria-selected'), 'true')
+    assert.equal(previewPanel!.hasAttribute('hidden'), true)
+    assert.equal(sourcePanel!.hasAttribute('hidden'), false)
+    assert.equal(body.value, form.body)
     await act(async () => {
       Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')!.set!.call(body, 'Edited note')
       body.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
     })
+    await click('Preview')
+    assert.equal(previewTab.getAttribute('aria-selected'), 'true')
+    assert.equal(previewPanel!.hasAttribute('hidden'), false)
+    assert.equal(sourcePanel!.hasAttribute('hidden'), true)
+    await click('HTML source')
+    assert.equal(body.value, 'Edited note')
+
+    await act(async () => {
+      sourceTab.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    })
+    assert.equal(previewTab.getAttribute('aria-selected'), 'true')
+    await act(async () => {
+      previewTab.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    })
+    assert.equal(sourceTab.getAttribute('aria-selected'), 'true')
+    await act(async () => {
+      sourceTab.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+    })
+    assert.equal(previewTab.getAttribute('aria-selected'), 'true')
+    await act(async () => {
+      previewTab.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+    })
+    assert.equal(sourceTab.getAttribute('aria-selected'), 'true')
+
     const selectedFile = new dom.window.File(['selected'], 'selected.txt', { type: 'text/plain' })
     const attachmentInput = document.querySelector('input[type="file"]') as HTMLInputElement
     Object.defineProperty(attachmentInput, 'files', { configurable: true, value: [selectedFile] })
