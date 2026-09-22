@@ -77,8 +77,8 @@ All legacy Splunk REST variables (`SPLUNK_HOST`, `SPLUNK_HOST_FOR_DOCKER`, `RUNN
 
 | Variable | Purpose | Default / validation |
 |---|---|---|
-| `SUBSCRIPTION_SERVER_URL` | Subscription web service base URL | Required (with user+password) for `configured`; https unless `SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP=true`; no credentials/fragment |
-| `SUBSCRIPTION_SERVER_USER` / `SUBSCRIPTION_SERVER_PASSWORD` | Service login | **Secret** (password) |
+| `SUBSCRIPTION_SERVER_URL` | Rust subscription webserver base URL (normally port 9100; login route `/login/local`) | Required (with local-admin user+password) for `configured`; https unless `SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP=true`; no credentials/fragment |
+| `SUBSCRIPTION_SERVER_USER` / `SUBSCRIPTION_SERVER_PASSWORD` | Local administrator service login for the Rust webserver | **Secret** (password) |
 | `SUBSCRIPTION_SERVER_TIMEOUT` | Seconds | 30 (1–600) |
 | `MARKITDOWN_LLM_ENABLED` | Enable LLM/OCR conversion | false; when true requires `MARKITDOWN_LLM_API_KEY` + `MARKITDOWN_LLM_MODEL` |
 | `MARKITDOWN_LLM_API_KEY` / `MARKITDOWN_LLM_BASE_URL` / `MARKITDOWN_LLM_MODEL` / `MARKITDOWN_LLM_TIMEOUT` | LLM converter config | **Secret** (API key) |

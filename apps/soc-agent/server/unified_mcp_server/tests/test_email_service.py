@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 
@@ -21,10 +23,11 @@ def client_for(handler, base_url="http://email.example.test"):
 @pytest.mark.asyncio
 async def test_subscription_requests_login_once_and_uses_api_contract():
     requests = []
+    subscription_id = "subscription/id"
 
     async def handler(request):
         requests.append(request)
-        if request.method == "POST" and request.url.path == "/login":
+        if request.method == "POST" and request.url.path == "/login/local":
             return httpx.Response(302, headers={"location": "/subscriptions"})
         if request.method == "GET" and request.url.path == "/subscriptions":
             return httpx.Response(200, text="subscriptions")
@@ -36,9 +39,9 @@ async def test_subscription_requests_login_once_and_uses_api_contract():
             return httpx.Response(200, json={"valid": True})
         if request.method == "POST" and request.url.path == "/api/subscriptions":
             return httpx.Response(201, json={"success": True})
-        if request.method == "PUT" and request.url.path == "/api/subscriptions/a@example.com":
+        if request.method == "PUT" and request.url.raw_path == b"/api/subscriptions/subscription%2Fid":
             return httpx.Response(200, json={"success": True})
-        if request.method == "DELETE" and request.url.path == "/api/subscriptions/a@example.com":
+        if request.method == "DELETE" and request.url.raw_path == b"/api/subscriptions/subscription%2Fid":
             return httpx.Response(200, json={"success": True})
         return httpx.Response(404, json={"error": "unexpected request"})
 
@@ -46,15 +49,67 @@ async def test_subscription_requests_login_once_and_uses_api_contract():
     service = EmailSubscriptionService(settings(), client)
     assert await service.list_subscriptions() == {"subscriptions": [{"email": "a@example.com"}]}
     assert await service.get_subscription_schema() == {"schema_version": 1}
-    assert await service.preview_subscription(newsletter_profile={"enabled": True}) == {"valid": True}
-    await service.create_subscription("a@example.com", "SOC", {"enabled": True})
-    await service.update_subscription("a@example.com", team="IR")
-    await service.delete_subscription("a@example.com")
+    assert await service.preview_subscription(
+        newsletter_profile={"enabled": True},
+        username="operator@example.com",
+        emails=["operator@example.com"],
+        organization="SOC",
+    ) == {"valid": True}
+    assert await service.preview_subscription(
+        mode="update",
+        subscription_id=subscription_id,
+        username="local-news",
+    ) == {"valid": True}
+    await service.create_subscription(
+        "local-news",
+        ["a@example.com", "b@example.com"],
+        "SOC",
+        True,
+        {"enabled": True},
+    )
+    await service.update_subscription(
+        subscription_id,
+        username="local-news-updated",
+        emails=["new@example.com"],
+        organization="IR",
+    )
+    await service.delete_subscription(subscription_id)
     assert [request.url.path for request in requests] == [
-        "/login", "/subscriptions", "/api/subscriptions", "/api/subscriptions/schema",
-        "/api/subscriptions/preview", "/api/subscriptions",
-        "/api/subscriptions/a@example.com", "/api/subscriptions/a@example.com",
+        "/login/local", "/subscriptions", "/api/subscriptions", "/api/subscriptions/schema",
+        "/api/subscriptions/preview", "/api/subscriptions/preview", "/api/subscriptions",
+        "/api/subscriptions/subscription/id", "/api/subscriptions/subscription/id",
     ]
+    preview_body, update_preview_body = (json.loads(request.content) for request in requests[4:6])
+    create_body = json.loads(requests[6].content)
+    update_body = json.loads(requests[7].content)
+    assert preview_body == {
+        "mode": "create",
+        "username": "operator@example.com",
+        "emails": ["operator@example.com"],
+        "organization": "SOC",
+        "local_subscription": False,
+        "newsletter_profile": {"enabled": True},
+    }
+    assert update_preview_body == {
+        "mode": "update",
+        "subscription_id": subscription_id,
+        "username": "local-news",
+        "local_subscription": False,
+    }
+    assert create_body == {
+        "username": "local-news",
+        "emails": ["a@example.com", "b@example.com"],
+        "organization": "SOC",
+        "local_subscription": True,
+        "newsletter_profile": {"enabled": True},
+    }
+    assert update_body == {
+        "username": "local-news-updated",
+        "emails": ["new@example.com"],
+        "organization": "IR",
+    }
+    assert "team" not in create_body
+    assert "team" not in update_body
     await service.close()
 
 
@@ -65,7 +120,7 @@ async def test_expired_session_reauthenticates_once():
 
     async def handler(request):
         nonlocal login_count, list_count
-        if request.url.path == "/login":
+        if request.url.path == "/login/local":
             login_count += 1
             return httpx.Response(302, headers={"location": "/subscriptions"})
         if request.url.path == "/subscriptions":
@@ -79,6 +134,27 @@ async def test_expired_session_reauthenticates_once():
     assert await service.list_subscriptions() == {"subscriptions": []}
     assert login_count == 2
     assert list_count == 2
+    await service.close()
+
+
+@pytest.mark.asyncio
+async def test_remote_error_body_is_redacted_and_ids_are_required():
+    async def handler(request):
+        if request.method == "POST" and request.url.path == "/login/local":
+            return httpx.Response(302, headers={"location": "/subscriptions"})
+        if request.url.path == "/subscriptions":
+            return httpx.Response(200, text="ok")
+        return httpx.Response(400, text="password=super-secret@example.com")
+
+    service = EmailSubscriptionService(settings(), client_for(handler))
+    with pytest.raises(ServiceError) as error:
+        await service.list_subscriptions()
+    assert error.value.code == "email_server_request_failed"
+    assert "super-secret" not in error.value.message
+    with pytest.raises(ServiceError, match="subscription_id"):
+        await service.update_subscription("")
+    with pytest.raises(ServiceError, match="subscription_id"):
+        await service.delete_subscription("")
     await service.close()
 
 

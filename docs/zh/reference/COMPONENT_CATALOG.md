@@ -81,8 +81,8 @@
 - **路径:** `unified_mcp_server/email/{service.py, tools.py}`
 - **职责:** 外部邮件订阅服务管理：列出、Schema、预览、创建、更新、删除。
 - **入口:** `server.py` 的 `register_email_tools`；管理 `test-subscription-server`。
-- **输入/输出:** `httpx.AsyncClient` 到 `SUBSCRIPTION_SERVER_URL`；手动重定向校验（≤5、同主机、不降级）；401 时恰好重登一次。
-- **测试:** `test_email_service.py`（3）。
+- **输入/输出:** `httpx.AsyncClient` 到 `SUBSCRIPTION_SERVER_URL`（`/login/local`、订阅列表/schema/preview 及按 `subscription_id` 的 `/api/subscriptions/{subscription_id}` 路由）；使用 Rust 原生的 `username`/`emails`/`organization`/`local_subscription` 与 profile 字段；手动重定向校验（≤5、同主机、不降级）；401 时恰好重登一次。
+- **测试:** `test_email_service.py`（5）。
 - **运行状态:** 活跃（未配置时 `not_configured`）。
 
 ## 8. Splunk 桥接（`splunk-official-mcp` → `dsh-soc-agent/splunk-bridge`）

@@ -55,16 +55,16 @@ All writes replace the **complete** rule set and require `expected_fingerprint` 
 
 ## 3. `soc_agent` — subscription tools (6)
 
-External dependency: subscription web service (`SUBSCRIPTION_SERVER_URL`, form login, redirect-validated). Identity source: service credentials from environment (not per-user).
+External dependency: the Rust subscription web service (`SUBSCRIPTION_SERVER_URL`, local-administrator form login at `/login/local`, redirect-validated). Identity source: the configured local-administrator credentials from the environment (not per-user). Zimbra subscriptions retain the existing Zimbra account email; local subscriptions use manually supplied recipient addresses. The local administrator can manage all subscriptions.
 
 | Raw name | Fully qualified name | Purpose | Class | Default action state | Tests |
 |---|---|---|---|---|---|
 | `list_subscriptions` | `mcp__soc_agent__list_subscriptions` | `GET /api/subscriptions` | read | auto | `test_email_service.py` |
 | `get_subscription_schema` | `mcp__soc_agent__get_subscription_schema` | Live schema/fields/limits | read | auto | `test_email_service.py` |
 | `preview_subscription` | `mcp__soc_agent__preview_subscription` | Dry-run create/update validation | read | auto | `test_email_service.py` |
-| `create_subscription` | `mcp__soc_agent__create_subscription` | `POST /api/subscriptions` | mutation | ask | `ACTION_CATALOG` |
-| `update_subscription` | `mcp__soc_agent__update_subscription` | `PUT /api/subscriptions/{email}` | mutation | ask | `ACTION_CATALOG` |
-| `delete_subscription` | `mcp__soc_agent__delete_subscription` | `DELETE /api/subscriptions/{email}` | mutation | ask | `ACTION_CATALOG` |
+| `create_subscription` | `mcp__soc_agent__create_subscription` | `POST /api/subscriptions` with `username`, `emails`, `organization`, `local_subscription`, and profiles | mutation | ask | `ACTION_CATALOG` |
+| `update_subscription` | `mcp__soc_agent__update_subscription` | `PUT /api/subscriptions/{subscription_id}`; Rust fields `username`, `emails`, `organization`, and profiles | mutation | ask | `ACTION_CATALOG` |
+| `delete_subscription` | `mcp__soc_agent__delete_subscription` | `DELETE /api/subscriptions/{subscription_id}` | mutation | ask | `ACTION_CATALOG` |
 
 ## 4. `splunk_mcp` — official Splunk read tools (13, bridge allowlist)
 

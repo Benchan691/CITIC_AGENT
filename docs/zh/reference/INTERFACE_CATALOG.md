@@ -73,7 +73,7 @@
 | 调用 | 发起方 | 协议/认证 | 错误 |
 |---|---|---|---|
 | Zimbra SOAP（`/service/soap`；上传 `?fmt=raw`） | `zimbra.py` via `zimbra-client` | XML over HTTPS（`ZIMBRA_HOST`），按调用会话令牌 | `zimbra_auth_error`（删应用会话）、`zimbra_tls_error`、`zimbra_connection_error`（可重试）、`zimbra_api_error`、`query_validation_error` |
-| 订阅 REST（`/login`、`/api/subscriptions[…]`） | `email/service.py` | httpx；表单登录；≤5 同主机重定向、不降级 | `email_server_unavailable`（可重试）、`email_server_auth_failed`、`email_server_request_failed`（仅状态码）、`email_server_invalid_response` |
+| 订阅 REST（`/login/local`、`/api/subscriptions`、`/api/subscriptions/schema`、`/api/subscriptions/preview`、`/api/subscriptions/{subscription_id}`） | `email/service.py` | httpx；本地管理员表单登录；Rust 字段（`username`、`emails`、`organization`、`local_subscription`、profiles）；ID 进行 URL 编码；≤5 次同主机重定向、不降级 | `email_server_unavailable`（可重试）、`email_server_auth_failed`、`email_server_request_failed`（仅状态码）、`email_server_invalid_response` |
 | 官方 Splunk MCP | `splunk-bridge.js` | streamable HTTP + Bearer；端点 URL 校验；TLS 默认校验；管理探针 = 真实 `splunk_get_info` 调用 | 连接/超时失败记日志；配置后启动失败致命 |
 
 ## 7. 存储接口

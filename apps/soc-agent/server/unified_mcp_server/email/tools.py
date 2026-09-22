@@ -10,7 +10,11 @@ from mcp.server.fastmcp import Context
 def register_tools(server, *, get_runtime, execute) -> None:
     @server.tool(annotations={"readOnlyHint": True})
     async def list_subscriptions(ctx: Context) -> dict[str, Any]:
-        """List webserver notification subscriptions."""
+        """List subscriptions visible to the authenticated local administrator.
+
+        Zimbra subscriptions use the existing Zimbra account email. Local
+        subscriptions use their manually supplied recipient addresses.
+        """
         return await execute(
             ctx,
             "subscription",
@@ -20,7 +24,7 @@ def register_tools(server, *, get_runtime, execute) -> None:
 
     @server.tool(annotations={"readOnlyHint": True})
     async def get_subscription_schema(ctx: Context) -> dict[str, Any]:
-        """Get live webserver subscription fields, defaults, enums, and limits."""
+        """Get live Rust webserver subscription fields, defaults, and limits."""
         return await execute(
             ctx,
             "subscription",
@@ -32,62 +36,107 @@ def register_tools(server, *, get_runtime, execute) -> None:
     async def preview_subscription(
         ctx: Context,
         mode: str = "create",
-        email: str = "",
+        subscription_id: str = "",
+        username: str = "",
+        emails: list[str] | None = None,
+        organization: str = "",
+        local_subscription: bool = False,
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Validate a proposed subscription without saving or notifying."""
+        """Validate a Rust subscription payload without saving or notifying.
+
+        For updates, identify the record with subscription_id. Zimbra
+        subscriptions use the existing Zimbra account email; local
+        subscriptions accept manually supplied recipient addresses. The
+        authenticated local administrator can preview any visible record.
+        """
         return await execute(
             ctx,
             "subscription",
             "preview_subscription",
             lambda: get_runtime(ctx).email_subscriptions.preview_subscription(
-                mode, email, newsletter_profile, report_profile,
+                mode,
+                subscription_id,
+                username,
+                emails,
+                organization,
+                local_subscription,
+                newsletter_profile,
+                report_profile,
             ),
         )
 
     @server.tool()
     async def create_subscription(
         ctx: Context,
-        email: str,
-        team: str,
+        username: str,
+        emails: list[str],
+        organization: str = "",
+        local_subscription: bool = False,
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create a webserver notification subscription."""
+        """Create a Rust webserver subscription.
+
+        A Zimbra subscription uses the existing Zimbra account email. Set
+        local_subscription for a local subscription and provide one or more
+        manually managed recipient addresses. Local administrator access can
+        manage all subscriptions.
+        """
         return await execute(
             ctx,
             "subscription",
             "create_subscription",
             lambda: get_runtime(ctx).email_subscriptions.create_subscription(
-                email, team, newsletter_profile, report_profile,
+                username,
+                emails,
+                organization,
+                local_subscription,
+                newsletter_profile,
+                report_profile,
             ),
         )
 
     @server.tool()
     async def update_subscription(
         ctx: Context,
-        email: str,
-        team: str | None = None,
+        subscription_id: str,
+        username: str | None = None,
+        emails: list[str] | None = None,
+        organization: str | None = None,
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Update a webserver notification subscription."""
+        """Update a subscription by its Rust subscription ID.
+
+        Zimbra subscriptions keep the existing Zimbra account email. Local
+        subscriptions may update their manually supplied recipient addresses.
+        The authenticated local administrator can update all subscriptions.
+        """
         return await execute(
             ctx,
             "subscription",
             "update_subscription",
             lambda: get_runtime(ctx).email_subscriptions.update_subscription(
-                email, team, newsletter_profile, report_profile,
+                subscription_id,
+                username,
+                emails,
+                organization,
+                newsletter_profile,
+                report_profile,
             ),
         )
 
     @server.tool()
-    async def delete_subscription(ctx: Context, email: str) -> dict[str, Any]:
-        """Delete a webserver notification subscription."""
+    async def delete_subscription(ctx: Context, subscription_id: str) -> dict[str, Any]:
+        """Delete a subscription by its Rust subscription ID.
+
+        Local administrator access can delete any subscription it can see.
+        """
         return await execute(
             ctx,
             "subscription",
             "delete_subscription",
-            lambda: get_runtime(ctx).email_subscriptions.delete_subscription(email),
+            lambda: get_runtime(ctx).email_subscriptions.delete_subscription(subscription_id),
         )

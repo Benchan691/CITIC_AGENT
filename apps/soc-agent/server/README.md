@@ -29,6 +29,15 @@ only providers whose named credential is currently configured; adding or
 removing a credential refreshes that picker without exposing the credential
 reference to users.
 
+Subscription tools connect to the Rust webserver configured by
+`SUBSCRIPTION_SERVER_URL` (normally port 9100) and authenticate with the local
+administrator credentials in `SUBSCRIPTION_SERVER_USER` and
+`SUBSCRIPTION_SERVER_PASSWORD` through `/login/local`. They use the Rust
+subscription IDs for update and delete operations. Zimbra subscriptions keep
+the existing Zimbra account email; local subscriptions use manually supplied
+recipient addresses. Keep these service credentials in the ignored `.env` and
+never in tool arguments or documentation.
+
 The host exposes the approved official Splunk MCP read tools directly when
 both `SPLUNK_MCP_ENDPOINT` and `SPLUNK_TOKEN` are set. Configure them in the
 ignored `.env` file:

@@ -44,7 +44,7 @@ flowchart TD
 | 登录/归属 | `APP_POSTGRES_URI`（链之一）+ `APP_SETTINGS_ENCRYPTION_KEY` |
 | Zimbra 功能 | `ZIMBRA_HOST`（`configured = bool(host)`） |
 | Splunk 桥接 | `SPLUNK_MCP_ENDPOINT` **和** `SPLUNK_TOKEN` — setup 与 `--check` 直接要求，二者缺一桥接保持关闭 |
-| 订阅工具 | `SUBSCRIPTION_SERVER_URL` + `SUBSCRIPTION_SERVER_USER` + `SUBSCRIPTION_SERVER_PASSWORD` |
+| 订阅工具 | Rust web 服务（通常为 9100 端口）及本地管理员用户名/密码：`SUBSCRIPTION_SERVER_URL` + `SUBSCRIPTION_SERVER_USER` + `SUBSCRIPTION_SERVER_PASSWORD`；客户端使用 `/login/local` |
 | LLM 转换（MarkItDown OCR/LLM） | `MARKITDOWN_LLM_ENABLED=true` ⇒ `MARKITDOWN_LLM_API_KEY` + `MARKITDOWN_LLM_MODEL` |
 | 其余 | 可选，默认值安全（超时、限额、TLS 校验开启） |
 
@@ -67,7 +67,7 @@ flowchart TD
 | Splunk（桥接） | **必配**；仅五变量（endpoint/token/verify/insecure/sanitize）；185 秒超时固定在桥接内 |
 | Splunk（遗留配置） | *本轮已移除* — REST/策略/查找/队列变量族全部删除；`SplunkSettings` 只剩五个桥接字段，`public_status` 报告 `official_mcp_enabled` |
 | Zimbra | 主机 + TLS + 超时 + 七个变更门（`ZIMBRA_ALLOW_*`）+ 附件限额；遗留 `ZIMBRA_EMAIL/PASSWORD` 与账户文件变量已从模板与代码中移除 |
-| 订阅 | URL/用户/密码/超时/明文选择；重定向策略硬编码（≤5、同主机、不降级） |
+| 订阅 | Rust web 服务 URL/本地管理员凭据/超时/明文选择；使用 `/login/local` 和按 ID 的订阅路由；重定向策略硬编码（≤5、同主机、不降级） |
 | MarkItDown | 可选 LLM/OCR（key+model）；内建转换始终可用 |
 | Harness | `vendor/deepseek-harness/.env` 只接收 setup 写入的 Postgres URI + 加密密钥 |
 | Schema 迁移 | 不走环境 — `schema migrate` 从 stdin 接收 URI（防止误初始化别的库） |

@@ -123,7 +123,7 @@ class EmailSubscriptionService:
         try:
             response = await self._request_with_redirects(
                 "POST",
-                "/login",
+                "/login/local",
                 data={
                     "username": self.settings.username,
                     "password": self.settings.password,
@@ -141,7 +141,7 @@ class EmailSubscriptionService:
                 "The email webserver could not be reached.",
                 retryable=True,
             ) from exc
-        if response.status_code >= 400 or response.url.path == "/login":
+        if response.status_code >= 400 or response.url.path == "/login/local":
             raise ServiceError(
                 "email_server_auth_failed",
                 "The email webserver credentials were rejected.",
@@ -199,8 +199,23 @@ class EmailSubscriptionService:
         return payload
 
     @staticmethod
-    def _email_path(email: str) -> str:
-        return f"/api/subscriptions/{quote(email, safe='')}"
+    def _subscription_path(subscription_id: str) -> str:
+        return f"/api/subscriptions/{quote(subscription_id, safe='')}"
+
+    @staticmethod
+    def _emails(value: list[str] | None, *, required: bool = False) -> list[str] | None:
+        if value is None:
+            if required:
+                raise ServiceError("invalid_input", "emails are required.")
+            return None
+        if not isinstance(value, list):
+            raise ServiceError("invalid_input", "emails must be a list.")
+        emails = [str(item or "").strip() for item in value]
+        if not emails or any(not email for email in emails):
+            raise ServiceError("invalid_input", "emails must contain at least one address.")
+        if len(emails) > 50:
+            raise ServiceError("invalid_input", "emails cannot contain more than 50 addresses.")
+        return emails
 
     @staticmethod
     def _profile(value: dict[str, Any] | None, name: str) -> dict[str, Any] | None:
@@ -226,19 +241,33 @@ class EmailSubscriptionService:
     async def preview_subscription(
         self,
         mode: str = "create",
-        email: str = "",
+        subscription_id: str = "",
+        username: str = "",
+        emails: list[str] | None = None,
+        organization: str = "",
+        local_subscription: bool = False,
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         mode = str(mode or "").strip().lower()
         if mode not in {"create", "update"}:
             raise ServiceError("invalid_input", "mode must be create or update.")
-        email = str(email or "").strip()
-        if mode == "update" and not email:
-            raise ServiceError("invalid_input", "email is required for update preview.")
         payload: dict[str, Any] = {"mode": mode}
-        if email:
-            payload["email"] = email
+        subscription_id = str(subscription_id or "").strip()
+        if mode == "update" and not subscription_id:
+            raise ServiceError("invalid_input", "subscription_id is required for update preview.")
+        if subscription_id:
+            payload["subscription_id"] = subscription_id
+        username = str(username or "").strip()
+        if username:
+            payload["username"] = username
+        normalized_emails = self._emails(emails)
+        if normalized_emails is not None:
+            payload["emails"] = normalized_emails
+        organization = str(organization or "").strip()
+        if organization:
+            payload["organization"] = organization
+        payload["local_subscription"] = bool(local_subscription)
         if self._profile(newsletter_profile, "newsletter_profile") is not None:
             payload["newsletter_profile"] = newsletter_profile
         if self._profile(report_profile, "report_profile") is not None:
@@ -247,16 +276,25 @@ class EmailSubscriptionService:
 
     async def create_subscription(
         self,
-        email: str,
-        team: str,
+        username: str,
+        emails: list[str],
+        organization: str = "",
+        local_subscription: bool = False,
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        email = str(email or "").strip()
-        team = str(team or "").strip()
-        if not email or not team:
-            raise ServiceError("invalid_input", "email and team are required.")
-        payload: dict[str, Any] = {"email": email, "team": team}
+        username = str(username or "").strip()
+        if not username:
+            raise ServiceError("invalid_input", "username is required.")
+        normalized_emails = self._emails(emails, required=True)
+        payload: dict[str, Any] = {
+            "username": username,
+            "emails": normalized_emails,
+            "local_subscription": bool(local_subscription),
+        }
+        organization = str(organization or "").strip()
+        if organization:
+            payload["organization"] = organization
         if self._profile(newsletter_profile, "newsletter_profile") is not None:
             payload["newsletter_profile"] = newsletter_profile
         if self._profile(report_profile, "report_profile") is not None:
@@ -265,30 +303,37 @@ class EmailSubscriptionService:
 
     async def update_subscription(
         self,
-        email: str,
-        team: str | None = None,
+        subscription_id: str,
+        username: str | None = None,
+        emails: list[str] | None = None,
+        organization: str | None = None,
         newsletter_profile: dict[str, Any] | None = None,
         report_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        email = str(email or "").strip()
-        if not email:
-            raise ServiceError("invalid_input", "email is required.")
-        if team is None and newsletter_profile is None and report_profile is None:
+        subscription_id = str(subscription_id or "").strip()
+        if not subscription_id:
+            raise ServiceError("invalid_input", "subscription_id is required.")
+        if username is None and emails is None and organization is None and newsletter_profile is None and report_profile is None:
             raise ServiceError("invalid_input", "At least one subscription field is required.")
         payload: dict[str, Any] = {}
-        if team is not None:
-            team = str(team).strip()
-            if not team:
-                raise ServiceError("invalid_input", "team cannot be empty.")
-            payload["team"] = team
+        if username is not None:
+            username = str(username).strip()
+            if not username:
+                raise ServiceError("invalid_input", "username cannot be empty.")
+            payload["username"] = username
+        normalized_emails = self._emails(emails)
+        if normalized_emails is not None:
+            payload["emails"] = normalized_emails
+        if organization is not None:
+            payload["organization"] = str(organization).strip()
         if self._profile(newsletter_profile, "newsletter_profile") is not None:
             payload["newsletter_profile"] = newsletter_profile
         if self._profile(report_profile, "report_profile") is not None:
             payload["report_profile"] = report_profile
-        return await self._request("PUT", self._email_path(email), json=payload)
+        return await self._request("PUT", self._subscription_path(subscription_id), json=payload)
 
-    async def delete_subscription(self, email: str) -> dict[str, Any]:
-        email = str(email or "").strip()
-        if not email:
-            raise ServiceError("invalid_input", "email is required.")
-        return await self._request("DELETE", self._email_path(email))
+    async def delete_subscription(self, subscription_id: str) -> dict[str, Any]:
+        subscription_id = str(subscription_id or "").strip()
+        if not subscription_id:
+            raise ServiceError("invalid_input", "subscription_id is required.")
+        return await self._request("DELETE", self._subscription_path(subscription_id))

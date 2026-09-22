@@ -93,9 +93,9 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 - **Paths:** `unified_mcp_server/email/{service.py, tools.py}`
 - **Purpose:** manage email subscriptions on an external web service: list, schema, preview, create, update, delete.
 - **Entry points:** `register_email_tools` in `server.py`; admin `test-subscription-server`.
-- **Inputs/outputs:** `httpx.AsyncClient` to `SUBSCRIPTION_SERVER_URL` (`/login`, `/api/subscriptions[...]`); manual redirect validation (max 5, same host, no downgrades); one re-login on 401.
+- **Inputs/outputs:** `httpx.AsyncClient` to `SUBSCRIPTION_SERVER_URL` (`/login/local`, `/api/subscriptions`, `/api/subscriptions/schema`, `/api/subscriptions/preview`, and ID-based `/api/subscriptions/{subscription_id}` routes); Rust-native `username`/`emails`/`organization`/`local_subscription` and profile fields; manual redirect validation (max 5, same host, no downgrades); one re-login on 401.
 - **Trust level:** service credentials from env; remote error bodies never surfaced (`email_server_request_failed` + status only).
-- **Tests:** `test_email_service.py` (3).
+- **Tests:** `test_email_service.py` (5).
 - **Runtime status:** Active (Conditional: `not_configured` without `SUBSCRIPTION_SERVER_URL`+user+password).
 
 ## 8. Splunk bridge (`splunk-official-mcp` → `dsh-soc-agent/splunk-bridge`)

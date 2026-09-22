@@ -54,9 +54,26 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert schema_tool.parameters.get("required", []) == []
     preview_tool = next(tool for tool in tools if tool.name == "preview_subscription")
     assert set(preview_tool.parameters["properties"]) == {
-        "mode", "email", "newsletter_profile", "report_profile",
+        "mode", "subscription_id", "username", "emails", "organization",
+        "local_subscription", "newsletter_profile", "report_profile",
     }
     assert preview_tool.parameters.get("required", []) == []
+
+    create_tool = next(tool for tool in tools if tool.name == "create_subscription")
+    assert set(create_tool.parameters["properties"]) == {
+        "username", "emails", "organization", "local_subscription",
+        "newsletter_profile", "report_profile",
+    }
+    assert set(create_tool.parameters["required"]) == {"username", "emails"}
+    update_tool = next(tool for tool in tools if tool.name == "update_subscription")
+    assert set(update_tool.parameters["properties"]) == {
+        "subscription_id", "username", "emails", "organization",
+        "newsletter_profile", "report_profile",
+    }
+    assert update_tool.parameters["required"] == ["subscription_id"]
+    delete_tool = next(tool for tool in tools if tool.name == "delete_subscription")
+    assert set(delete_tool.parameters["properties"]) == {"subscription_id"}
+    assert delete_tool.parameters["required"] == ["subscription_id"]
 
     draft_tool = next(tool for tool in tools if tool.name == "zimbra_send_email")
     assert set(draft_tool.parameters["properties"]) == {

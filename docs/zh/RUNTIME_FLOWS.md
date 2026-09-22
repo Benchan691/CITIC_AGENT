@@ -117,7 +117,7 @@ sequenceDiagram
 
 ## 9. 订阅读取、预览与变更
 
-读（`list_subscriptions`、`get_subscription_schema`、`preview_subscription`）默认自动执行。预览对外部 API 做干跑（`POST /api/subscriptions/preview`；mode `create|update`；update 必须带 email）。变更（`create/update/delete_subscription`）在 `ACTION_CATALOG` → 默认 `ask` → harness 审批流在执行前呈现给用户；Python 客户端再叠加校验（update 需 email、至少一个字段、team 非空）并对 URL 中的 email 做转义。客户端生命周期：每进程一次表单登录、401 时恰好一次重登、≤5 次同源重定向（不降级）、远端错误体不外泄。
+读（`list_subscriptions`、`get_subscription_schema`、`preview_subscription`）默认自动执行。客户端使用配置的本地管理员调用 `POST /login/local`，随后使用 Rust API（`POST /api/subscriptions/preview`；mode `create|update`；update 必须带 `subscription_id`）。变更（`create/update/delete_subscription`）在 `ACTION_CATALOG` → 默认 `ask` → harness 审批流在执行前呈现给用户；创建/更新使用 `username`、`emails`、`organization`、`local_subscription` 和 profile 对象，更新/删除按 URL 编码的 `subscription_id` 定位。Zimbra 订阅继续使用现有 Zimbra 账号邮箱，本地订阅接受手工收件地址。客户端生命周期：每进程一次表单登录、401 时恰好一次重登、≤5 次同源重定向（不降级）、远端错误体不外泄。
 **证据:** `email/service.py`、`email/tools.py`、`test_email_service.py`、`policy.js ACTION_CATALOG`。
 
 ## 10. Full access 与 SOC mode 的判定行为

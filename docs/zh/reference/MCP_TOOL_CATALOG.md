@@ -53,16 +53,16 @@
 
 ## 3. `soc_agent` — 订阅工具（6）
 
-外部依赖: 订阅 web 服务（`SUBSCRIPTION_SERVER_URL`、表单登录、重定向校验）。身份源: 环境中的服务凭据（非按用户）。
+外部依赖: Rust 订阅 web 服务（`SUBSCRIPTION_SERVER_URL`，使用本地管理员 `/login/local` 表单登录并校验重定向）。身份源: 环境中的本地管理员服务凭据（非按用户）。Zimbra 订阅继续使用现有 Zimbra 账号邮箱；本地订阅使用手工提供的收件地址。本地管理员可管理所有订阅。
 
 | 原始名 | 用途 | 分类 | 默认状态 |
 |---|---|---|---|
 | `list_subscriptions` | `GET /api/subscriptions` | 读 | auto |
 | `get_subscription_schema` | 实时 schema/字段/限额 | 读 | auto |
 | `preview_subscription` | 创建/更新干跑校验 | 读 | auto |
-| `create_subscription` | `POST /api/subscriptions` | 变更 | ask |
-| `update_subscription` | `PUT /api/subscriptions/{email}` | 变更 | ask |
-| `delete_subscription` | `DELETE /api/subscriptions/{email}` | 变更 | ask |
+| `create_subscription` | `POST /api/subscriptions`，字段 `username`、`emails`、`organization`、`local_subscription` 与 profiles | 变更 | ask |
+| `update_subscription` | `PUT /api/subscriptions/{subscription_id}`；Rust 字段 `username`、`emails`、`organization` 与 profiles | 变更 | ask |
+| `delete_subscription` | `DELETE /api/subscriptions/{subscription_id}` | 变更 | ask |
 
 测试: `test_email_service.py`（3）。
 

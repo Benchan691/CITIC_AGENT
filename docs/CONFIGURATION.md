@@ -43,7 +43,7 @@ Source: [diagrams/configuration-precedence.mmd](diagrams/configuration-precedenc
 | Login/ownership | `APP_POSTGRES_URI` (one of the chain) + `APP_SETTINGS_ENCRYPTION_KEY` |
 | Zimbra features | `ZIMBRA_HOST` (`configured = bool(host)`) |
 | Splunk bridge | `SPLUNK_MCP_ENDPOINT` **and** `SPLUNK_TOKEN` — both or the bridge stays off |
-| Subscription tools | `SUBSCRIPTION_SERVER_URL` + `SUBSCRIPTION_SERVER_USER` + `SUBSCRIPTION_SERVER_PASSWORD` |
+| Subscription tools | Rust webserver URL (normally port 9100) + local administrator username/password: `SUBSCRIPTION_SERVER_URL` + `SUBSCRIPTION_SERVER_USER` + `SUBSCRIPTION_SERVER_PASSWORD`; the client uses `/login/local` |
 | LLM conversion (MarkItDown OCR/LLM) | `MARKITDOWN_LLM_ENABLED=true` ⇒ `MARKITDOWN_LLM_API_KEY` + `MARKITDOWN_LLM_MODEL` |
 | Everything else | Optional with safe defaults (timeouts, limits, TLS verification on) |
 
@@ -66,7 +66,7 @@ Source: [diagrams/configuration-precedence.mmd](diagrams/configuration-precedenc
 | Splunk (bridge) | **Required**: endpoint + token; `SPLUNK_VERIFY_SSL` default true; plain HTTP requires `SPLUNK_ALLOW_INSECURE_HTTP=true`; timeout 185 s fixed in the bridge |
 | Splunk (retained config) | *Removed this round* — the REST/policy/lookup/queue variable families are gone; `SplunkSettings` is just the five bridge fields, and setup/`--check` **require** the connection |
 | Zimbra | Host + TLS + timeout + seven mutation gates (`ZIMBRA_ALLOW_*`) + attachment limits; legacy `ZIMBRA_EMAIL/PASSWORD` and account-file keys are compat-only |
-| Subscription | URL/user/password/timeout/allow-insecure-http; redirect policy hard-coded (≤5, same host, no downgrades) |
+| Subscription | Rust webserver URL/local-admin credentials/timeout/allow-insecure-http; `/login/local`; ID-based subscription routes; redirect policy hard-coded (≤5, same host, no downgrades) |
 | MarkItDown | Optional LLM/OCR via key+model; built-in conversion always available |
 | Harness | `vendor/deepseek-harness/.env` receives only the Postgres URI + encryption key from setup |
 

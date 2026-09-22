@@ -75,8 +75,8 @@ setup 与 `./setup.sh --check` **要求**此连接。`SplunkSettings` 现在只�
 
 | 变量 | 用途 | 默认/校验 |
 |---|---|---|
-| `SUBSCRIPTION_SERVER_URL` | 订阅服务基址 | 与用户+密码共同构成 `configured`；默认 https；无凭据/片段 |
-| `SUBSCRIPTION_SERVER_USER` / `SUBSCRIPTION_SERVER_PASSWORD` | 服务登录 | **机密**（密码） |
+| `SUBSCRIPTION_SERVER_URL` | Rust 订阅 web 服务基址（通常为 9100 端口；登录路由 `/login/local`） | 与本地管理员用户+密码共同构成 `configured`；默认 https；无凭据/片段 |
+| `SUBSCRIPTION_SERVER_USER` / `SUBSCRIPTION_SERVER_PASSWORD` | Rust web 服务的本地管理员服务登录 | **机密**（密码） |
 | `SUBSCRIPTION_SERVER_TIMEOUT` | 秒 | 30（1–600） |
 | `MARKITDOWN_LLM_ENABLED` | 启用 LLM/OCR 转换 | false；为 true 时需 `MARKITDOWN_LLM_API_KEY` + `MARKITDOWN_LLM_MODEL` |
 | `MARKITDOWN_LLM_API_KEY` / `BASE_URL` / `MODEL` / `TIMEOUT` | LLM 转换配置 | **机密**（API key） |

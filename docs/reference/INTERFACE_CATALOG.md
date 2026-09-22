@@ -73,7 +73,7 @@ Registered with `authority: 'trusted-host'`; every endpoint re-checks auth (`req
 | Call | From | Protocol / auth | Errors |
 |---|---|---|---|
 | Zimbra SOAP (`/service/soap`, upload `?fmt=raw`) | `zimbra.py` via `zimbra-client` | XML over HTTPS (`ZIMBRA_HOST`), per-call session token | `zimbra_auth_error` (deletes app session), `zimbra_tls_error`, `zimbra_connection_error` (retryable), `zimbra_api_error`, `query_validation_error` |
-| Subscription REST (`/login`, `/api/subscriptions[…]`) | `email/service.py` | httpx; form login; ≤5 same-host redirects, no downgrades | `email_server_unavailable` (retryable), `email_server_auth_failed`, `email_server_request_failed` (status only; bodies withheld), `email_server_invalid_response` |
+| Subscription REST (`/login/local`, `/api/subscriptions`, `/api/subscriptions/schema`, `/api/subscriptions/preview`, `/api/subscriptions/{subscription_id}`) | `email/service.py` | httpx; local-admin form login; Rust fields (`username`, `emails`, `organization`, `local_subscription`, profiles); IDs are URL-encoded; ≤5 same-host redirects, no downgrades | `email_server_unavailable` (retryable), `email_server_auth_failed`, `email_server_request_failed` (status only; bodies withheld), `email_server_invalid_response` |
 | Official Splunk MCP | `splunk-bridge.js` | streamable HTTP + Bearer (`SPLUNK_TOKEN`); endpoint URL validated (no credentials/query/fragment; plain HTTP requires `SPLUNK_ALLOW_INSECURE_HTTP=true`); TLS verified by default; admin probe = real `splunk_get_info` call | connection/timeout failures logged; startup failure fatal when configured |
 
 ## 7. Storage interfaces
