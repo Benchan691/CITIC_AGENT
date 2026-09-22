@@ -1,4 +1,6 @@
 from .zimbra import (
+    ZimbraAuthFlowError,
+    ZimbraLoginAttempt,
     download_attachment,
     require_zimbra_config,
     soap_request,
@@ -14,6 +16,8 @@ from .zimbra import (
     zimbra_list_signatures,
     zimbra_get_filter_rules,
     zimbra_login,
+    zimbra_login_start,
+    zimbra_complete_two_factor,
     zimbra_modify_filter_rules,
     zimbra_move_message,
     zimbra_password,
@@ -23,6 +27,8 @@ from .zimbra import (
 )
 
 __all__ = [
+    "ZimbraAuthFlowError",
+    "ZimbraLoginAttempt",
     "download_attachment",
     "require_zimbra_config",
     "soap_request",
@@ -38,6 +44,8 @@ __all__ = [
     "zimbra_list_signatures",
     "zimbra_get_filter_rules",
     "zimbra_login",
+    "zimbra_login_start",
+    "zimbra_complete_two_factor",
     "zimbra_modify_filter_rules",
     "zimbra_move_message",
     "zimbra_password",

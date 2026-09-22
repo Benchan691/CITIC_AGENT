@@ -38,17 +38,44 @@ sequenceDiagram
     B->>H: POST /auth/login {email,password}
     H->>H: same-site/origin check; 32 KiB JSON cap
     H->>P: runAuthCommand('login') [session_id-less]
-    P->>Z: zimbra_login (SOAP)
-    Z-->>P: token
-    P->>P: create_user_session (encrypt token, revoke other sessions as new_device_login)
-    P-->>H: public_session + replaced_session_ids
-    H->>H: revoke replaced sessions (abort streams, clear modes)
-    H-->>B: 200 {authenticated, user, workspace} + Set-Cookie soc_session (24h, HttpOnly, SameSite=Lax)
+    P->>Z: zimbra_login_start (SOAP AuthRequest)
+    alt invalid credentials/setup/unavailable
+        Z-->>P: error
+        P-->>H: generic authentication_failed
+        H-->>B: 401 invalid email or password
+    else 2FA required
+        Z-->>P: temporary authToken + lifetime
+        P->>P: create_two_factor_challenge (hash id; encrypt token; ≤300 s)
+        P-->>H: masked email + expiry (never token/password)
+        H-->>B: 200 two_factor_required + HttpOnly soc_2fa_challenge
+        B->>H: GET /auth/2fa (reload recovery)
+        H->>P: runAuthCommand('get-2fa')
+        B->>H: POST /auth/2fa {code}
+        H->>P: runAuthCommand('login-2fa')
+        P->>Z: final AuthRequest {authToken,twoFactorCode}
+        alt invalid / expired / locked
+            Z-->>P: safe failure
+            P-->>H: bounded 2FA error
+            H-->>B: 401 + retain or clear challenge cookie
+        else final token
+            Z-->>P: final token
+            P->>P: delete challenge; create_user_session (encrypt token, revoke other sessions)
+            P-->>H: public_session + replaced_session_ids
+            H->>H: revoke replaced sessions; bootstrap General
+            H-->>B: 200 {authenticated, user, workspace} + soc_session
+        end
+    else normal login
+        Z-->>P: final token
+        P->>P: create_user_session (encrypt token, revoke other sessions as new_device_login)
+        P-->>H: public_session + replaced_session_ids
+        H->>H: revoke replaced sessions; bootstrap General
+        H-->>B: 200 {authenticated, user, workspace} + Set-Cookie soc_session (24h, HttpOnly, SameSite=Lax)
+    end
 ```
 
-**Identity authority:** the Postgres row — every later request resolves `soc_session_id` → `soc_app_sessions` → the user's Zimbra token (`identity_for_session`). **Failures:** invalid credentials → generic 401 `invalid email or password` (password never echoed; malformed Python payload → Node deletes any created session); expired → 401 + lazy row deletion; upstream Zimbra token death mid-conversation → `zimbra_auth_error` deletes the app session (`server.py execute`), forcing re-login; cross-site login attempts → 403.
+**Identity authority:** the Postgres row — every later request resolves `soc_session_id` → `soc_app_sessions` → the user's Zimbra token (`identity_for_session`). **Failures:** invalid initial credentials → generic 401 `invalid email or password` (password never echoed); invalid 2FA codes consume five bounded attempts; expired, locked, or cancelled challenges never create application state; unavailable Zimbra retains a live challenge for retry; upstream Zimbra token death mid-conversation → `zimbra_auth_error` deletes the app session (`server.py execute`), forcing re-login; cross-site login attempts → 403.
 **Single-device policy:** a new login replaces older sessions; the old device learns the reason exactly once via the one-shot `soc_session_revocations` row (`SESSION_REPLACED_MESSAGE`).
-**Evidence:** `ownership.js handleAuthRoute`, `auth_cli.py login`, `postgres_store.py create_user_session`; tests `auth.test.js`, `test_auth.py`.
+**Evidence:** `ownership.js handleAuthRoute/handleTwoFactorRoute`, `auth_cli.py login/login_two_factor`, `postgres_store.py` challenge/session methods; tests `auth.test.js`, `test_auth.py`, `test_zimbra_authentication.py`, and the browser auth transition test.
 
 ## 4. Session, workspace, and settings ownership checks
 

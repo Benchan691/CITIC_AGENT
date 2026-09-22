@@ -7,7 +7,7 @@
 
 **What you will understand:** every authentication mechanism, how server-side identity is established and propagated, how per-user isolation is enforced (including the exact ownership checks), how the admin tier differs, credential handling and encryption, session lifecycle, and every denial path.
 
-**Plain-language summary.** There are two principals: analysts (verified against Zimbra, 24 h Postgres-backed sessions, cookie `soc_session`) and the administrator (static env credentials, 8 h in-memory sessions, cookie `soc_admin_session`). The identity established at login — never anything in a prompt or tool result — is attached to every MCP call and every API request, and a scoped proxy makes the harness's own APIs per-user safe. Deny paths fail closed everywhere.
+**Plain-language summary.** There are two principals: analysts (verified against Zimbra, optionally through a short-lived six-digit 2FA challenge, then 24 h Postgres-backed sessions, cookie `soc_session`) and the administrator (static env credentials, 8 h in-memory sessions, cookie `soc_admin_session`). The identity established at login — never anything in a prompt or tool result — is attached to every MCP call and every API request, and a scoped proxy makes the harness's own APIs per-user safe. Deny paths fail closed everywhere.
 
 **Prerequisites:** [ARCHITECTURE.md](ARCHITECTURE.md) §2; flows in [RUNTIME_FLOWS.md](RUNTIME_FLOWS.md) §3–4.
 
@@ -17,10 +17,18 @@
 
 | Mechanism | Principal | Verification | Store | Cookie |
 |---|---|---|---|---|
-| Analyst login `/auth/login` | Zimbra user | Credentials verified **by Zimbra** via Python (`auth_cli login` → `zimbra_login` SOAP); email normalized (`normalize_zimbra_email`) | `soc_app_sessions` (24 h; Zimbra token Fernet-encrypted) | `soc_session`: `HttpOnly; SameSite=Lax; Max-Age=86400; Path=/` + `Secure` when HTTPS is detected (`x-forwarded-proto` or encrypted socket) |
+| Analyst login `/auth/login` | Zimbra user | Credentials verified **by Zimbra** via Python (`auth_cli login` → `zimbra_login_start` SOAP); if `twoFactorAuthRequired`, a second `AuthRequest` exchanges the encrypted temporary token and six-digit code for the final token; email normalized (`normalize_zimbra_email`) | `soc_two_factor_challenges` (hashed opaque id, Fernet-encrypted temporary token, normalized email, ≤300 s, five attempts), then `soc_app_sessions` (24 h; final Zimbra token Fernet-encrypted) | `soc_2fa_challenge`: `HttpOnly; SameSite=Lax; Path=/auth; Max-Age≤300` + `Secure` on HTTPS; cleared on completion, expiry, lockout, or cancellation. Final `soc_session`: `HttpOnly; SameSite=Lax; Max-Age=86400; Path=/` |
 | Admin login `/admin/auth/login` | Static admin | `SOC_ADMIN_EMAIL` equality + `timingSafeEqual` password compare (length pre-check); **required at startup** — missing env throws | In-memory Map keyed by SHA-256(token); 8 h TTL; host restart logs admins out | `soc_admin_session`, same flags, `Max-Age=28800` |
 
 Login hardening (both routes): same-site/origin check (`sec-fetch-site: cross-site` and `Origin`/`Host` mismatch → 403), POST-only (405), JSON-only (415), 32 KiB body cap (400). Failures collapse to fixed messages (`invalid email or password` / `authentication_failed`) — the submitted password is never echoed, and Python's generic `authentication_failed` prevents username enumeration.
+
+### Analyst 2FA workflow
+
+`POST /auth/login` never creates a local user, application session, revocation, chat cancellation, or General workspace while Zimbra is waiting for 2FA. The first SOAP response is reduced to a PostgreSQL challenge; its raw id is sent only as an HttpOnly cookie, while the temporary Zimbra token remains Fernet-encrypted server-side. The browser receives only a masked email and expiry.
+
+`GET /auth/2fa` reloads that challenge after a refresh. `POST /auth/2fa` sends the submitted six-digit ASCII code to the Python `login-2fa` command; invalid formats and invalid Zimbra codes consume one of five attempts. Expired or locked challenges are deleted and clear the cookie. Zimbra unavailability retains the challenge for retry. Only a successful second AuthRequest enters the existing session replacement, chat cancellation, and General workspace bootstrap path. `POST /auth/2fa/cancel` deletes the challenge and clears the cookie.
+
+Passwords and temporary/final Zimbra tokens are never returned to the browser or serialized in public session responses. The separate static admin routes do not use this flow.
 
 **Single-device policy:** each new login revokes the user's other active sessions (`reason: "new_device_login"`), aborts their event streams, cancels their chat agents (including children via the parent-session closure), and clears per-session action modes. The displaced device learns why exactly once, from the one-shot `soc_session_revocations` row: "A new device logged in to this account. You have been signed out."
 
@@ -70,6 +78,7 @@ Live frames (`/api/events.mux`, `/api/events.host`) are filtered per consumer: f
 | Secret | Where | Protection |
 |---|---|---|
 | Zimbra session token | `soc_app_sessions.zimbra_token_encrypted` | Fernet (`APP_SETTINGS_ENCRYPTION_KEY`; valid keys used verbatim, others SHA-256-derived). Node reads deliberately omit the column; `public_session` never serializes it |
+| Zimbra temporary 2FA token | `soc_two_factor_challenges.temporary_token_encrypted` | Fernet; challenge id is stored only as SHA-256, expires within 300 s, and is deleted on completion/expiry/lockout/cancel |
 | Admin password | `SOC_ADMIN_PASSWORD` env | Required at startup; timing-safe compare; in-memory SHA-256 of session tokens; **stripped from every child process env** (Node `childEnvironment`, `runAdmin`; Python `env_loader._NODE_ONLY_ENV_NAMES`) |
 | Settings (`app_config`) | Postgres | Fernet-encrypted per value; key mismatch raises with explicit remediation |
 | Provider API keys | credentials API | Write-only: `credentials.set`; `describe` returns only `configured`/`writable`; UI shows "Stored securely · enter a new key to replace it" |
@@ -81,7 +90,7 @@ Live frames (`/api/events.mux`, `/api/events.host`) are filtered per consumer: f
 - **Expiry:** enforced server-side; expired rows are deleted lazily on read; `/auth/me` reports `expires_at`; the browser polls every 30 s and on focus/visibility to catch expiry.
 - **Logout:** DB session deleted, agent sessions unbound/aborted, cookie cleared (`Max-Age=0`).
 - **Host restart:** analyst sessions survive (Postgres); admin sessions and session action-mode overrides do not (in-memory). In-memory revocation state can be lost on restart, which is why the `soc_session_revocations` table exists.
-- **Denial cases (fail closed):** unauthenticated `/soc-agent-config` → `authentication-required`; user on admin endpoint → `admin-authentication-required` (403); missing Postgres → `authentication_required` from Python (login effectively impossible); expired/unknown session → `session_expired`; upstream token death → `zimbra_auth_error` deletes the app session; cross-site requests → 403.
+- **Denial cases (fail closed):** unauthenticated `/soc-agent-config` → `authentication-required`; user on admin endpoint → `admin-authentication-required` (403); missing Postgres → `authentication_required` from Python (login effectively impossible); expired/unknown session → `session_expired`; expired/locked/cancelled 2FA challenge → cookie cleared and no app session; upstream token death → `zimbra_auth_error` deletes the app session; cross-site requests → 403.
 
 ## 8. What is enforced in the UI vs on the server
 
@@ -97,7 +106,7 @@ Live frames (`/api/events.mux`, `/api/events.host`) are filtered per consumer: f
 
 - `apps/soc-agent/ownership.js` (auth service, scoped proxy, control channel), `auth-host.js` (wiring, metadata)
 - `apps/soc-agent/server/unified_mcp_server/auth.py`, `postgres_store.py`, `auth_cli.py`
-- Tests: `auth.test.js` (10), `user-mode.test.js`, `test_auth.py` (4), plus client `action-policy.test.ts`
+- Tests: `auth.test.js` (including analyst password→2FA→session and admin regression), `test_auth.py` (challenge encryption/expiry/lockout and no-session-before-completion), `test_zimbra_authentication.py`, plus client/browser auth coverage
 - Sequence diagram: [diagrams/authentication-sequence.mmd](diagrams/authentication-sequence.mmd)
 
 ## Unknowns

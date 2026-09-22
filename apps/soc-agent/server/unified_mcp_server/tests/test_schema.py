@@ -71,7 +71,7 @@ def test_concurrent_startup_adopts_existing_rows_and_bootstrap_marker(database):
         list(workers.map(migrate, [database] * 4))
     with psycopg.connect(database) as connection:
         assert connection.execute("SELECT version FROM soc_schema_migrations ORDER BY version").fetchall() == [
-            ("001_initial.sql",), ("002_remove_catalog.sql",),
+            ("001_initial.sql",), ("002_remove_catalog.sql",), ("003_two_factor_challenges.sql",),
         ]
         for table in ("app_config", "zimbra_accounts", "soc_users", "soc_app_sessions",
                       "soc_workspace_owners", "soc_session_owners", "soc_folder_owners"):
@@ -81,9 +81,10 @@ def test_concurrent_startup_adopts_existing_rows_and_bootstrap_marker(database):
         assert connection.execute("""
             SELECT COUNT(*) FROM pg_indexes WHERE indexname IN (
                 'soc_app_sessions_user_idx', 'soc_app_sessions_expiry_idx',
-                'soc_session_owners_user_idx', 'soc_session_owners_workspace_idx'
+                'soc_session_owners_user_idx', 'soc_session_owners_workspace_idx',
+                'soc_two_factor_challenges_expiry_idx'
             )
-        """).fetchone() == (4,)
+        """).fetchone() == (5,)
 
 
 def test_migration_failure_rolls_back_and_can_retry(database):
@@ -130,4 +131,4 @@ def test_node_startup_uses_python_migrations_for_its_resolved_uri(database):
                                 "APP_POSTGRES_URI": "postgresql://invalid.example.test/wrong-database",
                                 "APP_SETTINGS_ENCRYPTION_KEY": "",
                             })
-    assert json.loads(result.stdout) == [{"count": "2"}]
+    assert json.loads(result.stdout) == [{"count": "3"}]

@@ -56,12 +56,12 @@ Runtime-status legend: **Active** (always on) · **Conditional** (on when config
 - **Paths:** `apps/soc-agent/auth-host.js`, `apps/soc-agent/ownership.js`
 - **Purpose:** authenticate users (Zimbra credentials) and the admin (static env credentials); enforce per-user workspace/session ownership on every API; inject per-call MCP metadata; fence private routes.
 - **Owner/responsibility:** identity authority at the Node tier; ownership claims in Postgres; session revocation (including single-device replacement).
-- **Entry points:** `apply(ctx)`; HTTP routes `/auth/login|logout|me`, `/admin/auth/login|logout|me`; `installTransport` (fences `/api` and `/soc-agent-*` routes and `/api/events.mux|host` upgrades); `mcp/request-meta` hook (global); `connectionAuthorization.authorizePrivilegedRequest`.
+- **Entry points:** `apply(ctx)`; HTTP routes `/auth/login|2fa|2fa/cancel|logout|me`, `/admin/auth/login|logout|me`; `installTransport` (fences `/api` and `/soc-agent-*` routes and `/api/events.mux|host` upgrades); `mcp/request-meta` hook (global); `connectionAuthorization.authorizePrivilegedRequest`.
 - **Inputs/outputs:** in: HTTP requests, connection requests; out: `soc_session`/`soc_admin_session` cookies, scoped API proxy (9 domains), MCP metadata `{soc_session_id, soc_investigation_id, soc_customer_id:"", soc_correlation_id, soc_deadline_ms}`, control-channel commands.
-- **State:** Postgres via `SocStateStore` (`soc_users`, `soc_app_sessions` with encrypted Zimbra token, `soc_session_revocations`, `soc_workspace_owners`, `soc_session_owners`, `soc_folder_owners`, `soc_bootstrap`); in-memory admin sessions (SHA-256-hashed tokens, 8 h) and per-session action-mode map; workspaces under `MCP_SERVER_ROOT/.data/soc-workspaces/<userId>/`.
+- **State:** Postgres via `SocStateStore` (`soc_users`, `soc_two_factor_challenges` with hashed id and encrypted temporary token, `soc_app_sessions` with encrypted final Zimbra token, `soc_session_revocations`, `soc_workspace_owners`, `soc_session_owners`, `soc_folder_owners`, `soc_bootstrap`); in-memory admin sessions (SHA-256-hashed tokens, 8 h) and per-session action-mode map; workspaces under `MCP_SERVER_ROOT/.data/soc-workspaces/<userId>/`.
 - **Trust level:** the identity and isolation boundary. Admin credentials never forwarded to child processes.
 - **Dependencies:** `pg` pool (max 10), `auth_cli`/`control_server` via `runAuthCommand`, harness transport/webserver.
-- **Tests:** `auth.test.js` (10 tests), `user-mode.test.js`, `control-channel.test.js`.
+- **Tests:** `auth.test.js` (including 2FA route/session-boundary coverage), `user-mode.test.js`, `control-channel.test.js`.
 - **Runtime status:** Active. Degradation: without `APP_POSTGRES_URI` the store no-ops and app login effectively fails closed (`authentication_required` from the Python tier).
 
 ## 5. Python MCP server (`soc_agent`)

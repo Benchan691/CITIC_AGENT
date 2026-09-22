@@ -8,7 +8,7 @@
 
 **What you will understand:** every store and transient state location, its owner process, schema, keying, encryption, and lifecycle — described structurally, without any runtime contents.
 
-**Plain-language summary.** Nearly all durable state is PostgreSQL: users, app sessions (with the Zimbra token encrypted at rest), session revocations, first-class ownership claims for workspaces/sessions/folders, and Fernet-encrypted key/value configuration. Schema is owned by **versioned SQL migrations** applied under an advisory lock (Node contains no DDL). Per-user working files live under `.data/soc-workspaces/<userId>/`. Everything else is either transient (drafts live only in the tool result) or legacy.
+**Plain-language summary.** Nearly all durable state is PostgreSQL: users, short-lived 2FA challenges (with the temporary Zimbra token encrypted at rest), app sessions (with the final Zimbra token encrypted at rest), session revocations, first-class ownership claims for workspaces/sessions/folders, and Fernet-encrypted key/value configuration. Schema is owned by **versioned SQL migrations** applied under an advisory lock (Node contains no DDL). Per-user working files live under `.data/soc-workspaces/<userId>/`. Everything else is either transient (drafts live only in the tool result) or legacy.
 
 ---
 
@@ -16,12 +16,13 @@
 
 Pool: Node `pg.Pool` max 10 (`SocStateStore`); Python `psycopg_pool.ConnectionPool` min 1 / max 4, `connect_timeout=5`, `statement_timeout=15000` (`postgres_store.create_connection_pool`); per-call connect when pooling disabled via `APP_POSTGRES_POOL`.
 
-**Schema ownership (new this round):** versioned SQL migrations in `unified_mcp_server/migrations/*.sql`, applied by `schema.py apply_migrations` — a `pg_advisory_xact_lock(hashtext('soc-agent-schema'))` serializes startup, `soc_schema_migrations` records applied file names, and pending files execute inside the caller's transaction. `001_initial.sql` creates the tables below (`IF NOT EXISTS`); `002_remove_catalog.sql` drops the eight legacy catalog tables behind the `catalog-feature-removed-v1` marker. The Node `SocStateStore.ensureSchema` now just invokes `uv run python -m unified_mcp_server.schema migrate` with the URI on stdin; the admin `migrate` RPC does the same via `admin_cli`.
+**Schema ownership (new this round):** versioned SQL migrations in `unified_mcp_server/migrations/*.sql`, applied by `schema.py apply_migrations` — a `pg_advisory_xact_lock(hashtext('soc-agent-schema'))` serializes startup, `soc_schema_migrations` records applied file names, and pending files execute inside the caller's transaction. `001_initial.sql` creates the base tables, `002_remove_catalog.sql` drops the eight legacy catalog tables behind the `catalog-feature-removed-v1` marker, and `003_two_factor_challenges.sql` adds the bounded pending-login store. The Node `SocStateStore.ensureSchema` now just invokes `uv run python -m unified_mcp_server.schema migrate` with the URI on stdin; the admin `migrate` RPC does the same via `admin_cli`.
 
 | Table | Owner module | Purpose | Sensitive fields |
 |---|---|---|---|
 | `soc_users` | migrations/Python | Local identity per Zimbra email | `zimbra_email` (identifier; low sensitivity) |
-| `soc_app_sessions` | migrations/Python | App sessions: id (PK), user FK, **`zimbra_token_encrypted`**, `created_at`, `expires_at` (24 h TTL) + user/expiry indexes | Zimbra session token, Fernet-encrypted by Python; Node SELECTs deliberately omit the column (`SocStateStore.session`) |
+| `soc_two_factor_challenges` | migrations/Python | Pending analyst 2FA: SHA-256 challenge id (PK), normalized email, **`temporary_token_encrypted`**, attempts, `created_at`, `expires_at` (≤300 s) + expiry index | Temporary Zimbra token, Fernet-encrypted; raw opaque id is only in the HttpOnly browser cookie; no password is stored |
+| `soc_app_sessions` | migrations/Python | App sessions: id (PK), user FK, **`zimbra_token_encrypted`**, `created_at`, `expires_at` (24 h TTL) + user/expiry indexes | Final Zimbra session token, Fernet-encrypted by Python; Node SELECTs deliberately omit the column (`SocStateStore.session`) |
 | `soc_session_revocations` | migrations/Python | One-shot revocation records (`reason`, e.g. `new_device_login`; expiry-bounded; row deleted when consumed) | — |
 | `soc_workspace_owners` | migrations/Python | Workspace → owner claim (`workspace_id` PK, `owner_user_id`, `workspace_path`) | paths (user-scoped) |
 | `soc_session_owners` | migrations/Python | Session → owner claim; session must sit in an owned workspace (insert verified) + indexes | — |
@@ -33,7 +34,7 @@ Pool: Node `pg.Pool` max 10 (`SocStateStore`); Python `psycopg_pool.ConnectionPo
 
 Tables **dropped** by `002_remove_catalog.sql`: `soc_catalog_staging`, `soc_catalog_import_batches`, `soc_catalog_publications`, `soc_catalog_history`, `soc_fix_source_type`, `soc_rule_catalog`, `soc_customer`, `soc_catalog_migrations`.
 
-Lifecycle/concurrency: expired sessions deleted lazily on read; `claimSession`/`claimWorkspace` are owner-guarded upserts (`ON CONFLICT DO NOTHING` + verify); `deleteWorkspace` cascades session-owner rows; session ids validated against `^[A-Za-z0-9_-]+$` (≤128 chars) before any query. No background sweeper; no explicit retention beyond session TTL and revocation expiry.
+Lifecycle/concurrency: 2FA challenges expire lazily on read, are deleted on completion/cancellation/lockout, and can be batch-cleaned by `cleanup_two_factor_challenges`; attempts increment atomically and the fifth consumes the row. Expired sessions are deleted lazily on read; `claimSession`/`claimWorkspace` are owner-guarded upserts (`ON CONFLICT DO NOTHING` + verify); `deleteWorkspace` cascades session-owner rows; opaque ids are validated against `^[A-Za-z0-9_-]+$` (≤128 chars) before any query. No background sweeper; challenge retention is capped at five minutes.
 
 Bootstrap/repair: schema is `IF NOT EXISTS` at startup (`ensureSchema`); one-time legacy catalog-table drop gated by marker `catalog-feature-removed-v1`. Backup implications: the database holds all durable identity/ownership/config state; `APP_SETTINGS_ENCRYPTION_KEY` must be backed up with it or encrypted rows are unrecoverable.
 
@@ -72,6 +73,7 @@ Drift detection: `setup.sh` checks every literal `require()` in all eight SOC br
 | Attachment conversion cache | `AttachmentConverter` LRU (64 entries / 4 MB, in-memory) | Process lifetime |
 | Per-request `Runtime` / mail service LRU (32) | `server.py` | Request scope |
 | Subscription service login session | `httpx.AsyncClient` cookie jar in memory | Re-login on 401 |
+| Pending analyst 2FA challenge handle | Browser `soc_2fa_challenge` cookie + PostgreSQL row | ≤300 s; HttpOnly, SameSite=Lax, Secure-aware; cleared on completion, expiry, lockout, or cancellation |
 
 ## 6. Sensitive-data classification summary
 

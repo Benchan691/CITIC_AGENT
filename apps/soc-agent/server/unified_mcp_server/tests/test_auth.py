@@ -22,6 +22,7 @@ class SocConnection:
         self.users: dict[str, dict[str, object]] = {}
         self.sessions: dict[str, dict[str, object]] = {}
         self.revocations: dict[str, dict[str, object]] = {}
+        self.challenges: dict[str, dict[str, object]] = {}
 
     def __enter__(self):
         return self
@@ -37,6 +38,48 @@ class SocConnection:
             return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
         if upper.startswith("INSERT INTO SOC_BOOTSTRAP"):
             return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
+        if upper.startswith("INSERT INTO SOC_TWO_FACTOR_CHALLENGES"):
+            challenge_hash, email, token, attempts, created_at, expires_at = params
+            self.challenges[challenge_hash] = {
+                "hash": challenge_hash,
+                "email": email,
+                "token": token,
+                "attempts": attempts,
+                "created_at": created_at,
+                "expires_at": expires_at,
+            }
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
+        if upper.startswith("SELECT ZIMBRA_EMAIL, TEMPORARY_TOKEN_ENCRYPTED, ATTEMPTS"):
+            challenge = self.challenges.get(params[0])
+            row = None if challenge is None else (
+                challenge["email"],
+                challenge["token"],
+                challenge["attempts"],
+                challenge["created_at"],
+                challenge["expires_at"],
+            )
+            return SimpleNamespace(fetchone=lambda: row, fetchall=lambda: [])
+        if upper.startswith("UPDATE SOC_TWO_FACTOR_CHALLENGES"):
+            challenge = self.challenges.get(params[0])
+            now, max_attempts = params[1], params[2]
+            if challenge is None or challenge["expires_at"] <= now or challenge["attempts"] >= max_attempts:
+                row = None
+            else:
+                challenge["attempts"] += 1
+                row = (challenge["attempts"],)
+            return SimpleNamespace(fetchone=lambda: row, fetchall=lambda: [])
+        if upper.startswith("DELETE FROM SOC_TWO_FACTOR_CHALLENGES WHERE CHALLENGE_ID_HASH = %S RETURNING"):
+            removed = self.challenges.pop(params[0], None)
+            return SimpleNamespace(fetchone=lambda: (params[0],) if removed else None, fetchall=lambda: [])
+        if upper.startswith("DELETE FROM SOC_TWO_FACTOR_CHALLENGES WHERE CHALLENGE_ID_HASH = %S"):
+            self.challenges.pop(params[0], None)
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
+        if upper.startswith("DELETE FROM SOC_TWO_FACTOR_CHALLENGES WHERE EXPIRES_AT <="):
+            now = params[0]
+            removed = [key for key, value in self.challenges.items() if value["expires_at"] <= now]
+            for key in removed:
+                del self.challenges[key]
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [(key,) for key in removed])
         if upper.startswith("INSERT INTO SOC_USERS"):
             proposed_id, email, created_at, last_login_at = params
             current = next((user for user in self.users.values() if user["email"] == email), None)
@@ -169,6 +212,70 @@ def test_invalid_zimbra_login_is_rejected_without_creating_local_state(store, mo
 
     assert connection.users == {}
     assert connection.sessions == {}
+
+
+def test_two_factor_challenge_is_encrypted_bounded_and_locked_after_five_attempts(store):
+    database, connection = store
+    created = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    challenge = database.create_two_factor_challenge(
+        " Analyst@Example.COM ",
+        "temporary-zimbra-token",
+        999_999,
+        now=created,
+    )
+
+    assert challenge.zimbra_email == "analyst@example.com"
+    assert challenge.expires_at == created + timedelta(seconds=300)
+    assert challenge.challenge_id not in connection.challenges
+    row = next(iter(connection.challenges.values()))
+    assert row["token"] != "temporary-zimbra-token"
+    assert database.get_two_factor_challenge(challenge.challenge_id, now=created).temporary_token == "temporary-zimbra-token"
+
+    for attempt in range(1, 5):
+        assert database.record_two_factor_attempt(challenge.challenge_id, now=created) == (True, False)
+        assert database.get_two_factor_challenge(challenge.challenge_id, now=created).attempts == attempt
+    assert database.record_two_factor_attempt(challenge.challenge_id, now=created) == (True, True)
+    assert database.get_two_factor_challenge(challenge.challenge_id, now=created) is None
+
+    expired = database.create_two_factor_challenge("analyst@example.com", "expired-token", 1000, now=created)
+    assert database.get_two_factor_challenge(expired.challenge_id, now=created + timedelta(seconds=2)) is None
+    pending = database.create_two_factor_challenge("analyst@example.com", "cleanup-token", 1000, now=created)
+    assert database.cleanup_two_factor_challenges(now=created + timedelta(seconds=2)) == 1
+    assert database.delete_two_factor_challenge(pending.challenge_id) is False
+
+
+def test_two_factor_login_creates_no_application_state_until_completion(store, monkeypatch):
+    database, connection = store
+    monkeypatch.setattr(auth_cli, "_store", lambda: database)
+    monkeypatch.setattr(auth_cli.ServerSettings, "from_env", lambda: settings())
+    monkeypatch.setattr(
+        auth_cli,
+        "zimbra_login_start",
+        lambda _config: auth_cli.ZimbraLoginAttempt(temporary_token="temporary-token", lifetime_ms=60_000),
+    )
+    first = auth_cli.login({"email": "analyst@example.com", "password": "submitted-password"})
+
+    assert first["two_factor_required"] is True
+    assert connection.users == {}
+    assert connection.sessions == {}
+    assert len(connection.challenges) == 1
+    captured = {}
+
+    def complete(config, temporary_token, code):
+        captured.update(config=config, temporary_token=temporary_token, code=code)
+        return "final-zimbra-token"
+
+    monkeypatch.setattr(auth_cli, "zimbra_complete_two_factor", complete)
+    completed = auth_cli.login_two_factor({"challenge_id": first["challenge_id"], "code": "123456"})
+
+    assert completed["session"]["user"]["zimbra_email"] == "analyst@example.com"
+    assert captured["temporary_token"] == "temporary-token"
+    assert captured["code"] == "123456"
+    assert captured["config"]["zimbra_password"] == ""
+    assert connection.challenges == {}
+    assert len(connection.users) == 1
+    assert len(connection.sessions) == 1
+    assert "final-zimbra-token" not in json.dumps(completed)
 
 
 def test_session_expires_after_24_hours_and_logout_deletes_token(store):

@@ -15,6 +15,7 @@ import {
   SocStateStore,
   SESSION_REPLACED_MESSAGE,
   SESSION_REPLACED_REASON,
+  TWO_FACTOR_COOKIE,
 } from '../ownership.js'
 
 function response(request, value) {
@@ -110,6 +111,17 @@ function adminStore() {
   }
 }
 
+function userStore() {
+  const sessions = new Set()
+  return {
+    sessions,
+    async ensureSchema() {},
+    async session() { return undefined },
+    async deleteSession(id) { sessions.delete(String(id)); return true },
+    async userSessionIds() { return new Set() },
+  }
+}
+
 
 
 test('SOC admin credentials are required at startup and are never included in the failure', async () => {
@@ -190,6 +202,131 @@ test('SOC admin login, expiry, logout, and restart invalidation use an opaque co
   const afterLogout = nodeResponse()
   await routes.get('/admin/auth/me')(nodeRequest({ url: '/admin/auth/me', headers: { host: '127.0.0.1', cookie: secondCookie } }), afterLogout)
   assert.equal(afterLogout.statusCode, 401)
+  for (const dispose of disposers) dispose()
+})
+
+test('analyst login resumes a Zimbra 2FA challenge without creating app state early', async () => {
+  const store = userStore()
+  const calls = []
+  let stopCalls = 0
+  let workspaceCalls = 0
+  const finalSession = {
+    session_id: 'application-session',
+    user: { id: 'user-a', zimbra_email: 'analyst@example.com' },
+    expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+  }
+  const authCommand = async (command, payload) => {
+    calls.push({ command, payload })
+    if (command === 'login') {
+      return {
+        two_factor_required: true,
+        challenge_id: 'opaque-challenge-id',
+        masked_email: 'a***@example.com',
+        expires_at: new Date(Date.now() + 120_000).toISOString(),
+      }
+    }
+    if (command === 'get-2fa') return {
+      two_factor_required: true,
+      masked_email: 'a***@example.com',
+      expires_at: new Date(Date.now() + 120_000).toISOString(),
+    }
+    if (command === 'login-2fa' && payload.code === '000000') {
+      const error = new Error('upstream code detail')
+      error.code = 'two_factor_invalid'
+      throw error
+    }
+    if (command === 'login-2fa') return { session: finalSession, replaced_session_ids: [] }
+    throw new Error(`unexpected command ${command}`)
+  }
+  const auth = new SocAuthService({}, store, {
+    adminCredentials: { email: 'admin@example.com', password: 'admin-secret' },
+    authCommand,
+  })
+  auth.stopUserChatSessions = async () => { stopCalls += 1 }
+  auth.ensureGeneral = async () => { workspaceCalls += 1; return { workspaceId: 'general', title: 'General' } }
+  const routes = new Map()
+  const webServer = {
+    register(route) { routes.set(route.path, route.handler); return () => routes.delete(route.path) },
+  }
+  const disposers = auth.registerRoutes(webServer)
+
+  const loginResponse = nodeResponse()
+  await routes.get('/auth/login')(nodeRequest({
+    method: 'POST',
+    url: '/auth/login',
+    socket: { encrypted: true },
+    headers: { host: 'soc.example.test', 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'analyst@example.com', password: 'submitted-password' }),
+  }), loginResponse)
+  assert.equal(loginResponse.statusCode, 200)
+  assert.deepEqual(jsonBody(loginResponse), {
+    authenticated: false,
+    two_factor_required: true,
+    masked_email: 'a***@example.com',
+    expires_at: jsonBody(loginResponse).expires_at,
+  })
+  assert.match(loginResponse.headers['set-cookie'], new RegExp(`${TWO_FACTOR_COOKIE}=opaque-challenge-id`))
+  assert.match(loginResponse.headers['set-cookie'], /Path=\/auth/)
+  assert.match(loginResponse.headers['set-cookie'], /HttpOnly/)
+  assert.match(loginResponse.headers['set-cookie'], /SameSite=Lax/)
+  assert.match(loginResponse.headers['set-cookie'], /Secure/)
+  assert.equal(store.sessions.size, 0)
+  assert.equal(stopCalls, 0)
+  assert.equal(workspaceCalls, 0)
+  assert.equal(calls[0].payload.password, '')
+  assert.equal(JSON.stringify(loginResponse).includes('submitted-password'), false)
+
+  const challengeCookie = loginResponse.headers['set-cookie'].split(';', 1)[0]
+  const resumed = nodeResponse()
+  await routes.get('/auth/2fa')(nodeRequest({ url: '/auth/2fa', headers: { host: 'soc.example.test', cookie: challengeCookie } }), resumed)
+  assert.equal(resumed.statusCode, 200)
+  assert.equal(jsonBody(resumed).masked_email, 'a***@example.com')
+
+  const invalid = nodeResponse()
+  await routes.get('/auth/2fa')(nodeRequest({
+    method: 'POST',
+    url: '/auth/2fa',
+    headers: { host: 'soc.example.test', cookie: challengeCookie, 'content-type': 'application/json' },
+    body: JSON.stringify({ code: '000000' }),
+  }), invalid)
+  assert.equal(invalid.statusCode, 401)
+  assert.equal(jsonBody(invalid).two_factor_required, true)
+  assert.equal(invalid.headers['set-cookie'], undefined)
+
+  const completed = nodeResponse()
+  await routes.get('/auth/2fa')(nodeRequest({
+    method: 'POST',
+    url: '/auth/2fa',
+    headers: { host: 'soc.example.test', cookie: challengeCookie, 'content-type': 'application/json' },
+    body: JSON.stringify({ code: '123456' }),
+  }), completed)
+  assert.equal(completed.statusCode, 200)
+  assert.equal(jsonBody(completed).authenticated, true)
+  assert.ok(Array.isArray(completed.headers['set-cookie']))
+  assert.match(completed.headers['set-cookie'][0], /soc_session=application-session/)
+  assert.match(completed.headers['set-cookie'][1], new RegExp(`${TWO_FACTOR_COOKIE}=;`))
+  assert.equal(stopCalls, 1)
+  assert.equal(workspaceCalls, 1)
+  assert.equal(calls.filter(call => call.command === 'login-2fa').length, 2)
+
+  const secondLogin = nodeResponse()
+  await routes.get('/auth/login')(nodeRequest({
+    method: 'POST',
+    url: '/auth/login',
+    headers: { host: 'soc.example.test', 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'analyst@example.com', password: 'another-password' }),
+  }), secondLogin)
+  const secondChallengeCookie = secondLogin.headers['set-cookie'].split(';', 1)[0]
+  const cancelled = nodeResponse()
+  await routes.get('/auth/2fa/cancel')(nodeRequest({
+    method: 'POST',
+    url: '/auth/2fa/cancel',
+    headers: { host: 'soc.example.test', cookie: secondChallengeCookie, 'content-type': 'application/json' },
+    body: '{}',
+  }), cancelled)
+  assert.equal(cancelled.statusCode, 200)
+  assert.match(cancelled.headers['set-cookie'], new RegExp(`${TWO_FACTOR_COOKIE}=;`))
+  assert.equal(calls.at(-1).command, 'cancel-2fa')
   for (const dispose of disposers) dispose()
 })
 

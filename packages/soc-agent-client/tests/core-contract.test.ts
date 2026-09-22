@@ -6,6 +6,7 @@ import { createSocClientRuntime, socSurface } from '../src/client/contract.ts'
 const clientSource = readFileSync(new URL('../src/client/index.ts', import.meta.url), 'utf8')
 const nodeSource = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8')
 const contractSource = readFileSync(new URL('../src/client/contract.ts', import.meta.url), 'utf8')
+const authGateSource = readFileSync(new URL('../src/client/core/AuthGate.tsx', import.meta.url), 'utf8')
 
 test('the core owns authentication, the runtime service, and the safe admin fallback', () => {
   assert.match(clientSource, /ctx\.provide\('socClient'/)
@@ -30,6 +31,15 @@ test('optional feature implementations are not imported by the core browser entr
 
 test('scheduled-task management stays outside the core settings surface', () => {
   assert.doesNotMatch(clientSource, /ScheduledTasksForm|settings\.section|soc-agent-schedules/)
+})
+
+test('the AuthGate owns the resumable Zimbra 2FA transition and clears secrets', () => {
+  assert.match(authGateSource, /fetch\('\/auth\/2fa'/)
+  assert.match(authGateSource, /fetch\('\/auth\/2fa\/cancel'/)
+  assert.match(authGateSource, /autoComplete="one-time-code"/)
+  assert.match(authGateSource, /setPassword\(''\)/)
+  assert.match(authGateSource, /setCode\(''\)/)
+  assert.match(authGateSource, /two_factor_required/)
 })
 
 test('the runtime contract selects a surface and forwards only the named SOC RPC', async () => {

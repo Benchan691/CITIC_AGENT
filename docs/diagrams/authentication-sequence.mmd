@@ -10,16 +10,37 @@ sequenceDiagram
     B->>H: POST /auth/login {email,password}
     H->>H: same-site/origin check · JSON ≤32KiB
     H->>P: runAuthCommand('login')
-    P->>Z: zimbra_login (SOAP)
-    alt invalid credentials
+    P->>Z: zimbra_login_start (SOAP AuthRequest)
+    alt invalid credentials/setup/unavailable
         Z-->>P: error
         P-->>H: authentication_failed (generic)
         H-->>B: 401 invalid email or password
-    else valid credentials
-        Z-->>P: session token
+    else twoFactorAuthRequired
+        Z-->>P: temporary authToken + lifetime
+        P->>DB: create_two_factor_challenge (hash id; encrypt token; ≤300 s)
+        P-->>H: masked email + expiry (no token/password)
+        H-->>B: 200 + HttpOnly soc_2fa_challenge
+        B->>H: GET /auth/2fa (reload recovery)
+        H->>P: runAuthCommand('get-2fa')
+        B->>H: POST /auth/2fa {code}
+        H->>P: runAuthCommand('login-2fa')
+        P->>Z: final AuthRequest {authToken,twoFactorCode}
+        alt invalid / expired / locked
+            Z-->>P: bounded safe failure
+            P-->>H: 401; retain or clear challenge
+            H-->>B: 2FA error
+        else valid code
+            Z-->>P: final session token
+            P->>DB: delete challenge; create_user_session (encrypt token; revoke other sessions)
+            P-->>H: public_session (no token) + replaced_session_ids
+            H->>H: revoke replaced sessions; bootstrap General
+            H-->>B: 200 + Set-Cookie soc_session (24h HttpOnly SameSite=Lax)
+        end
+    else valid credentials without 2FA
+        Z-->>P: final session token
         P->>DB: create_user_session (encrypt token; revoke other sessions as new_device_login)
         P-->>H: public_session (no token) + replaced_session_ids
-        H->>H: revoke replaced sessions (abort streams, clear modes)
+        H->>H: revoke replaced sessions; bootstrap General
         H-->>B: 200 + Set-Cookie soc_session (24h HttpOnly SameSite=Lax)
     end
     B->>H: subsequent requests (cookie)

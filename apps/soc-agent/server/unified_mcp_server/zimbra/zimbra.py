@@ -1,12 +1,19 @@
 import html
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
 from zimbra_client import Attachment, ZimbraClient
-from zimbra_client.errors import ZimbraLimitError
+from zimbra_client.errors import (
+    ZimbraConnectionError,
+    ZimbraHTTPError,
+    ZimbraLimitError,
+    ZimbraProtocolError,
+    ZimbraSOAPFault,
+)
 from zimbra_client.mail import (
     build_send_message_request,
     ensure_recipients,
@@ -143,8 +150,68 @@ def soap_request(host, body_xml, auth_token="", *, verify_ssl=True, timeout=60, 
     return client._request_once(body, auth_token=auth_token if auth_token else "")
 
 
-def zimbra_login(cfg):
-    require_zimbra_config(cfg)
+ACCOUNT_NAMESPACE = "urn:zimbraAccount"
+TWO_FACTOR_MAX_LIFETIME_MS = 300_000
+
+
+class ZimbraAuthFlowError(RuntimeError):
+    """Credential-free, stable failure categories for the login flow."""
+
+    def __init__(self, code: str, message: str, *, retryable: bool = False):
+        self.code = str(code)
+        self.message = str(message)
+        self.retryable = bool(retryable)
+        super().__init__(self.message)
+
+
+@dataclass(frozen=True)
+class ZimbraLoginAttempt:
+    """The result of the first AuthRequest, with no password retained."""
+
+    token: str = ""
+    temporary_token: str = ""
+    lifetime_ms: int = TWO_FACTOR_MAX_LIFETIME_MS
+
+    @property
+    def two_factor_required(self) -> bool:
+        return bool(self.temporary_token)
+
+
+def _auth_request_body(email: str, password: str) -> ET.Element:
+    request = ET.Element(f"{{{ACCOUNT_NAMESPACE}}}AuthRequest")
+    account = ET.SubElement(request, f"{{{ACCOUNT_NAMESPACE}}}account")
+    account.set("by", "name")
+    account.text = str(email)
+    secret = ET.SubElement(request, f"{{{ACCOUNT_NAMESPACE}}}password")
+    secret.text = str(password)
+    return request
+
+
+def _two_factor_request_body(temporary_token: str, code: str) -> ET.Element:
+    request = ET.Element(f"{{{ACCOUNT_NAMESPACE}}}AuthRequest")
+    token = ET.SubElement(request, f"{{{ACCOUNT_NAMESPACE}}}authToken")
+    token.text = str(temporary_token)
+    factor = ET.SubElement(request, f"{{{ACCOUNT_NAMESPACE}}}twoFactorCode")
+    factor.text = str(code)
+    return request
+
+
+def _response_text(root: ET.Element, name: str) -> str:
+    for element in root.iter():
+        if _local_name(element.tag) == name and (element.text or "").strip():
+            return element.text.strip()
+    return ""
+
+
+def _response_bool(root: ET.Element, name: str) -> bool:
+    return _response_text(root, name).casefold() in {"1", "true", "yes", "on"}
+
+
+def _auth_config(cfg, *, require_password: bool) -> dict:
+    if require_password:
+        require_zimbra_config(cfg)
+    elif not zimbra_host(cfg):
+        raise ValueError("Missing Zimbra config: ZIMBRA_HOST")
     config = dict(cfg)
     config["zimbra_host"] = _validate_zimbra_host(
         zimbra_host(config),
@@ -153,11 +220,125 @@ def zimbra_login(cfg):
     config["verify_ssl"] = _as_bool(config.get("verify_ssl"), True)
     config["allow_insecure_http"] = _as_bool(config.get("allow_insecure_http"), False)
     config["timeout"] = remaining_seconds(float(config.get("timeout", 60)))
-    client = ZimbraClient(config).login()
-    token = getattr(client, "_auth_token", "")
+    return config
+
+
+def _map_auth_transport_error(exc: Exception, *, two_factor: bool) -> ZimbraAuthFlowError:
+    code = str(getattr(exc, "code", "") or "").casefold()
+    detail = str(getattr(exc, "message", "") or "").casefold()
+    unavailable = isinstance(exc, (ZimbraConnectionError, ZimbraHTTPError))
+    if unavailable or any(value in code or value in detail for value in (
+        "service_unavailable",
+        "temporarily_unavailable",
+        "service.failure",
+        "network",
+        "timeout",
+    )):
+        return ZimbraAuthFlowError(
+            "authentication_unavailable",
+            "Zimbra authentication is temporarily unavailable.",
+            retryable=True,
+        )
+    if any(value in code or value in detail for value in (
+        "two_factor_setup_required",
+        "twofactor_setup_required",
+        "2fa_setup",
+    )):
+        return ZimbraAuthFlowError(
+            "two_factor_setup_required",
+            "Two-factor authentication setup is required.",
+        )
+    if two_factor and any(value in code or value in detail for value in (
+        "auth_token_expired",
+        "auth_token_invalid",
+        "two_factor_expired",
+        "token_expired",
+        "service.auth_required",
+        "bad auth token",
+        "auth token expired",
+    )):
+        return ZimbraAuthFlowError("two_factor_expired", "The two-factor session expired.")
+    if two_factor and any(value in code or value in detail for value in (
+        "two_factor_auth_failed",
+        "two_factor_code",
+        "invalid_code",
+        "auth_failed",
+    )):
+        return ZimbraAuthFlowError(
+            "two_factor_invalid",
+            "The authenticator code is invalid.",
+            retryable=True,
+        )
+    return ZimbraAuthFlowError("authentication_failed", "Zimbra authentication failed.")
+
+
+def zimbra_login_start(cfg) -> ZimbraLoginAttempt:
+    """Run the credential AuthRequest and detect a Zimbra 2FA challenge."""
+    config = _auth_config(cfg, require_password=True)
+    try:
+        root = soap_request(
+            config["zimbra_host"],
+            _auth_request_body(zimbra_email(config) or zimbra_username(config), zimbra_password(config)),
+            verify_ssl=config["verify_ssl"],
+            timeout=config["timeout"],
+            allow_insecure_http=config["allow_insecure_http"],
+        )
+    except (ZimbraSOAPFault, ZimbraConnectionError, ZimbraHTTPError, ZimbraProtocolError) as exc:
+        raise _map_auth_transport_error(exc, two_factor=False) from exc
+
+    token = _response_text(root, "authToken")
+    if _response_bool(root, "twoFactorAuthRequired"):
+        if not token:
+            raise ZimbraAuthFlowError("authentication_failed", "Zimbra authentication failed.")
+        try:
+            lifetime_ms = int(_response_text(root, "lifetime") or TWO_FACTOR_MAX_LIFETIME_MS)
+        except ValueError:
+            lifetime_ms = TWO_FACTOR_MAX_LIFETIME_MS
+        return ZimbraLoginAttempt(temporary_token=token, lifetime_ms=lifetime_ms)
     if not token:
-        raise RuntimeError("Zimbra login failed: auth token not found")
-    return token
+        raise ZimbraAuthFlowError("authentication_failed", "Zimbra authentication failed.")
+    return ZimbraLoginAttempt(token=token)
+
+
+def zimbra_complete_two_factor(cfg, temporary_token: str, code: str) -> str:
+    """Exchange a temporary Zimbra token and six-digit code for the final token."""
+    token = str(temporary_token or "")
+    value = str(code or "")
+    if not token or len(value) != 6 or any(char not in "0123456789" for char in value):
+        raise ZimbraAuthFlowError(
+            "two_factor_invalid",
+            "The authenticator code is invalid.",
+            retryable=True,
+        )
+    config = _auth_config(cfg, require_password=False)
+    try:
+        root = soap_request(
+            config["zimbra_host"],
+            _two_factor_request_body(token, value),
+            verify_ssl=config["verify_ssl"],
+            timeout=config["timeout"],
+            allow_insecure_http=config["allow_insecure_http"],
+        )
+    except (ZimbraSOAPFault, ZimbraConnectionError, ZimbraHTTPError, ZimbraProtocolError) as exc:
+        raise _map_auth_transport_error(exc, two_factor=True) from exc
+    final_token = _response_text(root, "authToken")
+    if _response_bool(root, "twoFactorAuthRequired"):
+        raise ZimbraAuthFlowError(
+            "two_factor_invalid",
+            "The authenticator code is invalid.",
+            retryable=True,
+        )
+    if not final_token:
+        raise ZimbraAuthFlowError("two_factor_expired", "The two-factor session expired.")
+    return final_token
+
+
+def zimbra_login(cfg):
+    """Backward-compatible non-interactive login used by background callers."""
+    attempt = zimbra_login_start(cfg)
+    if attempt.token:
+        return attempt.token
+    raise ZimbraAuthFlowError("two_factor_required", "Zimbra requires two-factor authentication.")
 
 
 def _token_client(host, token, *, email="", verify_ssl=True, timeout=60, allow_insecure_http=False):

@@ -18,7 +18,7 @@ Related: [MCP_TOOL_CATALOG.md](MCP_TOOL_CATALOG.md) (tool-by-tool), [CONFIGURATI
 | Harness web runtime | `cd vendor/deepseek-harness && pnpm dsh web --no-open` (port 3080) | Starts the Node host + web server; loads the web profile plugins (SOC bundle) |
 | `unified-mcp-server` | `uv run unified-mcp-server` (spawned by `dsh-mcp-client` per `cordis.patch.yml`; cwd `apps/soc-agent/server`) | The `soc_agent` stdio MCP server (`server.py main()`) |
 | `unified_mcp_server.control_server` | `uv run python -m unified_mcp_server.control_server` (spawned by `ownership.js startControlChannel`) | Persistent authenticated-operations channel |
-| `unified_mcp_server.auth_cli <command>` | spawned per command when the channel is off/unavailable (shared `python-command.js` runner) | One-shot auth operations (`login`, `logout`, `send-email` — carries `action`, `source_message_id`, `body_format`, and `reply_all`, plus `list-signatures`) |
+| `unified_mcp_server.auth_cli <command>` | spawned per command when the channel is off/unavailable (shared `python-command.js` runner) | One-shot auth operations (`login`, `login-2fa`, `get-2fa`, `cancel-2fa`, `logout`, `send-email` — carries `action`, `source_message_id`, `body_format`, and `reply_all`, plus `list-signatures`) |
 | `unified_mcp_server.admin_cli <command>` | `uv run python -m unified_mcp_server.admin_cli …` (spawned by `host.js runAdmin` → `python-command.js`) | One-shot admin operations: `get-settings`, `test-subscription-server`, `convert-attachment`, `migrate`. `test-splunk` removed (the bridge probes itself from Node) |
 | `unified_mcp_server.schema migrate` | spawned by `ownership.js ensureSchema` and the admin `migrate` RPC; **PostgreSQL URI passed as JSON over stdin** | Applies pending `migrations/*.sql` under `pg_advisory_xact_lock`; prints `{"migrated": true}` or `schema_migration_failed` |
 | `setup.sh [--check|--plugins]` / `update.sh` | operator | Install/audit/repair/update (Splunk parameters are now MCP-only: endpoint + token are required) |
@@ -27,7 +27,9 @@ Related: [MCP_TOOL_CATALOG.md](MCP_TOOL_CATALOG.md) (tool-by-tool), [CONFIGURATI
 
 | Route | Method | Auth | Purpose | Evidence |
 |---|---|---|---|---|
-| `/auth/login` | POST | public (+ same-site/origin check, 32 KiB JSON cap) | Zimbra credential login → `soc_session` cookie; single-device replacement; General workspace bootstrap | `ownership.js handleAuthRoute('login')` |
+| `/auth/login` | POST | public (+ same-site/origin check, 32 KiB JSON cap) | Zimbra credential login; returns a masked-email 2FA challenge when required, otherwise enters `soc_session` creation, single-device replacement, and General workspace bootstrap | `ownership.js handleAuthRoute('login')` |
+| `/auth/2fa` | GET / POST | public with HttpOnly `soc_2fa_challenge` cookie | Resume a pending challenge or submit the six-digit code; final session/bootstrap work occurs only after the second Zimbra AuthRequest | `ownership.js handleTwoFactorRoute`, `auth_cli login-2fa/get-2fa` |
+| `/auth/2fa/cancel` | POST | public with challenge cookie | Delete the pending challenge and clear `soc_2fa_challenge` | `ownership.js handleTwoFactorRoute('cancel')`, `auth_cli cancel-2fa` |
 | `/auth/logout` | POST | cookie | Delete session + unbind agents + clear cookie | `handleAuthRoute('logout')` |
 | `/auth/me` | GET | session | Session probe (`expires_at`, one-shot `new_device_login` reason) | `handleAuthRoute('me')` |
 | `/admin/auth/login` | POST | public (same-site) | Static admin login → `soc_admin_session` (8 h) | `handleAdminAuthRoute` |
@@ -64,7 +66,7 @@ Registered with `authority: 'trusted-host'`; every endpoint re-checks auth (`req
 
 - Transport: stdio JSON lines; first line `{"ready":true}`; requests `{id, command, payload}`; responses `{id, ok, result}` / `{id, ok:false, error:{code,message,details}}`.
 - Bounds: 8 000 000-byte line cap (channel killed on overflow), 8 concurrent requests, 60 s startup handshake, per-op timeout 185 s default.
-- Commands: `login`, `logout`, `send-email`, `list-signatures` (dispatch table = `auth_cli.dispatch_command`); `zimbra_auth_error` triggers `_expire_session_on_auth_error`.
+- Commands: `login`, `login-2fa`, `get-2fa`, `cancel-2fa`, `logout`, `send-email`, `list-signatures` (dispatch table = `auth_cli.dispatch_command`); `zimbra_auth_error` triggers `_expire_session_on_auth_error`. 2FA failures are credential-free stable categories; temporary tokens remain inside Python/PostgreSQL.
 - Fallback rule: spawn one-shot `auth_cli` only if the failure occurred **before transmission**; a lost response after transmission raises `operation_outcome_unknown` and is never replayed.
 - Auth: no channel secret (private pipe); every command validated by `session_id` against Postgres.
 

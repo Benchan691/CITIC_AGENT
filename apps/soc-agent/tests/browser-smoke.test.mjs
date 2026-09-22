@@ -52,6 +52,8 @@ describe('SOC browser composition', () => {
   let browserRequests
   let failedRequests
   let badResponses
+  let authMode = 'authenticated'
+  let twoFactorActive = false
   let harnessHome
   let browserOverlayHome
 
@@ -84,12 +86,73 @@ describe('SOC browser composition', () => {
     // the only browser boundary this test replaces.
     await page.route('**/auth/me', async route => {
       await route.fulfill({
+        status: authMode === 'authenticated' ? 200 : 401,
+        contentType: 'application/json',
+        body: JSON.stringify(authMode === 'authenticated'
+          ? { authenticated: true, user: { zimbra_email: 'analyst@example.com' } }
+          : { authenticated: false }),
+      })
+    })
+    await page.route('**/auth/login', async route => {
+      const submitted = route.request().postDataJSON()
+      assert.equal(submitted.password, 'browser-password')
+      authMode = '2fa'
+      twoFactorActive = true
+      await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          authenticated: true,
-          user: { zimbra_email: 'analyst@example.com' },
+          authenticated: false,
+          two_factor_required: true,
+          masked_email: 'a***@example.com',
+          expires_at: new Date(Date.now() + 120_000).toISOString(),
         }),
+      })
+    })
+    await page.route('**/auth/2fa', async route => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: twoFactorActive ? 200 : 401,
+          contentType: 'application/json',
+          body: JSON.stringify(twoFactorActive
+            ? {
+              authenticated: false,
+              two_factor_required: true,
+              masked_email: 'a***@example.com',
+              expires_at: new Date(Date.now() + 120_000).toISOString(),
+            }
+            : { authenticated: false }),
+        })
+        return
+      }
+      const submitted = route.request().postDataJSON()
+      if (submitted.code === '123456') {
+        authMode = 'authenticated'
+        twoFactorActive = false
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ authenticated: true }),
+        })
+        return
+      }
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          authenticated: false,
+          two_factor_required: true,
+          error: 'The authenticator code is invalid.',
+        }),
+      })
+    })
+    await page.route('**/auth/2fa/cancel', async route => {
+      twoFactorActive = false
+      authMode = 'login'
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ authenticated: false, two_factor_required: false }),
       })
     })
     await page.goto(`${scaffold.baseUrl}/?fixture`, { waitUntil: 'load' })
@@ -147,6 +210,29 @@ describe('SOC browser composition', () => {
       .locator('xpath=ancestor::div[contains(@class, "_root")][1]')
     assert.equal(await collapsedSidebar.count(), 1, 'isolated collapsed sidebar root is mounted')
     await assertOrWriteScreenshot(collapsedSidebar, 'sidebar-collapsed.png')
+
+    authMode = 'login'
+    badResponses.length = 0
+    failedRequests.length = 0
+    await page.reload({ waitUntil: 'load' })
+    await page.getByLabel('Sentinel login').waitFor({ timeout: 10_000 })
+    await page.getByLabel('Email').fill('analyst@example.com')
+    await page.getByLabel('Password').fill('browser-password')
+    await page.getByRole('button', { name: 'Login' }).click()
+    await page.getByLabel('Authenticator verification').waitFor({ timeout: 10_000 })
+    assert.equal(await page.locator('input[type="password"]').count(), 0, 'password is cleared before code entry')
+    const codeInput = page.getByLabel('Authenticator code')
+    await codeInput.fill('000000')
+    await page.getByRole('button', { name: 'Verify' }).click()
+    await page.getByRole('alert').waitFor({ timeout: 10_000 })
+    assert.equal(await codeInput.inputValue(), '', 'invalid code is cleared')
+    await codeInput.fill('123456')
+    await page.getByRole('button', { name: 'Verify' }).click()
+    await page.getByLabel('Signed in as analyst@example.com').waitFor({ timeout: 10_000 })
+    assert.equal(authMode, 'authenticated')
+    badResponses.length = 0
+    failedRequests.length = 0
+    tripwires.consoleErrors.length = 0
 
     const expectedBundles = [
       'dsh-soc-agent-client',

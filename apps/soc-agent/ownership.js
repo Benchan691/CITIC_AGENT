@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url'
 const { Pool } = pg
 const SESSION_COOKIE = 'soc_session'
 const SESSION_TTL_SECONDS = 24 * 60 * 60
+const TWO_FACTOR_COOKIE = 'soc_2fa_challenge'
+const TWO_FACTOR_TTL_SECONDS = 5 * 60
 const SESSION_REPLACED_REASON = 'new_device_login'
 const SESSION_REPLACED_MESSAGE = 'A new device logged in to this account. You have been signed out.'
 const ADMIN_SESSION_COOKIE = 'soc_admin_session'
@@ -223,6 +225,29 @@ function adminCookieHeader(value, request, maxAge = ADMIN_SESSION_TTL_SECONDS) {
   ]
   if (secureCookie(request)) parts.push('Secure')
   return parts.join('; ')
+}
+
+function twoFactorCookieHeader(value, request, maxAge = TWO_FACTOR_TTL_SECONDS) {
+  const parts = [
+    `${TWO_FACTOR_COOKIE}=${encodeURIComponent(value)}`,
+    'Path=/auth',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${String(maxAge)}`,
+  ]
+  if (secureCookie(request)) parts.push('Secure')
+  return parts.join('; ')
+}
+
+function twoFactorMaxAge(expiresAt) {
+  const remaining = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000)
+  return Math.max(1, Math.min(TWO_FACTOR_TTL_SECONDS, remaining))
+}
+
+function authCookies(request, sessionId = '', { clearTwoFactor = true } = {}) {
+  const values = [cookieHeader(sessionId, request, sessionId ? SESSION_TTL_SECONDS : 0)]
+  if (clearTwoFactor) values.push(twoFactorCookieHeader('', request, 0))
+  return values
 }
 
 function sameSiteRequest(request) {
@@ -500,6 +525,24 @@ function authCommandError(command, stderr = '') {
     return error
   }
   return new Error(command === 'logout' ? 'logout_failed' : 'operation_failed')
+}
+
+function twoFactorFailure(error) {
+  const code = String(error?.code ?? 'authentication_failed')
+  const known = {
+    two_factor_invalid: 'The authenticator code is invalid.',
+    two_factor_expired: 'The two-factor session expired. Sign in again.',
+    two_factor_locked: 'Too many incorrect authenticator codes. Sign in again.',
+    authentication_unavailable: 'Zimbra authentication is temporarily unavailable.',
+    authentication_failed: 'Authentication failed.',
+  }
+  const safeCode = Object.hasOwn(known, code) ? code : 'authentication_failed'
+  return {
+    code: safeCode,
+    message: known[safeCode],
+    retryable: safeCode === 'two_factor_invalid' || safeCode === 'authentication_unavailable',
+    clearChallenge: safeCode === 'two_factor_expired' || safeCode === 'two_factor_locked' || safeCode === 'authentication_failed',
+  }
 }
 
 // Privileged helper subprocesses are bounded so a hung Python process can
@@ -1184,6 +1227,7 @@ export class SocAuthService {
   constructor(ctx, store = new SocStateStore(), options = {}) {
     this.ctx = ctx
     this.store = store
+    this.authCommand = options.authCommand ?? runAuthCommand
     this.storage = new AsyncLocalStorage()
     this.adminStorage = new AsyncLocalStorage()
     const configuredAdmin = options.adminCredentials ?? resolveAdminCredentials(
@@ -1660,12 +1704,131 @@ export class SocAuthService {
     }
   }
 
+  async completeApplicationLogin(result, request, response) {
+    const session = result?.session
+    const user = session?.user
+    if (!session?.session_id || !user?.id || !user?.zimbra_email) {
+      if (session?.session_id) await this.store.deleteSession(String(session.session_id))
+      sendJson(response, 401, { error: 'invalid email or password' }, { 'set-cookie': authCookies(request) })
+      return
+    }
+    const replacedSessionIds = Array.isArray(result?.replaced_session_ids)
+      ? result.replaced_session_ids.map(id => String(id ?? '')).filter(Boolean)
+      : []
+    for (const replacedSessionId of replacedSessionIds) this.revokeApplicationSession(replacedSessionId)
+    try {
+      await this.stopUserChatSessions(String(user.id), replacedSessionIds)
+    } catch (error) {
+      try { this.ctx?.logger?.warn?.(`soc auth: could not stop the replaced user's chat sessions: ${String(error)}`) } catch {}
+      await this.store.deleteSession(String(session.session_id))
+      this.unbindApplicationSession(String(session.session_id))
+      sendJson(response, 503, { error: 'authentication service unavailable' }, { 'set-cookie': authCookies(request) })
+      return
+    }
+    let workspace
+    try {
+      workspace = await this.ensureGeneral(String(user.id))
+    } catch {
+      await this.store.deleteSession(String(session.session_id))
+      this.unbindApplicationSession(String(session.session_id))
+      sendJson(response, 503, { error: 'authentication service unavailable' }, { 'set-cookie': authCookies(request) })
+      return
+    }
+    sendJson(response, 200, {
+      authenticated: true,
+      user: { zimbra_email: String(user.zimbra_email) },
+      workspace,
+    }, { 'set-cookie': authCookies(request, String(session.session_id)) })
+  }
+
+  async handleTwoFactorRoute(kind, request, response) {
+    if (kind === 'cancel') {
+      if (request.method !== 'POST') {
+        sendJson(response, 405, { error: 'method not allowed' }, { allow: 'POST' })
+        return
+      }
+      if (request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase() === 'application/json') {
+        try { await readJson(request) } catch { sendJson(response, 400, { error: 'invalid request' }); return }
+      }
+      try {
+        await this.authCommand('cancel-2fa', { challenge_id: requestCookieValue(request, TWO_FACTOR_COOKIE) })
+      } catch { /* local cancellation still clears the browser's opaque handle */ }
+      sendJson(response, 200, { authenticated: false, two_factor_required: false }, {
+        'set-cookie': twoFactorCookieHeader('', request, 0),
+      })
+      return
+    }
+    if (request.method === 'GET') {
+      try {
+        const result = await this.authCommand('get-2fa', {
+          challenge_id: requestCookieValue(request, TWO_FACTOR_COOKIE),
+        })
+        if (!result?.two_factor_required || !result?.masked_email || !result?.expires_at) throw new Error('invalid challenge')
+        sendJson(response, 200, {
+          authenticated: false,
+          two_factor_required: true,
+          masked_email: String(result.masked_email),
+          expires_at: String(result.expires_at),
+        }, {
+          'set-cookie': twoFactorCookieHeader(requestCookieValue(request, TWO_FACTOR_COOKIE), request, twoFactorMaxAge(result.expires_at)),
+        })
+      } catch (error) {
+        const failure = twoFactorFailure(error)
+        sendJson(response, 401, { authenticated: false, error: failure.message, code: 'two_factor_expired' }, {
+          'set-cookie': twoFactorCookieHeader('', request, 0),
+        })
+      }
+      return
+    }
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { error: 'method not allowed' }, { allow: 'GET, POST' })
+      return
+    }
+    if (request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase() !== 'application/json') {
+      sendJson(response, 415, { error: 'content type must be application/json' })
+      return
+    }
+    let payload
+    try { payload = await readJson(request) } catch { sendJson(response, 400, { error: 'invalid request' }); return }
+    const commandPayload = {
+      challenge_id: requestCookieValue(request, TWO_FACTOR_COOKIE),
+      code: typeof payload.code === 'string' ? payload.code : '',
+    }
+    try {
+      const result = await this.authCommand('login-2fa', commandPayload)
+      await this.completeApplicationLogin(result, request, response)
+    } catch (error) {
+      const failure = twoFactorFailure(error)
+      const status = failure.code === 'authentication_unavailable' ? 503 : 401
+      const headers = failure.clearChallenge
+        ? { 'set-cookie': twoFactorCookieHeader('', request, 0) }
+        : {}
+      sendJson(response, status, {
+        authenticated: false,
+        ...(failure.clearChallenge ? {} : { two_factor_required: true }),
+        error: failure.message,
+        code: failure.code,
+      }, headers)
+    } finally {
+      commandPayload.code = ''
+      payload.code = ''
+    }
+  }
+
   async handleAuthRoute(kind, request, response) {
     if (!sameSiteRequest(request)) {
       sendJson(response, 403, { error: 'forbidden' })
       return
     }
     await this.ready
+    if (kind === 'two-factor') {
+      await this.handleTwoFactorRoute('challenge', request, response)
+      return
+    }
+    if (kind === 'two-factor-cancel') {
+      await this.handleTwoFactorRoute('cancel', request, response)
+      return
+    }
     if (kind === 'me') {
       if (request.method !== 'GET') {
         sendJson(response, 405, { error: 'method not allowed' }, { allow: 'GET' })
@@ -1698,7 +1861,7 @@ export class SocAuthService {
       const sessionId = cookieValue(request)
       await this.store.deleteSession(sessionId)
       this.unbindApplicationSession(sessionId)
-      sendJson(response, 200, { authenticated: false }, { 'set-cookie': cookieHeader('', request, 0) })
+      sendJson(response, 200, { authenticated: false }, { 'set-cookie': authCookies(request) })
       return
     }
     if (request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase() !== 'application/json') {
@@ -1713,49 +1876,37 @@ export class SocAuthService {
       sendJson(response, 400, { error: 'email and password are required' })
       return
     }
+    const commandPayload = { email, password }
     let result
     try {
-      result = await runAuthCommand('login', { email, password })
+      result = await this.authCommand('login', commandPayload)
     } catch {
       sendJson(response, 401, { error: 'invalid email or password' })
       return
     } finally {
+      commandPayload.password = ''
       payload.password = ''
     }
-    const session = result?.session
-    const user = session?.user
-    if (!session?.session_id || !user?.id || !user?.zimbra_email) {
-      if (session?.session_id) await this.store.deleteSession(String(session.session_id))
-      sendJson(response, 401, { error: 'invalid email or password' })
+    if (result?.two_factor_required) {
+      const challengeId = String(result.challenge_id ?? '')
+      const expiresAt = String(result.expires_at ?? '')
+      if (!challengeId || !result.masked_email || !Number.isFinite(new Date(expiresAt).getTime())) {
+        sendJson(response, 503, { error: 'authentication service unavailable' }, {
+          'set-cookie': twoFactorCookieHeader('', request, 0),
+        })
+        return
+      }
+      sendJson(response, 200, {
+        authenticated: false,
+        two_factor_required: true,
+        masked_email: String(result.masked_email),
+        expires_at: expiresAt,
+      }, {
+        'set-cookie': twoFactorCookieHeader(challengeId, request, twoFactorMaxAge(expiresAt)),
+      })
       return
     }
-    const replacedSessionIds = Array.isArray(result?.replaced_session_ids)
-      ? result.replaced_session_ids.map(id => String(id ?? '')).filter(Boolean)
-      : []
-    for (const replacedSessionId of replacedSessionIds) this.revokeApplicationSession(replacedSessionId)
-    try {
-      await this.stopUserChatSessions(String(user.id), replacedSessionIds)
-    } catch (error) {
-      try { this.ctx?.logger?.warn?.(`soc auth: could not stop the replaced user's chat sessions: ${String(error)}`) } catch {}
-      await this.store.deleteSession(String(session.session_id))
-      this.unbindApplicationSession(String(session.session_id))
-      sendJson(response, 503, { error: 'authentication service unavailable' })
-      return
-    }
-    let workspace
-    try {
-      workspace = await this.ensureGeneral(String(user.id))
-    } catch {
-      await this.store.deleteSession(String(session.session_id))
-      this.unbindApplicationSession(String(session.session_id))
-      sendJson(response, 503, { error: 'authentication service unavailable' })
-      return
-    }
-    sendJson(response, 200, {
-      authenticated: true,
-      user: { zimbra_email: String(user.zimbra_email) },
-      workspace,
-    }, { 'set-cookie': cookieHeader(String(session.session_id), request) })
+    await this.completeApplicationLogin(result, request, response)
   }
 
   registerRoutes(webServer) {
@@ -1766,6 +1917,8 @@ export class SocAuthService {
     })
     return [
       register('/auth/login', 'login'),
+      register('/auth/2fa', 'two-factor'),
+      register('/auth/2fa/cancel', 'two-factor-cancel'),
       register('/auth/logout', 'logout'),
       register('/auth/me', 'me'),
       webServer.register({
@@ -1793,6 +1946,8 @@ export {
   ADMIN_SESSION_COOKIE,
   ADMIN_SESSION_TTL_SECONDS,
   SESSION_COOKIE,
+  TWO_FACTOR_COOKIE,
+  TWO_FACTOR_TTL_SECONDS,
   SESSION_REPLACED_MESSAGE,
   SESSION_REPLACED_REASON,
   SESSION_TTL_SECONDS,

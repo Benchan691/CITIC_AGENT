@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
 		react = __toESM(react, 1);
 		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/core/AuthGate.module.css.mjs
-		const css$1 = ".-poFUG_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.-poFUG_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.-poFUG_title{margin:0 0 20px;font-size:20px;font-weight:600}.-poFUG_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.-poFUG_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.-poFUG_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.-poFUG_button:disabled{cursor:wait;opacity:.65}.-poFUG_error{color:#ffb7b7;margin:10px 0;font-size:13px}.-poFUG_notice{color:#ffe0a6;margin:10px 0;font-size:13px}.-poFUG_loading{color:#cbd6e2;font-size:14px}.-poFUG_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.-poFUG_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
+		const css$1 = ".-poFUG_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.-poFUG_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.-poFUG_title{margin:0 0 20px;font-size:20px;font-weight:600}.-poFUG_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.-poFUG_description{color:#cbd6e2;margin:-4px 0 18px;font-size:13px;line-height:1.5}.-poFUG_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.-poFUG_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.-poFUG_button:disabled{cursor:wait;opacity:.65}.-poFUG_actions{gap:8px;margin-top:8px;display:grid}.-poFUG_secondaryButton{width:100%;color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:8px;padding:9px 12px}.-poFUG_secondaryButton:disabled{cursor:wait;opacity:.65}.-poFUG_error{color:#ffb7b7;margin:10px 0;font-size:13px}.-poFUG_notice{color:#ffe0a6;margin:10px 0;font-size:13px}.-poFUG_loading{color:#cbd6e2;font-size:14px}.-poFUG_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.-poFUG_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
 		const tagId$1 = "dsh-soc-agent-client/AuthGate.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
 			const tag = document.createElement("style");
@@ -40,9 +40,11 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AuthGate_module_css_default = {
+			"actions": "-poFUG_actions",
 			"badge": "-poFUG_badge",
 			"button": "-poFUG_button",
 			"card": "-poFUG_card",
+			"description": "-poFUG_description",
 			"error": "-poFUG_error",
 			"field": "-poFUG_field",
 			"input": "-poFUG_input",
@@ -50,30 +52,54 @@ window.__ModuleLoader__.load({
 			"loading": "-poFUG_loading",
 			"logout": "-poFUG_logout",
 			"notice": "-poFUG_notice",
+			"secondaryButton": "-poFUG_secondaryButton",
 			"title": "-poFUG_title"
 		};
 		//#endregion
 		//#region src/client/core/AuthGate.tsx
+		async function responsePayload(response) {
+			try {
+				const body = await response.json();
+				if (body !== null && typeof body === "object" && !Array.isArray(body)) return body;
+			} catch {}
+			return { authenticated: false };
+		}
 		async function readAuth() {
 			const response = await fetch("/auth/me", {
 				credentials: "same-origin",
 				cache: "no-store"
 			});
-			let value = { authenticated: false };
-			try {
-				const body = await response.json();
-				if (body !== null && typeof body === "object") value = body;
-			} catch {}
-			if (!response.ok) return typeof value.message === "string" ? {
-				authenticated: false,
-				notice: value.message
-			} : { authenticated: false };
+			const value = await responsePayload(response);
+			if (!response.ok) {
+				const challengeResponse = await fetch("/auth/2fa", {
+					credentials: "same-origin",
+					cache: "no-store"
+				});
+				const challenge = await responsePayload(challengeResponse);
+				if (challengeResponse.ok && challenge.two_factor_required === true && typeof challenge.masked_email === "string") {
+					const resumed = {
+						authenticated: false,
+						two_factor_required: true,
+						masked_email: challenge.masked_email
+					};
+					if (typeof challenge.expires_at === "string") resumed.expires_at = challenge.expires_at;
+					return resumed;
+				}
+				return typeof value.message === "string" ? {
+					authenticated: false,
+					notice: value.message
+				} : typeof challenge.error === "string" ? {
+					authenticated: false,
+					notice: challenge.error
+				} : { authenticated: false };
+			}
 			return value.authenticated === true && typeof value.user?.zimbra_email === "string" ? value : { authenticated: false };
 		}
 		function AuthGate() {
 			const [state, setState] = (0, react.useState)(null);
 			const [email, setEmail] = (0, react.useState)("");
 			const [password, setPassword] = (0, react.useState)("");
+			const [code, setCode] = (0, react.useState)("");
 			const [error, setError] = (0, react.useState)("");
 			const [busy, setBusy] = (0, react.useState)(false);
 			const refresh = (0, react.useCallback)(async () => {
@@ -114,7 +140,7 @@ window.__ModuleLoader__.load({
 				setBusy(true);
 				setError("");
 				try {
-					if (!(await fetch("/auth/login", {
+					const response = await fetch("/auth/login", {
 						method: "POST",
 						credentials: "same-origin",
 						headers: { "content-type": "application/json" },
@@ -122,12 +148,84 @@ window.__ModuleLoader__.load({
 							email,
 							password
 						})
-					})).ok) throw new Error("Invalid email or password.");
+					});
+					const body = await responsePayload(response);
+					if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : "Invalid email or password.");
 					setPassword("");
+					if (body.two_factor_required === true && typeof body.masked_email === "string") {
+						setCode("");
+						const challengeState = {
+							authenticated: false,
+							two_factor_required: true,
+							masked_email: body.masked_email
+						};
+						if (typeof body.expires_at === "string") challengeState.expires_at = body.expires_at;
+						setState(challengeState);
+						setBusy(false);
+						return;
+					}
 					window.location.reload();
 				} catch (caught) {
 					setPassword("");
 					setError(caught instanceof Error ? caught.message : "Login failed.");
+					setBusy(false);
+				}
+			};
+			const verifyTwoFactor = async (event) => {
+				event.preventDefault();
+				setBusy(true);
+				setError("");
+				try {
+					const response = await fetch("/auth/2fa", {
+						method: "POST",
+						credentials: "same-origin",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ code })
+					});
+					const body = await responsePayload(response);
+					if (!response.ok) {
+						setCode("");
+						const message = typeof body.error === "string" ? body.error : "The authenticator code could not be verified.";
+						setError(message);
+						if (body.two_factor_required !== true) setState({
+							authenticated: false,
+							notice: message
+						});
+						else setState((previous) => {
+							const challengeState = {
+								authenticated: false,
+								two_factor_required: true
+							};
+							const maskedEmail = typeof body.masked_email === "string" ? body.masked_email : previous?.masked_email;
+							const expiresAt = typeof body.expires_at === "string" ? body.expires_at : previous?.expires_at;
+							if (maskedEmail) challengeState.masked_email = maskedEmail;
+							if (expiresAt) challengeState.expires_at = expiresAt;
+							return challengeState;
+						});
+						setBusy(false);
+						return;
+					}
+					setCode("");
+					window.location.reload();
+				} catch (caught) {
+					setCode("");
+					setError(caught instanceof Error ? caught.message : "The authenticator code could not be verified.");
+					setBusy(false);
+				}
+			};
+			const cancelTwoFactor = async () => {
+				setBusy(true);
+				setError("");
+				try {
+					await fetch("/auth/2fa/cancel", {
+						method: "POST",
+						credentials: "same-origin",
+						headers: { "content-type": "application/json" },
+						body: "{}"
+					});
+				} catch {} finally {
+					setCode("");
+					setState({ authenticated: false });
 					setBusy(false);
 				}
 			};
@@ -149,59 +247,121 @@ window.__ModuleLoader__.load({
 					children: "Loading…"
 				})
 			});
-			if (!state.authenticated || !state.user) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				className: AuthGate_module_css_default.layer,
-				role: "dialog",
-				"aria-label": "Sentinel login",
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
-					className: AuthGate_module_css_default.card,
-					onSubmit: login,
-					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
-							className: AuthGate_module_css_default.title,
-							children: "Sentinel"
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-							className: AuthGate_module_css_default.field,
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Email" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-								className: AuthGate_module_css_default.input,
-								type: "email",
-								autoComplete: "username",
-								value: email,
-								onChange: (event) => setEmail(event.target.value),
-								required: true
-							})]
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-							className: AuthGate_module_css_default.field,
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Password" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-								className: AuthGate_module_css_default.input,
-								type: "password",
-								autoComplete: "current-password",
-								value: password,
-								onChange: (event) => setPassword(event.target.value),
-								required: true
-							})]
-						}),
-						state.notice && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: AuthGate_module_css_default.notice,
-							role: "status",
-							children: state.notice
-						}),
-						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: AuthGate_module_css_default.error,
-							role: "alert",
-							children: error
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							className: AuthGate_module_css_default.button,
-							type: "submit",
-							disabled: busy,
-							children: "Login"
-						})
-					]
-				})
-			});
+			if (!state.authenticated || !state.user) {
+				if (state.two_factor_required) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: AuthGate_module_css_default.layer,
+					role: "dialog",
+					"aria-label": "Authenticator verification",
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+						className: AuthGate_module_css_default.card,
+						onSubmit: verifyTwoFactor,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
+								className: AuthGate_module_css_default.title,
+								children: "Verify your identity"
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("p", {
+								className: AuthGate_module_css_default.description,
+								children: [
+									"Enter the six-digit code from your authenticator app for ",
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: state.masked_email }),
+									"."
+								]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AuthGate_module_css_default.field,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Authenticator code" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: AuthGate_module_css_default.input,
+									type: "text",
+									inputMode: "numeric",
+									autoComplete: "one-time-code",
+									pattern: "[0-9]{6}",
+									maxLength: 6,
+									value: code,
+									onChange: (event) => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6)),
+									required: true,
+									autoFocus: true
+								})]
+							}),
+							error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: AuthGate_module_css_default.error,
+								role: "alert",
+								children: error
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: AuthGate_module_css_default.actions,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: AuthGate_module_css_default.button,
+									type: "submit",
+									disabled: busy || code.length !== 6,
+									children: "Verify"
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									className: AuthGate_module_css_default.secondaryButton,
+									type: "button",
+									onClick: () => {
+										cancelTwoFactor();
+									},
+									disabled: busy,
+									children: "Cancel"
+								})]
+							})
+						]
+					})
+				});
+				return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: AuthGate_module_css_default.layer,
+					role: "dialog",
+					"aria-label": "Sentinel login",
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("form", {
+						className: AuthGate_module_css_default.card,
+						onSubmit: login,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h1", {
+								className: AuthGate_module_css_default.title,
+								children: "Sentinel"
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AuthGate_module_css_default.field,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Email" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: AuthGate_module_css_default.input,
+									type: "email",
+									autoComplete: "username",
+									value: email,
+									onChange: (event) => setEmail(event.target.value),
+									required: true
+								})]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								className: AuthGate_module_css_default.field,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Password" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: AuthGate_module_css_default.input,
+									type: "password",
+									autoComplete: "current-password",
+									value: password,
+									onChange: (event) => setPassword(event.target.value),
+									required: true
+								})]
+							}),
+							state.notice && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: AuthGate_module_css_default.notice,
+								role: "status",
+								children: state.notice
+							}),
+							error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: AuthGate_module_css_default.error,
+								role: "alert",
+								children: error
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: AuthGate_module_css_default.button,
+								type: "submit",
+								disabled: busy,
+								children: "Login"
+							})
+						]
+					})
+				});
+			}
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: AuthGate_module_css_default.badge,
 				"aria-label": `Signed in as ${state.user.zimbra_email}`,

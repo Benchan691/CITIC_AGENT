@@ -17,14 +17,14 @@
 
 | Store | Owner process | Schema/source | Contents | Keying | Encryption |
 |---|---|---|---|---|---|
-| **PostgreSQL** | Node (`SocStateStore`, pool max 10) + Python (`PostgresStore`, pool 1–4, `statement_timeout=15000`) | `migrations/*.sql` applied by `schema.py` (advisory lock; `soc_schema_migrations` ledger) | 10 tables — see below | `id` UUIDs / email uniqueness | `app_config.value_encrypted`, `zimbra_token_encrypted`, `password_encrypted` — Fernet (`APP_SETTINGS_ENCRYPTION_KEY`) |
+| **PostgreSQL** | Node (`SocStateStore`, pool max 10) + Python (`PostgresStore`, pool 1–4, `statement_timeout=15000`) | `migrations/*.sql` applied by `schema.py` (advisory lock; `soc_schema_migrations` ledger) | 11 tables — see below | `id` UUIDs / email uniqueness / hashed challenge id | `app_config.value_encrypted`, `temporary_token_encrypted`, `zimbra_token_encrypted`, `password_encrypted` — Fernet (`APP_SETTINGS_ENCRYPTION_KEY`) |
 | **Per-user workspace dirs** | Node host (ownership proxy) | `MCP_SERVER_ROOT/.data/soc-workspaces/<userId>/[general]` | User conversation/working artifacts | Directory = user id | None (fs permissions; user-scoped by proxy) |
 | **Harness state** | Node host | `.data/`, `.state/` (gitignored) | Sessions, presets, telemetry-adjacent state | Harness-internal | Harness-internal |
 | **Setup fingerprints** | `setup.sh` | `.data/harness-{install,build}.sha256` | Content hashes gating install/build | — | — |
 | **Tracked SOC browser bundles** | build | `packages/soc-agent-*/lib/` | Browser bundles for the core, isolated surfaces, and optional features | — | — |
 | **Local account file (legacy)** | Python admin/compat | `.data/zimbra_accounts.enc` + `.key` (Fernet; `0o600`; atomic replace) | Stored mailbox credentials | account id | Fernet |
 
-**Postgres tables:** `soc_users`, `soc_app_sessions`, `soc_session_revocations`, `soc_workspace_owners`, `soc_session_owners`, `soc_folder_owners`, `soc_bootstrap` (created by *both* tiers, identical DDL), plus Python-managed `app_config` (encrypted settings) and `zimbra_accounts` (legacy).
+**Postgres tables:** `soc_users`, `soc_two_factor_challenges` (hashed opaque id, encrypted temporary token, ≤300 s, five attempts), `soc_app_sessions`, `soc_session_revocations`, `soc_workspace_owners`, `soc_session_owners`, `soc_folder_owners`, `soc_bootstrap` (created by *both* tiers, identical DDL), plus Python-managed `app_config` (encrypted settings) and `zimbra_accounts` (legacy).
 
 ![Data and trust boundaries diagram](site/assets/diagrams/data-trust-boundaries.svg)
 
@@ -42,7 +42,8 @@ Sensitive stores (red) are exactly the ones listed below; retrieved email and Sp
 
 | Write | Path |
 |---|---|
-| Login | `auth_cli login` → `create_user_session` (upsert user; encrypt token; revoke other sessions; insert session) |
+| Initial login | `auth_cli login` → Zimbra `AuthRequest`; normal responses go to `create_user_session`, while 2FA responses go to `create_two_factor_challenge` (hash id; Fernet-encrypt temporary token; no password stored) |
+| 2FA completion | `auth_cli login-2fa` → second Zimbra `AuthRequest` (`authToken` + `twoFactorCode`) → delete challenge → `create_user_session`; only this path performs session replacement and workspace bootstrap |
 | Ownership claim | `claimWorkspace` / `claimSession` / `claimFolder` (owner-guarded upserts, `ON CONFLICT DO NOTHING` + verify) |
 | Settings change | Admin console → `settings.mutate` (revision-checked) → encrypted `app_config` row |
 | Session end | `delete_app_session` (logout, `zimbra_auth_error` cleanup) |
