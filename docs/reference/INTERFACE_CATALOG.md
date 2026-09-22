@@ -48,7 +48,7 @@ Registered with `authority: 'trusted-host'`; every endpoint re-checks auth (`req
 | `get-settings` | admin | `{}` → redacted service statuses (admin_cli `get-settings`) | `runAdmin` |
 | `update-settings` / `delete-setting` | admin | always `bad-request` — "Service configuration is managed by the server environment." | `host.js` |
 | `list/add/update/delete/test-account` | — | always refuse — "Stored Zimbra accounts are no longer supported" | legacy stubs |
-| `send-email` | user | `{action, to[], cc[], bcc[], subject, body, body_format, source_message_id, reply_all}` → `{sent: true}` required by the UI; `action` routes send/reply/forward and source metadata is retained only for reply/forward | `runAuthCommand('send-email', {…, session_id})` |
+| `send-email` | user | `{action, to[], cc[], bcc[], subject, body, body_format: 'html', source_message_id, reply_all, attachments[]}` → `{sent: true}` required by the UI; each attachment is `{filename, content_type, data(base64)}` with ≤5 files, ≤10 MB/file, and ≤50 MB total; `action` routes send/reply/forward and source metadata is retained only for reply/forward | `runAuthCommand('send-email', {…, session_id})` |
 | `list-signatures` | user | `{}` → `{signatures: [{id,name,text,html}]}` | `runAuthCommand` |
 | `test-splunk` / `test-subscription-server` | admin | `{}` → status/failure. `test-splunk` executes a **live `splunk_get_info` through the bridge** (`testOfficialSplunkConnection`, 185 s budget, Bearer token redacted from errors); subscription check stays an admin-CLI subprocess | `host.js`, `splunk-bridge.js` |
 | `convert-attachment` | admin | `{filename, content_type, data(base64), limits{max_bytes, max_chars}}` → `{text, text_truncated?, …}`; limits: ≤100 MB decoded, ≤2 M chars, filename ≤255 | `validateAttachmentPayload` + admin_cli |
@@ -85,7 +85,7 @@ Registered with `authority: 'trusted-host'`; every endpoint re-checks auth (`req
 
 ## 8. UI handoff boundaries
 
-- **Email draft handoff:** `zimbra_send_email` tool result (draft JSON with `action` and optional source metadata) → `EmailDraftToolview` renders an action-specific editable form → explicit confirm → `send-email` RPC → `{sent:true}` or failure card. No other delivery path exists; no model-callable send.
+- **Email draft handoff:** `zimbra_send_email` tool result (HTML draft JSON with `action` and optional source metadata) → `EmailDraftToolview` renders an editable HTML source beside a sanitized sandboxed preview, supports explicitly selected attachments, and waits for explicit confirm → `send-email` RPC → `{sent:true}` or failure card. No other delivery path exists; no model-callable send.
 - **Attachment boundary:** composer file → base64 → `convert-attachment` (admin RPC) or mailbox `zimbra_get_attachment_text` → MarkItDown Markdown with `text_truncated` marker → model context.
 - **Browser bundle boundary:** `lib/client.js` closure factory loaded via `window.__ModuleLoader__` + `__DSH_BOOT__` graph (harness `packages/client/web/src/boot.ts`).
 

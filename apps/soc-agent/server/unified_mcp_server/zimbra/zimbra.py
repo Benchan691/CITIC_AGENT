@@ -1,11 +1,23 @@
 import html
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
-from zimbra_client import ZimbraClient
+from zimbra_client import Attachment, ZimbraClient
 from zimbra_client.errors import ZimbraLimitError
+from zimbra_client.mail import (
+    build_send_message_request,
+    ensure_recipients,
+    format_forwarded_html,
+    format_forwarded_text,
+    format_reply_html,
+    format_reply_text,
+    parse_send_response,
+    prepend_html,
+    prepend_text,
+)
 from ..request_context import remaining_seconds
 
 
@@ -206,15 +218,16 @@ def zimbra_send_message(
     *,
     cc=None,
     bcc=None,
-    body_format="text",
+    body_format="html",
+    attachments: Sequence[Attachment] | None = None,
     verify_ssl=True,
     timeout=60,
     allow_insecure_http=False,
 ):
     body_format = str(body_format).strip().lower()
-    if body_format not in {"text", "html"}:
-        raise ValueError("body_format must be text or html")
-    kwargs = {"text": str(body)} if body_format == "text" else {"html": str(body)}
+    if body_format != "html":
+        raise ValueError("Email actions must use body_format=html")
+    text_body, html_body = _composer_body(body, body_format)
     result = _token_client(
         host, token, verify_ssl=verify_ssl, timeout=timeout,
         allow_insecure_http=allow_insecure_http,
@@ -223,7 +236,9 @@ def zimbra_send_message(
         cc=cc,
         bcc=bcc,
         subject=str(subject),
-        **kwargs,
+        text=text_body,
+        html=html_body,
+        attachments=attachments,
     )
     return {"message_id": result.message_id}
 
@@ -239,44 +254,137 @@ class _PlainText(HTMLParser):
 
 def _composer_body(body, body_format):
     body_format = "html" if body_format is None else str(body_format).strip().lower()
-    if body_format not in {"text", "html"}:
-        raise ValueError("body_format must be text or html")
-    if body_format == "html":
-        parser = _PlainText()
-        parser.feed(str(body))
-        return " ".join(parser.parts), str(body)
-    text_body = str(body)
-    return text_body, html.escape(text_body).replace("\n", "<br>\n")
+    if body_format != "html":
+        raise ValueError("Email actions must use body_format=html")
+    parser = _PlainText()
+    parser.feed(str(body))
+    return " ".join(parser.parts), str(body)
+
+
+def _default_subject(prefix: str, subject: str) -> str:
+    subject = str(subject or "").strip()
+    return subject if subject.casefold().startswith(prefix.casefold()) else f"{prefix} {subject}".strip()
+
+
+def _header_value(headers, name: str) -> str:
+    for key, value in (headers or {}).items():
+        if str(key).casefold() == name.casefold():
+            return str(value or "")
+    return ""
+
+
+def _uploaded_action(
+    client: _TokenClient,
+    *,
+    to,
+    cc,
+    bcc,
+    subject: str,
+    text: str,
+    html_body: str,
+    attachments: Sequence[Attachment],
+    source_message_id: str,
+    reply_type: str,
+    attached_message_parts=(),
+    in_reply_to: str = "",
+    original_subject: str = "",
+) -> dict[str, str]:
+    to_recipients, cc_recipients, bcc_recipients = ensure_recipients(to=to, cc=cc, bcc=bcc)
+    attachment_ids = client._upload_attachments(attachments)
+    prefix = "Re:" if reply_type == "r" else "Fwd:"
+    request = build_send_message_request(
+        to=to_recipients,
+        cc=cc_recipients,
+        bcc=bcc_recipients,
+        subject=subject or _default_subject(prefix, original_subject),
+        text=text,
+        html=html_body,
+        attachment_ids=attachment_ids,
+        original_id=source_message_id,
+        reply_type=reply_type,
+        in_reply_to=in_reply_to,
+        attached_message_parts=attached_message_parts,
+    )
+    return {"message_id": parse_send_response(client.request(request)).message_id}
 
 
 def zimbra_forward_message(
     host, token, message_id, recipients, subject, body, *, cc=None, bcc=None,
-    body_format="html", verify_ssl=True, timeout=60, allow_insecure_http=False,
+    body_format="html", attachments: Sequence[Attachment] | None = None,
+    verify_ssl=True, timeout=60, allow_insecure_http=False,
 ):
     text_body, html_body = _composer_body(body, body_format)
-    result = _token_client(
+    client = _token_client(
         host, token, verify_ssl=verify_ssl, timeout=timeout,
         allow_insecure_http=allow_insecure_http,
-    ).forward_message(
-        message_id, to=recipients, cc=cc, bcc=bcc, subject=subject or None,
-        text=text_body, html=html_body,
     )
-    return {"message_id": result.message_id}
+    if not attachments:
+        result = client.forward_message(
+            message_id, to=recipients, cc=cc, bcc=bcc, subject=subject or None,
+            text=text_body, html=html_body,
+        )
+        return {"message_id": result.message_id}
+    source = client.get_message(message_id)
+    attached_message_parts = []
+    for attachment in source.attachments:
+        if not attachment.part:
+            raise ValueError("Source attachment did not include a MIME part id")
+        attached_message_parts.append((message_id, attachment.part))
+    return _uploaded_action(
+        client,
+        to=recipients,
+        cc=cc,
+        bcc=bcc,
+        subject=subject,
+        text=prepend_text(text_body, format_forwarded_text(source)),
+        html_body=prepend_html(html_body, format_forwarded_html(source)),
+        attachments=attachments,
+        source_message_id=message_id,
+        reply_type="w",
+        attached_message_parts=attached_message_parts,
+        original_subject=source.subject,
+    )
 
 
 def zimbra_reply_message(
     host, token, message_id, recipients=None, subject=None, body="", *, cc=None, bcc=None,
-    body_format="html", reply_all=False, email="", verify_ssl=True, timeout=60, allow_insecure_http=False,
+    body_format="html", reply_all=False, email="", attachments: Sequence[Attachment] | None = None,
+    verify_ssl=True, timeout=60, allow_insecure_http=False,
 ):
     text_body, html_body = _composer_body(body, body_format)
-    result = _token_client(
+    client = _token_client(
         host, token, email=email, verify_ssl=verify_ssl, timeout=timeout,
         allow_insecure_http=allow_insecure_http,
-    ).reply_message(
-        message_id, to=recipients, cc=cc, bcc=bcc, subject=subject or None,
-        text=text_body, html=html_body, reply_all=bool(reply_all),
     )
-    return {"message_id": result.message_id}
+    if not attachments:
+        result = client.reply_message(
+            message_id, to=recipients, cc=cc, bcc=bcc, subject=subject or None,
+            text=text_body, html=html_body, reply_all=bool(reply_all),
+        )
+        return {"message_id": result.message_id}
+    source = client.get_message(message_id)
+    explicit_recipients = any(value is not None for value in (recipients, cc, bcc))
+    if explicit_recipients:
+        to_recipients, cc_recipients, bcc_recipients = ensure_recipients(to=recipients, cc=cc, bcc=bcc)
+    else:
+        to_recipients, cc_recipients, bcc_recipients = client._derive_reply_recipients(
+            source,
+            reply_all=bool(reply_all),
+        )
+    return _uploaded_action(
+        client,
+        to=to_recipients,
+        cc=cc_recipients,
+        bcc=bcc_recipients,
+        subject=subject or "",
+        text=prepend_text(text_body, format_reply_text(source)),
+        html_body=prepend_html(html_body, format_reply_html(source)),
+        attachments=attachments,
+        source_message_id=message_id,
+        reply_type="r",
+        in_reply_to=_header_value(source.headers, "Message-ID"),
+        original_subject=source.subject,
+    )
 
 
 def zimbra_move_message(host, token, message_id, folder_id, *, verify_ssl=True, timeout=60, allow_insecure_http=False):

@@ -3,10 +3,14 @@ import { createRequire, registerHooks } from 'node:module'
 import test from 'node:test'
 import { act, createElement } from 'react'
 import {
+  EMAIL_ATTACHMENT_LIMITS,
   draftFromForm,
+  fileToEmailAttachment,
   parseRecipientText,
+  validateEmailAttachmentSelection,
   type EmailDraftFormFields,
 } from '../src/client/emailDraft.ts'
+import { renderEmailPreviewDocument, sanitizeEmailHtml } from '../src/client/htmlEmail.ts'
 
 const form: EmailDraftFormFields = {
   to: 'to@example.com, second@example.com\nto@example.com',
@@ -28,6 +32,45 @@ test('normalizes editable recipient fields without duplicating addresses', () =>
     subject: 'An exact subject',
     body: 'The exact body.',
   })
+  assert.equal(draftFromForm(form, { action: 'send', body_format: 'html' }).body_format, 'html')
+})
+
+test('sanitizes live HTML preview content while retaining safe layout', async () => {
+  const require = createRequire(import.meta.url)
+  const { JSDOM } = require('../../../vendor/deepseek-harness/node_modules/jsdom')
+  const dom = new JSDOM('', { url: 'https://soc.example/' })
+  Object.assign(globalThis, { DOMParser: dom.window.DOMParser })
+  try {
+    const unsafe = '<div style="color: red; position: fixed; background: url(https://evil.test/x)"><script>alert(1)</script><img src="https://evil.test/x" onerror="alert(2)"><iframe src="https://evil.test/frame"></iframe><a href="javascript:alert(3)" onclick="alert(4)">Safe link</a></div>'
+    const sanitized = sanitizeEmailHtml(unsafe)
+    assert.match(sanitized, /Safe link/)
+    assert.match(sanitized, /color: red/)
+    assert.doesNotMatch(sanitized, /script|iframe|img|onerror|onclick|javascript:|position: fixed|url\(/iu)
+    assert.doesNotMatch(renderEmailPreviewDocument(unsafe), /<script|<iframe|<img|javascript:/iu)
+  } finally {
+    Reflect.deleteProperty(globalThis, 'DOMParser')
+    dom.window.close()
+  }
+})
+
+test('validates selected email files and creates standard base64 payloads', async () => {
+  const file = (name: string, size: number, type = 'application/octet-stream'): File => ({
+    name, size, type, arrayBuffer: async () => new ArrayBuffer(size),
+  }) as File
+  assert.equal(validateEmailAttachmentSelection([file('one.txt', 3, 'text/plain')]), null)
+  assert.match(validateEmailAttachmentSelection(
+    Array.from({ length: EMAIL_ATTACHMENT_LIMITS.maxFiles + 1 }, (_, index) => file(`${index}.txt`, 1)),
+  )!, /no more than 5/i)
+  assert.match(validateEmailAttachmentSelection([file('large.bin', EMAIL_ATTACHMENT_LIMITS.maxBytesPerFile + 1)])!, /10 MB/i)
+  const fiveFiles = Array.from({ length: 5 }, (_, index) => file(`${index}.bin`, 10_000_000))
+  assert.equal(validateEmailAttachmentSelection(fiveFiles), null)
+  assert.match(validateEmailAttachmentSelection([file('extra.bin', 1)], fiveFiles)!, /no more than 5/i)
+
+  const payload = await fileToEmailAttachment({
+    name: 'note.txt', type: 'text/plain', size: 5,
+    arrayBuffer: async () => new TextEncoder().encode('hello').buffer,
+  } as File)
+  assert.deepEqual(payload, { filename: 'note.txt', content_type: 'text/plain', data: 'aGVsbG8=' })
 })
 
 test('preserves action metadata when editing a forward without copying its preview into the body', () => {
@@ -98,6 +141,16 @@ test('forward editor requires confirmation, retains its source after edits, and 
       Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')!.set!.call(body, 'Edited note')
       body.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
     })
+    const selectedFile = new dom.window.File(['selected'], 'selected.txt', { type: 'text/plain' })
+    const attachmentInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    Object.defineProperty(attachmentInput, 'files', { configurable: true, value: [selectedFile] })
+    await act(async () => attachmentInput.dispatchEvent(new dom.window.Event('change', { bubbles: true })))
+    assert.match(document.body.textContent!, /selected\.txt/)
+    const removeAttachment = document.querySelector('button[aria-label="Remove selected.txt"]') as HTMLButtonElement
+    await act(async () => removeAttachment.click())
+    assert.doesNotMatch(document.body.textContent!, /selected\.txt/)
+    Object.defineProperty(attachmentInput, 'files', { configurable: true, value: [selectedFile] })
+    await act(async () => attachmentInput.dispatchEvent(new dom.window.Event('change', { bubbles: true })))
     await click('Send')
     assert.equal(calls.length, 0, 'Canceling confirmation never calls the send endpoint')
     confirmed = true
@@ -105,6 +158,7 @@ test('forward editor requires confirmation, retains its source after edits, and 
     assert.deepEqual(calls[0], ['send-email', {
       ...draftFromForm({ ...form, body: 'Edited note' }, { action: 'forward', source_message_id: '42' }),
       body_format: 'html',
+      attachments: [{ filename: 'selected.txt', content_type: 'text/plain', data: 'c2VsZWN0ZWQ=' }],
     }])
     assert.match(document.querySelector('[role="alert"]')!.textContent!, /did not confirm/)
     assert.equal(body.value, 'Edited note')
@@ -166,12 +220,17 @@ test('reply editor permits derived recipients and preserves reply metadata', asy
       { block, socClient } as unknown as Parameters<typeof EmailDraftToolview>[0])))
     assert.match(document.body.textContent!, /Reply to email/)
     assert.match(document.body.textContent!, /attachments will not be reattached/)
+    const selectedFile = new dom.window.File(['reply'], 'reply.txt', { type: 'text/plain' })
+    const attachmentInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    Object.defineProperty(attachmentInput, 'files', { configurable: true, value: [selectedFile] })
+    await act(async () => attachmentInput.dispatchEvent(new dom.window.Event('change', { bubbles: true })))
     await click('Send')
     assert.deepEqual(calls[0], ['send-email', {
       ...draftFromForm({ ...form, to: '' }, {
         action: 'reply', source_message_id: '42', reply_all: true,
       }),
       body_format: 'html',
+      attachments: [{ filename: 'reply.txt', content_type: 'text/plain', data: 'cmVwbHk=' }],
     }])
   } finally {
     await act(async () => root.unmount())

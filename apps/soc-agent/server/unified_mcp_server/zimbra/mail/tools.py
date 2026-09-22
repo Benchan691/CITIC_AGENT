@@ -95,15 +95,16 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         message_id: str | None = None,
         cc: list[str] | None = None,
         bcc: list[str] | None = None,
-        body_format: Literal["text", "html"] | None = None,
+        body_format: Literal["html"] = "html",
         reply_all: bool = False,
     ) -> dict[str, Any]:
         """Prepare a browser-editable local email draft for sending, replying, or forwarding; delivery requires the draft's explicit Send button.
 
         Use action='send' for a new message, action='reply' with message_id to
         reply to the source (recipients are derived unless supplied), or
-        action='forward' with message_id and at least one To recipient. Reply
-        and forward drafts default to HTML; new-message drafts default to text.
+        action='forward' with message_id and at least one To recipient. All
+        drafts use HTML and the browser view shows a sanitized rendered
+        preview; delivery remains behind its explicit Send button.
         """
         async def create_draft() -> dict[str, Any]:
             return await get_runtime(ctx).zimbra_mail.create_email_action_draft(
@@ -132,7 +133,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         subject: str,
         body: str,
         signature_id: str,
-        body_format: str = "text",
+        body_format: Literal["html"] = "html",
         placement: str = "below",
         cc: list[str] | None = None,
         bcc: list[str] | None = None,

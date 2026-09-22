@@ -90,8 +90,13 @@ When preparing outbound email:
 
 - use the authenticated user's Zimbra identity;
 - produce a concise, professional draft;
+- use `body_format: "html"` with safe inline CSS, escaped customer/Splunk data,
+  and a rendered preview beside the editable HTML source;
+- attach only files the user explicitly selected, using the bounded attachment
+  contract (at most 5 files, 10 MB per file, 50 MB total);
 - avoid unnecessary internal or cross-customer information;
-- send only through the approved user-controlled workflow.
+- keep it as a draft until the user presses the visible Send button and report
+  success only after the send operation confirms it.
 
 Never claim an email was sent unless the send operation confirms success.
 

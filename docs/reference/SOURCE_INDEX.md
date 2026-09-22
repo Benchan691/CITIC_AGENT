@@ -88,7 +88,7 @@
 |---|---|
 | `skills/detection-engineering/SKILL.md` | Read-only detection design → compile → validate → backtest → external human deployment (12-step workflow) |
 | `skills/false-positive-analysis/SKILL.md` | Alert explanation/classification + narrowest tuning proposal (10-step) |
-| `skills/splunk-investigation/SKILL.md` | Evidence-based investigation with `mcp__splunk_mcp__*` reads (13-step) |
+| `skills/splunk-investigation/SKILL.md` | Customer-scoped, bounded, evidence-based investigation with `mcp__splunk_mcp__*` reads and the read-only `Ruleset.csv` contract |
 | `skills/spl-writing/SKILL.md` | CITIC production SPL + safe backtest SPL via `splunk_compile_citic_detection` (5-step) |
 | `patches/dsh-auto-collapse@0.1.4.patch` | English localization + duration parsing + `data-dshcf-preserve` exclusion |
 | `docs/GLM_5_3_REPOSITORY_DOCUMENTATION_INSTRUCTIONS.md` | The durable execution brief for this documentation set (do not overwrite) |

@@ -64,6 +64,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     }
     assert draft_tool.parameters.get("required", []) == []
     assert draft_tool.parameters["properties"]["action"]["enum"] == ["send", "reply", "forward"]
+    assert "html" in str(draft_tool.parameters["properties"]["body_format"])
+    assert "text" not in str(draft_tool.parameters["properties"]["body_format"])
     assert draft_tool.annotations.readOnlyHint is True
     assert "zimbra_create_email_draft" not in {tool.name for tool in tools}
     list_signatures_tool = next(tool for tool in tools if tool.name == "zimbra_list_signatures")
@@ -79,6 +81,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "to", "cc", "bcc", "subject", "body", "signature_id", "body_format", "placement",
     }
     assert set(use_signature_tool.parameters["required"]) == {"to", "subject", "body", "signature_id"}
+    assert "html" in str(use_signature_tool.parameters["properties"]["body_format"])
+    assert "text" not in str(use_signature_tool.parameters["properties"]["body_format"])
     get_email_tool = next(tool for tool in tools if tool.name == "zimbra_get_email")
     assert set(get_email_tool.parameters["properties"]) == {
         "message_id", "max_body_chars",

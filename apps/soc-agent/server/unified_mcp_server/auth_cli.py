@@ -117,6 +117,7 @@ async def send_email(payload: dict[str, Any]) -> dict[str, Any]:
         body_format=payload.get("body_format"),
         source_message_id=payload.get("source_message_id"),
         reply_all=payload.get("reply_all", False),
+        attachments=payload.get("attachments"),
     )
 
 

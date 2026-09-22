@@ -1,57 +1,38 @@
-## Confirmed rule-naming convention
+## Splunk Ruleset.csv contract
 
-A read-only review of the configured Splunk `Ruleset.csv` lookup found 1,782
-rows at the time of this review. Only one current `RuleName_EN` value starts
-with a bracketed customer prefix; 1,781 are unbracketed and three rows have no
-rule name. The lookup is therefore a rule catalog, not a complete customer
-short-name roster. The `GID` value is overwhelmingly `Default`, so `GID` must
-not be treated as a customer abbreviation.
+`Ruleset.csv` is a read-only company lookup and evidence source. It is not a
+write target, reservation service, customer roster, or authorization source.
+This background file is not authorization and does not replace the authenticated
+user's scope.
+When a current rule inventory matters, inspect the live read-only lookup and
+report what was observed; never modify it or claim that a number has been
+reserved.
 
-For a customer-specific detection, the confirmed naming form is:
+The canonical rule fields are:
 
-```text
-[COMPANY_SHORT] detection alert name
-```
+| Field | Requirement |
+| --- | --- |
+| `Description_EN` | English description of the rule. |
+| `GID` | Exactly `Default`; it must not be treated as a customer abbreviation. |
+| `Remediation_EN` | English remediation guidance. |
+| `RuleName_EN` | Exact `RuleNum_Name` format; `RuleNum` is followed by one underscore and a non-empty rule name. |
+| `RuleNum` | Unique four-digit value from `0000` through `9999` for each rule. |
+| `Severity` | Exactly one of `Low`, `Medium`, `High`, or `Critical`. |
 
-Use the verified, canonical company short term inside the brackets, followed
-by exactly one space and the detection alert name. Existing numeric rule
-identifiers may remain part of the alert name, for example
-`<RuleNum>_<alert title>`, but a new identifier must not be invented. Do not
-derive a customer short term from `Ruleset.csv`, `GID`, a hostname, or a
-customer's events alone; verify it from authoritative customer or team
-context first. One actual catalog example, retained to make the convention
-concrete, is:
-
-```text
-[Fubon] 7732_Malicious File/Exploit Download_Checkpoint FW
-```
-
-This is a naming example, not a customer roster, authorization, or a mapping
-to apply to another customer. Apart from this explicitly retained example,
-customer names and mappings are not persisted in this shared background file.
-
-The catalog should be rechecked when a current customer roster or exact rule
-inventory is required, because its contents can change independently of this
-document.
-
-## Detection rule-writing guidance
-
-The operational detection-writing method is intentionally kept in
-`skills/detection-engineering/SKILL.md` and `skills/spl-writing/SKILL.md`, not
-in this just-in-time background file. Load those skills for detection work;
-this file provides reference context only, not authorization and not a
-replacement for `AGENTS.md`.
+`RuleName_EN` must not use the former bracketed customer-prefix convention.
+For a new or proposed rule, a read-only check can establish that the number
+does not duplicate a value currently observed in the lookup, but it cannot
+reserve that number. `RuleNum` uniqueness must be confirmed again by the
+human catalog-maintenance process at the time of writing.
 
 ## Operating boundaries
 
 - Splunk investigation is read-only by default and must remain customer-scoped.
 - Treat Splunk results as evidence; distinguish observations, inferences,
   unknowns, and recommendations.
-- Detection work in this application is read-only: inspect, compile, validate,
-  and backtest, then provide a reviewed handoff for a separately controlled
-  human Splunk change process.
-- MCP never creates, updates, enables, disables, or rolls back a detection.
+- MCP never creates, updates, enables, disables, or rolls back a detection or
+  edits `Ruleset.csv`.
 - Authentication, environment configuration, customer context, and live
   evidence come from their authoritative sources, not from this document.
-- `Ruleset.csv` remains read-only evidence for rule-number checks. Catalog
-  maintenance is handled by the external human process.
+- A proposed email is an HTML draft only; attachments are selected explicitly
+  by the user, and sending requires the visible Send confirmation.

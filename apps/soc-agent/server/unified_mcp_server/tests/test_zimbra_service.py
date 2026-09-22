@@ -1,3 +1,5 @@
+import base64
+
 import pytest
 import xml.etree.ElementTree as ET
 
@@ -159,7 +161,7 @@ async def test_signature_draft_keeps_authenticated_identity(monkeypatch):
     draft = await ZimbraService(settings(), identity=identity).use_signature_on_email(
         "recipient@example.com", "Update", "Reviewed", "1",
     )
-    assert draft["draft"]["body"] == "Reviewed\n\nSOC analyst"
+    assert draft["draft"]["body"] == "Reviewed<br><br><p>SOC analyst</p>"
     assert draft["draft"]["account_id"] == "authenticated"
     assert draft["draft"]["signature"] == {"id": "1", "name": "Work"}
 
@@ -244,7 +246,7 @@ def test_create_email_draft_is_local_and_structured(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_new_send_action_defaults_to_plain_text(monkeypatch):
+async def test_new_send_action_uses_html(monkeypatch):
     captured = {}
     monkeypatch.setattr(module, "zimbra_login", lambda *_: "token")
     monkeypatch.setattr(
@@ -257,19 +259,19 @@ async def test_new_send_action_defaults_to_plain_text(monkeypatch):
     draft = (await service.create_email_action_draft(
         action="send", to=["to@example.com"], subject="Subject", body="Body",
     ))["draft"]
-    assert draft["body_format"] == "text"
+    assert draft["body_format"] == "html"
     result = await service.send_email(["to@example.com"], "Subject", "Body")
 
     assert result["message_id"] == "sent-8"
-    assert captured["options"]["body_format"] == "text"
+    assert captured["options"]["body_format"] == "html"
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("note, requested_format, expected_format, plain_note, html_note", [
-    ("Review <this> & reply", "text", "text", "Review <this> & reply", "Review &lt;this&gt; &amp; reply"),
+    ("Review <this> & reply", "html", "html", "Review  & reply", "Review  &amp; reply"),
     ("<p>Review &amp; reply</p>", "html", "html", "Review & reply", "<p>Review &amp; reply</p>"),
     ("<p>Default HTML note</p>", None, "html", "Default HTML note", "<p>Default HTML note</p>"),
-    ("", "text", "text", "", ""),
+    ("", "html", "html", "", ""),
 ])
 async def test_forward_action_draft_then_confirmed_send_uses_package_and_preserves_attachments(
     monkeypatch, note, requested_format, expected_format, plain_note, html_note,
@@ -342,7 +344,7 @@ async def test_forward_action_draft_then_confirmed_send_uses_package_and_preserv
 @pytest.mark.asyncio
 @pytest.mark.parametrize("requested_format, expected_format, note, plain_note, html_note", [
     (None, "html", "<p>Review &amp; reply</p>", "Review & reply", "<p>Review &amp; reply</p>"),
-    ("text", "text", "Review <this> & reply", "Review <this> & reply", "Review &lt;this&gt; &amp; reply"),
+    ("html", "html", "<p>Review <this> &amp; reply</p>", "Review  & reply", "<p>Review  &amp; reply</p>"),
 ])
 async def test_reply_action_derives_recipients_sets_headers_and_keeps_mime_alternatives(
     monkeypatch, requested_format, expected_format, note, plain_note, html_note,
@@ -514,6 +516,136 @@ async def test_send_email_is_gated_validated_and_uses_selected_account(monkeypat
         "timeout": 60,
         "allow_insecure_http": False,
         }
+
+
+@pytest.mark.asyncio
+async def test_email_attachment_payload_is_validated_and_html_is_sanitized(monkeypatch):
+    identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
+    service = ZimbraService(settings(allow_send=True), identity=identity)
+    monkeypatch.setattr(module, "zimbra_send_message", lambda *args, **kwargs: pytest.fail("invalid payload reached transport"))
+    with pytest.raises(ServiceError, match="body_format=html"):
+        await service.send_email(["to@example.com"], "Subject", "Body", body_format="text")
+    invalid_payloads = [
+        {"filename": "../report.txt", "content_type": "text/plain", "data": "aGVsbG8="},
+        {"filename": "report.txt", "content_type": "text/plain; charset=utf-8", "data": "aGVsbG8="},
+        {"filename": "report.txt", "content_type": "text/plain", "data": "not-base64"},
+        {"filename": "report.txt", "content_type": "text/plain", "data": "aGVsbG8="},
+    ]
+    for payload in invalid_payloads[:3]:
+        with pytest.raises(ServiceError) as error:
+            await service.send_email(["to@example.com"], "Subject", "<p>Body</p>", attachments=[payload])
+        assert error.value.code == "invalid_input"
+
+    monkeypatch.setattr(module, "_MAX_EMAIL_ATTACHMENT_BYTES", 2)
+    with pytest.raises(ServiceError, match="10 MB"):
+        await service.send_email(
+            ["to@example.com"], "Subject", "Body",
+            attachments=[{
+                "filename": "report.txt", "content_type": "text/plain",
+                "data": base64.b64encode(b"abc").decode(),
+            }],
+        )
+    monkeypatch.setattr(module, "_MAX_EMAIL_ATTACHMENT_BYTES", 10_000_000)
+    monkeypatch.setattr(module, "_MAX_EMAIL_TOTAL_BYTES", 2)
+    with pytest.raises(ServiceError, match="50 MB"):
+        await service.send_email(
+            ["to@example.com"], "Subject", "Body",
+            attachments=[invalid_payloads[3]],
+        )
+    monkeypatch.setattr(module, "_MAX_EMAIL_TOTAL_BYTES", 50_000_000)
+    with pytest.raises(ServiceError, match="No more than 5"):
+        await service.send_email(
+            ["to@example.com"], "Subject", "Body",
+            attachments=[invalid_payloads[3]] * 6,
+        )
+
+    captured = {}
+    monkeypatch.setattr(
+        module,
+        "zimbra_send_message",
+        lambda host, token, recipients, subject, body, **kwargs: captured.update(
+            body=body, options=kwargs,
+        ) or {"message_id": "sent-attachment"},
+    )
+    result = await service.send_email(
+        ["to@example.com"],
+        "Subject",
+        '<p style="color: red; position: fixed">Safe<img src="https://evil.test/x" onerror="alert(1)"></p><script>alert(2)</script><a href="javascript:alert(3)">link</a>',
+        body_format="html",
+        attachments=[invalid_payloads[3]],
+    )
+    assert result["message_id"] == "sent-attachment"
+    assert captured["options"]["body_format"] == "html"
+    assert captured["options"]["attachments"][0].filename == "report.txt"
+    assert captured["options"]["attachments"][0].data == b"hello"
+    assert "script" not in captured["body"].lower()
+    assert "img" not in captured["body"].lower()
+    assert "javascript:" not in captured["body"].lower()
+    assert "onerror" not in captured["body"].lower()
+    assert "position: fixed" not in captured["body"].lower()
+
+
+@pytest.mark.asyncio
+async def test_selected_attachments_are_sent_for_new_reply_and_forward_and_forward_preserves_source(monkeypatch):
+    identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
+    service = ZimbraService(settings(allow_send=True), identity=identity)
+    upload_calls = []
+    requests = []
+    source_xml = '''<GetMsgResponse xmlns="urn:zimbraMail"><m id="42">
+      <su>Incident update</su>
+      <e t="f" a="sender@example.com"/><e t="r" a="reply@example.com"/><e t="t" a="analyst@example.com"/>
+      <mp ct="text/plain" body="1"><content>Original content</content></mp>
+      <mp ct="text/html" body="1"><content>&lt;p&gt;Original HTML&lt;/p&gt;</content></mp>
+      <mp part="2" filename="source.pdf" ct="application/pdf" cd="attachment" s="10"/>
+      <header n="Message-ID">&lt;message-42@example.com&gt;</header>
+    </m></GetMsgResponse>'''
+
+    def fake_upload(self, attachments):
+        upload_calls.append(list(attachments))
+        return tuple(f"aid-{len(upload_calls)}-{index}" for index, _ in enumerate(attachments))
+
+    def fake_soap(host, body, auth_token="", **options):
+        request = ET.fromstring(body)
+        requests.append(request)
+        if request.tag.endswith("GetMsgRequest"):
+            return ET.fromstring(source_xml)
+        return ET.fromstring('<SendMsgResponse xmlns="urn:zimbraMail"><m id="sent-attachment"/></SendMsgResponse>')
+
+    monkeypatch.setattr(transport._TokenClient, "_upload_attachments", fake_upload)
+    monkeypatch.setattr(transport, "soap_request", fake_soap)
+    attachment = {
+        "filename": "selected.txt",
+        "content_type": "text/plain",
+        "data": base64.b64encode(b"selected bytes").decode(),
+    }
+
+    for kwargs in (
+        {"action": "send", "to": ["to@example.com"], "subject": "New"},
+        {"action": "reply", "source_message_id": "42"},
+        {"action": "forward", "source_message_id": "42", "to": ["to@example.com"]},
+    ):
+        result = await service.send_email(
+            kwargs.pop("to", None),
+            kwargs.pop("subject", "Re: Incident update"),
+            "<p>Selected note</p>",
+            attachments=[attachment],
+            body_format="html",
+            **kwargs,
+        )
+        assert result["sent"] is True
+
+    assert len(upload_calls) == 3
+    assert all(items[0].data == b"selected bytes" for items in upload_calls)
+    send_requests = [request for request in requests if request.tag.endswith("SendMsgRequest")]
+    assert len(send_requests) == 3
+    new_attachment = send_requests[0].find(".//{*}attach[@aid='aid-1-0']")
+    assert new_attachment is not None
+    reply_attachment = send_requests[1].find(".//{*}attach[@aid='aid-2-0']")
+    assert reply_attachment is not None
+    forward_message = send_requests[2].find("{*}m")
+    assert forward_message.find("{*}attach[@aid='aid-3-0']") is not None
+    source_attachments = forward_message.findall("{*}attach/{*}mp")
+    assert {(item.get("mid"), item.get("part")) for item in source_attachments} == {("42", "2")}
 
 
 

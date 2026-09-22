@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import re
 from datetime import datetime
 from typing import Any
+
+from zimbra_client import Attachment
 
 from unified_mcp_server.zimbra import (
     download_attachment,
@@ -36,6 +40,7 @@ from unified_mcp_server.blocking_io import run_blocking
 from unified_mcp_server.request_context import remaining_seconds
 from ..core.service import ZimbraCore
 from ..errors import _query_validation_error, _upstream_error
+from .email_html import sanitize_email_html
 
 
 _HEADER_NAMES = {
@@ -53,6 +58,11 @@ _INVALID_DATE_ALIAS = re.compile(r"(?:^|(?<=[\s(-]))d\s*:\s*(?P<value>[^\s()]+)"
 
 
 _EMAIL_ACTIONS = {"send", "reply", "forward"}
+_MAX_EMAIL_ATTACHMENTS = 5
+_MAX_EMAIL_ATTACHMENT_BYTES = 10_000_000
+_MAX_EMAIL_TOTAL_BYTES = 50_000_000
+_EMAIL_FILENAME_CONTROL = re.compile(r"[\x00-\x1f\x7f\\/\r\n]")
+_EMAIL_MIME = re.compile(r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
 _NON_FATAL_ATTACHMENT_CONVERSION_CODES = frozenset({
     "attachment_unsupported",
     "attachment_converter_unavailable",
@@ -84,12 +94,52 @@ def _has_recipients(value: list[str] | str | None) -> bool:
 
 
 def _body_format(value: str | None, action: str) -> str:
-    body_format = str(value or "").strip().lower()
-    if not body_format:
-        return "html" if action in {"reply", "forward"} else "text"
-    if body_format not in {"text", "html"}:
-        raise ServiceError("invalid_input", "body_format must be text or html")
-    return body_format
+    del action
+    body_format = str(value or "html").strip().lower()
+    if body_format != "html":
+        raise ServiceError("invalid_input", "Email actions must use body_format=html")
+    return "html"
+
+
+def _email_attachments(value: Any) -> list[Attachment]:
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple)):
+        raise ServiceError("invalid_input", "attachments must be a list")
+    if len(value) > _MAX_EMAIL_ATTACHMENTS:
+        raise ServiceError("invalid_input", f"No more than {_MAX_EMAIL_ATTACHMENTS} email attachments are allowed")
+
+    attachments: list[Attachment] = []
+    total_bytes = 0
+    max_encoded_length = ((_MAX_EMAIL_ATTACHMENT_BYTES + 2) // 3) * 4
+    for item in value:
+        if not isinstance(item, dict):
+            raise ServiceError("invalid_input", "Each email attachment must be an object")
+        filename = item.get("filename")
+        content_type = item.get("content_type")
+        data = item.get("data")
+        if not isinstance(filename, str) or not filename.strip() or len(filename) > 255 or _EMAIL_FILENAME_CONTROL.search(filename):
+            raise ServiceError("invalid_input", "Attachment filenames must be a safe basename of 1 to 255 characters")
+        if not isinstance(content_type, str) or not _EMAIL_MIME.fullmatch(content_type):
+            raise ServiceError("invalid_input", "Attachment content_type must be a valid MIME type")
+        if not isinstance(data, str) or len(data) > max_encoded_length:
+            raise ServiceError("invalid_input", "Attachment data must be bounded standard base64")
+        try:
+            decoded = base64.b64decode(data, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ServiceError("invalid_input", "Attachment data must be valid base64") from exc
+        if len(decoded) > _MAX_EMAIL_ATTACHMENT_BYTES:
+            raise ServiceError("invalid_input", "Each email attachment must be no larger than 10 MB")
+        total_bytes += len(decoded)
+        if total_bytes > _MAX_EMAIL_TOTAL_BYTES:
+            raise ServiceError("invalid_input", "Email attachments must total no more than 50 MB")
+        attachments.append(Attachment(
+            filename=filename,
+            content_type=content_type,
+            size=len(decoded),
+            data=decoded,
+        ))
+    return attachments
 
 
 def _validate_search_query(query: str) -> None:
@@ -231,17 +281,17 @@ class ZimbraMailService(ZimbraCore):
         subject: str,
         body: str,
         signature_id: str,
-        body_format: str = "text",
+        body_format: str = "html",
         placement: str = "below",
         cc: list[str] | str | None = None,
         bcc: list[str] | str | None = None,
         account_id: str = "",
     ) -> dict[str, Any]:
-        body_format = str(body_format or "").strip().lower()
+        body_format = str(body_format or "html").strip().lower()
         placement = str(placement or "").strip().lower()
         signature_id = str(signature_id or "").strip()
-        if body_format not in {"text", "html"}:
-            raise ServiceError("invalid_input", "body_format must be text or html")
+        if body_format != "html":
+            raise ServiceError("invalid_input", "Email signatures must use body_format=html")
         if placement not in {"above", "below"}:
             raise ServiceError("invalid_input", "placement must be above or below")
         if not signature_id:
@@ -251,11 +301,11 @@ class ZimbraMailService(ZimbraCore):
         signature = next((item for item in signatures if item["id"] == signature_id), None)
         if signature is None:
             raise ServiceError("not_found", "The selected Zimbra signature was not found.")
-        value = signature[body_format]
+        value = sanitize_email_html(signature["html"])
         if not value:
-            raise ServiceError("invalid_input", f"The selected signature has no {body_format} content.")
-        body = str(body or "")
-        separator = "<br><br>" if body_format == "html" else "\n\n"
+            raise ServiceError("invalid_input", "The selected signature has no html content.")
+        body = sanitize_email_html(str(body or ""))
+        separator = "<br><br>"
         combined = f"{value}{separator}{body}" if placement == "above" and body else (
             f"{body}{separator}{value}" if body else value
         )
@@ -505,6 +555,7 @@ class ZimbraMailService(ZimbraCore):
         body_format: str | None = None,
         source_message_id: str | None = None,
         reply_all: bool = False,
+        attachments: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         if not self.settings.allow_send:
             raise ServiceError(
@@ -513,6 +564,7 @@ class ZimbraMailService(ZimbraCore):
             )
         action = _email_action(action)
         body_format = _body_format(body_format, action)
+        validated_attachments = _email_attachments(attachments)
         supplied_message_id = None if source_message_id is None or not str(source_message_id).strip() else str(source_message_id)
         if action == "send":
             if supplied_message_id is not None:
@@ -554,13 +606,14 @@ class ZimbraMailService(ZimbraCore):
             account,
             delivery_to,
             subject,
-            str(body or ""),
+            sanitize_email_html(str(body or "")),
             delivery_cc,
             delivery_bcc,
             body_format,
             action,
             supplied_message_id,
             bool(reply_all),
+            validated_attachments,
         )
         return {
             "sent": True,
@@ -658,8 +711,10 @@ class ZimbraMailService(ZimbraCore):
         action: str,
         source_message_id: str | None,
         reply_all: bool,
+        attachments: list[Attachment],
     ) -> dict[str, Any]:
         token = self._token(account)
+        attachment_options = {"attachments": attachments} if attachments else {}
         if action == "forward":
             return zimbra_forward_message(
                 self.settings.host, token, source_message_id, recipients, subject, body,
@@ -667,6 +722,7 @@ class ZimbraMailService(ZimbraCore):
                 verify_ssl=self.settings.verify_ssl,
                 timeout=remaining_seconds(self.settings.timeout),
                 allow_insecure_http=self.settings.allow_insecure_http,
+                **attachment_options,
             )
         if action == "reply":
             return zimbra_reply_message(
@@ -676,6 +732,7 @@ class ZimbraMailService(ZimbraCore):
                 verify_ssl=self.settings.verify_ssl,
                 timeout=remaining_seconds(self.settings.timeout),
                 allow_insecure_http=self.settings.allow_insecure_http,
+                **attachment_options,
             )
         return zimbra_send_message(
             self.settings.host,
@@ -689,6 +746,7 @@ class ZimbraMailService(ZimbraCore):
             verify_ssl=self.settings.verify_ssl,
             timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
+            **attachment_options,
         )
 
     def _search_emails(self, account: StoredAccount, query: str, limit: int, offset: int) -> list[dict[str, Any]]:
