@@ -423,6 +423,49 @@ test('admin cookies cannot authorize chat APIs, while regular users cannot autho
   dispose()
 })
 
+test('analyst RPCs keep the user principal when an admin cookie also exists', async () => {
+  const store = adminStore()
+  store.session = async id => id === 'user-session' ? {
+    id,
+    userId: 'user-a',
+    email: 'user@example.com',
+    expiresAt: new Date(Date.now() + 60_000),
+  } : undefined
+  const auth = new SocAuthService({}, store, {
+    adminCredentials: { email: 'admin@example.com', password: 'admin-secret' },
+  })
+  const adminToken = auth.adminSessionToken()
+  auth.adminSessions.set(auth.adminSessionKey(adminToken), {
+    email: 'admin@example.com',
+    expiresAt: new Date(Date.now() + 60_000),
+  })
+  const cookie = `soc_session=user-session; ${ADMIN_SESSION_COOKIE}=${adminToken}`
+
+  for (const endpoint of ['get-action-catalog', 'get-action-policy', 'set-action-mode', 'send-email', 'list-signatures']) {
+    let userPrincipal
+    await auth.withNodeRequest(nodeRequest({
+      method: 'POST',
+      url: `/soc-agent-config/${endpoint}`,
+      headers: { host: '127.0.0.1', cookie },
+    }), nodeResponse(), () => {
+      userPrincipal = auth.requireSession()
+      assert.throws(() => auth.requireAdmin(), /admin authentication required/)
+    }, '/soc-agent-config')
+    assert.equal(userPrincipal.id, 'user-session')
+  }
+
+  let adminPrincipal
+  await auth.withNodeRequest(nodeRequest({
+    method: 'POST',
+    url: '/soc-agent-config/get-settings',
+    headers: { host: '127.0.0.1', cookie },
+  }), nodeResponse(), () => {
+    adminPrincipal = auth.requireAdmin()
+    assert.throws(() => auth.requireSession(), /authentication required/)
+  }, '/soc-agent-config')
+  assert.equal(adminPrincipal.email, 'admin@example.com')
+})
+
 test('scoped API prevents cross-user workspace/session IDOR and filters queries', async () => {
   const { auth } = authFixture()
   const calls = []

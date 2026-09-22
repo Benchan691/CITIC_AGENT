@@ -23,6 +23,13 @@ const USERNAME = /^[A-Za-z0-9_-]+$/u
 const PRIVATE_HTTP_PATHS = new Set(['/api'])
 const PRIVATE_UPGRADE_PATHS = new Set(['/api/events.mux', '/api/events.host'])
 const STORAGE_ENV_NAMES = ['APP_POSTGRES_URI', 'LANGGRAPH_POSTGRES_URI', 'POSTGRES_URI']
+const USER_SOC_CONFIG_ENDPOINTS = new Set([
+  'get-action-catalog',
+  'get-action-policy',
+  'set-action-mode',
+  'send-email',
+  'list-signatures',
+])
 const PRIVILEGED_API_METHODS = new Set([
   'agentPreset.read',
   'agentPreset.copy',
@@ -307,6 +314,12 @@ export function isPrivilegedApiPath(path) {
 
 export function isMixedApiPath(path) {
   return MIXED_API_METHODS.has(apiMethodFromPath(path))
+}
+
+function isUserSocConfigPath(path) {
+  const prefix = '/soc-agent-config/'
+  const value = String(path ?? '')
+  return value.startsWith(prefix) && USER_SOC_CONFIG_ENDPOINTS.has(value.slice(prefix.length))
 }
 
 function isPrivateUpgradeRoute(path) {
@@ -1363,6 +1376,10 @@ export class SocAuthService {
     const path = this.requestPath(request, registeredPath)
     const adminOnly = isPrivilegedApiPath(path)
     const mixed = path.startsWith('/soc-agent-') || isMixedApiPath(path)
+    if (isUserSocConfigPath(path)) {
+      const session = await this.requestSession(request)
+      return session ? { kind: 'session', value: session } : { kind: 'unauthenticated' }
+    }
     if (adminOnly) {
       const admin = await this.requestAdmin(request)
       if (admin) return { kind: 'admin', value: admin }

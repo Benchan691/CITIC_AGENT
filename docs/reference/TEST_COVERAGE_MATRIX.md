@@ -2,7 +2,7 @@
 
 > **Verified against:** commit `56c8dd21492a5c36cb9f3eaa3da01160aba40033` (branch `splunk-offical-mcp`, committed 2026-09-12T07:22:44Z) · documentation verified 2026-09-12.
 > 语言 / Language: **English** · [中文版](../zh/reference/TEST_COVERAGE_MATRIX.md)
-> Current sources: `apps/soc-agent/tests/` (**11 files, 43 tests**) and `apps/soc-agent/server/unified_mcp_server/tests/` (**12 test files, 72 collected test items**). The current worktree also carries package-local tests for the mandatory core, isolated surfaces, and five optional browser features, plus browser smoke/screenshot tests. Previous round (`b26d55d`): 27 JS / 9 TS / 75 Python — the Python reduction is the deleted Splunk stack's tests, not lost coverage of live code.
+> Current sources: `apps/soc-agent/tests/` (**11 files, 44 tests**) and `apps/soc-agent/server/unified_mcp_server/tests/` (**12 test files, 72 collected test items**). The current worktree also carries package-local tests for the mandatory core, isolated surfaces, and five optional browser features, plus browser smoke/screenshot tests. Previous round (`b26d55d`): 27 JS / 9 TS / 75 Python — the Python reduction is the deleted Splunk stack's tests, not lost coverage of live code.
 
 **Who this is for:** developers changing behavior (which tests must move with the change), and reviewers judging which claims have test evidence.
 
@@ -12,11 +12,11 @@
 
 ---
 
-## 1. Node tests — `apps/soc-agent/tests` (`node --test tests/*.test.js`, 11 files / 43 tests)
+## 1. Node tests — `apps/soc-agent/tests` (`node --test tests/*.test.js`, 11 files / 44 tests)
 
 | File | Tests | Behavior covered | Exercised source |
 |---|---|---|---|
-| `auth.test.js` | 13 | Admin credentials required at startup without leaking secrets; admin cookie login/expiry/logout + restart invalidation; analyst password→2FA→authenticated transition; no app/workspace/chat state before successful 2FA; invalid-code retention; cancellation and challenge-cookie clearing; session revocation aborts event streams and fences MCP work; admin/user cookie tier segregation; scoped API blocks cross-user mutations (IDOR); workspace name validation/traversal rejection; event-frame redaction; pending-response RPC ids cannot be hijacked; transport gating; `mcp/request-meta` metadata without token material | `ownership.js`, `auth-host.js` |
+| `auth.test.js` | 13 | Admin credentials required at startup without leaking secrets; admin cookie login/expiry/logout + restart invalidation; analyst password→2FA→authenticated transition; no app/workspace/chat state before successful 2FA; invalid-code retention; cancellation and challenge-cookie clearing; dual user/admin cookies preserve the endpoint-appropriate principal; session revocation aborts event streams and fences MCP work; admin/user cookie tier segregation; scoped API blocks cross-user mutations (IDOR); workspace name validation/traversal rejection; event-frame redaction; pending-response RPC ids cannot be hijacked; transport gating; `mcp/request-meta` metadata without token material | `ownership.js`, `auth-host.js` |
 | `background.test.js` | 1 | BACKGROUND.md re-injection cadence (durable user prompts, default 5), placement, live threshold changes, `0` disables | `host.js` |
 | `control-channel.test.js` | 2 | Concurrent control requests share one Python process; a lost response after transmission yields `operation_outcome_unknown` with **no** CLI fallback replay | `ownership.js runAuthCommand` + fake `uv` shim |
 | `investigation.test.js` | 1 | Card/SSN sanitization applies only to `mcp__splunk_mcp__*` output; other namespaces pass through | `investigation.js` |
