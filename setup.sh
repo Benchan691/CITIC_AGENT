@@ -278,6 +278,7 @@ trim() {
 PLUGIN_NAMES=(
   "@linxin666/dsh-client-ui-skin-center"
   "dsh-auto-collapse"
+  "@woyeshishen/dsh-lan-access"
 )
 PLUGIN_SPECS=()
 
@@ -1037,6 +1038,52 @@ verify_external_profile() {
   return "$all_ok"
 }
 
+verify_lan_access_policy() { # $1 = profile dir
+  node - "$1/cordis.patch.yml" <<'NODE'
+const fs = require("fs");
+const path = process.argv[2];
+const marker = "# CITIC_AGENT-managed: dsh-lan-access privileged methods disabled";
+const policy = `${marker}\n- id: lan-access\n  name: '@woyeshishen/dsh-lan-access'\n  config:\n    allowRemotePrivileged: false`;
+try {
+  const text = fs.readFileSync(path, "utf8");
+  const rows = text.match(/^[ \t]*-[ \t]*id:[ \t]*lan-access\b/gm) || [];
+  if (rows.length !== 1 || !text.includes(policy)) process.exit(1);
+} catch {
+  process.exit(1);
+}
+NODE
+}
+
+ensure_lan_access_policy() { # $1 = profile dir
+  node - "$1/cordis.patch.yml" <<'NODE'
+const fs = require("fs");
+const path = process.argv[2];
+const marker = "# CITIC_AGENT-managed: dsh-lan-access privileged methods disabled";
+const policy = `${marker}\n- id: lan-access\n  name: '@woyeshishen/dsh-lan-access'\n  config:\n    allowRemotePrivileged: false`;
+let text = "[]\n";
+try { text = fs.readFileSync(path, "utf8"); } catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+const rows = text.match(/^[ \t]*-[ \t]*id:[ \t]*lan-access\b/gm) || [];
+if (rows.length === 1 && text.includes(policy)) process.exit(0);
+if (rows.length > 0) {
+  console.error(`conflicting lan-access policy already exists in ${path}`);
+  process.exit(1);
+}
+const base = text.replace(/(^|\n)[ \t]*\[\][ \t]*(?=\r?\n|$)/, "$1").trimEnd();
+const output = `${base ? `${base}\n\n` : ""}${policy}\n`;
+const mode = fs.existsSync(path) ? fs.statSync(path).mode & 0o777 : 0o644;
+const temp = `${path}.${process.pid}.tmp`;
+try {
+  fs.writeFileSync(temp, output, { mode, flag: "wx" });
+  fs.renameSync(temp, path);
+} catch (error) {
+  try { fs.unlinkSync(temp); } catch {}
+  throw error;
+}
+NODE
+}
+
 # Direct dependency names of the profile manifest that are NOT in the managed
 # set (external plugins + SOC packages) — printed one per line. In-box bundle
 # layers (dsh-base, dsh-web-app) are not dependencies and never appear here.
@@ -1122,6 +1169,10 @@ ensure_external_plugins() {
     return 1
   fi
   if ! verify_external_profile "$pdir"; then
+    return 1
+  fi
+  if ! ensure_lan_access_policy "$pdir"; then
+    bad "could not enforce loopback-only privileged methods for dsh-lan-access"
     return 1
   fi
   prune_stale_plugins "$pdir"
@@ -1310,6 +1361,11 @@ run_check_mode() {
     :
   else
     fails=$((fails+1))
+  fi
+  if verify_lan_access_policy "$pdir"; then
+    ok "dsh-lan-access remote privileged methods disabled"
+  else
+    bad "dsh-lan-access security override missing — run: ./setup.sh --plugins"; fails=$((fails+1))
   fi
   local stale_list
   stale_list="$(stale_plugin_names "$pdir")"

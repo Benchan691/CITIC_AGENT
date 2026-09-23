@@ -3,3 +3,5 @@
 @linxin666/dsh-client-ui-skin-center@^0.2.5
 # The local patch targets dsh-auto-collapse 0.1.4, so keep this commit pinned.
 github:a179-sanae/dsh-auto-collapse#cd21c04ad5942a51cd86b8fdd9f19dc092ae8417
+# Pin the reviewed Tailnet/LAN access plugin commit; do not float on main.
+github:woyeshishen/dsh-lan-access#2727fa7629b396ddefc758c9572f4d6e29c6d759

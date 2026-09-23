@@ -127,3 +127,34 @@ test('setup can collect an MCP endpoint after the operator skips installing Node
   assert.equal(result.status, 0, result.stderr)
   assert.match(result.stderr, /without credentials/)
 })
+
+test('setup installs the lan-access security override idempotently and preserves profile patches', shellOptions, () => {
+  const result = run(`
+empty_profile="$REPO_ROOT/profiles/empty"
+profile="$REPO_ROOT/profiles/web"
+mkdir -p "$empty_profile" "$profile"
+printf '# empty profile layer\\n[]\\n' > "$empty_profile/cordis.patch.yml"
+ensure_lan_access_policy "$empty_profile"
+verify_lan_access_policy "$empty_profile"
+grep -Fq 'allowRemotePrivileged: false' "$empty_profile/cordis.patch.yml"
+printf '# Existing profile layer\\n- id: existing\\n  name: example\\n  config: {}\\n' > "$profile/cordis.patch.yml"
+ensure_lan_access_policy "$profile"
+verify_lan_access_policy "$profile"
+ensure_lan_access_policy "$profile"
+test "$(grep -c '^# CITIC_AGENT-managed: dsh-lan-access privileged methods disabled$' "$profile/cordis.patch.yml")" -eq 1
+grep -Fq -- '- id: existing' "$profile/cordis.patch.yml"
+grep -Fq 'allowRemotePrivileged: false' "$profile/cordis.patch.yml"
+`)
+  assert.equal(result.status, 0, result.stderr)
+})
+
+test('setup refuses to overwrite a conflicting lan-access profile policy', shellOptions, () => {
+  const result = run(`
+profile="$REPO_ROOT/profiles/web"
+mkdir -p "$profile"
+printf '%s\\n' "- id: lan-access" "  name: '@woyeshishen/dsh-lan-access'" "  config:" "    allowRemotePrivileged: true" > "$profile/cordis.patch.yml"
+if ensure_lan_access_policy "$profile"; then exit 1; fi
+grep -Fq 'allowRemotePrivileged: true' "$profile/cordis.patch.yml"
+`)
+  assert.equal(result.status, 0, result.stderr)
+})
