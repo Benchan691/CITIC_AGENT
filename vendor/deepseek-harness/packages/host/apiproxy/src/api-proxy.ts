@@ -16,7 +16,7 @@ import { AttachmentError, admitEncodedImages } from '@deepseek-ai/dsh-attachment
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { createUserMessage, freezeMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { errorChain } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock, MessageSource } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock, MessageSource, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { isAppendSurfaceEvent, isJsonValue } from '@deepseek-ai/dsh-session'
 import type { JsonValue, Session, SessionEvent, SessionEventMap, SessionHeader, SessionId, UserMessage } from '@deepseek-ai/dsh-session'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
@@ -66,6 +66,7 @@ import {
 } from './api/session-search.ts'
 // Type-only: resolves `ctx.get('sessionProjections')` to the projection registry.
 import type {} from '@deepseek-ai/dsh-session-projection'
+
 // Type-only: resolves `ctx.get('tasks')` to the background job registry.
 import type {} from '@deepseek-ai/dsh-jobs'
 import type { JobSnapshot } from '@deepseek-ai/dsh-jobs'
@@ -116,6 +117,22 @@ import {
   inspectApiRemoteSession,
 } from '@deepseek-ai/dsh-api-remotes'
 import { canOpenNativePath, openNativePath, openNativeTextFile } from './native-path-opener.ts'
+
+/** Opt-in output timing trace. Payload text is never logged. */
+type TraceExtra = { chunkLength?: number | undefined; turn?: number; step?: number }
+const traceOutput = process.env.DSH_OUTPUT_TRACE === '1'
+  ? (stage: string, sessionId: SessionId, seq: number, extra?: TraceExtra): void => {
+    console.error('[dsh-output-trace]', JSON.stringify({
+      timestamp: new Date().toISOString(), stage, sessionId, seq, ...extra,
+    }))
+  }
+  : undefined
+
+function deltaLength(chunk: StreamChunk): number | undefined {
+  if (chunk.type === 'text-delta' || chunk.type === 'reasoning-delta') return chunk.text.length
+  if (chunk.type === 'tool-call-delta') return chunk.argumentsDelta.length
+  return undefined
+}
 
 /** Page size when history is called without maxMessages. */
 const DEFAULT_MAX_MESSAGES = 50
@@ -383,15 +400,24 @@ function presetFailure(request: RpcRequest<unknown>, error: unknown): RpcRespons
   return undefined
 }
 
-/** Simple async queue: core callbacks push, the AsyncIterable pulls; abort/return cleans up. */
+interface FrameNode<F> {
+  item: F
+  next?: FrameNode<F>
+}
+
+/** Simple async FIFO: core callbacks push, the AsyncIterable pulls; abort/return cleans up. */
 class FrameQueue<F> {
-  private buffer: F[] = []
+  private head: FrameNode<F> | undefined
+  private tail: FrameNode<F> | undefined
   private waiter: (() => void) | undefined
   private done = false
 
   push(item: F): void {
     if (this.done) return
-    this.buffer.push(item)
+    const node: FrameNode<F> = { item }
+    if (this.tail === undefined) this.head = node
+    else this.tail.next = node
+    this.tail = node
     this.waiter?.()
   }
 
@@ -405,7 +431,12 @@ class FrameQueue<F> {
     signal.addEventListener('abort', onAbort, { once: true })
     try {
       while (true) {
-        while (this.buffer.length > 0) yield this.buffer.shift() as F
+        while (!signal.aborted && this.head !== undefined) {
+          const node = this.head
+          this.head = node.next
+          if (this.head === undefined) this.tail = undefined
+          yield node.item
+        }
         if (this.done || signal.aborted) return
         await new Promise<void>((resolve) => { this.waiter = resolve })
         this.waiter = undefined
@@ -532,6 +563,7 @@ function summarize(session: Session, running: boolean): SessionSummary {
     sessionId: session.id,
     updatedAt: sessionListUpdatedAt(session.header, metadata),
     running,
+    lastSeq: session.seq - 1,
     blank: metadata.blank,
     ...sessionListFields(session.header, session.events),
   }
@@ -3697,6 +3729,17 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
               ctx.agents.get(session.id),
             )
             queue.push(frame({ type: 'session/event', sessionId: session.id, event, ...view === undefined ? {} : { view } }))
+            if (traceOutput !== undefined) {
+              if (event.type === 'assistant/chunk') {
+                traceOutput('chunk-queued', session.id, event.seq, {
+                  chunkLength: deltaLength(event.data.chunk), turn: event.data.turn, step: event.data.step,
+                })
+              } else if (event.type === 'assistant/message') {
+                traceOutput('message-queued', session.id, event.seq, { turn: event.data.turn, step: event.data.step })
+              } else if (event.type === 'turn/end') {
+                traceOutput('output-end-queued', session.id, event.seq, { turn: event.data.turn })
+              }
+            }
           }),
           ctx.on('session/created', (session: Session) => {
             subscribeSession(queue, session)
@@ -3764,7 +3807,11 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
             queue.push(frame({ type: 'host/session-removed', sessionId: session.id }))
           }),
           ctx.on('agent/status', ({ agent, status }: { agent: Agent; status: AgentStatus }) => {
-            queue.push(frame({ type: 'host/session-status', sessionId: agent.id, running: status === 'running' }))
+            queue.push(frame({
+              type: 'host/session-status', sessionId: agent.id,
+              running: status === 'running', lastSeq: agent.session.seq - 1,
+            }))
+            if (status === 'idle') traceOutput?.('task-idle-queued', agent.id, agent.session.seq - 1)
           }),
           ctx.on('agent/error', ({ agent, error }: { agent: Agent; error: unknown }) => {
             queue.push(frame({ type: 'host/agent-error', sessionId: agent.id, message: errorChain(error) }))

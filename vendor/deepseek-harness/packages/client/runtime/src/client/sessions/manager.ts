@@ -122,6 +122,14 @@ export class SessionManager {
   private readonly completedNotifications = new Set<SessionId>()
   /** Last-observed running bits per session; the true→false edge here arms {@link completedNotifications}. */
   private readonly prevRunning = new Map<SessionId, boolean>()
+  /** Only an observed generation may arm a completion reminder; a synthetic drain hold may not. */
+  private readonly completionReminderEligible = new Set<SessionId>()
+  /** Highest output seq delivered on the mux, including the subscription baseline. */
+  private readonly receivedOutputSeq = new Map<SessionId, number>()
+  /** Idle statuses wait here until their output watermark is delivered and assembled. */
+  private readonly pendingOutputCompletion = new Map<SessionId, number>()
+  /** Host status changes fence in-flight list baselines against newer stream state. */
+  private readonly statusRevision = new Map<SessionId, number>()
   /** Per-session projection value stores, retained independently of instance arrival (the
    *  title-snapshot precedent, generalized): push frames land here whether or not the Session
    *  is instantiated (list rows read the 'title' key), and an instantiated Session adopts the
@@ -183,6 +191,7 @@ export class SessionManager {
    * @param sessionId - listed or catalog-addressed Session id.
    */
   select(sessionId: SessionId): void {
+    const previous = this.selected
     const address = this.navigationAddress(sessionId)
     if (!this.summaries.some(summary => summary.sessionId === sessionId) && address === undefined) {
       throw new Error(`sessions.select: unknown session ${sessionId}`)
@@ -195,6 +204,7 @@ export class SessionManager {
         : this.catalogs.get(address.parentSessionId)?.parentAvailable ?? false,
     )
     this.selected = sessionId
+    if (previous !== undefined && previous !== sessionId) this.finishPendingOutput(previous)
     // Looking at the session consumes its completion reminder (dot clears).
     this.completedNotifications.delete(sessionId)
     void this.refreshSubagents(sessionId)
@@ -206,6 +216,7 @@ export class SessionManager {
    * @param address - catalog-derived parent and child ids.
    */
   selectSubagent(address: SubagentAddress): void {
+    const previous = this.selected
     const catalog = this.catalogs.get(address.parentSessionId)
     const entry = catalog?.entries.find(candidate => candidate.id === address.childSessionId)
     if (entry === undefined || entry.kind !== 'child' || entry.mode !== address.mode) {
@@ -214,6 +225,7 @@ export class SessionManager {
     this.addresses.set(address.childSessionId, address)
     this.sessions.get(address.childSessionId)?.configureSubagent(address, catalog?.parentAvailable ?? false)
     this.selected = address.childSessionId
+    if (previous !== undefined && previous !== address.childSessionId) this.finishPendingOutput(previous)
     this.completedNotifications.delete(address.childSessionId)
     void this.refreshSubagents(address.childSessionId)
     this.notifier.notifyNow()
@@ -221,7 +233,9 @@ export class SessionManager {
 
   /** Clear the selection (the layout falls to the no-session view state). */
   clearSelection(): void {
+    const previous = this.selected
     this.selected = undefined
+    if (previous !== undefined) this.finishPendingOutput(previous)
     this.notifier.notifyNow()
   }
 
@@ -261,6 +275,7 @@ export class SessionManager {
    */
   drop(sessionId: SessionId): void {
     this.sessions.delete(sessionId)
+    this.finishPendingOutput(sessionId)
   }
 
   /**
@@ -317,6 +332,7 @@ export class SessionManager {
       onEngaged: (engaged) => {
         this.recordMutation({ kind: 'engaged', sessionId: engaged.sessionId })
       },
+      onOutputProgress: (advanced) => { this.finishPendingOutput(advanced.sessionId) },
       projections: this.projectionStore(sessionId),
       ...this.conversation === undefined ? {} : { conversation: this.conversation },
     })
@@ -441,6 +457,7 @@ export class SessionManager {
     this.listState = 'loading'
     this.listError = null
     const established = this.summaries
+    const statusRevisionsAtStart = new Map(this.statusRevision)
     const mutations: SessionListMutation[] = []
     this.listMutations = mutations
     this.notifier.markDirty()
@@ -448,9 +465,11 @@ export class SessionManager {
       try {
         const { result } = await this.api.sessions.list({})
         if (result.ok) {
+          const incoming = result.value.items.map(summary =>
+            this.gateListCompletion(summary, statusRevisionsAtStart))
           const baseline = this.listPhase === 'pending'
-            ? result.value.items
-            : mergeOrderedBaseline(established, result.value.items, summary => summary.sessionId)
+            ? incoming
+            : mergeOrderedBaseline(established, incoming, summary => summary.sessionId)
           // Seed first observations from the pull-time baseline BEFORE replaying
           // in-flight mutations, then reconcile the reminders after EVERY
           // replayed mutation: an edge that happens entirely between mutations
@@ -651,6 +670,10 @@ export class SessionManager {
 
   /** Shared local cleanup for a confirmed delete and a normal host removal frame. */
   private removeDeletedSession(sessionId: SessionId): void {
+    this.receivedOutputSeq.delete(sessionId)
+    this.pendingOutputCompletion.delete(sessionId)
+    this.completionReminderEligible.delete(sessionId)
+    this.statusRevision.delete(sessionId)
     this.recordMutation({ kind: 'remove', sessionId })
     this.updateCatalogActivity(sessionId, false)
     this.sessions.get(sessionId)?.handleRemoved()
@@ -713,6 +736,14 @@ export class SessionManager {
   handleMuxEnvelope(envelope: RpcRequest<MuxFrame>): void {
     const frame = envelope.payload
     if (frame.type === 'stream/error') return // Controller already treats this as stream failure
+    if (frame.type === 'session/subscribed') {
+      // A reconnect can roll back to a shorter durable log. A previous
+      // generation's high watermark must never satisfy this one's idle status.
+      this.receivedOutputSeq.set(frame.sessionId, frame.lastSeq)
+    } else if (frame.type === 'session/event') {
+      this.receivedOutputSeq.set(frame.sessionId,
+        Math.max(this.receivedOutputSeq.get(frame.sessionId) ?? -1, frame.event.seq))
+    }
     if (
       frame.type === 'session/event'
       && frame.event.type === 'user/message'
@@ -812,10 +843,67 @@ export class SessionManager {
           return
         }
         default:
+          this.finishPendingOutput(frame.sessionId)
           return
       }
     }
     session.handleMuxEnvelope(envelope.rpcId, frame)
+    this.finishPendingOutput(frame.sessionId)
+  }
+
+  /** A generation result is presentable only after its mux watermark reaches the session window. */
+  private outputReady(sessionId: SessionId, lastSeq: number): boolean {
+    if (lastSeq < 0) return true // an empty log has no output to drain or render
+    if ((this.receivedOutputSeq.get(sessionId) ?? -1) < lastSeq) return false
+    const session = this.sessions.get(sessionId)
+    if (session === undefined) return sessionId !== this.selected
+    if (!session.outputAppliedThrough(lastSeq, sessionId === this.selected)) return false
+    // Build the cumulative conversation before publishing idle. The final
+    // output and completed state then enter one React update, even if chunks
+    // were waiting for an animation frame.
+    session.getSnapshot()
+    return true
+  }
+
+  /** Keep a list pull from publishing backend idle ahead of its output stream. */
+  private gateListCompletion(
+    summary: SessionSummary,
+    statusRevisionsAtStart: ReadonlyMap<SessionId, number>,
+  ): SessionSummary {
+    if (summary.running) {
+      this.completionReminderEligible.add(summary.sessionId)
+      // The list was requested after any existing pending idle, so a fresh
+      // running baseline supersedes it. Preserve a newer status that arrived
+      // while this request was in flight; its mutation will replay below.
+      if ((this.statusRevision.get(summary.sessionId) ?? 0)
+        === (statusRevisionsAtStart.get(summary.sessionId) ?? 0)) {
+        this.pendingOutputCompletion.delete(summary.sessionId)
+      }
+      return summary
+    }
+    const waiting = this.pendingOutputCompletion.get(summary.sessionId)
+    const lastSeq = Math.max(waiting ?? -1, summary.lastSeq ?? -1)
+    if (lastSeq < 0 || this.outputReady(summary.sessionId, lastSeq)) {
+      this.pendingOutputCompletion.delete(summary.sessionId)
+      return summary
+    }
+    this.pendingOutputCompletion.set(summary.sessionId, lastSeq)
+    return { ...summary, running: true }
+  }
+
+  private applyRunningStatus(sessionId: SessionId, running: boolean, confirmed = true): void {
+    if (running && confirmed) this.completionReminderEligible.add(sessionId)
+    this.recordMutation({ kind: 'status', sessionId, running })
+    this.sessions.get(sessionId)?.handleRunning(running)
+    this.updateCatalogActivity(sessionId, running)
+  }
+
+  /** Publish idle only after every event through the host watermark was applied. */
+  private finishPendingOutput(sessionId: SessionId): void {
+    const lastSeq = this.pendingOutputCompletion.get(sessionId)
+    if (lastSeq === undefined || !this.outputReady(sessionId, lastSeq)) return
+    this.pendingOutputCompletion.delete(sessionId)
+    this.applyRunningStatus(sessionId, false)
   }
 
   /**
@@ -845,6 +933,10 @@ export class SessionManager {
         return
       }
       case 'host/session-removed': {
+        this.receivedOutputSeq.delete(frame.sessionId)
+        this.pendingOutputCompletion.delete(frame.sessionId)
+        this.completionReminderEligible.delete(frame.sessionId)
+        this.statusRevision.delete(frame.sessionId)
         const summary = this.summaries.find(candidate => candidate.sessionId === frame.sessionId)
         const durableSubagent = summary?.origin === 'subagent' || this.addresses.has(frame.sessionId)
         if (durableSubagent) {
@@ -885,9 +977,16 @@ export class SessionManager {
         return
       }
       case 'host/session-status': {
-        this.recordMutation({ kind: 'status', sessionId: frame.sessionId, running: frame.running })
-        this.sessions.get(frame.sessionId)?.handleRunning(frame.running)
-        this.updateCatalogActivity(frame.sessionId, frame.running)
+        this.statusRevision.set(frame.sessionId, (this.statusRevision.get(frame.sessionId) ?? 0) + 1)
+        if (frame.running) {
+          this.pendingOutputCompletion.delete(frame.sessionId)
+          this.applyRunningStatus(frame.sessionId, true)
+        } else {
+          const previous = this.pendingOutputCompletion.get(frame.sessionId) ?? -1
+          this.pendingOutputCompletion.set(frame.sessionId, Math.max(previous, frame.lastSeq))
+          if (!this.outputReady(frame.sessionId, frame.lastSeq)) this.applyRunningStatus(frame.sessionId, true, false)
+          this.finishPendingOutput(frame.sessionId)
+        }
         return
       }
       case 'host/agent-error': {
@@ -909,6 +1008,10 @@ export class SessionManager {
    * request with its live rpcId.
   */
   handleDisconnected(): void {
+    // All mux watermarks belong to the dead generation. Reconnect replay
+    // supplies a new subscribed baseline, which may be lower after rollback.
+    this.receivedOutputSeq.clear()
+    this.pendingOutputCompletion.clear()
     if (this.pendingInteractions.size > 0) {
       this.pendingInteractions.clear()
       this.notifier.markDirty()
@@ -1027,7 +1130,10 @@ export class SessionManager {
         continue
       }
       if (prev && !s.running) {
-        if (s.sessionId !== this.selected) this.completedNotifications.add(s.sessionId)
+        if (s.sessionId !== this.selected && this.completionReminderEligible.has(s.sessionId)) {
+          this.completedNotifications.add(s.sessionId)
+        }
+        this.completionReminderEligible.delete(s.sessionId)
       } else if (s.running) {
         this.completedNotifications.delete(s.sessionId)
       }

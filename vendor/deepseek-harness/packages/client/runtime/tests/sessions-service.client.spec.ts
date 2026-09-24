@@ -652,7 +652,7 @@ describe('blank mirror', () => {
     expect(b.svc.list.getSnapshot().byId[sid('s1')]).toMatchObject({ blank: true })
     b.svc.handleHostEnvelope({
       rpcId: 'st' as never,
-      payload: { type: 'host/session-status', sessionId: sid('s1'), running: true },
+      payload: { type: 'host/session-status', sessionId: sid('s1'), running: true, lastSeq: -1 },
     })
     await Promise.resolve()
     expect(b.svc.list.getSnapshot().byId[sid('s1')]).toMatchObject({ blank: false, running: true })

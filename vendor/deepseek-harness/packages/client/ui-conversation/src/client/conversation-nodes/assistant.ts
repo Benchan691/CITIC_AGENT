@@ -31,6 +31,7 @@ interface AssistantState {
   readonly firstVisibleSeq: number | undefined
   readonly firstVisibleTime: number | undefined
   readonly firstTokenTime: number | undefined
+  readonly lastChunkSeq: number | undefined
   readonly hidden: boolean
   readonly final: ConversationMatch | undefined
   readonly usage: unknown
@@ -44,6 +45,7 @@ function initialState(turn: number, step: number): AssistantState {
     firstVisibleSeq: undefined,
     firstVisibleTime: undefined,
     firstTokenTime: undefined,
+    lastChunkSeq: undefined,
     hidden: false,
     final: undefined,
     usage: undefined,
@@ -121,6 +123,7 @@ function updateChunk(state: AssistantState, match: ConversationMatch): Assistant
   return {
     ...state,
     blocks,
+    lastChunkSeq: match.event.seq,
     hidden: visible ? false : state.hidden,
     ...visible && state.firstVisibleSeq === undefined
       ? { firstVisibleSeq: match.event.seq, firstVisibleTime: match.event.time }
@@ -236,6 +239,7 @@ function projectAssistant(context: ConversationNodeContext<AssistantState>): Ass
       blocks,
       time,
       ...state.usage === undefined ? {} : { usage: state.usage },
+      ...state.lastChunkSeq === undefined ? {} : { lastChunkSeq: state.lastChunkSeq },
       ...settled === undefined ? {} : { finalNode: settled },
     },
   }

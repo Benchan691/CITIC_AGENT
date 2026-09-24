@@ -202,6 +202,8 @@ export interface SessionSummary {
   updatedAt: number
   /** Status of the attached agent; always false for cold (unattached) sessions. */
   running: boolean
+  /** Attached Session's latest log sequence at the summary cut; absent for cold sessions. -1 means an empty log. */
+  lastSeq?: number
   /**
    * Derived conversation-not-started bit: true while no turn has run.
    * Standalone plugin events — command lifecycle

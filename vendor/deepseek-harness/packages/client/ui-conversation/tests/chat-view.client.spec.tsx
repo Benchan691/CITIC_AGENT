@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { useEffect } from 'react'
+import { Profiler, useEffect } from 'react'
 import type {
   AssistantMessageNode, CommandNode, CompactionSummaryNode, ConversationNode, ConversationSnapshot,
   ModelRetryNode, RunningToolCall, SessionId, SessionListState, ToolCallBlock, ToolResultNode, TurnErrorNode,
@@ -650,6 +650,53 @@ describe('ChatView', () => {
     // turn/end lands: the same node becomes the settled answer and takes the seat.
     act(() => { h.set({ running: false, runningCalls: [], turnEnds: new Map([[1, 3], [2, 6]]) }) })
     expect(view.getAllByRole('button', { name: '复制' })).toHaveLength(4)
+  })
+
+  it('commits the final assistant text before the running indicator disappears', () => {
+    vi.stubGlobal('__DSH_OUTPUT_TRACE__', true)
+    const stages: string[] = []
+    const trace = vi.spyOn(console, 'debug').mockImplementation((label: unknown, record: unknown) => {
+      if (label === '[dsh-output-trace]' && typeof record === 'object' && record !== null
+        && 'stage' in record && typeof record.stage === 'string') stages.push(record.stage)
+    })
+    const finalText = 'FINAL_OUTPUT_RENDERED'
+    const h = makeHarness({
+      nodes: [user(1, 'question')],
+      partial: { turn: 1, step: 1, blocks: [{ kind: 'text', text: 'partial output' }] },
+      running: true,
+    })
+    const host = document.createElement('div')
+    const commits: Array<{ running: boolean; finalTextPresent: boolean }> = []
+    const view = render(
+      <Profiler id="completion" onRender={() => {
+        commits.push({
+          running: host.querySelector('[role="status"]') !== null,
+          finalTextPresent: host.textContent?.includes(finalText) ?? false,
+        })
+      }}>
+        <h.ChatView {...h.props} />
+      </Profiler>,
+      { container: host },
+    )
+    expect(view.getByRole('status')).toBeTruthy()
+    expect(view.container.querySelector('[data-streaming="true"]')).not.toBeNull()
+
+    act(() => {
+      h.set({
+        nodes: [user(1, 'question'), assistant(3, finalText)],
+        partial: null,
+        running: false,
+        turnEnds: new Map([[1, 4]]),
+      })
+    })
+    expect(view.queryByRole('status')).toBeNull()
+    expect(view.getByText(finalText)).toBeTruthy()
+    const completedCommits = commits.filter(commit => !commit.running)
+    expect(completedCommits.length).toBeGreaterThan(0)
+    expect(completedCommits.every(commit => commit.finalTextPresent)).toBe(true)
+    expect(stages.lastIndexOf('output-rendered')).toBeGreaterThanOrEqual(0)
+    expect(stages.lastIndexOf('task-completed')).toBeGreaterThan(stages.lastIndexOf('output-rendered'))
+    trace.mockRestore()
   })
 
   it('the actions-owning assistant footer shows the turn run time', () => {

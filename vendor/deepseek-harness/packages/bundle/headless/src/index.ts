@@ -45,8 +45,8 @@ interface RunOutcome {
 
 /** Process-facing effects of one run: output streams plus the launcher's bounded exit request. */
 interface HeadlessIo {
-  stdout: { write(chunk: string): unknown }
-  stderr: { write(chunk: string): unknown }
+  stdout: { write(chunk: string, callback: (error?: Error | null) => void): unknown }
+  stderr: { write(chunk: string, callback: (error?: Error | null) => void): unknown }
   /** Request process exit with `code` after the tree disposes. */
   exit(code: number): void
 }
@@ -81,9 +81,27 @@ function summarize(events: readonly SessionEvent[], firstSeq: number): RunOutcom
   return { text, reason }
 }
 
+/** Wait for the stream write callback, including when write() reports backpressure. */
+function writeFlushed(stream: HeadlessIo['stdout'], chunk: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    try {
+      stream.write(chunk, (error) => {
+        if (error) reject(error)
+        else resolve()
+      })
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error(String(error)))
+    }
+  })
+}
+
 /** Report an unexpected direct-driver failure and request a failing exit. */
-function fail(io: HeadlessIo, error: unknown): void {
-  io.stderr.write(`dsh: ${error instanceof Error ? error.message : String(error)}\n`)
+async function fail(io: HeadlessIo, error: unknown): Promise<void> {
+  try {
+    await writeFlushed(io.stderr, `dsh: ${error instanceof Error ? error.message : String(error)}\n`)
+  } catch {
+    // The diagnostic stream is unavailable; exit still owns the failure result.
+  }
   io.exit(1)
 }
 
@@ -126,9 +144,9 @@ async function run(ctx: Context, task: string, io: HeadlessIo): Promise<void> {
   await agent.whenIdle()
   await sessions.flush(agent.session)
   const outcome = summarize(agent.session.events, firstSeq)
-  io.stdout.write(outcome.text + '\n')
+  await writeFlushed(io.stdout, outcome.text + '\n')
   if (outcome.reason?.kind === 'error') {
-    io.stderr.write(`dsh: ${outcome.reason.error.code}: ${outcome.reason.error.message}\n`)
+    await writeFlushed(io.stderr, `dsh: ${outcome.reason.error.code}: ${outcome.reason.error.message}\n`)
   }
   io.exit(outcome.reason?.kind === 'completed' ? 0 : 1)
 }
@@ -146,5 +164,5 @@ export function apply(ctx: Context, config: Config): void {
     throw new Error('headless-runner: the launcher must provide ctx.appExit before the tree mounts')
   }
   const io: HeadlessIo = { stdout: internals.stdout, stderr: internals.stderr, exit }
-  void run(ctx, config.task, io).catch((error: unknown) => { fail(io, error) })
+  void run(ctx, config.task, io).catch((error: unknown) => { void fail(io, error) })
 }

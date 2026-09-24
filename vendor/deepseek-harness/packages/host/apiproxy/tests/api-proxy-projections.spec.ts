@@ -249,6 +249,7 @@ describe('session.list projections column', () => {
       lastPromptAt: session.events.at(-1)?.time,
     })
     expect(row?.projections?.asOfSeq).toBe(session.seq - 1)
+    expect(row?.lastSeq).toBe(session.seq - 1)
   })
 
   it('omits the column entirely when no registry is mounted', async () => {
@@ -283,6 +284,7 @@ describe('session.list projections column', () => {
     if (!response.result.ok) throw new Error('unreachable')
     const row = response.result.value.items.find(item => item.sessionId === coldId)
     expect(row?.running).toBe(false)
+    expect(row?.lastSeq).toBeUndefined()
     expect(row?.projections).toEqual({ asOfSeq: 7, values: { 'test/last-user': { text: 'cached' } } })
   })
 

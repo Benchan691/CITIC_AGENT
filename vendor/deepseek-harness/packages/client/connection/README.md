@@ -12,6 +12,10 @@ The node half guards every entry under `/api` before bridging or upgrading (`src
 
 `/api/events.mux` and `/api/events.host` each accept a WebSocket upgrade and send only the corresponding `ServerRequest` text messages to the browser; the client sends no application data over these sockets. If either socket ends, the current connection generation fails and rebuilds both streams; readiness still requires both sockets to be open and the `host.describe` HTTP call to succeed. Host teardown terminates both sockets, aborts their sources, and waits for source cleanup before returning. Ordinary network GETs to these paths return 426 with no SSE fallback; `toFetchHandler`'s SSE codec serves only the isomorphic in-process carrier.
 
+For receive timing diagnostics, set `window.__DSH_OUTPUT_TRACE__ = true` in the browser console. The WebSocket client then logs `[dsh-output-trace]` records with ISO timestamps, session IDs, event sequence numbers, event types, and chunk lengths. A received `turn/end` has the `output-end-received` stage; host status changes have `status-received`. Records contain no model text or full frames. Leave the flag unset for normal operation.
+
+Set `DSH_OUTPUT_TRACE=1` on the Host process to record `chunk-sent`, `message-sent`, `output-end-sent`, and `task-idle-sent` when each WebSocket send callback succeeds. These timestamps mean the Host handed the frame to its socket; browser receipt and rendering are separate stages.
+
 ## Model Experience
 
 None, as the wire consumer layer moves already-composed messages between browser and host; nothing here reaches a model request.

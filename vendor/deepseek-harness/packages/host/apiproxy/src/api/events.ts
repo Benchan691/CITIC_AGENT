@@ -138,7 +138,8 @@ export type HostFrame =
     agentPreset?: string
   }
   | { type: 'host/session-removed'; sessionId: SessionId }
-  | { type: 'host/session-status'; sessionId: SessionId; running: boolean }
+  /** Status is valid only after this session-log sequence has reached the client. A blank log uses -1. */
+  | { type: 'host/session-status'; sessionId: SessionId; running: boolean; lastSeq: number }
   | { type: 'host/agent-error'; sessionId: SessionId; message: string }
   | { type: 'host/workspace-changed'; workspace: WorkspaceView }
   | { type: 'host/workspace-removed'; workspaceId: WorkspaceView['workspaceId'] }

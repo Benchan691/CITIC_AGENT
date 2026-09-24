@@ -5,13 +5,14 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apply, type ConnectionHandle } from '../src/client/index.ts'
-import type { RpcMessage } from '../src/client/api.ts'
+import type { MuxFrame, RpcMessage, RpcRequest } from '../src/client/api.ts'
 import { RpcId } from '../src/client/api.ts'
 import { FixtureApiClient } from '../src/client/fixture.ts'
 import { WebApiClient } from '../src/client/web-api-client.ts'
 
 type Win = { location?: { hostname: string; search: string; origin?: string } }
 type WebSocketGlobal = { WebSocket?: typeof WebSocket }
+type OutputTraceGlobal = { __DSH_OUTPUT_TRACE__?: boolean }
 
 const originalWebSocket = globalThis.WebSocket
 const sockets: FakeWebSocket[] = []
@@ -49,6 +50,7 @@ class FakeWebSocket extends EventTarget {
 
 afterEach(() => {
   delete (globalThis as Win).location
+  delete (globalThis as OutputTraceGlobal).__DSH_OUTPUT_TRACE__
   sockets.length = 0
   if (originalWebSocket === undefined) delete (globalThis as WebSocketGlobal).WebSocket
   else globalThis.WebSocket = originalWebSocket
@@ -251,6 +253,105 @@ describe('connection client apply', () => {
     expect(sockets.every(socket => socket.readyState === FakeWebSocket.CLOSED)).toBe(true)
     errors.mockRestore()
     fetch.mockRestore()
+  })
+
+  it.each(['close', 'abort'] as const)('drains a buffered burst of assistant chunks in order on %s', async (ending) => {
+    ;(globalThis as Win).location = {
+      hostname: 'localhost', search: '', origin: 'http://localhost:3080',
+    }
+    ;(globalThis as WebSocketGlobal).WebSocket = FakeWebSocket as unknown as typeof WebSocket
+    const client = (await mount()).api as WebApiClient
+    const abort = new AbortController()
+    const stream = client.events.mux({}, abort.signal)[Symbol.asyncIterator]()
+    const first = stream.next()
+    expect(sockets).toHaveLength(1)
+    const socket = sockets[0]!
+    const chunkCount = 4_096
+    for (let seq = 0; seq < chunkCount; seq++) {
+      socket.receive(JSON.stringify({
+        type: 'server-request',
+        rpcId: `chunk-${seq}`,
+        method: 'session/event',
+        payload: {
+          type: 'session/event',
+          sessionId: 'session-burst',
+          event: {
+            type: 'assistant/chunk', seq, time: seq,
+            data: { turn: 0, step: 0, chunk: { type: 'text-delta', index: 0, text: String(seq) } },
+          },
+        },
+      }))
+    }
+    socket.receive(JSON.stringify({
+      type: 'server-request',
+      rpcId: 'turn-end',
+      method: 'session/event',
+      payload: {
+        type: 'session/event',
+        sessionId: 'session-burst',
+        event: { type: 'turn/end', seq: chunkCount, time: chunkCount, data: { turn: 0, reason: { kind: 'completed' } } },
+      },
+    }))
+    if (ending === 'close') socket.close()
+    else abort.abort()
+
+    const seen: string[] = []
+    const record = (envelope: RpcRequest<MuxFrame>): void => {
+      const payload = envelope.payload
+      if (payload.type !== 'session/event') return
+      seen.push(payload.event.type === 'turn/end' ? 'end' : String(payload.event.seq))
+    }
+    const firstFrame = await first
+    expect(firstFrame.done).toBe(false)
+    record(firstFrame.value as RpcRequest<MuxFrame>)
+    for await (const envelope of { [Symbol.asyncIterator]: () => stream }) {
+      record(envelope)
+    }
+    expect(seen).toEqual([...Array.from({ length: chunkCount }, (_, seq) => String(seq)), 'end'])
+    expect(socket.readyState).toBe(FakeWebSocket.CLOSED)
+  })
+
+  it('logs opt-in receive timing without logging output content', async () => {
+    ;(globalThis as Win).location = {
+      hostname: 'localhost', search: '', origin: 'http://localhost:3080',
+    }
+    ;(globalThis as WebSocketGlobal).WebSocket = FakeWebSocket as unknown as typeof WebSocket
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {})
+    const client = (await mount()).api as WebApiClient
+    const abort = new AbortController()
+    const stream = client.events.mux({}, abort.signal)[Symbol.asyncIterator]()
+    const first = stream.next()
+    const socket = sockets[0]!
+    const receive = (seq: number, type: string, data: unknown): void => {
+      socket.receive(JSON.stringify({
+        type: 'server-request', rpcId: `trace-${seq}`, method: 'session/event',
+        payload: { type: 'session/event', sessionId: 'session-trace', event: { type, seq, time: seq, data } },
+      }))
+    }
+    try {
+      receive(0, 'assistant/chunk', { turn: 0, step: 0, chunk: { type: 'text-delta', index: 0, text: 'hidden' } })
+      await first
+      expect(debug).not.toHaveBeenCalled()
+
+      ;(globalThis as OutputTraceGlobal).__DSH_OUTPUT_TRACE__ = true
+      receive(1, 'assistant/chunk', { turn: 0, step: 0, chunk: { type: 'text-delta', index: 0, text: 'SECRET' } })
+      receive(2, 'turn/end', { turn: 0, reason: { kind: 'completed' } })
+      socket.close()
+      for await (const _envelope of { [Symbol.asyncIterator]: () => stream }) { /* drain */ }
+
+      expect(debug).toHaveBeenCalledTimes(2)
+      expect(debug).toHaveBeenNthCalledWith(1, '[dsh-output-trace]', expect.objectContaining({
+        stage: 'chunk-received', sessionId: 'session-trace', seq: 1, eventType: 'assistant/chunk', chunkLength: 6,
+      }))
+      expect(debug).toHaveBeenNthCalledWith(2, '[dsh-output-trace]', expect.objectContaining({
+        stage: 'output-end-received', sessionId: 'session-trace', seq: 2, eventType: 'turn/end', chunkLength: 0,
+      }))
+      expect(debug.mock.calls.every(([, record]) => !Number.isNaN(Date.parse((record as { timestamp: string }).timestamp)))).toBe(true)
+      expect(JSON.stringify(debug.mock.calls)).not.toContain('SECRET')
+    } finally {
+      abort.abort()
+      debug.mockRestore()
+    }
   })
 
   it('maps an HTTPS page origin to a secure WebSocket URL', async () => {

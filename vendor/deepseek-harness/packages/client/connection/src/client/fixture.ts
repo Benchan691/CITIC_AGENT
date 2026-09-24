@@ -1694,7 +1694,7 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
     const summary = summaryOf(id)
     if (summary === undefined || summary.running === running) return
     summary.running = running
-    emitHost({ type: 'host/session-status', sessionId: id, running })
+    emitHost({ type: 'host/session-status', sessionId: id, running, lastSeq: logs.get(id)?.at(-1)?.seq ?? -1 })
   }
   const logOf = (id: SessionId): SessionEvent[] => {
     let log = logs.get(id)

@@ -1,6 +1,6 @@
 /** Direct one-shot Agent driving, durable aggregation, flushing, and exit mapping. */
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { Inbox } from '@deepseek-ai/dsh-agent'
 import type { Agent, AgentHandle, CreateAgentOptions } from '@deepseek-ai/dsh-agent'
@@ -50,7 +50,12 @@ function appendTurn(
 /** Mount the real registries around a small scripted Agent factory. */
 async function bench(script: Script): Promise<{
   ctx: Context
-  run(): Promise<{ code: number; out: string; err: string; order: string[] }>
+  run(streams?: { stdout?: typeof internals.stdout; stderr?: typeof internals.stderr }): Promise<{
+    code: number
+    out: string
+    err: string
+    order: string[]
+  }>
 }> {
   const ctx = new Context()
   await ctx.plugin(SessionStore)
@@ -91,13 +96,13 @@ async function bench(script: Script): Promise<{
   })
   return {
     ctx,
-    run: async () => {
+    run: async (streams) => {
       let out = ''
       let err = ''
       const order: string[] = []
       ctx.on('session/flush', () => { order.push('flush') })
-      internals.stdout = { write: (chunk: string) => { out += chunk; return true } }
-      internals.stderr = { write: (chunk: string) => { err += chunk; return true } }
+      internals.stdout = streams?.stdout ?? { write: (chunk: string, callback) => { out += chunk; callback(); return true } }
+      internals.stderr = streams?.stderr ?? { write: (chunk: string, callback) => { err += chunk; callback(); return true } }
       const exited = new Promise<number>((resolve) => {
         ctx.provide('appExit', (code: number) => { order.push('exit'); resolve(code) })
       })
@@ -143,6 +148,30 @@ describe('headless runner', () => {
     await test.ctx.fiber.dispose()
   })
 
+  it('waits for a backpressured large stdout write before requesting exit', async () => {
+    const answer = 'output '.repeat(40_000)
+    const test = await bench({
+      afterPrompt(session, message) { appendTurn(session, 1, message, answer, true) },
+    })
+    let pendingWrite: ((error?: Error | null) => void) | undefined
+    let written = ''
+    let exited = false
+    const result = test.run({
+      stdout: { write: (chunk, callback) => {
+        written = chunk
+        pendingWrite = callback
+        return false
+      } },
+    })
+    void result.then(() => { exited = true })
+    await vi.waitFor(() => { expect(pendingWrite).toBeDefined() })
+    expect(written).toBe(answer + '\n')
+    expect(exited).toBe(false)
+    pendingWrite?.()
+    expect(await result).toMatchObject({ code: 0, err: '', order: ['flush', 'exit'] })
+    await test.ctx.fiber.dispose()
+  })
+
   it('exits 1 when the final turn does not complete', async () => {
     const test = await bench({
       afterPrompt(session, message) { appendTurn(session, 1, message, undefined, false) },
@@ -172,6 +201,66 @@ describe('headless runner', () => {
     await test.ctx.fiber.dispose()
   })
 
+  it('waits for the terminal error on stderr after stdout has flushed', async () => {
+    const test = await bench({
+      afterPrompt(session, message) {
+        session.append('turn/start', { turn: 1 })
+        session.append('user/message', message, { surfaceOp: 'append' })
+        session.append('turn/end', {
+          turn: 1,
+          reason: { kind: 'error', error: { code: 'SERVER', message: 'provider unavailable' } },
+        })
+      },
+    })
+    let flushStdout: (() => void) | undefined
+    let flushStderr: (() => void) | undefined
+    let stderrText = ''
+    let exited = false
+    const result = test.run({
+      stdout: { write: (_chunk, callback) => { flushStdout = callback; return false } },
+      stderr: { write: (chunk, callback) => {
+        stderrText = chunk
+        flushStderr = callback
+        return false
+      } },
+    })
+    void result.then(() => { exited = true })
+    await vi.waitFor(() => { expect(flushStdout).toBeDefined() })
+    expect(flushStderr).toBeUndefined()
+    expect(exited).toBe(false)
+    flushStdout?.()
+    await vi.waitFor(() => { expect(flushStderr).toBeDefined() })
+    expect(stderrText).toBe('dsh: SERVER: provider unavailable\n')
+    expect(exited).toBe(false)
+    flushStderr?.()
+    expect(await result).toMatchObject({ code: 1, order: ['flush', 'exit'] })
+    await test.ctx.fiber.dispose()
+  })
+
+  it('reports a failed stdout write and exits with failure after its diagnostic flushes', async () => {
+    const test = await bench({
+      afterPrompt(session, message) { appendTurn(session, 1, message, 'answer', true) },
+    })
+    let diagnostic = ''
+    let flushDiagnostic: (() => void) | undefined
+    let exited = false
+    const result = test.run({
+      stdout: { write: (_chunk, callback) => { callback(new Error('output unavailable')); return false } },
+      stderr: { write: (chunk, callback) => {
+        diagnostic = chunk
+        flushDiagnostic = callback
+        return false
+      } },
+    })
+    void result.then(() => { exited = true })
+    await vi.waitFor(() => { expect(flushDiagnostic).toBeDefined() })
+    expect(diagnostic).toBe('dsh: output unavailable\n')
+    expect(exited).toBe(false)
+    flushDiagnostic?.()
+    expect(await result).toMatchObject({ code: 1, order: ['flush', 'exit'] })
+    await test.ctx.fiber.dispose()
+  })
+
   it('exits 1 when the owned interval contains no turn', async () => {
     const test = await bench({ afterPrompt: () => {} })
     expect(await test.run()).toMatchObject({ code: 1, out: '\n', err: '' })
@@ -181,8 +270,8 @@ describe('headless runner', () => {
   it('reports a direct Agent creation failure', async () => {
     const ctx = new Context()
     let err = ''
-    internals.stdout = { write: () => true }
-    internals.stderr = { write: (chunk: string) => { err += chunk; return true } }
+    internals.stdout = { write: (_chunk, callback) => { callback(); return true } }
+    internals.stderr = { write: (chunk: string, callback) => { err += chunk; callback(); return true } }
     const exited = new Promise<number>((resolve) => {
       ctx.provide('appExit', resolve)
     })
@@ -198,8 +287,8 @@ describe('headless runner', () => {
   it('stringifies a non-Error Agent creation failure', async () => {
     const ctx = new Context()
     let err = ''
-    internals.stdout = { write: () => true }
-    internals.stderr = { write: (chunk: string) => { err += chunk; return true } }
+    internals.stdout = { write: (_chunk, callback) => { callback(); return true } }
+    internals.stderr = { write: (chunk: string, callback) => { err += chunk; callback(); return true } }
     const exited = new Promise<number>((resolve) => {
       ctx.provide('appExit', resolve)
     })
@@ -220,8 +309,8 @@ describe('headless runner', () => {
   it('abandons a run when the tree is disposed during Loader settlement', async () => {
     const ctx = new Context()
     let exited = false
-    internals.stdout = { write: () => true }
-    internals.stderr = { write: () => true }
+    internals.stdout = { write: (_chunk, callback) => { callback(); return true } }
+    internals.stderr = { write: (_chunk, callback) => { callback(); return true } }
     ctx.provide('appExit', () => { exited = true })
     const services = ctx.plugin((child: Context) => {
       child.provide('agentDefaultModel', { currentSelection: () => ({ provider: 'p', model: 'm' }) } as never)

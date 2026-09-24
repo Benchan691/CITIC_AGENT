@@ -16,7 +16,7 @@ import type {
   RequestErrorAction,
 } from '@deepseek-ai/dsh-agent'
 import { Inbox, agentEvents, assembleContextFor } from '@deepseek-ai/dsh-agent'
-import type { GenerateOptions, LlmCallConfig, Message, PreparedLlmCall } from '@deepseek-ai/dsh-llm'
+import type { GenerateOptions, LlmCallConfig, Message, PreparedLlmCall, StreamChunk } from '@deepseek-ai/dsh-llm'
 import {
   BlockAssembler,
   LlmError,
@@ -34,6 +34,22 @@ import type { PromptAssembly } from '@deepseek-ai/dsh-system-prompt'
 import type { Context } from '@deepseek-ai/cordis'
 import { RuntimeContextProjection } from './runtime-context.ts'
 import { executeToolCalls } from './tool-calls.ts'
+
+/** Diagnostic only: records stream boundaries without retaining model output. */
+type TraceExtra = { chunkLength?: number | undefined; turn?: number; step?: number }
+const traceOutput = process.env.DSH_OUTPUT_TRACE === '1'
+  ? (stage: string, sessionId: SessionId, seq: number, extra?: TraceExtra): void => {
+    console.error('[dsh-output-trace]', JSON.stringify({
+      timestamp: new Date().toISOString(), stage, sessionId, seq, ...extra,
+    }))
+  }
+  : undefined
+
+function deltaLength(chunk: StreamChunk): number | undefined {
+  if (chunk.type === 'text-delta' || chunk.type === 'reasoning-delta') return chunk.text.length
+  if (chunk.type === 'tool-call-delta') return chunk.argumentsDelta.length
+  return undefined
+}
 
 type Phase =
   | { kind: 'idle'; lastTurn: number }
@@ -107,6 +123,7 @@ export class ReactLoopAgent implements Agent {
     const status = this.status
     if (status !== previousStatus) {
       this.dispatch.emit('agent/status', { status })
+      if (status === 'idle') traceOutput?.('task-idle-emitted', this.id, this.session.seq - 1)
     }
   }
 
@@ -352,9 +369,13 @@ export class ReactLoopAgent implements Agent {
         signal.throwIfAborted()
         for await (const chunk of stream) {
           signal.throwIfAborted()
+          traceOutput?.('chunk-generated', this.id, this.session.seq, {
+            chunkLength: deltaLength(chunk), turn, step,
+          })
           chunkSeqs.push(this.session.append('assistant/chunk', { turn, step, chunk }).seq)
           assembler.push(chunk)
         }
+        traceOutput?.('generation-finished', this.id, this.session.seq - 1, { turn, step })
         signal.throwIfAborted()
       } catch (error: unknown) {
         if (signal.aborted) {

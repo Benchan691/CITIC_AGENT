@@ -3,7 +3,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry, { Inbox } from '@deepseek-ai/dsh-agent'
+import AgentRegistry, { Inbox, agentEvents } from '@deepseek-ai/dsh-agent'
 import type { Agent, AgentFactory } from '@deepseek-ai/dsh-agent'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import type { Session } from '@deepseek-ai/dsh-session'
@@ -13,7 +13,7 @@ import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import { DirectoryPickerError } from '@deepseek-ai/dsh-host-directory-picker'
 import type { DirectoryPickerCapability } from '@deepseek-ai/dsh-host-directory-picker'
 import WorkspaceRegistry from '@deepseek-ai/dsh-workspace'
-import type { HostFrame, WorkspaceId } from '@deepseek-ai/dsh-host-apiproxy/api'
+import type { HostFrame, MuxFrame, WorkspaceId } from '@deepseek-ai/dsh-host-apiproxy/api'
 import type { RpcRequest, RpcResponse } from '@deepseek-ai/dsh-host-apiproxy/api/rpc'
 import { RpcId } from '@deepseek-ai/dsh-host-apiproxy/api/rpc'
 import { createApiProxy } from '@deepseek-ai/dsh-host-apiproxy'
@@ -36,6 +36,14 @@ async function nextHostFrame(
 ): Promise<RpcRequest<HostFrame>> {
   const next = await stream.next()
   if (next.done === true) throw new Error('Host stream ended before the expected increment')
+  return next.value
+}
+
+async function nextMuxFrame(
+  stream: AsyncIterator<RpcRequest<MuxFrame>>,
+): Promise<RpcRequest<MuxFrame>> {
+  const next = await stream.next()
+  if (next.done === true) throw new Error('Mux stream ended before the expected increment')
   return next.value
 }
 
@@ -442,6 +450,84 @@ describe('session creation and Workspace membership', () => {
 })
 
 describe('Host Workspace increments', () => {
+  it('watermarks status with the latest session event, including an empty log', async () => {
+    const { api, ctx } = await harness()
+    const session = ctx.sessions.create(SessionId('status-watermark'))
+    const agent = stubAgent(session)
+    const abort = new AbortController()
+    const stream = api.events.host(request({}), abort.signal)[Symbol.asyncIterator]()
+
+    agentEvents(ctx, agent).emit('agent/status', { status: 'running' })
+    expect((await nextHostFrame(stream)).payload).toMatchObject({
+      type: 'host/session-status', sessionId: session.id, running: true, lastSeq: -1,
+    })
+
+    session.append('turn/start', { turn: 1 })
+    session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+    agentEvents(ctx, agent).emit('agent/status', { status: 'idle' })
+    expect((await nextHostFrame(stream)).payload).toMatchObject({
+      type: 'host/session-status', sessionId: session.id, running: false, lastSeq: 1,
+    })
+    const row = expectOk(await api.sessions.list(request({}))).items.find(item => item.sessionId === session.id)
+    expect(row?.lastSeq).toBe(1)
+    abort.abort()
+    await stream.return?.()
+  })
+
+  it('drains a burst of mux events in order before the final turn event', async () => {
+    const { api, ctx } = await harness()
+    const session = ctx.sessions.create(SessionId('burst-order'))
+    const abort = new AbortController()
+    const stream: AsyncIterator<RpcRequest<MuxFrame>> = api.events.mux(request({}), abort.signal)[Symbol.asyncIterator]()
+    expect((await nextMuxFrame(stream)).payload).toMatchObject({
+      type: 'session/subscribed', sessionId: session.id, lastSeq: -1,
+    })
+
+    session.append('turn/start', { turn: 1 })
+    session.append('step/start', { turn: 1, step: 1 })
+    const chunks = 2_000
+    for (let index = 0; index < chunks; index++) {
+      session.append('assistant/chunk', {
+        turn: 1, step: 1, chunk: { type: 'text-delta', index: 0, text: String(index) },
+      })
+    }
+    session.append('step/end', { turn: 1, step: 1 })
+    session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+
+    const events = []
+    for (let index = 0; index < chunks + 4; index++) {
+      const next = await nextMuxFrame(stream)
+      if (next.payload.type !== 'session/event') throw new Error('unexpected mux control frame')
+      events.push(next.payload.event)
+    }
+    expect(events.map(event => event.seq)).toEqual(Array.from({ length: chunks + 4 }, (_, index) => index))
+    expect(events.slice(2, -2).map((event) => {
+      if (event.type !== 'assistant/chunk' || event.data.chunk.type !== 'text-delta') {
+        throw new Error('unexpected chunk frame')
+      }
+      return event.data.chunk.text
+    })).toEqual(Array.from({ length: chunks }, (_, index) => String(index)))
+    expect(events.at(-1)).toMatchObject({ type: 'turn/end', data: { reason: { kind: 'completed' } } })
+    abort.abort()
+    await stream.return?.()
+  })
+
+  it('stops draining queued mux events after the consumer aborts', async () => {
+    const { api, ctx } = await harness()
+    const session = ctx.sessions.create(SessionId('burst-abort'))
+    const abort = new AbortController()
+    const stream: AsyncIterator<RpcRequest<MuxFrame>> = api.events.mux(request({}), abort.signal)[Symbol.asyncIterator]()
+    await nextMuxFrame(stream) // subscription baseline
+    for (let turn = 1; turn <= 100; turn++) {
+      session.append('turn/start', { turn })
+      session.append('turn/end', { turn, reason: { kind: 'completed' } })
+    }
+    const first = await nextMuxFrame(stream)
+    expect(first.payload).toMatchObject({ type: 'session/event', event: { seq: 0 } })
+    abort.abort()
+    expect((await stream.next()).done).toBe(true)
+  })
+
   it('projects subagent origin in attached summaries and creation increments', async () => {
     const { api, ctx } = await harness()
     const abort = new AbortController()

@@ -55,6 +55,7 @@ export const sessionSummarySchema = z.object({
   sessionId: sessionIdSchema,
   updatedAt: z.number(),
   running: z.boolean(),
+  lastSeq: z.number().int().min(-1).optional(),
   blank: z.boolean(),
   parentSessionId: sessionIdSchema.optional(),
   origin: z.literal('subagent').optional(),

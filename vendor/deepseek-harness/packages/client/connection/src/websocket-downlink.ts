@@ -11,6 +11,38 @@ import { RpcId } from '@deepseek-ai/dsh-host-apiproxy/api'
 
 type Frame = MuxFrame | HostFrame
 
+/** Opt-in host transport timing; never records payload text. */
+type TraceExtra = { chunkLength?: number | undefined; turn?: number; step?: number }
+const traceOutput = process.env.DSH_OUTPUT_TRACE === '1'
+  ? (stage: string, sessionId: string, seq: number, extra?: TraceExtra): void => {
+    console.error('[dsh-output-trace]', JSON.stringify({
+      timestamp: new Date().toISOString(), stage, sessionId, seq, ...extra,
+    }))
+  }
+  : undefined
+
+function traceSent(payload: Frame): void {
+  if (traceOutput === undefined) return
+  if (payload.type === 'session/event') {
+    const { event } = payload
+    if (event.type === 'assistant/chunk') {
+      const { chunk } = event.data
+      const chunkLength = chunk.type === 'text-delta' || chunk.type === 'reasoning-delta'
+        ? chunk.text.length
+        : chunk.type === 'tool-call-delta' ? chunk.argumentsDelta.length : undefined
+      traceOutput('chunk-sent', payload.sessionId, event.seq, {
+        chunkLength, turn: event.data.turn, step: event.data.step,
+      })
+    } else if (event.type === 'assistant/message') {
+      traceOutput('message-sent', payload.sessionId, event.seq, { turn: event.data.turn, step: event.data.step })
+    } else if (event.type === 'turn/end') {
+      traceOutput('output-end-sent', payload.sessionId, event.seq, { turn: event.data.turn })
+    }
+  } else if (payload.type === 'host/session-status' && !payload.running) {
+    traceOutput('task-idle-sent', payload.sessionId, payload.lastSeq)
+  }
+}
+
 function serverRequest(frame: RpcRequest<Frame>): ServerRequest {
   return {
     type: 'server-request',
@@ -28,7 +60,10 @@ function send(socket: WebSocket, frame: RpcRequest<Frame>): Promise<void> {
     }
     socket.send(JSON.stringify(serverRequest(frame)), (error) => {
       if (error) reject(error)
-      else resolve()
+      else {
+        traceSent(frame.payload)
+        resolve()
+      }
     })
   })
 }

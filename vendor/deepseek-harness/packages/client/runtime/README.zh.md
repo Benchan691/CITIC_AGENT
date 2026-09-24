@@ -20,6 +20,8 @@
 
 Folder 和 Session 列表各自具有单调的 `pending` → `ready` 基线阶段，也有各自的刷新活动／错误状态。Folder 投影把 `folder.list` 适配到现有的 Workspace 形状客户端契约，同时并行运行 `workspace.list`，以刷新注册表级全局归档集合。列表请求期间到达的增量 Session 帧与一元变更回显会在其响应之上回放。Folder 变更使用 Folder API；Workspace RPC 则作为尚未采用逻辑 Folder 的 Host 的兼容回退。
 
+Host 的 idle 状态携带最后一个持久输出事件的序号。状态与会话事件经不同的 WebSocket 传输，因此 `SessionManager` 会等到 mux 水位达到该序号才发布完成；当前选中的 Session 还必须具有覆盖该序号、连续且已打开的对话窗口。管理器会在发布 idle 前重建累积快照，使仍待显示的最终输出可以与完成状态进入同一次 React 提交。未选中的 Session 没有活跃渲染消费者，打开时由 history 补齐内容。列表刷新也遵守同一道完成栅栏；重连时会丢弃上一连接代次的水位，再重新同步。
+
 `SessionSummary.pendingInteraction` 将阻塞 Session 的实时用户操作分类为 `approval`、`plan-review` 或 `question`。`SessionManager` 依据稳定的请求标识跟踪可应答请求的 requested/resolved mux 帧，即使 `Session` 对象尚未实例化也不例外；实例化前的缓冲会保留每个仍有效的请求，替换回放产生的重复项，并移除已解决的请求，因此打开 Session 时，列表状态始终有一个对应的可应答 `PendingWait`。审批与问题并发时，第一个 pending 问题具有更高的呈现优先级，以匹配 composer 路由；只有满足 plan-review composer 二元呈现约束的请求才会保留独立的 `plan-review` 状态。该状态的作用域限定在连接代次内：断连时清除，mux 打开时的回放只恢复仍处于 pending 的请求。
 
 `WorkspaceRuntime.delete(workspaceId)` 在一元响应成功后从客户端投影中移除注册记录；对应的 `host/workspace-removed` 帧具有幂等性，并负责同步其他标签页。Session 状态与当前 Session selection 相互独立，因此 Workspace 消失后，其已纳入客户端投影的 Session 会立即投影到 Ungrouped 下。

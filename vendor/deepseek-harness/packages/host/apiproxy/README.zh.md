@@ -22,6 +22,10 @@ Settings 分节中的 `reasoningEffort` 在 agent-default-model 插件配置中�
 
 分层与协议决策记录在 [GUI 分层与 RPC 协议 RFC](../../../.agents/notes/implemented/architecture/2026-07-19-gui-layering-and-rpc-protocol.md) 中；浏览器侧消费架构记录在 [Web 客户端架构 RFC](../../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.md) 中。
 
+输出事件与状态更新通过两条独立的流传送。每个 `host/session-status` 帧都携带 `lastSeq`，即状态变化时最近提交的事件序号（空日志为 `-1`）。`session.list` 的已附加会话行也携带这一水位，冷会话行则省略。客户端应在 mux 流处理到该序号后才显示空闲状态，以免状态更新先于待输出内容到达。
+
+排查时可在 Host 进程设置 `DSH_OUTPUT_TRACE=1`。带 `[dsh-output-trace]` 前缀的 stderr 记录包含 ISO 时间戳和会话事件序号，覆盖分片入队、最终消息入队、轮次结束入队及空闲状态入队；不会记录生成的文本。`chunkLength` 统计 UTF-16 代码单元，不代表模型 token 数。可按事件序号对照 agent 循环与 WebSocket 发送记录，定位生成到传输之间的延迟。
+
 首个回答认领待处理请求之前，系统会对照该请求校验问题响应。多选题的回答项可以同时携带 `selected` 中的请求选项标签与非空 `custom` 文本；单选题的回答项必须二选一。标签重复、标签未知、id 不匹配、批次不完整以及自定义文本为空都会以 `bad-response` 拒绝。
 
 `session.history` 会读取已附加 Session 的内存状态，或通过持久化检查冷日志，而不会恢复或发布 agent，然后按追加来源的消息边界分页：`maxMessages` 统计以追加方式进入 surface 的 `user/message` 和 `assistant/message` 事件，因此仅供模型使用的替换副本不占用配额。每一页仍是一段连续的原始事件区间，从而让压缩（compaction）的仅日志 `compaction/summary` 记录与引用它的替换留在同一页。

@@ -6,6 +6,8 @@ agent（智能体）的唯一具体实现插件和循环驱动器。其包内部
 
 这是 harness 中唯一包含具体循环逻辑的包。其他所有内容要么是抽象服务，要么是针对扩展点的插件：新行为应放入插件，而不是这里。
 
+在 Host 进程设置 `DSH_OUTPUT_TRACE=1`，即可向 stderr 记录带时间戳、仅含元数据的 `chunk-generated`、`generation-finished` 和 `task-idle-emitted` 事件。分片的生成时间以 agent 循环收到提供方迭代器输出为准；跟踪记录不包含文本内容。
+
 ## 服务：`AgentLoop`（ctx 键：`agentLoop`）
 
 ### 公开 API

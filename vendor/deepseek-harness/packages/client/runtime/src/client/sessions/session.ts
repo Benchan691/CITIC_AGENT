@@ -33,6 +33,8 @@ export const PAGE_MESSAGES = 50
 
 /** Manager-owned observers of a Session object's local state edges. */
 export interface SessionOptions {
+  /** Notify the manager after a contiguous output window advances or finishes opening. */
+  onOutputProgress?(session: Session): void
   /** Catalog-discovered address selecting non-activating subagent transport. */
   address?: SubagentAddress
   /** Whether the exact direct parent Agent was live at the latest catalog read. */
@@ -472,6 +474,15 @@ export class Session implements SessionFace {
     return this.snapshotCache
   }
 
+  /** Whether the output through a host status watermark is in this session's conversation window. */
+  outputAppliedThrough(seq: number, selected: boolean): boolean {
+    // A session outside the visible column has no render consumer. Its mux
+    // watermark is still checked by the manager, and history backfills it on
+    // the next open. A selected session must have a current contiguous window.
+    if (!selected) return true
+    return this.openState === 'open' && !this.stitching && (this.windowTailSeq() ?? -1) >= seq
+  }
+
   // ---- Manager-only entry points (@internal; never called by the UI) ----
 
   /**
@@ -492,6 +503,11 @@ export class Session implements SessionFace {
       }
       case 'session/subscribed': {
         this.subscribedLastSeq = frame.lastSeq
+        // A new mux generation can roll back to a shorter durable log. The
+        // existing open window may belong to the old generation, even when
+        // its tail seq appears to satisfy an idle watermark. Reopen it from
+        // current history before the manager can publish completion.
+        if (this.openState !== 'cold') void this.resync()
         // New mux-generation baseline: the host pushes this session's queue
         // snapshot AFTER the subscribed frame on the same stream, so the
         // stale mirror clears here — race-free against onConnected/resync
@@ -647,6 +663,7 @@ export class Session implements SessionFace {
         if (result.ok) this.installWindow(result.value.events, result.value.hasMore, result.value.projections)
       }
       this.openState = 'open'
+      this.options.onOutputProgress?.(this)
     } catch (error) {
       if (generation !== this.openGeneration) return
       this.openState = 'error'
@@ -709,6 +726,7 @@ export class Session implements SessionFace {
       return
     }
     this.scheduleConversation(this.appendLive(event, view))
+    this.options.onOutputProgress?.(this)
   }
 
   /** Route assembler cadence into the Session's existing microtask/RAF notifier. */
@@ -735,6 +753,7 @@ export class Session implements SessionFace {
       console.error('[web-runtime] gap repair failed:', error)
     } finally {
       this.stitching = false
+      this.options.onOutputProgress?.(this)
     }
   }
 

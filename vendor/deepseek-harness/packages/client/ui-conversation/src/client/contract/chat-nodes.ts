@@ -25,6 +25,8 @@ export interface AssistantChatData {
   readonly blocks: readonly AssistantBlock[]
   readonly time: number
   readonly usage?: unknown
+  /** Latest streamed event represented by these cumulative blocks (output timing diagnostics). */
+  readonly lastChunkSeq?: number
   readonly finalNode?: AssistantMessageNode
 }
 

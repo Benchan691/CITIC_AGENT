@@ -264,7 +264,7 @@ describe('StatsLine', () => {
     }
     const { source } = makeSource({ nodes: [timed] })
     const view = render(<StatsLine {...props(source)} />)
-    expect(view.container.textContent).toContain('LLM 3.8s| TTFT avg 0.8s · 20 tok/s')
+    expect(view.container.textContent).toContain('LLM 3.8s| TTFT avg 0.8s · Model generation 20 tok/s')
   })
 
   it('takes every stats label from the active locale', () => {
@@ -275,7 +275,7 @@ describe('StatsLine', () => {
     const { source } = makeSource({ nodes: [timed] })
     const view = render(<StatsLine {...props(source, { tokenUsage: tokenUsage(9_995, 5) })} t={t} />)
     expect(view.container.textContent)
-      .toBe('1 轮 · 1 步| LLM 3.8s| 首 token 平均 0.8s · 20 tok/s| 缓存命中 99.95%| 输入 10K tok · 输出 1 tok')
+      .toBe('1 轮 · 1 步| LLM 3.8s| 首 token 平均 0.8s · 模型生成 20 tok/s| 缓存命中 99.95%| 输入 10K tok · 输出 1 tok')
   })
 
   it('renders without ResizeObserver support', () => {
@@ -378,7 +378,7 @@ describe('StatsLine', () => {
       }),
     })} />)
     expect(view.container.textContent).toBe(
-      '200 turns · 200 steps| LLM 1m40s · Tool call 1m2s| TTFT avg 0.8s · 20 tok/s| Cache hit 90%| Input 100 tok · Output 5 tok',
+      '200 turns · 200 steps| LLM 1m40s · Tool call 1m2s| TTFT avg 0.8s · Model generation 20 tok/s| Cache hit 90%| Input 100 tok · Output 5 tok',
     )
   })
 

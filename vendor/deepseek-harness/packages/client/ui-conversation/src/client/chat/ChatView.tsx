@@ -167,6 +167,16 @@ export function ChatView({
   const cwd = useSessions(s => s.byId[sessionId]?.cwd)
   const running = useSession(s => s.running)
   const openState = useSession(s => s.openState)
+  const wasRunning = useRef(running)
+  useLayoutEffect(() => {
+    if (wasRunning.current && !running && openState === 'open'
+      && (globalThis as typeof globalThis & { __DSH_OUTPUT_TRACE__?: boolean }).__DSH_OUTPUT_TRACE__ === true) {
+      console.debug('[dsh-output-trace]', {
+        timestamp: new Date().toISOString(), stage: 'task-completed', sessionId,
+      })
+    }
+    wasRunning.current = running
+  }, [openState, running, sessionId])
   const openError = useSession(s => s.openError)
   const hasMore = useSession(s => s.hasMore)
   const loadingOlder = useSession(s => s.loadingOlder)

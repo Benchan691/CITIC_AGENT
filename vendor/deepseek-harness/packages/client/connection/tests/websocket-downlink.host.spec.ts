@@ -76,6 +76,91 @@ async function acceptedSocket(downlinks: WebSocketDownlinks): Promise<WebSocket>
 }
 
 describe('WebSocket downlinks', () => {
+  it('sends a queued output chunk before its turn-end marker', async () => {
+    const downlinks = new WebSocketDownlinks(api(
+      async function * (signal) {
+        yield {
+          rpcId: RpcId('chunk-1'),
+          payload: {
+            type: 'session/event', sessionId: 'stream-order' as never,
+            event: { type: 'assistant/chunk', seq: 4, time: 1, data: {
+              turn: 1, step: 1, chunk: { type: 'text-delta', index: 0, text: 'answer' },
+            } },
+          },
+        }
+        yield {
+          rpcId: RpcId('end-1'),
+          payload: {
+            type: 'session/event', sessionId: 'stream-order' as never,
+            event: { type: 'turn/end', seq: 5, time: 2, data: { turn: 1, reason: { kind: 'completed' } } },
+          },
+        }
+        await untilAbort(signal)
+      },
+      idle,
+    ))
+    const host = await serve(downlinks)
+    running.push(host.close)
+    const socket = new WebSocket(`${host.origin}${MUX_EVENTS_PATH}`)
+    const received: Array<{ payload: { type: string; event?: { seq: number } } }> = []
+    socket.on('message', (data) => {
+      const bytes = Buffer.isBuffer(data) ? data : Array.isArray(data) ? Buffer.concat(data) : Buffer.from(data)
+      received.push(JSON.parse(bytes.toString('utf8')) as { payload: { type: string; event?: { seq: number } } })
+    })
+    await vi.waitFor(() => { expect(received).toHaveLength(2) })
+    expect(received.map(frame => frame.payload.type)).toEqual(['session/event', 'session/event'])
+    expect(received.map(frame => frame.payload.event?.seq))
+      .toEqual([4, 5])
+    socket.close()
+  })
+
+  it('logs only output metadata when host timing trace is enabled', async () => {
+    vi.stubEnv('DSH_OUTPUT_TRACE', '1')
+    vi.resetModules()
+    const trace = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { WebSocketDownlinks: TracedDownlinks } = await import('../src/websocket-downlink.ts')
+      const downlinks = new TracedDownlinks(api(
+        async function * (signal) {
+          yield {
+            rpcId: RpcId('trace-chunk'),
+            payload: {
+              type: 'session/event', sessionId: 'trace-session' as never,
+              event: { type: 'assistant/chunk', seq: 3, time: 1, data: {
+                turn: 1, step: 1, chunk: { type: 'text-delta', index: 0, text: 'private output' },
+              } },
+            },
+          }
+          await untilAbort(signal)
+        },
+        idle,
+      ))
+      const host = await serve(downlinks)
+      running.push(host.close)
+      const socket = new WebSocket(`${host.origin}${MUX_EVENTS_PATH}`)
+      await read(socket)
+      await vi.waitFor(() => {
+        expect(trace.mock.calls.some(([prefix]) => prefix === '[dsh-output-trace]')).toBe(true)
+      })
+      const records = (trace.mock.calls as Array<[unknown, unknown]>)
+        .filter(([prefix]) => prefix === '[dsh-output-trace]')
+        .map(([, serialized]) => {
+          if (typeof serialized !== 'string') throw new Error('trace record is not JSON')
+          return JSON.parse(serialized) as { timestamp: string; stage: string; sessionId: string; seq: number; chunkLength: number }
+        })
+      expect(records).toEqual([expect.objectContaining({
+        stage: 'chunk-sent', sessionId: 'trace-session', seq: 3, chunkLength: 14,
+      })])
+      expect(Number.isFinite(Date.parse(records[0]!.timestamp))).toBe(true)
+      expect(JSON.stringify(records)).not.toContain('private output')
+      socket.close()
+    } finally {
+      trace.mockRestore()
+      vi.unstubAllEnvs()
+      vi.resetModules()
+    }
+  })
+
   it('carries mux and host over independent downstream sockets and cancels each source on close', async () => {
     let muxAborted = false
     let hostAborted = false

@@ -6,6 +6,8 @@ THE concrete agent plugin and loop driver. Its package-internal implementation s
 
 This is the only package in the harness that contains concrete loop logic. Everything else is an abstract service or a plugin against extension points — new behavior goes into plugins, not here.
 
+Set `DSH_OUTPUT_TRACE=1` on the Host process to log timestamped, metadata-only `chunk-generated`, `generation-finished`, and `task-idle-emitted` records to stderr. A generated chunk is observed at the agent loop's provider iterator boundary; the trace never logs its text.
+
 ## Service: `AgentLoop` (ctx key: `agentLoop`)
 
 ### Public API

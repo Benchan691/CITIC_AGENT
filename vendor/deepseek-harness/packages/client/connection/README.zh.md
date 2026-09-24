@@ -12,6 +12,10 @@ node 半侧在桥接或 upgrade 前守卫 `/api` 下的每个入口（`src/api-r
 
 `/api/events.mux` 与 `/api/events.host` 各接受一条 WebSocket upgrade，并只向浏览器发送对应的 `ServerRequest` 文本消息；客户端不会在这些 socket 上发送业务数据。任一 socket 结束都会使当前 connection generation 失败并重建两条流，连接就绪仍要求两条 socket 均已打开且 `host.describe` HTTP 调用成功。Host teardown 会终止两条 socket、中止各自的 source，并等待 source 清理完成后再返回。普通网络 GET 这些路径会返回 426，不保留 SSE（Server-Sent Events）回退；`toFetchHandler` 的 SSE 编解码只服务进程内同构载体。
 
+如需诊断接收时序，可在浏览器控制台设置 `window.__DSH_OUTPUT_TRACE__ = true`。WebSocket 客户端随后会记录带有 ISO 时间戳、会话 ID、事件序号、事件类型和分块长度的 `[dsh-output-trace]` 日志。收到 `turn/end` 时阶段为 `output-end-received`；宿主状态变化的阶段为 `status-received`。记录不包含模型文本或完整帧。正常使用时无需设置此标志。
+
+在 Host 进程设置 `DSH_OUTPUT_TRACE=1`，可在每次 WebSocket 发送回调成功后记录 `chunk-sent`、`message-sent`、`output-end-sent` 和 `task-idle-sent`。这些时间表示 Host 已将帧交给 socket；浏览器接收与渲染属于后续独立阶段。
+
 ## 模型体验
 
 无。协议消费层只在浏览器与主机之间搬运已经组合好的消息；这里没有任何内容进入模型请求。
