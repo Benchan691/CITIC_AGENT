@@ -19,15 +19,15 @@ afterEach(() => {
 
 describe('dsh path helpers', () => {
   it('owns the shared default DSH home directory name', () => {
-    expect(DSH_HOME_DIR_NAME).toBe('.dsh')
-    expect(DEFAULT_DSH_HOME_DISPLAY).toBe('~/.dsh')
-    expect(defaultDshHome()).toBe(join(homedir(), '.dsh'))
+    expect(DSH_HOME_DIR_NAME).toBe('.soc-agent')
+    expect(DEFAULT_DSH_HOME_DISPLAY).toBe('~/.soc-agent')
+    expect(defaultDshHome()).toBe(join(homedir(), '.soc-agent'))
   })
 
   it('expands tilde paths without changing non-tilde paths', () => {
     expect(expandHomePath('~')).toBe(homedir())
-    expect(expandHomePath('~/.dsh')).toBe(join(homedir(), '.dsh'))
-    expect(expandHomePath('~\\.dsh')).toBe(join(homedir(), '.dsh'))
+    expect(expandHomePath('~/.soc-agent')).toBe(join(homedir(), '.soc-agent'))
+    expect(expandHomePath('~\\.soc-agent')).toBe(join(homedir(), '.soc-agent'))
     expect(expandHomePath('/tmp/.dsh')).toBe('/tmp/.dsh')
     expect(expandHomePath('~other/.dsh')).toBe('~other/.dsh')
   })
@@ -52,7 +52,7 @@ describe('dsh path helpers', () => {
   })
 
   it('labels a resolved home by whether it is the default root', () => {
-    expect(dshHomeDisplay(resolve(defaultDshHome()))).toBe('~/.dsh')
+    expect(dshHomeDisplay(resolve(defaultDshHome()))).toBe('~/.soc-agent')
     expect(dshHomeDisplay('/some/other/root')).toBe('$DSH_HOME')
   })
 

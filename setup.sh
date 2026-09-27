@@ -908,8 +908,33 @@ ensure_harness_ready() {
   #      browser packages into the profile and appends `dsh-soc-agent` to the bundle
 #      layer stack.
 
+# --- harness home migration -------------------------------------------------
+#
+# The SOC agent no longer shares the upstream DeepSeek Harness default home
+# (`~/.dsh`) and resolves its own `~/.soc-agent`. Machines set up before the
+# split keep all state (profiles, sessions, credentials, identity) in `~/.dsh`,
+# so move the whole home once instead of re-initialising it. Skipped entirely
+# when $DSH_HOME points at a custom home.
+
+migrate_harness_home() {
+  local old_home="$HOME/.dsh" new_home="${DSH_HOME:-$HOME/.soc-agent}"
+  if [ -n "${DSH_HOME:-}" ]; then
+    return 0
+  fi
+  if [ -d "$old_home" ] && [ ! -e "$new_home" ]; then
+    if mv "$old_home" "$new_home"; then
+      ok "migrated harness home $old_home → $new_home"
+    else
+      bad "could not migrate $old_home to $new_home — move it manually before continuing"
+      exit 1
+    fi
+  elif [ -d "$old_home" ] && [ -e "$new_home" ]; then
+    warn "both $old_home and $new_home exist — leaving them untouched; inspect manually"
+  fi
+}
+
 profile_dir() {
-  printf '%s/profiles/%s' "${DSH_HOME:-$HOME/.dsh}" "$DSH_PROFILE"
+  printf '%s/profiles/%s' "${DSH_HOME:-$HOME/.soc-agent}" "$DSH_PROFILE"
 }
 
 profile_has_dependency() {
@@ -1426,6 +1451,13 @@ for _arg in "$@"; do
     --rebuild) FORCE_REBUILD=1 ;;
   esac
 done
+
+# Audit mode never mutates anything; the repair modes migrate the harness
+# home first so the profile wiring below sees the new location.
+case "${1:-}" in
+  --check) ;;
+  *) migrate_harness_home ;;
+esac
 
 case "${1:-}" in
   --check)

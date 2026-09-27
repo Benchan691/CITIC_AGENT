@@ -112,4 +112,4 @@ ssh -L 3080:127.0.0.1:3080 usr@ip
 ```
 
 Runtime configuration and data, including `.env`, `.data`, PostgreSQL, and
-`~/.dsh`, are kept outside Git and preserved during updates.
+`~/.soc-agent`, are kept outside Git and preserved during updates.

@@ -21,7 +21,7 @@ import { SettingsProvider, deepEqualJson, type SettingsNamespace } from '@deepse
 export interface Config {
   /** Settings document path; defaults to `settings.yaml` under the harness home. */
   path?: string
-  /** Harness home used when `path` is omitted; defaults to `$DSH_HOME` or `~/.dsh`. */
+  /** Harness home used when `path` is omitted; defaults to `$DSH_HOME` or `~/.soc-agent`. */
   dshHome?: string
   /** Remove the retired wallpaper settings and assets during the first shipped harness boot. */
   legacyUiWallpaperCleanup?: boolean
