@@ -116,7 +116,8 @@ export function sanitizeEmailHtml(value: string): string {
 }
 
 const PREVIEW_CSS = `
-  :root { color-scheme: light dark; }
+  :root { color-scheme: light; }
+  html, body { color: #000; background-color: #fff; }
   body { box-sizing: border-box; margin: 0; padding: 16px; font: 14px/1.45 system-ui, sans-serif; overflow-wrap: anywhere; }
   *, *::before, *::after { box-sizing: inherit; }
   table { max-width: 100%; border-collapse: collapse; }

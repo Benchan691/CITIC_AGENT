@@ -36,6 +36,31 @@ import type {
  */
 const NO_COST: ModelCost = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
+/**
+ * OpenRouter preview model absent from the pinned pi-ai catalog. Remove this
+ * fallback once pi-ai ships its own entry; catalogModels prefers that entry.
+ */
+const OPENROUTER_ADDITIONS: readonly Model<Api>[] = [{
+  id: 'stealth/space-bunny-alpha',
+  name: 'Space Bunny Alpha',
+  api: 'openai-completions',
+  provider: 'openrouter',
+  baseUrl: 'https://openrouter.ai/api/v1',
+  reasoning: true,
+  thinkingLevelMap: {
+    max: 'max',
+    xhigh: 'xhigh',
+    high: 'high',
+    medium: 'medium',
+    low: 'low',
+  },
+  input: ['text', 'image'],
+  cost: NO_COST,
+  contextWindow: 1_000_000,
+  maxTokens: 524_288,
+  compat: { supportsDeveloperRole: false, thinkingFormat: 'openrouter' },
+}]
+
 /** One request modality a pi-ai model may accept. */
 export type PiAiModality = Model<Api>['input'][number]
 
@@ -184,7 +209,13 @@ export function catalogProviderIds(): readonly string[] {
 export function catalogModels(provider: string): Map<string, Model<Api>> {
   if (!catalogProviders().has(provider)) return new Map()
   const models = getBuiltinModels(provider as BuiltinProvider) as Model<Api>[]
-  return new Map(models.map(model => [model.id, model]))
+  const entries = new Map(models.map(model => [model.id, model]))
+  if (provider === 'openrouter') {
+    for (const model of OPENROUTER_ADDITIONS) {
+      if (!entries.has(model.id)) entries.set(model.id, model)
+    }
+  }
+  return entries
 }
 
 /**

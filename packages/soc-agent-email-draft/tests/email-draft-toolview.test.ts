@@ -53,6 +53,55 @@ test('sanitizes live HTML preview content while retaining safe layout', async ()
   }
 })
 
+test('preview sets light colors and black text through paragraphs and tables', () => {
+  const require = createRequire(import.meta.url)
+  const { JSDOM } = require('../../../vendor/deepseek-harness/node_modules/jsdom')
+  const parserDom = new JSDOM('')
+  Object.assign(globalThis, { DOMParser: parserDom.window.DOMParser })
+  const preview = new JSDOM(renderEmailPreviewDocument(
+    '<p>Update</p><table><tr><th>Heading</th><td>Details</td></tr></table><a href="https://example.com">Link</a>',
+  ))
+  try {
+    const { window } = preview
+    for (const selector of ['html', 'body']) {
+      const style = window.getComputedStyle(window.document.querySelector(selector))
+      assert.equal(style.colorScheme, 'light')
+      assert.equal(style.color, 'rgb(0, 0, 0)')
+      assert.equal(style.backgroundColor, 'rgb(255, 255, 255)')
+    }
+    for (const selector of ['p', 'table', 'th', 'td']) {
+      assert.equal(window.getComputedStyle(window.document.querySelector(selector)).color, 'rgb(0, 0, 0)')
+    }
+    const linkRule = [...window.document.styleSheets[0].cssRules].find(rule => rule.selectorText === 'a')
+    assert.equal(linkRule.style.color, 'rgb(37, 99, 235)')
+  } finally {
+    Reflect.deleteProperty(globalThis, 'DOMParser')
+    preview.window.close()
+    parserDom.window.close()
+  }
+})
+
+test('preview preserves explicit inline and stylesheet colors', () => {
+  const require = createRequire(import.meta.url)
+  const { JSDOM } = require('../../../vendor/deepseek-harness/node_modules/jsdom')
+  const parserDom = new JSDOM('')
+  Object.assign(globalThis, { DOMParser: parserDom.window.DOMParser })
+  const preview = new JSDOM(renderEmailPreviewDocument(
+    '<style>.accent { color: #cc0000; }</style><p class="accent">Accent</p><div style="background-color: #000"><p style="color: #fff">White text</p></div><a href="https://example.com" style="color: #123456">Custom link</a>',
+  ))
+  try {
+    const { window } = preview
+    assert.equal(window.getComputedStyle(window.document.querySelector('.accent')).color, 'rgb(204, 0, 0)')
+    assert.equal(window.getComputedStyle(window.document.querySelector('div')).backgroundColor, 'rgb(0, 0, 0)')
+    assert.equal(window.getComputedStyle(window.document.querySelector('div p')).color, 'rgb(255, 255, 255)')
+    assert.equal(window.getComputedStyle(window.document.querySelector('a')).color, 'rgb(18, 52, 86)')
+  } finally {
+    Reflect.deleteProperty(globalThis, 'DOMParser')
+    preview.window.close()
+    parserDom.window.close()
+  }
+})
+
 test('validates selected email files and creates standard base64 payloads', async () => {
   const file = (name: string, size: number, type = 'application/octet-stream'): File => ({
     name, size, type, arrayBuffer: async () => new ArrayBuffer(size),
@@ -162,6 +211,25 @@ test('forward editor requires confirmation, retains its source after edits, and 
     assert.equal(previewPanel!.hasAttribute('hidden'), true)
     assert.equal(sourcePanel!.hasAttribute('hidden'), false)
     assert.equal(body.value, form.body)
+    const guide = sourcePanel!.querySelector('details')!
+    assert.equal(guide.querySelector('summary')!.textContent, 'HTML drafting guide')
+    assert.match(guide.textContent!, /black text on white/)
+    assert.match(guide.textContent!, /Escape customer data/)
+    assert.match(guide.textContent!, /without Markdown fences, scripts, or external stylesheets/)
+    const exampleSource = guide.querySelector('pre code')!
+    assert.equal(exampleSource.querySelector('div'), null, 'Example HTML is displayed as copyable source')
+    Object.assign(globalThis, { DOMParser: dom.window.DOMParser })
+    const examplePreview = new JSDOM(renderEmailPreviewDocument(exampleSource.textContent!))
+    try {
+      assert.match(examplePreview.window.document.body.textContent!, /Example & Co\./)
+      assert.equal(examplePreview.window.document.querySelectorAll('p').length, 3)
+      const wrapperStyle = examplePreview.window.getComputedStyle(examplePreview.window.document.querySelector('div'))
+      assert.equal(wrapperStyle.color, 'rgb(0, 0, 0)')
+      assert.equal(wrapperStyle.backgroundColor, 'rgb(255, 255, 255)')
+    } finally {
+      Reflect.deleteProperty(globalThis, 'DOMParser')
+      examplePreview.window.close()
+    }
     await act(async () => {
       Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')!.set!.call(body, 'Edited note')
       body.dispatchEvent(new dom.window.Event('input', { bubbles: true }))

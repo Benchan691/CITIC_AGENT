@@ -105,6 +105,17 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         action='forward' with message_id and at least one To recipient. All
         drafts use HTML and the browser view shows a sanitized rendered
         preview; delivery remains behind its explicit Send button.
+
+        Write body as an HTML fragment in a main div with inline
+        color: #000; background-color: #fff; so the email includes readable
+        defaults. Use simple paragraphs, lists, or tables with safe inline
+        CSS. Escape customer/Splunk data before insertion (ampersands, angle
+        brackets, and quotes); do not escape the whole HTML template. Pass
+        HTML directly without Markdown fences, scripts, or external
+        stylesheets. The preview defaults to black on white and preserves
+        explicit HTML colors; check custom colors for readability.
+
+        Example body: <div style="color: #000; background-color: #fff;"><p>Hello,</p><p>Update for Example &amp; Co.</p></div>
         """
         async def create_draft() -> dict[str, Any]:
             return await get_runtime(ctx).zimbra_mail.create_email_action_draft(
@@ -138,7 +149,18 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         cc: list[str] | None = None,
         bcc: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Create a local editable draft with a selected Zimbra signature; it never sends."""
+        """Create a local editable draft with a selected Zimbra signature; it never sends.
+
+        Write body as an HTML fragment in a main div with inline
+        color: #000; background-color: #fff;. Use simple paragraphs, lists,
+        or tables with safe inline CSS, and escape customer/Splunk data
+        (ampersands, angle brackets, and quotes) before insertion, not the
+        whole template. Pass HTML directly without Markdown fences, scripts,
+        or external stylesheets. The preview defaults to black on white;
+        explicit body and signature colors are preserved, so check readability.
+
+        Example body: <div style="color: #000; background-color: #fff;"><p>Hello,</p><p>Update for Example &amp; Co.</p></div>
+        """
         return await execute(
             ctx,
             "zimbra",

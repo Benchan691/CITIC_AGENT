@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
 		react = __toESM(react, 1);
 		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-email-draft/src/client/EmailDraftToolview.module.css.mjs
-		const css = ".a5LXvW_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}.a5LXvW_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}.a5LXvW_title{font-weight:600}.a5LXvW_account{color:var(--dsw-alias-text-l2);font-size:12px}.a5LXvW_content{gap:9px;padding:12px;display:grid}.a5LXvW_field{gap:4px;display:grid}.a5LXvW_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}.a5LXvW_input,.a5LXvW_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}.a5LXvW_textarea{resize:vertical;min-height:180px;line-height:1.45}.a5LXvW_bodyEditor{gap:4px;min-width:0;display:grid}.a5LXvW_editorHeader{justify-content:space-between;align-items:center;gap:12px;min-width:0;display:flex}.a5LXvW_viewTabs{flex-shrink:0;align-items:center;gap:2px;display:flex}.a5LXvW_viewTab{color:var(--dsw-alias-text-l2);cursor:pointer;font:inherit;white-space:nowrap;background:0 0;border:0;border-radius:6px;padding:6px 10px;line-height:1.2}.a5LXvW_viewTab:hover,.a5LXvW_viewTab[data-active=true]{color:inherit}.a5LXvW_viewTab[data-active=true]{background:var(--dsw-alias-surface-l2,#e5e7eb);font-weight:600}.a5LXvW_viewTab:focus-visible{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_bodyPanel{min-width:0;min-height:240px}.a5LXvW_bodyPanel[hidden]{display:none}.a5LXvW_bodySource{height:240px;min-height:240px}.a5LXvW_preview{border:1px solid var(--dsw-alias-border-l2);background:#fff;border-radius:6px;width:100%;height:240px;min-height:240px;display:block}.a5LXvW_preview:focus-visible,.a5LXvW_bodySource:focus-visible{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_attachmentPanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:7px;padding:10px;display:grid}.a5LXvW_hiddenInput{clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.a5LXvW_attachmentList{gap:5px;display:grid}.a5LXvW_attachmentItem{background:var(--dsw-alias-surface-l0,transparent);overflow-wrap:anywhere;border-radius:5px;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;display:flex}.a5LXvW_removeButton{color:var(--dsw-alias-danger,#b42318);cursor:pointer;font:inherit;white-space:nowrap;background:0 0;border:0;padding:2px 4px}.a5LXvW_removeButton:disabled{cursor:wait;opacity:.6}.a5LXvW_help{color:var(--dsw-alias-text-l2);font-size:12px}.a5LXvW_input:focus,.a5LXvW_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}.a5LXvW_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}.a5LXvW_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}.a5LXvW_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}.a5LXvW_primary:hover{background:#1d4ed8;border-color:#1d4ed8}.a5LXvW_danger{color:#fff;background:#dc2626;border-color:#dc2626}.a5LXvW_danger:hover{background:#b91c1c;border-color:#b91c1c}.a5LXvW_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}.a5LXvW_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}.a5LXvW_button:disabled{cursor:wait;opacity:.6}.a5LXvW_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}.a5LXvW_error{color:var(--dsw-alias-danger,#b42318)}@media (width<=700px){.a5LXvW_editorHeader{flex-wrap:wrap;align-items:flex-start}.a5LXvW_viewTabs{margin-left:auto}}";
+		const css = ".a5LXvW_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}.a5LXvW_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}.a5LXvW_title{font-weight:600}.a5LXvW_account{color:var(--dsw-alias-text-l2);font-size:12px}.a5LXvW_content{gap:9px;padding:12px;display:grid}.a5LXvW_field{gap:4px;display:grid}.a5LXvW_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}.a5LXvW_input,.a5LXvW_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}.a5LXvW_textarea{resize:vertical;min-height:180px;line-height:1.45}.a5LXvW_bodyEditor{gap:4px;min-width:0;display:grid}.a5LXvW_editorHeader{justify-content:space-between;align-items:center;gap:12px;min-width:0;display:flex}.a5LXvW_viewTabs{flex-shrink:0;align-items:center;gap:2px;display:flex}.a5LXvW_viewTab{color:var(--dsw-alias-text-l2);cursor:pointer;font:inherit;white-space:nowrap;background:0 0;border:0;border-radius:6px;padding:6px 10px;line-height:1.2}.a5LXvW_viewTab:hover,.a5LXvW_viewTab[data-active=true]{color:inherit}.a5LXvW_viewTab[data-active=true]{background:var(--dsw-alias-surface-l2,#e5e7eb);font-weight:600}.a5LXvW_viewTab:focus-visible{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_bodyPanel{min-width:0;min-height:240px}.a5LXvW_bodyPanel[hidden]{display:none}.a5LXvW_bodySource{height:240px;min-height:240px}.a5LXvW_htmlGuide{color:var(--dsw-alias-text-l2);margin-top:8px;font-size:12px;line-height:1.5}.a5LXvW_htmlGuide summary{cursor:pointer;font-weight:600}.a5LXvW_htmlGuide p,.a5LXvW_htmlGuide ul{margin:8px 0}.a5LXvW_htmlGuide ul{padding-left:20px}.a5LXvW_htmlExample{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);white-space:pre-wrap;overflow-wrap:anywhere;border-radius:6px;margin:8px 0 0;padding:10px;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}.a5LXvW_preview{border:1px solid var(--dsw-alias-border-l2);background:#fff;border-radius:6px;width:100%;height:240px;min-height:240px;display:block}.a5LXvW_preview:focus-visible,.a5LXvW_bodySource:focus-visible{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_attachmentPanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:7px;padding:10px;display:grid}.a5LXvW_hiddenInput{clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.a5LXvW_attachmentList{gap:5px;display:grid}.a5LXvW_attachmentItem{background:var(--dsw-alias-surface-l0,transparent);overflow-wrap:anywhere;border-radius:5px;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;display:flex}.a5LXvW_removeButton{color:var(--dsw-alias-danger,#b42318);cursor:pointer;font:inherit;white-space:nowrap;background:0 0;border:0;padding:2px 4px}.a5LXvW_removeButton:disabled{cursor:wait;opacity:.6}.a5LXvW_help{color:var(--dsw-alias-text-l2);font-size:12px}.a5LXvW_input:focus,.a5LXvW_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.a5LXvW_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}.a5LXvW_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}.a5LXvW_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}.a5LXvW_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}.a5LXvW_primary:hover{background:#1d4ed8;border-color:#1d4ed8}.a5LXvW_danger{color:#fff;background:#dc2626;border-color:#dc2626}.a5LXvW_danger:hover{background:#b91c1c;border-color:#b91c1c}.a5LXvW_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}.a5LXvW_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}.a5LXvW_button:disabled{cursor:wait;opacity:.6}.a5LXvW_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}.a5LXvW_error{color:var(--dsw-alias-danger,#b42318)}@media (width<=700px){.a5LXvW_editorHeader{flex-wrap:wrap;align-items:flex-start}.a5LXvW_viewTabs{margin-left:auto}}";
 		const tagId = "dsh-soc-agent-email-draft/EmailDraftToolview.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -58,6 +58,8 @@ window.__ModuleLoader__.load({
 			"header": "a5LXvW_header",
 			"help": "a5LXvW_help",
 			"hiddenInput": "a5LXvW_hiddenInput",
+			"htmlExample": "a5LXvW_htmlExample",
+			"htmlGuide": "a5LXvW_htmlGuide",
 			"input": "a5LXvW_input",
 			"label": "a5LXvW_label",
 			"message": "a5LXvW_message",
@@ -305,7 +307,8 @@ window.__ModuleLoader__.load({
 			return `${Array.from(document.head?.querySelectorAll("style") ?? []).map((element) => `<style>${safeCssText(element.textContent || "")}</style>`).join("")}${document.body?.innerHTML || ""}`;
 		}
 		const PREVIEW_CSS = `
-  :root { color-scheme: light dark; }
+  :root { color-scheme: light; }
+  html, body { color: #000; background-color: #fff; }
   body { box-sizing: border-box; margin: 0; padding: 16px; font: 14px/1.45 system-ui, sans-serif; overflow-wrap: anywhere; }
   *, *::before, *::after { box-sizing: inherit; }
   table { max-width: 100%; border-collapse: collapse; }
@@ -317,6 +320,11 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region src/client/EmailDraftToolview.tsx
+		const HTML_DRAFT_EXAMPLE = `<div style="color: #000; background-color: #fff; font-family: Arial, sans-serif; line-height: 1.5;">
+  <p>Hello,</p>
+  <p>Please review the update for Example &amp; Co.</p>
+  <p>Regards,<br>SOC Team</p>
+</div>`;
 		const BODY_VIEW_TABS = [{
 			id: "preview",
 			label: "Preview"
@@ -676,19 +684,62 @@ window.__ModuleLoader__.load({
 										srcDoc: renderEmailPreviewDocument(fields.body)
 									})
 								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 									id: `${bodyViewId}-panel-source`,
 									className: EmailDraftToolview_module_css_default.bodyPanel,
 									role: "tabpanel",
 									"aria-labelledby": `${bodyViewId}-tab-source`,
 									hidden: bodyView !== "source",
-									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("textarea", {
 										className: `${EmailDraftToolview_module_css_default.textarea} ${EmailDraftToolview_module_css_default.bodySource}`,
 										"aria-label": "HTML body source",
 										value: fields.body,
 										onChange: update("body"),
 										maxLength: 18e3
-									})
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+										className: EmailDraftToolview_module_css_default.htmlGuide,
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: "HTML drafting guide" }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Preview defaults to black text on white. Explicit HTML colors are kept, so choose readable text and background colors." }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("ul", { children: [
+												/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", { children: [
+													"Use a main ",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "<div>" }),
+													" with inline ",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "color: #000; background-color: #fff;" }),
+													" so the email also carries these defaults."
+												] }),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", { children: [
+													"Use simple paragraphs (",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "<p>" }),
+													"), lists (",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "<ul><li>" }),
+													"), and tables (",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "<table><tr><td>" }),
+													")."
+												] }),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", { children: [
+													"Escape customer data before inserting it: use ",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "&amp;" }),
+													" for &, ",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "&lt;" }),
+													" for <, ",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "&gt;" }),
+													" for >, ",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "&quot;" }),
+													" for \", and ",
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: "&#39;" }),
+													" for '."
+												] }),
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", { children: "Enter HTML directly, without Markdown fences, scripts, or external stylesheets. Use Preview to check the result." })
+											] }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Copy this example into the HTML source and replace its sample text:" }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("pre", {
+												className: EmailDraftToolview_module_css_default.htmlExample,
+												children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", { children: HTML_DRAFT_EXAMPLE })
+											})
+										]
+									})]
 								})
 							]
 						}),

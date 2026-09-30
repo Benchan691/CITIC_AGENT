@@ -100,6 +100,14 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     assert set(use_signature_tool.parameters["required"]) == {"to", "subject", "body", "signature_id"}
     assert "html" in str(use_signature_tool.parameters["properties"]["body_format"])
     assert "text" not in str(use_signature_tool.parameters["properties"]["body_format"])
+    for tool in (draft_tool, use_signature_tool):
+        description = " ".join(tool.description.split())
+        assert "color: #000; background-color: #fff;" in description
+        assert "simple paragraphs, lists" in description
+        assert "escape customer/splunk data" in description.lower()
+        assert "without Markdown fences, scripts" in description
+        assert "external stylesheets" in description
+        assert "Example &amp; Co." in description
     get_email_tool = next(tool for tool in tools if tool.name == "zimbra_get_email")
     assert set(get_email_tool.parameters["properties"]) == {
         "message_id", "max_body_chars",

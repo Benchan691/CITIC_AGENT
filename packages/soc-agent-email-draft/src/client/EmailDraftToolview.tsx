@@ -16,6 +16,12 @@ import {
 } from './emailDraft.ts'
 import { escapeHtml, renderEmailPreviewDocument, sanitizeEmailHtml } from './htmlEmail.ts'
 
+const HTML_DRAFT_EXAMPLE = `<div style="color: #000; background-color: #fff; font-family: Arial, sans-serif; line-height: 1.5;">
+  <p>Hello,</p>
+  <p>Please review the update for Example &amp; Co.</p>
+  <p>Regards,<br>SOC Team</p>
+</div>`
+
 export {
   EMAIL_ATTACHMENT_LIMITS,
   draftFromForm,
@@ -403,6 +409,18 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
               onChange={update('body')}
               maxLength={18_000}
             />
+            <details className={css.htmlGuide}>
+              <summary>HTML drafting guide</summary>
+              <p>Preview defaults to black text on white. Explicit HTML colors are kept, so choose readable text and background colors.</p>
+              <ul>
+                <li>Use a main <code>{'<div>'}</code> with inline <code>color: #000; background-color: #fff;</code> so the email also carries these defaults.</li>
+                <li>Use simple paragraphs (<code>{'<p>'}</code>), lists (<code>{'<ul><li>'}</code>), and tables (<code>{'<table><tr><td>'}</code>).</li>
+                <li>Escape customer data before inserting it: use <code>&amp;amp;</code> for &amp;, <code>&amp;lt;</code> for &lt;, <code>&amp;gt;</code> for &gt;, <code>&amp;quot;</code> for &quot;, and <code>&amp;#39;</code> for &apos;.</li>
+                <li>Enter HTML directly, without Markdown fences, scripts, or external stylesheets. Use Preview to check the result.</li>
+              </ul>
+              <p>Copy this example into the HTML source and replace its sample text:</p>
+              <pre className={css.htmlExample}><code>{HTML_DRAFT_EXAMPLE}</code></pre>
+            </details>
           </div>
         </div>
         {action !== 'send' && (
