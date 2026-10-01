@@ -1,4 +1,4 @@
-"""Structured searches use verified mailbox folders and backend-built dates."""
+"""Native mail queries stay flexible and faults give safe corrective guidance."""
 
 from types import SimpleNamespace
 import xml.etree.ElementTree as ET
@@ -6,10 +6,12 @@ import xml.etree.ElementTree as ET
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 import pytest
+from zimbra_client.errors import ZimbraHTTPError, ZimbraSOAPFault
 
 from unified_mcp_server.auth import ZimbraIdentity
 from unified_mcp_server.config import ZimbraSettings
 from unified_mcp_server.errors import ServiceError
+from unified_mcp_server.zimbra.errors import _upstream_error
 import unified_mcp_server.zimbra.mail.service as mail_module
 from unified_mcp_server.zimbra.mail.tools import register_tools
 import unified_mcp_server.zimbra.zimbra as transport
@@ -20,29 +22,16 @@ NS = "urn:zimbraMail"
 
 @pytest.fixture
 def mailbox(monkeypatch):
-    state = SimpleNamespace(
-        folders=[
-            {"id": "2", "name": "Inbox", "path": "/Inbox"},
-            {"id": "42", "name": "SOC", "path": "/Inbox/SOC"},
-            {"id": "43", "name": "SOC", "path": "/Other/SOC"},
-        ],
-        folders_by_token={},
-        requests=[],
-    )
+    state = SimpleNamespace(requests=[], fault=None)
 
     def fake_soap(host, body, token, **options):
         assert host == "mail.example.test"
         request = ET.fromstring(body)
         state.requests.append((request, token, options))
-        name = request.tag.rsplit("}", 1)[-1]
-        if name == "GetFolderRequest":
-            response = ET.Element(f"{{{NS}}}GetFolderResponse")
-            for folder in state.folders_by_token.get(token, state.folders):
-                ET.SubElement(response, f"{{{NS}}}{folder.get('tag', 'folder')}", {
-                    "id": folder["id"], "name": folder["name"], "absFolderPath": folder["path"],
-                })
-            return response
-        assert name == "SearchRequest"
+        # Query-based searches must not perform implicit folder discovery.
+        assert request.tag == f"{{{NS}}}SearchRequest"
+        if state.fault is not None:
+            raise state.fault
         return ET.fromstring(f'<SearchResponse xmlns="{NS}"><m id="100"><su>Alert</su></m></SearchResponse>')
 
     monkeypatch.setattr(transport, "soap_request", fake_soap)
@@ -59,197 +48,215 @@ def mailbox(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_nested_folder_and_date_are_verified_and_built_in_soap(mailbox):
-    result = await mailbox.service().search_emails(folder_path="/Inbox/SOC", date="2026-09-30", limit=100, offset=40)
+@pytest.mark.parametrize("path", ["Inbox/SOC", "/Inbox/SOC"])
+async def test_folder_and_date_go_directly_in_the_query(mailbox, path):
+    query = f'in:"{path}" date:09/30/2026 (subject:alert OR subject:warning)'
+    result = await mailbox.service().search_emails(query, limit=100, offset=40)
 
-    assert [request.tag.rsplit("}", 1)[-1] for request, _, _ in mailbox.requests] == ["GetFolderRequest", "SearchRequest"]
-    assert [token for _, token, _ in mailbox.requests] == ["token-alice", "token-alice"]
-    request = mailbox.requests[-1][0]
-    assert request.findtext(f"{{{NS}}}query") == "inid:42 date:09/30/2026"
+    assert len(mailbox.requests) == 1
+    request, token, options = mailbox.requests[0]
+    assert token == "token-alice"
+    assert request.findtext(f"{{{NS}}}query") == query
     assert request.findtext(f"{{{NS}}}locale") == "en_US"
     assert request.get("limit") == "100"
     assert request.get("offset") == "40"
-    assert result["folder"] == {"id": "42", "name": "SOC", "path": "/Inbox/SOC"}
-    assert result["query"] == "inid:42 date:09/30/2026"
+    assert options["verify_ssl"] is True
+    assert result["query"] == query
     assert result["offset"] == 40
     assert result["count"] == 1
     assert result["messages"][0]["id"] == "100"
     assert "body" not in result["messages"][0]
-
-
-@pytest.mark.asyncio
-async def test_folder_id_range_and_subfolders_preserve_extra_or_scope(mailbox):
-    result = await mailbox.service().search_emails(
-        "subject:alert OR subject:warning", folder_id="43", include_subfolders=True,
-        after="2026-09-01", before="2026-10-01",
-    )
-
-    assert result["folder"]["path"] == "/Other/SOC"
-    assert mailbox.requests[-1][0].findtext(f"{{{NS}}}query") == (
-        "underid:43 after:09/01/2026 before:10/01/2026 (subject:alert OR subject:warning)"
-    )
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("filters, expected", [
-    ({"date": "2024-02-29"}, "date:02/29/2024"),
-    ({"date": "0001-01-01"}, "date:01/01/0001"),
-    ({"after": "2026-09-30"}, "after:09/30/2026"),
-    ({"before": "2026-10-01"}, "before:10/01/2026"),
-])
-async def test_valid_dates_need_no_folder_lookup_and_have_explicit_locale(mailbox, filters, expected):
-    result = await mailbox.service().search_emails(**filters)
-
-    assert len(mailbox.requests) == 1
-    request = mailbox.requests[0][0]
-    assert request.findtext(f"{{{NS}}}query") == expected
-    assert request.findtext(f"{{{NS}}}locale") == "en_US"
-    assert result["query"] == expected
     assert "folder" not in result
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("query", [
-    "subject:Alert", "is:anywhere", 'subject:"in:SOC date:09/30/2026"',
-    r'subject:"escaped \"in:SOC\" text"',
+    "subject:alert is:unread",
+    "from:analyst@example.test to:team@example.test has:attachment",
+    'in:"Inbox/SOC"',
+    'under:"/Inbox/SOC" filename:report.pdf',
+    "inid:42 OR underid:43",
+    "date:09/30/2026",
+    "after:09/01/2026 before:10/01/2026",
+    "after:-7d -is:read",
+    "mdate:>=09/01/2026 smaller:5MB tag:review",
+    'subject:"d:20260930"',
+    r'subject:"quoted \" d:20260930"',
+    r'subject:"quoted \"example\"" is:unread',
 ])
-async def test_extra_filters_and_quoted_literals_remain_supported(mailbox, query):
+async def test_native_filters_and_quoted_literals_pass_through(mailbox, query):
     result = await mailbox.service().search_emails(query)
 
-    assert len(mailbox.requests) == 1
     assert result["query"] == query
-    assert mailbox.requests[0][0].find(f"{{{NS}}}locale") is None
+    assert mailbox.requests[0][0].findtext(f"{{{NS}}}query") == query
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("query", [
-    'in:"SOC" date:09/30/2026', "inid:42", "under:Inbox", "underid:42",
-    "date:09/30/2026", "after:09/01/2026", "before:10/01/2026",
-    "-IN:Inbox", "NOT (in:Inbox)", "d:20260930",
+@pytest.mark.parametrize(("query", "suggestion"), [
+    ("d:20260829", "date:08/29/2026"),
+    ('in:"Inbox/SOC" d:20260930 is:unread', 'in:"Inbox/SOC" date:09/30/2026 is:unread'),
+    ('subject:"d:20260930" -d:20260228', 'subject:"d:20260930" -date:02/28/2026'),
+    (r'subject:"quoted \" d:20260930" d:20260228', r'subject:"quoted \" d:20260930" date:02/28/2026'),
+    ("(D:20240229 OR subject:alert)", "(date:02/29/2024 OR subject:alert)"),
 ])
-async def test_raw_folder_date_filters_fail_before_any_mailbox_request(mailbox, query):
+async def test_date_alias_correction_preserves_other_filters(mailbox, query, suggestion):
     with pytest.raises(ServiceError) as caught:
         await mailbox.service().search_emails(query)
 
     assert caught.value.code == "query_validation_error"
     assert caught.value.retryable is False
-    assert caught.value.details["date_format"] == "YYYY-MM-DD"
-    assert "folder_path" in caught.value.message
+    assert caught.value.details["suggested_query"] == suggestion
+    assert caught.value.details["dates_optional"] is True
+    assert "MM/DD/YYYY" in caught.value.message
     assert mailbox.requests == []
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("arguments", [
-    {}, {"folder_path": "SOC"}, {"folder_path": "Inbox/SOC"},
-    {"folder_path": "/Inbox/../SOC"}, {"folder_path": "/Inbox//SOC"},
-    {"folder_path": "/Inbox/SOC\n"}, {"folder_id": "42 OR is:anywhere"},
-    {"folder_id": "other-user:42"}, {"folder_id": "0"},
-    {"folder_path": "/Inbox/SOC", "folder_id": "42"},
-    {"date": "09/30/2026"}, {"date": "20260930"}, {"date": "2026-9-30"},
-    {"date": "2026-02-29"}, {"date": "2026-09-31"}, {"date": "2026-09-30 OR is:anywhere"},
-    {"after": ""}, {"before": "2026-13-01"},
-    {"date": "2026-09-30", "after": "2026-09-01"},
-    {"after": "2026-10-01", "before": "2026-09-01"},
-    {"after": "2026-09-30", "before": "2026-09-30"},
-    {"include_subfolders": True, "date": "2026-09-30"},
-])
-async def test_invalid_structured_filters_fail_before_network(mailbox, arguments):
+async def test_invalid_alias_calendar_date_has_no_invented_suggestion(mailbox):
     with pytest.raises(ServiceError) as caught:
-        await mailbox.service().search_emails(**arguments)
-
-    assert caught.value.code == "invalid_input"
-    assert mailbox.requests == []
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("query", [
-    'subject:"unclosed', "alert) OR is:anywhere OR (other", "(alert", "alert)",
-    r"\) OR is:anywhere OR \(other",
-])
-async def test_unbalanced_extra_query_cannot_escape_structured_scope(mailbox, query):
-    with pytest.raises(ServiceError) as caught:
-        await mailbox.service().search_emails(query, folder_path="/Inbox/SOC")
+        await mailbox.service().search_emails("d:20260230")
 
     assert caught.value.code == "query_validation_error"
+    assert "suggested_query" not in caught.value.details
     assert mailbox.requests == []
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("arguments", [{"folder_path": "/SOC"}, {"folder_id": "99"}])
-async def test_missing_folder_is_clear_and_never_guessed_from_basename(mailbox, arguments):
+@pytest.mark.parametrize("query", ["", "  ", None])
+async def test_empty_query_fails_before_network_with_optional_date_guidance(mailbox, query):
     with pytest.raises(ServiceError) as caught:
-        await mailbox.service().search_emails(date="2026-09-30", **arguments)
+        await mailbox.service().search_emails(query)
 
-    assert caught.value.code == "folder_not_found"
-    assert caught.value.retryable is False
-    assert caught.value.details["next_tool"] == "zimbra_list_folders"
+    assert caught.value.code == "invalid_input"
+    assert "Dates are optional" in caught.value.message
+    assert mailbox.requests == []
+
+
+@pytest.mark.asyncio
+async def test_missing_folder_fault_explains_full_path_without_rewriting_or_retry(mailbox):
+    mailbox.fault = ZimbraSOAPFault("mail.NO_SUCH_FOLDER", "private@example.test authentication 403 token=secret", status_code=500)
+    query = 'in:"SOC" date:09/30/2026'
+
+    with pytest.raises(ServiceError) as caught:
+        await mailbox.service().search_emails(query)
+
+    error = caught.value
+    assert error.code == "folder_not_found"
+    assert error.retryable is False
+    assert error.details["upstream_code"] == "mail.NO_SUCH_FOLDER"
+    assert error.details["next_tool"] == "zimbra_list_folders"
+    assert 'in:"SOC" refers to /SOC' in error.message
+    assert 'in:"Inbox/SOC"' in error.message
+    assert "secret" not in str(error.details) + error.message
+    assert "private@example.test" not in str(error.details) + error.message
     assert len(mailbox.requests) == 1
-    assert mailbox.requests[0][0].tag == f"{{{NS}}}GetFolderRequest"
+    assert mailbox.requests[0][0].findtext(f"{{{NS}}}query") == query
 
 
 @pytest.mark.asyncio
-async def test_untrusted_folder_metadata_cannot_inject_a_query(mailbox):
-    mailbox.folders[1]["id"] = "42 OR is:anywhere"
+async def test_upstream_query_error_returns_native_syntax_guidance(mailbox):
+    mailbox.fault = ZimbraSOAPFault("service.PARSE_ERROR", "private query details", status_code=500)
+
     with pytest.raises(ServiceError) as caught:
-        await mailbox.service().search_emails(folder_path="/Inbox/SOC")
+        await mailbox.service().search_emails('in:"Inbox/SOC" subject:(')
 
-    assert caught.value.code == "zimbra_malformed_response"
-    assert len(mailbox.requests) == 1
+    error = caught.value
+    assert error.code == "query_validation_error"
+    assert error.retryable is False
+    assert error.details["upstream_code"] == "service.PARSE_ERROR"
+    assert error.details["date_format"] == "MM/DD/YYYY"
+    assert "Dates are optional" in error.message
+    assert "has:attachment" in error.message
+    assert "folder_fields" not in error.details
+    assert "private query details" not in error.message
+
+
+@pytest.mark.parametrize(("fault_code", "expected_code", "retryable"), [
+    ("mail.NO_SUCH_MOUNTPOINT", "folder_not_found", False),
+    ("service.PERM_DENIED", "zimbra_permission_denied", False),
+    ("service.FORBIDDEN", "zimbra_permission_denied", False),
+    ("service.AUTH_REQUIRED", "zimbra_auth_error", False),
+    ("service.AUTH_EXPIRED", "zimbra_auth_error", False),
+    ("account.AUTH_FAILED", "zimbra_auth_error", False),
+    ("account.TWO_FACTOR_AUTH_REQUIRED", "zimbra_auth_error", False),
+    ("service.FAILURE", "zimbra_api_error", True),
+    ("service.TEMPORARILY_UNAVAILABLE", "zimbra_api_error", True),
+    ("mail.MAINTENANCE", "zimbra_api_error", True),
+    ("service.INVALID_REQUEST", "zimbra_api_error", False),
+    ("service.NEW_ERROR", "zimbra_api_error", False),
+])
+def test_fault_codes_are_authoritative_and_raw_messages_stay_private(fault_code, expected_code, retryable):
+    error = _upstream_error(ZimbraSOAPFault(fault_code, "private@example.test authentication 403 TLS token=secret", status_code=500))
+
+    assert error.code == expected_code
+    assert error.retryable is retryable
+    assert error.details["upstream_code"] == fault_code
+    assert "private@example.test" not in error.message + str(error.details)
+    assert "secret" not in error.message + str(error.details)
+    assert "ZIMBRA_HOST" not in error.message
+
+
+@pytest.mark.parametrize(("status", "expected_code", "retryable"), [
+    (401, "zimbra_auth_error", False),
+    (403, "zimbra_permission_denied", False),
+    (400, "zimbra_api_error", False),
+    (429, "zimbra_api_error", True),
+    (503, "zimbra_api_error", True),
+])
+def test_http_errors_do_not_return_raw_reason(status, expected_code, retryable):
+    error = _upstream_error(ZimbraHTTPError(status, "private@example.test secret"))
+
+    assert error.code == expected_code
+    assert error.retryable is retryable
+    assert error.details["http_status"] == status
+    assert "private@example.test" not in error.message + str(error.details)
+    assert "secret" not in error.message + str(error.details)
+
+
+def test_malformed_upstream_code_is_not_returned():
+    error = _upstream_error(ZimbraSOAPFault("service.FAILURE\nprivate@example.test", "secret"))
+    assert "upstream_code" not in error.details
+    assert "private@example.test" not in error.message + str(error.details)
+    assert "secret" not in error.message + str(error.details)
 
 
 @pytest.mark.asyncio
-async def test_visible_linked_folder_uses_its_local_mailbox_id(mailbox):
-    mailbox.folders = [{"id": "55", "name": "Shared SOC", "path": "/Shared SOC", "tag": "link"}]
-    result = await mailbox.service().search_emails(folder_path="/Shared SOC")
+async def test_search_uses_each_authenticated_token_and_rejects_account_selection(mailbox):
+    await mailbox.service("alice").search_emails("subject:alert")
+    await mailbox.service("bob").search_emails("subject:alert")
+    assert [token for _, token, _ in mailbox.requests] == ["token-alice", "token-bob"]
 
-    assert result["query"] == "inid:55"
-    assert result["folder"]["path"] == "/Shared SOC"
-    assert [token for _, token, _ in mailbox.requests] == ["token-alice", "token-alice"]
-
-
-@pytest.mark.asyncio
-async def test_folder_validation_uses_each_authenticated_mailbox(mailbox):
-    mailbox.folders_by_token = {
-        "token-alice": [{"id": "42", "name": "SOC", "path": "/Inbox/SOC"}],
-        "token-bob": [{"id": "99", "name": "SOC", "path": "/Inbox/SOC"}],
-    }
-    alice = await mailbox.service("alice").search_emails(folder_path="/Inbox/SOC")
-    bob = await mailbox.service("bob").search_emails(folder_path="/Inbox/SOC")
     with pytest.raises(ServiceError) as caught:
-        await mailbox.service("bob").search_emails(folder_id="42")
-
-    assert alice["query"] == "inid:42"
-    assert bob["query"] == "inid:99"
-    assert caught.value.code == "folder_not_found"
-    assert [token for _, token, _ in mailbox.requests] == ["token-alice", "token-alice", "token-bob", "token-bob", "token-bob"]
-
-
-@pytest.mark.asyncio
-async def test_structured_search_still_rejects_account_selection(mailbox):
-    with pytest.raises(ServiceError) as caught:
-        await mailbox.service().search_emails(account_id="legacy", folder_path="/Inbox/SOC")
-
+        await mailbox.service("alice").search_emails("subject:alert", account_id="bob")
     assert caught.value.code == "account_selection_disabled"
-    assert mailbox.requests == []
+    assert len(mailbox.requests) == 2
 
 
 @pytest.mark.asyncio
-async def test_mcp_tool_validates_and_forwards_structured_arguments(mailbox):
-    server = FastMCP("structured-search-test")
+async def test_registered_tool_accepts_query_with_folder_and_date(mailbox):
+    server = FastMCP("mail-test")
 
-    async def execute(ctx, service, operation, action):
-        assert (service, operation) == ("zimbra", "search_emails")
-        return await action()
+    async def execute(ctx, service, operation, function):
+        return await function()
 
     register_tools(
         server, get_runtime=lambda _: SimpleNamespace(zimbra_mail=mailbox.service()),
-        fresh_runtime=lambda _: None, execute=execute, success=lambda *args: None,
+        fresh_runtime=None, execute=execute, success=None,
     )
-    result = await server._tool_manager.call_tool("zimbra_search_emails", {
-        "folder_path": "/Inbox/SOC", "date": "2026-09-30", "limit": 100,
-    })
-    assert result["query"] == "inid:42 date:09/30/2026"
-    mailbox.requests.clear()
+    query = 'in:"Inbox/SOC" date:09/30/2026 has:attachment'
+    result = await server._tool_manager.call_tool("zimbra_search_emails", {"query": query, "limit": 20})
+    assert result["query"] == query
+    assert len(mailbox.requests) == 1
+
     with pytest.raises(ToolError):
-        await server._tool_manager.call_tool("zimbra_search_emails", {"date": "09/30/2026"})
-    assert mailbox.requests == []
+        await server._tool_manager.call_tool("zimbra_search_emails", {"limit": 20})
+    assert len(mailbox.requests) == 1
+
+
+def test_folder_listing_keeps_paths_and_linked_folder_ids(monkeypatch):
+    monkeypatch.setattr(transport, "soap_request", lambda *_args, **_kwargs: ET.fromstring(
+        f'<GetFolderResponse xmlns="{NS}"><folder id="42" name="SOC" absFolderPath="/Inbox/SOC"/>'
+        '<link id="52" name="Shared SOC" absFolderPath="/Shared SOC"/></GetFolderResponse>'
+    ))
+    folders = transport.zimbra_list_folders("mail.example.test", "token-alice")
+    assert [(folder["id"], folder["path"]) for folder in folders] == [("42", "/Inbox/SOC"), ("52", "/Shared SOC")]

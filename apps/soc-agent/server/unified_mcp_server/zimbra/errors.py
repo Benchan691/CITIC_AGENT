@@ -36,7 +36,7 @@ def _query_validation_error(
     if suggested_query:
         details["suggested_query"] = suggested_query
     message = (
-        "Unsupported Zimbra search operator d:. Use date:MM/DD/YYYY for one day, "
+        "Unsupported Zimbra search operator d:. Use a valid calendar date with date:MM/DD/YYYY for one day, "
         "or after:MM/DD/YYYY and before:MM/DD/YYYY for a range. Dates are optional."
         if invalid_operator == "d"
         else "Zimbra rejected the search query syntax. Put native filters directly in query: "
@@ -102,7 +102,7 @@ def _upstream_error(exc: Exception) -> ServiceError:
         return ServiceError(
             "zimbra_api_error",
             "Zimbra is temporarily unable to complete the request. Retry later; if it persists, check the server logs."
-            if retryable else "Zimbra rejected the request. Check the upstream_code in the error details and the "
+            if retryable else "Zimbra rejected the request. Check the error details and the "
             "Zimbra server logs to identify the cause before retrying.",
             retryable=retryable,
             details=details,
@@ -130,7 +130,8 @@ def _upstream_error(exc: Exception) -> ServiceError:
     )):
         return ServiceError(
             "zimbra_auth_error",
-            "Zimbra authentication failed. Check the email, optional login username, and password.",
+            "Zimbra authentication failed or the session expired. Sign in again and complete two-factor "
+            "authentication if required.",
             details=details,
         )
     if any(marker in text for marker in ("certificate", "ssl", "tls")):

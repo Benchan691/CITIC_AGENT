@@ -11,13 +11,10 @@ from pydantic import Field
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> None:
     @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_list_folders(ctx: Context) -> dict[str, Any]:
-        """List your mailbox folders with IDs, complete paths and message counts.
-
-        In zimbra_search_emails.query, use a returned full path with in: or
-        under:, or a returned ID with inid: or underid:. For a folder whose
-        path is /Inbox/SOC, use in:"/Inbox/SOC"; in:"SOC" refers to /SOC and
-        does not identify that nested folder. Ask the user if the intended
-        folder is unclear; do not guess from a basename.
+        """List your mailbox folders: id, name, path, parent_id, unread_count,
+        message_count. Use the full path with in:/under: or the returned ID
+        with inid:/underid: in search queries. Never shorten /Inbox/SOC to SOC;
+        ask the user if the intended folder is unclear.
         """
         return await execute(ctx, "zimbra", "list_folders", lambda: get_runtime(ctx).zimbra_mail.list_folders())
 
@@ -59,43 +56,31 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
     @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_search_emails(
         ctx: Context,
-        query: Annotated[str, Field(min_length=1, description='Native Zimbra query, including optional folder/date filters. Example: in:"Inbox/SOC" date:09/30/2026. Dates are optional; subject:alert is:unread also works.')],
+        query: Annotated[str, Field(min_length=1, description='Native Zimbra query. Dates are optional. Example: in:"Inbox/SOC" date:09/30/2026.')],
         limit: int = 20,
         offset: int = 0,
     ) -> dict[str, Any]:
-        """Search one bounded page of email metadata with a native Zimbra query.
+        """Search email metadata. Inputs: query (required), limit (default 20,
+        maximum 100), offset (default 0). Put all filters in query; folder
+        and date filters are optional.
 
-        Put all filters directly in query. Folder and date filters are
-        optional; sender, recipient, subject, text, status, attachment and
-        other native filters can be used alone or combined. Only query,
-        limit and offset are accepted; there are no separate folder/date fields.
+        Common query fields:
+        - Addresses: from:, to:, cc:, tofrom:, tocc:, fromcc:, tofromcc:.
+        - Text: subject:, content:, or bare keywords.
+        - Folders: in:, under:, inid:, underid:.
+        - Dates: date:, after:, before:, mdate:.
+        - Status/tags: is: (e.g. is:unread), has:attachment, tag:.
+        - Attachments: filename:, attachment:, type:.
+        - Size: size:, bigger:, larger:, smaller:.
 
-        Folder paths start at the mailbox root. Use a full path confirmed by
-        the user or zimbra_list_folders, e.g. in:"Inbox/SOC" or in:"/Inbox/SOC".
-        Do not shorten /Inbox/SOC to in:"SOC", which refers to /SOC. in:
-        searches that folder; under: includes its subfolders. Alternatively,
-        use inid:<id> or underid:<id> with an ID from zimbra_list_folders.
-        Ask the user if the target is unclear; never invent a path or ID.
-
-        Dates are optional. For absolute dates use MM/DD/YYYY:
-        date:09/30/2026 for one day, or after:09/01/2026 before:10/01/2026
-        for a range. Relative dates such as after:-7d also work. This tool
-        fixes the parsing locale to en_US; dates follow the mailbox timezone.
-        Do not use d:YYYYMMDD or ISO YYYY-MM-DD dates in query.
-
-        Other examples: from:analyst@example.com, to:team@example.com,
-        subject:"security alert", is:unread, has:attachment, filename:report.pdf.
-        Use double quotes for phrases/paths with spaces. Spaces combine
-        filters with AND; group OR alternatives in parentheses to keep scope:
-        in:"Inbox/SOC" (subject:alert OR subject:warning).
-        Combined example: in:"Inbox/SOC" date:09/30/2026 is:unread.
-        Without a date: in:"Inbox/SOC" subject:alert has:attachment.
-
-        Start with limit=20 (maximum 100); use offset for subsequent pages.
-        For folder_not_found, confirm the intended full path/ID before
-        correcting query. For query_validation_error, follow the returned
-        syntax guidance or suggested_query. Do not repeat an unchanged
-        non-retryable request or remove requested filters to bypass an error.
+        Use verified full folder paths, e.g. in:"Inbox/SOC", never a guessed
+        basename. under: includes subfolders; IDs come from zimbra_list_folders.
+        Absolute dates use MM/DD/YYYY (en_US); relative dates use e.g. after:-7d.
+        Do not use d:YYYYMMDD or ISO dates. Quote phrases with spaces; combine
+        filters with spaces (AND) and group OR alternatives in parentheses.
+        Example: in:"Inbox/SOC" date:09/30/2026 (subject:alert OR subject:warning).
+        On folder_not_found or query_validation_error, follow the returned
+        guidance; preserve requested filters and correct query before retrying.
         """
         return await execute(
             ctx, "zimbra", "search_emails",

@@ -78,7 +78,13 @@ attachments and other native filters may be used alone or combined. Examples:
 
 ```json
 {"query": "in:\"Inbox/SOC\" date:09/30/2026", "limit": 20}
+```
+
+```json
 {"query": "in:\"Inbox/SOC\" subject:alert is:unread", "limit": 20}
+```
+
+```json
 {"query": "from:analyst@example.com has:attachment", "limit": 20}
 ```
 
