@@ -63,6 +63,11 @@ export interface LlmApi {
    * `settings.mutate` decides what a route serves. `apiKey` is accepted here
    * but never stored or returned; a provider whose key is already stored omits
    * it and the endpoint answers unauthenticated or refuses.
+   *
+   * When the draft left `api` unset, the host probes the listing shapes the
+   * adapter can read and `detectedApi` names the one that answered — a surface
+   * may write it into the draft's protocol field. A draft that pinned `api`,
+   * or a route answered from the adapter's own catalog, leaves it unset.
    */
   discoverModels(
     request: RpcRequest<{
@@ -73,7 +78,7 @@ export interface LlmApi {
       apiKey?: string
     }>,
     signal?: AbortSignal,
-  ): Promise<RpcResponse<{ models: DiscoveredModelView[] }>>
+  ): Promise<RpcResponse<{ models: DiscoveredModelView[]; detectedApi?: string }>>
 }
 
 /** Wire view of one model an interrogated endpoint advertises. */

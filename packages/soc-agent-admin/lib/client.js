@@ -6,8 +6,8 @@ window.__ModuleLoader__.load({
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 		let react = require("react");
 		let react_jsx_runtime = require("react/jsx-runtime");
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-admin/src/client/AdminConsole.module.css.mjs
-		const css = ".yGqTkG_page,.yGqTkG_loginPage{--ink:#202c35;--muted:#65747d;--line:#dfe5e5;--accent:#216b5c;--paper:#fff;color-scheme:light;color:var(--ink);background:#f4f6f5;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;line-height:1.5}.yGqTkG_page *,.yGqTkG_loginPage *{box-sizing:border-box}.yGqTkG_page [hidden]{display:none!important}.yGqTkG_page button,.yGqTkG_loginPage button,.yGqTkG_page input,.yGqTkG_page select,.yGqTkG_page textarea{font:inherit}.yGqTkG_page a{color:inherit}.yGqTkG_page :focus-visible,.yGqTkG_loginPage :focus-visible{outline-offset:3px;outline:3px solid #49a68d}.yGqTkG_page{grid-template-columns:232px minmax(0,1fr);display:grid}.yGqTkG_sidebar{color:#d3dfdc;background:#142c2c;flex-direction:column;height:100vh;padding:32px 18px 22px;display:flex;position:sticky;top:0}.yGqTkG_brand{letter-spacing:-.5px;align-items:center;gap:12px;padding:0 10px 42px;font-size:22px;font-weight:700;text-decoration:none;display:flex}.yGqTkG_brand small{letter-spacing:.3px;color:#a9bfba;font-size:11px;font-weight:400;display:block}.yGqTkG_brandMark{color:#194e40;background:#d9eee1;border-radius:12px;place-items:center;width:38px;height:42px;font-family:Georgia,serif;font-size:24px;display:grid}.yGqTkG_navLabel{letter-spacing:1.8px;color:#8da9a2;margin:0 0 12px;padding:0 14px;font-size:10px;font-weight:600}.yGqTkG_navigation{gap:5px;display:grid}.yGqTkG_navigation a{color:#b4c8c2;border-radius:7px;align-items:center;gap:12px;padding:12px 14px;font-size:13px;text-decoration:none;display:flex}.yGqTkG_navigation a:hover{color:#fff;background:#203d3b}.yGqTkG_navigation .yGqTkG_navActive{color:#f0f8f3;background:#2c4944;font-weight:600;box-shadow:inset 3px 0 #a9d3b7}.yGqTkG_sidebarFoot{margin-top:auto;padding:32px 10px 0}.yGqTkG_backLink{padding-bottom:24px;font-size:12px;text-decoration:none;display:block;color:#b8c9c4!important}.yGqTkG_identity{border-top:1px solid #37504a;gap:10px;min-width:0;padding:19px 0 10px;display:flex}.yGqTkG_identity>div{min-width:0}.yGqTkG_identity strong{color:#e0e9e5;font-size:12px;font-weight:500;display:block}.yGqTkG_avatar{color:#d4e9db;background:#36574b;border-radius:50%;flex:0 0 33px;place-items:center;height:33px;display:grid}.yGqTkG_account{text-overflow:ellipsis;white-space:nowrap;color:#9eb6ae;max-width:155px;font-size:11px;display:block;overflow:hidden}.yGqTkG_signOut{color:#b9cdc5;cursor:pointer;background:0 0;border:0;padding:8px 0;font-size:12px!important}.yGqTkG_shell{width:100%;min-width:0;max-width:1550px;margin:0 auto;padding:0 clamp(24px,4vw,64px)}.yGqTkG_topbar{border-bottom:1px solid var(--line);min-height:74px;color:var(--muted);justify-content:space-between;align-items:center;font-size:12px;display:flex}.yGqTkG_topbar strong{color:var(--ink);font-weight:500}.yGqTkG_adminBadge{color:#4c6259;background:#e8eeeb;border-radius:4px;padding:4px 10px;font-size:11px}.yGqTkG_header{justify-content:space-between;align-items:center;gap:24px;padding:34px 0 26px;display:flex}.yGqTkG_eyebrow,.yGqTkG_sectionKicker{color:#677f75;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 9px;font-size:10px;font-weight:700}.yGqTkG_title,.yGqTkG_loginTitle,.yGqTkG_sectionTitle,.yGqTkG_editorTitle{color:var(--ink);letter-spacing:-.6px;margin:0;font-weight:600}.yGqTkG_title{font-size:34px;line-height:1.2}.yGqTkG_subtitle{color:var(--muted);margin:10px 0 0;font-size:14px}.yGqTkG_headerMark{color:#4c7161;background:#ecf1ec;border:1px solid #d3dfd8;border-radius:13px;place-items:center;width:48px;height:48px;display:grid}.yGqTkG_headerMark svg{width:24px;height:24px}.yGqTkG_section{margin:8px 0 32px}.yGqTkG_sectionHeading{justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;display:flex}.yGqTkG_sectionTitle{font-size:20px}.yGqTkG_sectionHint{color:var(--muted);text-align:right;max-width:290px;font-size:12px}.yGqTkG_headerActions,.yGqTkG_toolbar{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.yGqTkG_metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0 0 28px;display:grid}.yGqTkG_metric{border:1px solid var(--line);background:#fff;border-radius:10px;flex-direction:column;padding:22px;text-decoration:none;display:flex;box-shadow:0 2px 3px #182e2610}.yGqTkG_metric:hover{border-color:#a8c4b8}.yGqTkG_metricLabel{color:#54675f;justify-content:space-between;align-items:center;gap:8px;font-size:12px;display:flex}.yGqTkG_metricLabel svg{color:#7a9689}.yGqTkG_metric>strong{letter-spacing:-1px;margin:18px 0;font-size:32px;font-weight:600;line-height:1.3}.yGqTkG_metric>small{color:var(--muted);justify-content:space-between;gap:12px;font-size:11px;display:flex}.yGqTkG_metricAttention{background:#fffaf2;border-color:#ebd6b7}.yGqTkG_metricAttention>strong{color:#976322}.yGqTkG_contentGrid{grid-template-columns:minmax(0,1.9fr) minmax(230px,1fr);align-items:start;gap:22px;display:grid}.yGqTkG_card{background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:0;margin-bottom:22px;padding:26px}.yGqTkG_helpCard{color:#455c4e;background:#eaf0e9;border:1px solid #dce5d9;border-radius:10px;padding:28px}.yGqTkG_helpCard h3{color:#294938;margin:0 0 12px;font-family:Georgia,serif;font-size:26px;font-weight:400;line-height:1.2}.yGqTkG_helpCard p{font-size:13px;line-height:1.75}.yGqTkG_steps{margin:22px 0;padding-left:20px;font-size:12px}.yGqTkG_steps li{padding:5px 0 5px 5px}.yGqTkG_quickLinks{margin-top:18px;display:grid}.yGqTkG_quickLinks a{border-bottom:1px solid #e9eeeb;align-items:center;gap:15px;padding:20px 0;text-decoration:none;display:flex}.yGqTkG_quickLinks a:last-child{border-bottom:0;padding-bottom:4px}.yGqTkG_quickLinks a>span:nth-child(2){flex:1}.yGqTkG_quickLinks strong{font-size:14px;font-weight:600;display:block}.yGqTkG_quickLinks small{color:var(--muted);margin-top:5px;font-size:12px;line-height:1.5;display:block}.yGqTkG_quickLinks a:hover strong{color:var(--accent)}.yGqTkG_quickIcon{color:#50725e;background:#f0f4f1;border:1px solid #e2eae4;border-radius:9px;flex:0 0 38px;place-items:center;width:38px;height:38px;display:grid}.yGqTkG_pageFoot{border-top:1px solid var(--line);color:#77867e;margin-top:30px;padding:24px 0;font-size:11px}.yGqTkG_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.yGqTkG_statusCard{border:1px solid var(--line);background:#fff;border-radius:10px;gap:15px;min-width:0;padding:22px;display:flex}.yGqTkG_statusIcon{color:#346e55;background:#edf4ef;border:1px solid #d6e4dc;border-radius:9px;flex:0 0 36px;place-items:center;height:36px;font-weight:600;display:grid}.yGqTkG_statusBody{flex:1;min-width:0}.yGqTkG_statusTopline{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;display:flex}.yGqTkG_statusTopline h3{margin:0;font-size:14px;font-weight:600}.yGqTkG_statusBody p{color:var(--muted);margin:9px 0 0;font-size:12px}.yGqTkG_statusPill,.yGqTkG_customBadge,.yGqTkG_customTag,.yGqTkG_countBadge{white-space:nowrap;border-radius:5px;align-items:center;gap:6px;padding:4px 9px;font-size:11px;font-weight:500;display:inline-flex}.yGqTkG_statusReady{color:#286043;background:#e5f2e9}.yGqTkG_statusConfigured,.yGqTkG_statusInfo{color:#385e73;background:#e8f0f4}.yGqTkG_statusError{color:#9d3e32;background:#fceee7}.yGqTkG_statusMuted{color:#65726e;background:#eff1ef}.yGqTkG_statusDot,.yGqTkG_providerDot{background:#97a59e;border-radius:50%;width:6px;height:6px;display:inline-block}.yGqTkG_statusReady .yGqTkG_statusDot,.yGqTkG_providerDotReady{background:#378657}.yGqTkG_statusConfigured .yGqTkG_statusDot,.yGqTkG_statusInfo .yGqTkG_statusDot{background:#507c94}.yGqTkG_statusError .yGqTkG_statusDot{background:#bb5f4c}.yGqTkG_textButton{cursor:pointer;background:0 0;border:0;margin-top:14px;padding:0;font-weight:600;text-decoration:none;display:inline-block;color:var(--accent)!important;font-size:12px!important}.yGqTkG_textButton:hover{text-decoration:underline}.yGqTkG_envManaged{color:#76827c;margin-top:14px;font-size:11px;display:block}.yGqTkG_button,.yGqTkG_dangerButton{color:#3e5349;cursor:pointer;background:#fff;border:1px solid #d5deda;border-radius:6px;justify-content:center;align-items:center;gap:7px;min-height:38px;padding:9px 14px;line-height:1.3;text-decoration:none;display:inline-flex;font-size:12px!important;font-weight:600!important}.yGqTkG_button:hover:not(:disabled){background:#f2f6f3;border-color:#91b3a3}.yGqTkG_primary{color:#fff;background:#246b55;border-color:#246b55}.yGqTkG_primary:hover:not(:disabled){background:#19533f;border-color:#19533f}.yGqTkG_dangerButton{color:#a14235;background:#fff9f6;border-color:#eccdc3}.yGqTkG_dangerButton:hover{background:#fceee8}.yGqTkG_button:disabled,.yGqTkG_dangerButton:disabled,.yGqTkG_textButton:disabled{cursor:not-allowed;opacity:.55}.yGqTkG_error,.yGqTkG_message{overflow-wrap:anywhere;border-radius:6px;margin:12px 0;padding:12px 15px;font-size:13px}.yGqTkG_error{color:#9b3c32;background:#fff0eb}.yGqTkG_success{color:#2b6748;background:#eaf5ed}.yGqTkG_info{color:#365e73;background:#edf3f7}.yGqTkG_checkMessage{overflow-wrap:anywhere}.yGqTkG_checkMessage.yGqTkG_success{color:#2b6748;padding:5px}.yGqTkG_loading,.yGqTkG_loadingInline{color:#5d7167;background:#f4f6f5;padding:28px;font-size:14px}.yGqTkG_loading{place-items:center;min-height:100vh;display:grid}.yGqTkG_providerLayout{border:1px solid var(--line);background:#fff;border-radius:10px;grid-template-columns:250px minmax(0,1fr);display:grid;overflow:hidden}.yGqTkG_providerPicker{border-right:1px solid var(--line);background:#fafbf9;min-width:0;padding:18px 12px}.yGqTkG_pickerHeader{justify-content:space-between;align-items:center;padding:0 8px 12px;font-size:12px;font-weight:600;display:flex}.yGqTkG_countBadge{color:#4a6c59;background:#e9efeb}.yGqTkG_providerList{flex-direction:column;gap:4px;max-height:430px;display:flex;overflow:auto}.yGqTkG_providerOption,.yGqTkG_customOption{text-align:left;width:100%;color:var(--ink);cursor:pointer;background:0 0;border:1px solid #0000;border-radius:6px;align-items:center;gap:10px;padding:12px 10px;display:flex}.yGqTkG_providerOption:hover,.yGqTkG_customOption:hover{background:#eef3ef}.yGqTkG_providerOptionSelected,.yGqTkG_customOptionSelected{background:#e7f0e9;border-color:#c6d9cc}.yGqTkG_providerDot{flex:0 0 6px}.yGqTkG_providerOptionText,.yGqTkG_customOption>span:last-child{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.yGqTkG_providerOptionText strong,.yGqTkG_customOption strong{overflow-wrap:anywhere;font-size:12px;font-weight:600}.yGqTkG_providerOptionText small,.yGqTkG_customOption small{color:var(--muted);font-size:10px}.yGqTkG_customTag,.yGqTkG_customBadge{color:#806239;background:#f4eee0;font-size:9px}.yGqTkG_customOption{border-top:1px solid var(--line);border-radius:0;margin-top:14px}.yGqTkG_addIcon{color:var(--accent);font-size:20px}.yGqTkG_providerEditor{min-width:0;padding:28px}.yGqTkG_editorHeading{border-bottom:1px solid var(--line);justify-content:space-between;align-items:flex-start;gap:15px;padding-bottom:22px;display:flex}.yGqTkG_editorTitle{font-size:20px}.yGqTkG_editorCopy{color:var(--muted);margin:10px 0 0;font-size:13px;line-height:1.6}.yGqTkG_editorForm,.yGqTkG_form,.yGqTkG_formFields{border:0;flex-direction:column;gap:20px;min-width:0;margin:22px 0 0;padding:0;display:flex}.yGqTkG_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.yGqTkG_field{color:#3f5449;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:600;display:flex}.yGqTkG_field em{color:var(--muted);font-size:11px;font-style:normal;font-weight:400}.yGqTkG_input{width:100%;min-width:0;color:var(--ink);background:#fff;border:1px solid #cedbd3;border-radius:6px;padding:10px 12px;font-weight:400;line-height:1.5;display:block;font-size:13px!important}.yGqTkG_input::placeholder{color:#7c8c82}.yGqTkG_input:focus{border-color:#559779}.yGqTkG_input:disabled{cursor:not-allowed;opacity:.7;background:#f3f5f2}textarea.yGqTkG_input{resize:vertical}.yGqTkG_textarea{min-height:100px}.yGqTkG_fieldHint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.yGqTkG_advanced{border:1px solid var(--line);background:#fafbf9;border-radius:7px;margin-top:8px}.yGqTkG_advanced summary{cursor:pointer;color:#425e4e;padding:13px 16px;font-size:12px;font-weight:600}.yGqTkG_advancedBody{flex-direction:column;gap:16px;padding:0 16px 18px;display:flex}.yGqTkG_modelRows{flex-direction:column;gap:12px;display:flex}.yGqTkG_modelEntry{background:#fff;border:1px solid #dfe7e1;border-radius:7px;flex-direction:column;gap:14px;padding:14px;display:flex}.yGqTkG_modelEntryHeading{color:#40584a;justify-content:space-between;align-items:center;gap:12px;font-size:12px;display:flex}.yGqTkG_modelEntryHeading .yGqTkG_textButton{margin-top:0}.yGqTkG_discoveryRow,.yGqTkG_discovered{flex-wrap:wrap;align-items:center;gap:10px;display:flex}.yGqTkG_modelChip{color:#3e6d50;cursor:pointer;background:#edf5ef;border:1px solid #cadecf;border-radius:5px;padding:7px 10px;font-size:12px}.yGqTkG_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;display:flex}.yGqTkG_confirmGroup{color:#8e4e42;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;display:flex}.yGqTkG_confirmGroup .yGqTkG_error{width:100%}.yGqTkG_loginPage{background:#eaf0ea;place-items:center;padding:24px;display:grid}.yGqTkG_loginPanel{background:#fff;border:1px solid #d4dfd5;border-radius:14px;width:min(100%,430px);padding:40px;box-shadow:0 20px 80px #26443515}.yGqTkG_loginMark{color:#fff;background:#246b55;border-radius:11px;place-items:center;width:44px;height:44px;margin-bottom:26px;font-family:Georgia,serif;font-size:22px;display:grid}.yGqTkG_loginTitle{font-size:30px;line-height:1.2}.yGqTkG_loginCopy{color:var(--muted);margin:14px 0 25px;font-size:13px}.yGqTkG_fullButton{width:100%}.yGqTkG_loginFootnote{color:var(--muted);margin:24px 0 0;font-size:11px}.yGqTkG_notice{color:#526b5d;background:#edf2ef;border:1px solid #dce5df;border-radius:7px;align-items:center;gap:12px;padding:14px 18px;font-size:12px;display:flex}.yGqTkG_tabs{border-bottom:1px solid var(--line);flex-wrap:wrap;gap:4px;margin:22px 0;display:flex}.yGqTkG_tabs button{color:var(--muted);cursor:pointer;background:0 0;border:0;border-bottom:2px solid #0000;padding:12px 14px;font-size:12px}.yGqTkG_tabs .yGqTkG_activeTab{color:#256849;border-bottom-color:#256849;font-weight:600}.yGqTkG_toolbar{margin:0 0 18px}.yGqTkG_toolbar>.yGqTkG_input,.yGqTkG_search{max-width:320px}.yGqTkG_toolbar>.yGqTkG_button:last-child{margin-left:auto}.yGqTkG_tableWrap{border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:22px;overflow:auto}.yGqTkG_table{border-collapse:collapse;text-align:left;width:100%;font-size:12px}.yGqTkG_table th{color:#67786d;border-bottom:1px solid var(--line);white-space:nowrap;background:#f9fbf8;padding:13px 18px;font-size:11px;font-weight:500}.yGqTkG_table td{vertical-align:top;border-bottom:1px solid #edf0ec;padding:17px 18px}.yGqTkG_table tr:last-child td{border-bottom:0}.yGqTkG_table td strong{font-weight:600}.yGqTkG_table td small{color:var(--muted);margin-top:5px;display:block}.yGqTkG_table td summary{cursor:pointer;min-width:150px}.yGqTkG_empty{color:var(--muted);text-align:center;padding:35px 22px;font-size:13px}.yGqTkG_checkboxGroup{border:1px solid var(--line);border-radius:7px;flex-wrap:wrap;gap:12px;max-height:230px;padding:14px;display:flex;overflow:auto}.yGqTkG_checkboxGroup legend{color:#4b6555;padding:0 5px;font-size:12px}.yGqTkG_checkboxGroup label,.yGqTkG_checkLabel{color:#3c5546;align-items:center;gap:8px;font-size:12px;display:flex}.yGqTkG_checkboxGroup input,.yGqTkG_checkLabel input{accent-color:#276e53;width:16px;height:16px}.yGqTkG_previewEnvelope{border:1px solid var(--line);overflow-wrap:anywhere;background:#f4f7f3;border-bottom:0;margin-top:24px;padding:20px;font-size:12px}.yGqTkG_previewFrame{border:1px solid var(--line);background:#fff;width:100%;height:560px}.yGqTkG_plainText{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;font-size:12px}.yGqTkG_deliveryDetails{overflow-wrap:anywhere;min-width:220px;max-width:360px;font-size:11px}.yGqTkG_mono{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,monospace!important}.yGqTkG_importRow{border-top:1px solid var(--line);overflow-wrap:anywhere;justify-content:space-between;align-items:center;gap:20px;padding:18px 0;font-size:12px;display:flex}.yGqTkG_importRow p{color:var(--muted)}.yGqTkG_srOnly{clip:rect(0,0,0,0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.yGqTkG_skipLink{z-index:10;background:#fff;padding:12px;position:fixed;top:0;left:240px;transform:translateY(-150%)}.yGqTkG_skipLink:focus{transform:translateY(0)}@media (width<=1150px){.yGqTkG_page{grid-template-columns:200px minmax(0,1fr)}.yGqTkG_sidebar{padding-inline:12px}.yGqTkG_shell{padding-inline:28px}.yGqTkG_contentGrid{grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr)}.yGqTkG_metric{padding:18px}.yGqTkG_metric>strong{font-size:28px}.yGqTkG_providerLayout{grid-template-columns:210px minmax(0,1fr)}}@media (width<=900px){.yGqTkG_contentGrid{grid-template-columns:1fr}.yGqTkG_metrics{gap:10px}.yGqTkG_metric{padding:14px}.yGqTkG_metricLabel{font-size:11px}.yGqTkG_metricLabel svg{display:none}.yGqTkG_statusGrid,.yGqTkG_providerLayout{grid-template-columns:1fr}.yGqTkG_providerPicker{border-right:0;border-bottom:1px solid var(--line)}.yGqTkG_providerList{max-height:180px}.yGqTkG_notice{flex-direction:column;align-items:flex-start}}@media (width<=680px){.yGqTkG_page{display:block}.yGqTkG_sidebar{height:auto;padding:18px 16px 0;position:static}.yGqTkG_brand{padding:0 0 18px;font-size:19px}.yGqTkG_brandMark{width:30px;height:34px;font-size:20px}.yGqTkG_navLabel{display:none}.yGqTkG_navigation{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;display:grid}.yGqTkG_navigation a{border-radius:5px 5px 0 0;flex-direction:column;flex-shrink:0;justify-content:center;gap:6px;padding:10px 3px;font-size:10px}.yGqTkG_navigation svg{width:15px}.yGqTkG_navigation .yGqTkG_navActive{box-shadow:inset 0 -3px #a9d3b7}.yGqTkG_sidebarFoot{flex-wrap:wrap;align-items:center;gap:15px;padding:8px 0;display:flex}.yGqTkG_backLink{padding:0;font-size:11px}.yGqTkG_identity{display:none}.yGqTkG_signOut{margin-left:auto}.yGqTkG_shell{padding:0 18px}.yGqTkG_topbar{min-height:54px}.yGqTkG_header{padding:24px 0 20px}.yGqTkG_title{font-size:28px}.yGqTkG_headerMark{display:none}.yGqTkG_sectionHeading{flex-wrap:wrap;align-items:flex-start;gap:12px}.yGqTkG_metrics{grid-template-columns:1fr;gap:10px}.yGqTkG_metric{grid-template-columns:1fr auto;align-items:center;gap:8px;padding:16px 18px;display:grid}.yGqTkG_metric>strong{grid-area:1/2/3;margin:0;font-size:24px}.yGqTkG_metric>small{grid-column:1}.yGqTkG_metric small span{display:none}.yGqTkG_card,.yGqTkG_helpCard,.yGqTkG_providerEditor{padding:20px}.yGqTkG_fieldGrid{grid-template-columns:1fr}.yGqTkG_editorHeading{flex-wrap:wrap}.yGqTkG_toolbar>.yGqTkG_input,.yGqTkG_search{width:100%;max-width:none}.yGqTkG_tabs{gap:0}.yGqTkG_tabs button{padding:11px 9px;font-size:11px}.yGqTkG_sectionHint{text-align:left}.yGqTkG_table td,.yGqTkG_table th{padding:12px}.yGqTkG_table{min-width:560px}.yGqTkG_importRow{flex-direction:column;align-items:flex-start}.yGqTkG_skipLink{left:16px}}.yGqTkG_contextGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.yGqTkG_contextCard{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;padding:26px;box-shadow:0 2px 3px #182e2610}.yGqTkG_contextCard h3{color:var(--ink);margin:0;font-size:16px;font-weight:600}.yGqTkG_contextCard p:not(.yGqTkG_sectionKicker){color:var(--muted);margin:8px 0 0;font-size:12px;line-height:1.55}.yGqTkG_fieldError{color:#9b3c32;font-size:11px;font-weight:500;line-height:1.5}.yGqTkG_input[aria-invalid=true]{background:#fffaf8;border-color:#bb5f4c}.yGqTkG_toggleField{color:#3f5449;cursor:pointer;align-items:flex-start;gap:11px;display:flex}.yGqTkG_toggleField input{accent-color:#276e53;width:17px;height:17px;margin:1px 0 0}.yGqTkG_toggleField span{flex-direction:column;gap:4px;display:flex}.yGqTkG_toggleField strong{font-size:12px}.yGqTkG_toggleField small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.yGqTkG_contextCardWide{grid-column:1/-1}.yGqTkG_actionGroups{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px;display:grid}.yGqTkG_actionGroups .yGqTkG_checkboxGroup{max-height:none;margin:0}.yGqTkG_actionGroups .yGqTkG_checkLabel{align-items:flex-start}.yGqTkG_modeChoices{border:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0 0;padding:0;display:grid}.yGqTkG_modeChoice{border:1px solid var(--line);cursor:pointer;background:#fafcf9;border-radius:7px;align-items:flex-start;gap:10px;min-width:0;padding:14px;display:flex}.yGqTkG_modeChoice:has(input:checked){background:#eef6ef;border-color:#9fc5ae}.yGqTkG_modeChoice input{accent-color:#276e53;width:16px;height:16px;margin:1px 0 0}.yGqTkG_modeChoice span{flex-direction:column;gap:4px;min-width:0;display:flex}.yGqTkG_modeChoice strong{color:#314d40;font-size:12px}.yGqTkG_modeChoice small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.yGqTkG_accessGroups{gap:16px;margin-top:18px;display:grid}.yGqTkG_actionGroup{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;margin:0;padding:0;overflow:hidden}.yGqTkG_actionGroup>legend{border-bottom:1px solid var(--line);color:#4b6555;background:#f9fbf8;width:100%;padding:14px 18px;font-size:12px;font-weight:600}.yGqTkG_actionRow{border-bottom:1px solid #edf0ec;justify-content:space-between;align-items:center;gap:18px;min-width:0;padding:15px 18px;display:flex}.yGqTkG_actionGroup .yGqTkG_actionRow:last-child{border-bottom:0}.yGqTkG_actionInfo{flex-direction:column;flex:1;gap:5px;min-width:0;display:flex}.yGqTkG_actionInfo strong{color:#314b3e;font-size:12px;font-weight:600}.yGqTkG_actionInfo small{color:var(--muted);font-size:10px}.yGqTkG_stateChoices{flex-wrap:wrap;flex:none;justify-content:flex-end;gap:6px;display:flex}.yGqTkG_actionControls{flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;display:flex}.yGqTkG_stateChoice{color:#52685d;cursor:pointer;white-space:nowrap;background:#fff;border:1px solid #d8e2dc;border-radius:5px;align-items:center;gap:5px;padding:6px 8px;font-size:10px;font-weight:500;display:inline-flex}.yGqTkG_stateChoice:has(input:checked){color:#286047;background:#eaf5ed;border-color:#8fb8a0}.yGqTkG_stateChoice input{accent-color:#276e53;width:13px;height:13px;margin:0}.yGqTkG_protectedBadge{color:#8b5f2d;white-space:nowrap;background:#fbf1df;border-radius:5px;flex:none;padding:6px 9px;font-size:10px;font-weight:600}.yGqTkG_unavailableBadge{color:#8b4b42;white-space:nowrap;background:#fceee8;border-radius:5px;padding:5px 8px;font-size:10px;font-weight:600}@media (width<=900px){.yGqTkG_contextGrid,.yGqTkG_actionGroups,.yGqTkG_modeChoices{grid-template-columns:1fr}.yGqTkG_actionRow{flex-direction:column;align-items:flex-start}.yGqTkG_stateChoices,.yGqTkG_actionControls{justify-content:flex-start}}@media (width<=680px){.yGqTkG_contextCard{padding:20px}.yGqTkG_navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}";
+		//#region \0dsh-css:/home/cpcnet/CITIC_AGENT/packages/soc-agent-admin/src/client/AdminConsole.module.css.mjs
+		const css = ".jd4TFW_page,.jd4TFW_loginPage{--ink:#202c35;--muted:#65747d;--line:#dfe5e5;--accent:#216b5c;--paper:#fff;color-scheme:light;color:var(--ink);background:#f4f6f5;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;line-height:1.5}.jd4TFW_page *,.jd4TFW_loginPage *{box-sizing:border-box}.jd4TFW_page [hidden]{display:none!important}.jd4TFW_page button,.jd4TFW_loginPage button,.jd4TFW_page input,.jd4TFW_page select,.jd4TFW_page textarea{font:inherit}.jd4TFW_page a{color:inherit}.jd4TFW_page :focus-visible,.jd4TFW_loginPage :focus-visible{outline-offset:3px;outline:3px solid #49a68d}.jd4TFW_page{grid-template-columns:232px minmax(0,1fr);display:grid}.jd4TFW_sidebar{color:#d3dfdc;background:#142c2c;flex-direction:column;height:100vh;padding:32px 18px 22px;display:flex;position:sticky;top:0}.jd4TFW_brand{letter-spacing:-.5px;align-items:center;gap:12px;padding:0 10px 42px;font-size:22px;font-weight:700;text-decoration:none;display:flex}.jd4TFW_brand small{letter-spacing:.3px;color:#a9bfba;font-size:11px;font-weight:400;display:block}.jd4TFW_brandMark{color:#194e40;background:#d9eee1;border-radius:12px;place-items:center;width:38px;height:42px;font-family:Georgia,serif;font-size:24px;display:grid}.jd4TFW_navLabel{letter-spacing:1.8px;color:#8da9a2;margin:0 0 12px;padding:0 14px;font-size:10px;font-weight:600}.jd4TFW_navigation{gap:5px;display:grid}.jd4TFW_navigation a{color:#b4c8c2;border-radius:7px;align-items:center;gap:12px;padding:12px 14px;font-size:13px;text-decoration:none;display:flex}.jd4TFW_navigation a:hover{color:#fff;background:#203d3b}.jd4TFW_navigation .jd4TFW_navActive{color:#f0f8f3;background:#2c4944;font-weight:600;box-shadow:inset 3px 0 #a9d3b7}.jd4TFW_sidebarFoot{margin-top:auto;padding:32px 10px 0}.jd4TFW_backLink{padding-bottom:24px;font-size:12px;text-decoration:none;display:block;color:#b8c9c4!important}.jd4TFW_identity{border-top:1px solid #37504a;gap:10px;min-width:0;padding:19px 0 10px;display:flex}.jd4TFW_identity>div{min-width:0}.jd4TFW_identity strong{color:#e0e9e5;font-size:12px;font-weight:500;display:block}.jd4TFW_avatar{color:#d4e9db;background:#36574b;border-radius:50%;flex:0 0 33px;place-items:center;height:33px;display:grid}.jd4TFW_account{text-overflow:ellipsis;white-space:nowrap;color:#9eb6ae;max-width:155px;font-size:11px;display:block;overflow:hidden}.jd4TFW_signOut{color:#b9cdc5;cursor:pointer;background:0 0;border:0;padding:8px 0;font-size:12px!important}.jd4TFW_shell{width:100%;min-width:0;max-width:1550px;margin:0 auto;padding:0 clamp(24px,4vw,64px)}.jd4TFW_topbar{border-bottom:1px solid var(--line);min-height:74px;color:var(--muted);justify-content:space-between;align-items:center;font-size:12px;display:flex}.jd4TFW_topbar strong{color:var(--ink);font-weight:500}.jd4TFW_adminBadge{color:#4c6259;background:#e8eeeb;border-radius:4px;padding:4px 10px;font-size:11px}.jd4TFW_header{justify-content:space-between;align-items:center;gap:24px;padding:34px 0 26px;display:flex}.jd4TFW_eyebrow,.jd4TFW_sectionKicker{color:#677f75;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 9px;font-size:10px;font-weight:700}.jd4TFW_title,.jd4TFW_loginTitle,.jd4TFW_sectionTitle,.jd4TFW_editorTitle{color:var(--ink);letter-spacing:-.6px;margin:0;font-weight:600}.jd4TFW_title{font-size:34px;line-height:1.2}.jd4TFW_subtitle{color:var(--muted);margin:10px 0 0;font-size:14px}.jd4TFW_headerMark{color:#4c7161;background:#ecf1ec;border:1px solid #d3dfd8;border-radius:13px;place-items:center;width:48px;height:48px;display:grid}.jd4TFW_headerMark svg{width:24px;height:24px}.jd4TFW_section{margin:8px 0 32px}.jd4TFW_sectionHeading{justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;display:flex}.jd4TFW_sectionTitle{font-size:20px}.jd4TFW_sectionHint{color:var(--muted);text-align:right;max-width:290px;font-size:12px}.jd4TFW_headerActions,.jd4TFW_toolbar{flex-wrap:wrap;align-items:center;gap:12px;display:flex}.jd4TFW_metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0 0 28px;display:grid}.jd4TFW_metric{border:1px solid var(--line);background:#fff;border-radius:10px;flex-direction:column;padding:22px;text-decoration:none;display:flex;box-shadow:0 2px 3px #182e2610}.jd4TFW_metric:hover{border-color:#a8c4b8}.jd4TFW_metricLabel{color:#54675f;justify-content:space-between;align-items:center;gap:8px;font-size:12px;display:flex}.jd4TFW_metricLabel svg{color:#7a9689}.jd4TFW_metric>strong{letter-spacing:-1px;margin:18px 0;font-size:32px;font-weight:600;line-height:1.3}.jd4TFW_metric>small{color:var(--muted);justify-content:space-between;gap:12px;font-size:11px;display:flex}.jd4TFW_metricAttention{background:#fffaf2;border-color:#ebd6b7}.jd4TFW_metricAttention>strong{color:#976322}.jd4TFW_contentGrid{grid-template-columns:minmax(0,1.9fr) minmax(230px,1fr);align-items:start;gap:22px;display:grid}.jd4TFW_card{background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:0;margin-bottom:22px;padding:26px}.jd4TFW_helpCard{color:#455c4e;background:#eaf0e9;border:1px solid #dce5d9;border-radius:10px;padding:28px}.jd4TFW_helpCard h3{color:#294938;margin:0 0 12px;font-family:Georgia,serif;font-size:26px;font-weight:400;line-height:1.2}.jd4TFW_helpCard p{font-size:13px;line-height:1.75}.jd4TFW_steps{margin:22px 0;padding-left:20px;font-size:12px}.jd4TFW_steps li{padding:5px 0 5px 5px}.jd4TFW_quickLinks{margin-top:18px;display:grid}.jd4TFW_quickLinks a{border-bottom:1px solid #e9eeeb;align-items:center;gap:15px;padding:20px 0;text-decoration:none;display:flex}.jd4TFW_quickLinks a:last-child{border-bottom:0;padding-bottom:4px}.jd4TFW_quickLinks a>span:nth-child(2){flex:1}.jd4TFW_quickLinks strong{font-size:14px;font-weight:600;display:block}.jd4TFW_quickLinks small{color:var(--muted);margin-top:5px;font-size:12px;line-height:1.5;display:block}.jd4TFW_quickLinks a:hover strong{color:var(--accent)}.jd4TFW_quickIcon{color:#50725e;background:#f0f4f1;border:1px solid #e2eae4;border-radius:9px;flex:0 0 38px;place-items:center;width:38px;height:38px;display:grid}.jd4TFW_pageFoot{border-top:1px solid var(--line);color:#77867e;margin-top:30px;padding:24px 0;font-size:11px}.jd4TFW_statusGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;display:grid}.jd4TFW_statusCard{border:1px solid var(--line);background:#fff;border-radius:10px;gap:15px;min-width:0;padding:22px;display:flex}.jd4TFW_statusIcon{color:#346e55;background:#edf4ef;border:1px solid #d6e4dc;border-radius:9px;flex:0 0 36px;place-items:center;height:36px;font-weight:600;display:grid}.jd4TFW_statusBody{flex:1;min-width:0}.jd4TFW_statusTopline{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;display:flex}.jd4TFW_statusTopline h3{margin:0;font-size:14px;font-weight:600}.jd4TFW_statusBody p{color:var(--muted);margin:9px 0 0;font-size:12px}.jd4TFW_statusPill,.jd4TFW_customBadge,.jd4TFW_customTag,.jd4TFW_countBadge{white-space:nowrap;border-radius:5px;align-items:center;gap:6px;padding:4px 9px;font-size:11px;font-weight:500;display:inline-flex}.jd4TFW_statusReady{color:#286043;background:#e5f2e9}.jd4TFW_statusConfigured,.jd4TFW_statusInfo{color:#385e73;background:#e8f0f4}.jd4TFW_statusError{color:#9d3e32;background:#fceee7}.jd4TFW_statusMuted{color:#65726e;background:#eff1ef}.jd4TFW_statusDot,.jd4TFW_providerDot{background:#97a59e;border-radius:50%;width:6px;height:6px;display:inline-block}.jd4TFW_statusReady .jd4TFW_statusDot,.jd4TFW_providerDotReady{background:#378657}.jd4TFW_statusConfigured .jd4TFW_statusDot,.jd4TFW_statusInfo .jd4TFW_statusDot{background:#507c94}.jd4TFW_statusError .jd4TFW_statusDot{background:#bb5f4c}.jd4TFW_textButton{cursor:pointer;background:0 0;border:0;margin-top:14px;padding:0;font-weight:600;text-decoration:none;display:inline-block;color:var(--accent)!important;font-size:12px!important}.jd4TFW_textButton:hover{text-decoration:underline}.jd4TFW_envManaged{color:#76827c;margin-top:14px;font-size:11px;display:block}.jd4TFW_button,.jd4TFW_dangerButton{color:#3e5349;cursor:pointer;background:#fff;border:1px solid #d5deda;border-radius:6px;justify-content:center;align-items:center;gap:7px;min-height:38px;padding:9px 14px;line-height:1.3;text-decoration:none;display:inline-flex;font-size:12px!important;font-weight:600!important}.jd4TFW_button:hover:not(:disabled){background:#f2f6f3;border-color:#91b3a3}.jd4TFW_primary{color:#fff;background:#246b55;border-color:#246b55}.jd4TFW_primary:hover:not(:disabled){background:#19533f;border-color:#19533f}.jd4TFW_dangerButton{color:#a14235;background:#fff9f6;border-color:#eccdc3}.jd4TFW_dangerButton:hover{background:#fceee8}.jd4TFW_button:disabled,.jd4TFW_dangerButton:disabled,.jd4TFW_textButton:disabled{cursor:not-allowed;opacity:.55}.jd4TFW_error,.jd4TFW_message{overflow-wrap:anywhere;border-radius:6px;margin:12px 0;padding:12px 15px;font-size:13px}.jd4TFW_error{color:#9b3c32;background:#fff0eb}.jd4TFW_success{color:#2b6748;background:#eaf5ed}.jd4TFW_info{color:#365e73;background:#edf3f7}.jd4TFW_checkMessage{overflow-wrap:anywhere}.jd4TFW_checkMessage.jd4TFW_success{color:#2b6748;padding:5px}.jd4TFW_loading,.jd4TFW_loadingInline{color:#5d7167;background:#f4f6f5;padding:28px;font-size:14px}.jd4TFW_loading{place-items:center;min-height:100vh;display:grid}.jd4TFW_providerLayout{border:1px solid var(--line);background:#fff;border-radius:10px;grid-template-columns:250px minmax(0,1fr);display:grid;overflow:hidden}.jd4TFW_providerPicker{border-right:1px solid var(--line);background:#fafbf9;min-width:0;padding:18px 12px}.jd4TFW_pickerHeader{justify-content:space-between;align-items:center;padding:0 8px 12px;font-size:12px;font-weight:600;display:flex}.jd4TFW_countBadge{color:#4a6c59;background:#e9efeb}.jd4TFW_providerList{flex-direction:column;gap:4px;max-height:430px;display:flex;overflow:auto}.jd4TFW_providerOption,.jd4TFW_customOption{text-align:left;width:100%;color:var(--ink);cursor:pointer;background:0 0;border:1px solid #0000;border-radius:6px;align-items:center;gap:10px;padding:12px 10px;display:flex}.jd4TFW_providerOption:hover,.jd4TFW_customOption:hover{background:#eef3ef}.jd4TFW_providerOptionSelected,.jd4TFW_customOptionSelected{background:#e7f0e9;border-color:#c6d9cc}.jd4TFW_providerDot{flex:0 0 6px}.jd4TFW_providerOptionText,.jd4TFW_customOption>span:last-child{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.jd4TFW_providerOptionText strong,.jd4TFW_customOption strong{overflow-wrap:anywhere;font-size:12px;font-weight:600}.jd4TFW_providerOptionText small,.jd4TFW_customOption small{color:var(--muted);font-size:10px}.jd4TFW_customTag,.jd4TFW_customBadge{color:#806239;background:#f4eee0;font-size:9px}.jd4TFW_customOption{border-top:1px solid var(--line);border-radius:0;margin-top:14px}.jd4TFW_addIcon{color:var(--accent);font-size:20px}.jd4TFW_providerEditor{min-width:0;padding:28px}.jd4TFW_editorHeading{border-bottom:1px solid var(--line);justify-content:space-between;align-items:flex-start;gap:15px;padding-bottom:22px;display:flex}.jd4TFW_editorTitle{font-size:20px}.jd4TFW_editorCopy{color:var(--muted);margin:10px 0 0;font-size:13px;line-height:1.6}.jd4TFW_editorForm,.jd4TFW_form,.jd4TFW_formFields{border:0;flex-direction:column;gap:20px;min-width:0;margin:22px 0 0;padding:0;display:flex}.jd4TFW_fieldGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.jd4TFW_field{color:#3f5449;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:600;display:flex}.jd4TFW_field em{color:var(--muted);font-size:11px;font-style:normal;font-weight:400}.jd4TFW_input{width:100%;min-width:0;color:var(--ink);background:#fff;border:1px solid #cedbd3;border-radius:6px;padding:10px 12px;font-weight:400;line-height:1.5;display:block;font-size:13px!important}.jd4TFW_input::placeholder{color:#7c8c82}.jd4TFW_input:focus{border-color:#559779}.jd4TFW_input:disabled{cursor:not-allowed;opacity:.7;background:#f3f5f2}textarea.jd4TFW_input{resize:vertical}.jd4TFW_textarea{min-height:100px}.jd4TFW_fieldHint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.jd4TFW_advanced{border:1px solid var(--line);background:#fafbf9;border-radius:7px;margin-top:8px}.jd4TFW_advanced summary{cursor:pointer;color:#425e4e;padding:13px 16px;font-size:12px;font-weight:600}.jd4TFW_advancedBody{flex-direction:column;gap:16px;padding:0 16px 18px;display:flex}.jd4TFW_modelRows{flex-direction:column;gap:12px;display:flex}.jd4TFW_modelEntry{background:#fff;border:1px solid #dfe7e1;border-radius:7px;flex-direction:column;gap:14px;padding:14px;display:flex}.jd4TFW_modelEntryHeading{color:#40584a;justify-content:space-between;align-items:center;gap:12px;font-size:12px;display:flex}.jd4TFW_modelEntryHeading .jd4TFW_textButton{margin-top:0}.jd4TFW_discoveryRow,.jd4TFW_discovered{flex-wrap:wrap;align-items:center;gap:10px;display:flex}.jd4TFW_modelChip{color:#3e6d50;cursor:pointer;background:#edf5ef;border:1px solid #cadecf;border-radius:5px;padding:7px 10px;font-size:12px}.jd4TFW_actions{flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;display:flex}.jd4TFW_confirmGroup{color:#8e4e42;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;display:flex}.jd4TFW_confirmGroup .jd4TFW_error{width:100%}.jd4TFW_loginPage{background:#eaf0ea;place-items:center;padding:24px;display:grid}.jd4TFW_loginPanel{background:#fff;border:1px solid #d4dfd5;border-radius:14px;width:min(100%,430px);padding:40px;box-shadow:0 20px 80px #26443515}.jd4TFW_loginMark{color:#fff;background:#246b55;border-radius:11px;place-items:center;width:44px;height:44px;margin-bottom:26px;font-family:Georgia,serif;font-size:22px;display:grid}.jd4TFW_loginTitle{font-size:30px;line-height:1.2}.jd4TFW_loginCopy{color:var(--muted);margin:14px 0 25px;font-size:13px}.jd4TFW_fullButton{width:100%}.jd4TFW_loginFootnote{color:var(--muted);margin:24px 0 0;font-size:11px}.jd4TFW_notice{color:#526b5d;background:#edf2ef;border:1px solid #dce5df;border-radius:7px;align-items:center;gap:12px;padding:14px 18px;font-size:12px;display:flex}.jd4TFW_tabs{border-bottom:1px solid var(--line);flex-wrap:wrap;gap:4px;margin:22px 0;display:flex}.jd4TFW_tabs button{color:var(--muted);cursor:pointer;background:0 0;border:0;border-bottom:2px solid #0000;padding:12px 14px;font-size:12px}.jd4TFW_tabs .jd4TFW_activeTab{color:#256849;border-bottom-color:#256849;font-weight:600}.jd4TFW_toolbar{margin:0 0 18px}.jd4TFW_toolbar>.jd4TFW_input,.jd4TFW_search{max-width:320px}.jd4TFW_toolbar>.jd4TFW_button:last-child{margin-left:auto}.jd4TFW_tableWrap{border:1px solid var(--line);background:#fff;border-radius:8px;margin-bottom:22px;overflow:auto}.jd4TFW_table{border-collapse:collapse;text-align:left;width:100%;font-size:12px}.jd4TFW_table th{color:#67786d;border-bottom:1px solid var(--line);white-space:nowrap;background:#f9fbf8;padding:13px 18px;font-size:11px;font-weight:500}.jd4TFW_table td{vertical-align:top;border-bottom:1px solid #edf0ec;padding:17px 18px}.jd4TFW_table tr:last-child td{border-bottom:0}.jd4TFW_table td strong{font-weight:600}.jd4TFW_table td small{color:var(--muted);margin-top:5px;display:block}.jd4TFW_table td summary{cursor:pointer;min-width:150px}.jd4TFW_empty{color:var(--muted);text-align:center;padding:35px 22px;font-size:13px}.jd4TFW_checkboxGroup{border:1px solid var(--line);border-radius:7px;flex-wrap:wrap;gap:12px;max-height:230px;padding:14px;display:flex;overflow:auto}.jd4TFW_checkboxGroup legend{color:#4b6555;padding:0 5px;font-size:12px}.jd4TFW_checkboxGroup label,.jd4TFW_checkLabel{color:#3c5546;align-items:center;gap:8px;font-size:12px;display:flex}.jd4TFW_checkboxGroup input,.jd4TFW_checkLabel input{accent-color:#276e53;width:16px;height:16px}.jd4TFW_previewEnvelope{border:1px solid var(--line);overflow-wrap:anywhere;background:#f4f7f3;border-bottom:0;margin-top:24px;padding:20px;font-size:12px}.jd4TFW_previewFrame{border:1px solid var(--line);background:#fff;width:100%;height:560px}.jd4TFW_plainText{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;font-size:12px}.jd4TFW_deliveryDetails{overflow-wrap:anywhere;min-width:220px;max-width:360px;font-size:11px}.jd4TFW_mono{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,monospace!important}.jd4TFW_importRow{border-top:1px solid var(--line);overflow-wrap:anywhere;justify-content:space-between;align-items:center;gap:20px;padding:18px 0;font-size:12px;display:flex}.jd4TFW_importRow p{color:var(--muted)}.jd4TFW_srOnly{clip:rect(0,0,0,0);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.jd4TFW_skipLink{z-index:10;background:#fff;padding:12px;position:fixed;top:0;left:240px;transform:translateY(-150%)}.jd4TFW_skipLink:focus{transform:translateY(0)}@media (width<=1150px){.jd4TFW_page{grid-template-columns:200px minmax(0,1fr)}.jd4TFW_sidebar{padding-inline:12px}.jd4TFW_shell{padding-inline:28px}.jd4TFW_contentGrid{grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr)}.jd4TFW_metric{padding:18px}.jd4TFW_metric>strong{font-size:28px}.jd4TFW_providerLayout{grid-template-columns:210px minmax(0,1fr)}}@media (width<=900px){.jd4TFW_contentGrid{grid-template-columns:1fr}.jd4TFW_metrics{gap:10px}.jd4TFW_metric{padding:14px}.jd4TFW_metricLabel{font-size:11px}.jd4TFW_metricLabel svg{display:none}.jd4TFW_statusGrid,.jd4TFW_providerLayout{grid-template-columns:1fr}.jd4TFW_providerPicker{border-right:0;border-bottom:1px solid var(--line)}.jd4TFW_providerList{max-height:180px}.jd4TFW_notice{flex-direction:column;align-items:flex-start}}@media (width<=680px){.jd4TFW_page{display:block}.jd4TFW_sidebar{height:auto;padding:18px 16px 0;position:static}.jd4TFW_brand{padding:0 0 18px;font-size:19px}.jd4TFW_brandMark{width:30px;height:34px;font-size:20px}.jd4TFW_navLabel{display:none}.jd4TFW_navigation{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;display:grid}.jd4TFW_navigation a{border-radius:5px 5px 0 0;flex-direction:column;flex-shrink:0;justify-content:center;gap:6px;padding:10px 3px;font-size:10px}.jd4TFW_navigation svg{width:15px}.jd4TFW_navigation .jd4TFW_navActive{box-shadow:inset 0 -3px #a9d3b7}.jd4TFW_sidebarFoot{flex-wrap:wrap;align-items:center;gap:15px;padding:8px 0;display:flex}.jd4TFW_backLink{padding:0;font-size:11px}.jd4TFW_identity{display:none}.jd4TFW_signOut{margin-left:auto}.jd4TFW_shell{padding:0 18px}.jd4TFW_topbar{min-height:54px}.jd4TFW_header{padding:24px 0 20px}.jd4TFW_title{font-size:28px}.jd4TFW_headerMark{display:none}.jd4TFW_sectionHeading{flex-wrap:wrap;align-items:flex-start;gap:12px}.jd4TFW_metrics{grid-template-columns:1fr;gap:10px}.jd4TFW_metric{grid-template-columns:1fr auto;align-items:center;gap:8px;padding:16px 18px;display:grid}.jd4TFW_metric>strong{grid-area:1/2/3;margin:0;font-size:24px}.jd4TFW_metric>small{grid-column:1}.jd4TFW_metric small span{display:none}.jd4TFW_card,.jd4TFW_helpCard,.jd4TFW_providerEditor{padding:20px}.jd4TFW_fieldGrid{grid-template-columns:1fr}.jd4TFW_editorHeading{flex-wrap:wrap}.jd4TFW_toolbar>.jd4TFW_input,.jd4TFW_search{width:100%;max-width:none}.jd4TFW_tabs{gap:0}.jd4TFW_tabs button{padding:11px 9px;font-size:11px}.jd4TFW_sectionHint{text-align:left}.jd4TFW_table td,.jd4TFW_table th{padding:12px}.jd4TFW_table{min-width:560px}.jd4TFW_importRow{flex-direction:column;align-items:flex-start}.jd4TFW_skipLink{left:16px}}.jd4TFW_contextGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;display:grid}.jd4TFW_contextCard{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;padding:26px;box-shadow:0 2px 3px #182e2610}.jd4TFW_contextCard h3{color:var(--ink);margin:0;font-size:16px;font-weight:600}.jd4TFW_contextCard p:not(.jd4TFW_sectionKicker){color:var(--muted);margin:8px 0 0;font-size:12px;line-height:1.55}.jd4TFW_fieldError{color:#9b3c32;font-size:11px;font-weight:500;line-height:1.5}.jd4TFW_input[aria-invalid=true]{background:#fffaf8;border-color:#bb5f4c}.jd4TFW_toggleField{color:#3f5449;cursor:pointer;align-items:flex-start;gap:11px;display:flex}.jd4TFW_toggleField input{accent-color:#276e53;width:17px;height:17px;margin:1px 0 0}.jd4TFW_toggleField span{flex-direction:column;gap:4px;display:flex}.jd4TFW_toggleField strong{font-size:12px}.jd4TFW_toggleField small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.jd4TFW_contextCardWide{grid-column:1/-1}.jd4TFW_actionGroups{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px;display:grid}.jd4TFW_actionGroups .jd4TFW_checkboxGroup{max-height:none;margin:0}.jd4TFW_actionGroups .jd4TFW_checkLabel{align-items:flex-start}.jd4TFW_modeChoices{border:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0 0;padding:0;display:grid}.jd4TFW_modeChoice{border:1px solid var(--line);cursor:pointer;background:#fafcf9;border-radius:7px;align-items:flex-start;gap:10px;min-width:0;padding:14px;display:flex}.jd4TFW_modeChoice:has(input:checked){background:#eef6ef;border-color:#9fc5ae}.jd4TFW_modeChoice input{accent-color:#276e53;width:16px;height:16px;margin:1px 0 0}.jd4TFW_modeChoice span{flex-direction:column;gap:4px;min-width:0;display:flex}.jd4TFW_modeChoice strong{color:#314d40;font-size:12px}.jd4TFW_modeChoice small{color:var(--muted);font-size:11px;font-weight:400;line-height:1.5}.jd4TFW_accessGroups{gap:16px;margin-top:18px;display:grid}.jd4TFW_actionGroup{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-width:0;margin:0;padding:0;overflow:hidden}.jd4TFW_actionGroup>legend{border-bottom:1px solid var(--line);color:#4b6555;background:#f9fbf8;width:100%;padding:14px 18px;font-size:12px;font-weight:600}.jd4TFW_actionRow{border-bottom:1px solid #edf0ec;justify-content:space-between;align-items:center;gap:18px;min-width:0;padding:15px 18px;display:flex}.jd4TFW_actionGroup .jd4TFW_actionRow:last-child{border-bottom:0}.jd4TFW_actionInfo{flex-direction:column;flex:1;gap:5px;min-width:0;display:flex}.jd4TFW_actionInfo strong{color:#314b3e;font-size:12px;font-weight:600}.jd4TFW_actionInfo small{color:var(--muted);font-size:10px}.jd4TFW_stateChoices{flex-wrap:wrap;flex:none;justify-content:flex-end;gap:6px;display:flex}.jd4TFW_actionControls{flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;display:flex}.jd4TFW_stateChoice{color:#52685d;cursor:pointer;white-space:nowrap;background:#fff;border:1px solid #d8e2dc;border-radius:5px;align-items:center;gap:5px;padding:6px 8px;font-size:10px;font-weight:500;display:inline-flex}.jd4TFW_stateChoice:has(input:checked){color:#286047;background:#eaf5ed;border-color:#8fb8a0}.jd4TFW_stateChoice input{accent-color:#276e53;width:13px;height:13px;margin:0}.jd4TFW_protectedBadge{color:#8b5f2d;white-space:nowrap;background:#fbf1df;border-radius:5px;flex:none;padding:6px 9px;font-size:10px;font-weight:600}.jd4TFW_unavailableBadge{color:#8b4b42;white-space:nowrap;background:#fceee8;border-radius:5px;padding:5px 8px;font-size:10px;font-weight:600}@media (width<=900px){.jd4TFW_contextGrid,.jd4TFW_actionGroups,.jd4TFW_modeChoices{grid-template-columns:1fr}.jd4TFW_actionRow{flex-direction:column;align-items:flex-start}.jd4TFW_stateChoices,.jd4TFW_actionControls{justify-content:flex-start}}@media (width<=680px){.jd4TFW_contextCard{padding:20px}.jd4TFW_navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}";
 		const tagId = "dsh-soc-agent-admin/AdminConsole.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -17,147 +17,147 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AdminConsole_module_css_default = {
-			"accessGroups": "yGqTkG_accessGroups",
-			"account": "yGqTkG_account",
-			"actionControls": "yGqTkG_actionControls",
-			"actionGroup": "yGqTkG_actionGroup",
-			"actionGroups": "yGqTkG_actionGroups",
-			"actionInfo": "yGqTkG_actionInfo",
-			"actionRow": "yGqTkG_actionRow",
-			"actions": "yGqTkG_actions",
-			"activeTab": "yGqTkG_activeTab",
-			"addIcon": "yGqTkG_addIcon",
-			"adminBadge": "yGqTkG_adminBadge",
-			"advanced": "yGqTkG_advanced",
-			"advancedBody": "yGqTkG_advancedBody",
-			"avatar": "yGqTkG_avatar",
-			"backLink": "yGqTkG_backLink",
-			"brand": "yGqTkG_brand",
-			"brandMark": "yGqTkG_brandMark",
-			"button": "yGqTkG_button",
-			"card": "yGqTkG_card",
-			"checkLabel": "yGqTkG_checkLabel",
-			"checkMessage": "yGqTkG_checkMessage",
-			"checkboxGroup": "yGqTkG_checkboxGroup",
-			"confirmGroup": "yGqTkG_confirmGroup",
-			"contentGrid": "yGqTkG_contentGrid",
-			"contextCard": "yGqTkG_contextCard",
-			"contextCardWide": "yGqTkG_contextCardWide",
-			"contextGrid": "yGqTkG_contextGrid",
-			"countBadge": "yGqTkG_countBadge",
-			"customBadge": "yGqTkG_customBadge",
-			"customOption": "yGqTkG_customOption",
-			"customOptionSelected": "yGqTkG_customOptionSelected",
-			"customTag": "yGqTkG_customTag",
-			"dangerButton": "yGqTkG_dangerButton",
-			"deliveryDetails": "yGqTkG_deliveryDetails",
-			"discovered": "yGqTkG_discovered",
-			"discoveryRow": "yGqTkG_discoveryRow",
-			"editorCopy": "yGqTkG_editorCopy",
-			"editorForm": "yGqTkG_editorForm",
-			"editorHeading": "yGqTkG_editorHeading",
-			"editorTitle": "yGqTkG_editorTitle",
-			"empty": "yGqTkG_empty",
-			"envManaged": "yGqTkG_envManaged",
-			"error": "yGqTkG_error",
-			"eyebrow": "yGqTkG_eyebrow",
-			"field": "yGqTkG_field",
-			"fieldError": "yGqTkG_fieldError",
-			"fieldGrid": "yGqTkG_fieldGrid",
-			"fieldHint": "yGqTkG_fieldHint",
-			"form": "yGqTkG_form",
-			"formFields": "yGqTkG_formFields",
-			"fullButton": "yGqTkG_fullButton",
-			"header": "yGqTkG_header",
-			"headerActions": "yGqTkG_headerActions",
-			"headerMark": "yGqTkG_headerMark",
-			"helpCard": "yGqTkG_helpCard",
-			"identity": "yGqTkG_identity",
-			"importRow": "yGqTkG_importRow",
-			"info": "yGqTkG_info",
-			"input": "yGqTkG_input",
-			"loading": "yGqTkG_loading",
-			"loadingInline": "yGqTkG_loadingInline",
-			"loginCopy": "yGqTkG_loginCopy",
-			"loginFootnote": "yGqTkG_loginFootnote",
-			"loginMark": "yGqTkG_loginMark",
-			"loginPage": "yGqTkG_loginPage",
-			"loginPanel": "yGqTkG_loginPanel",
-			"loginTitle": "yGqTkG_loginTitle",
-			"message": "yGqTkG_message",
-			"metric": "yGqTkG_metric",
-			"metricAttention": "yGqTkG_metricAttention",
-			"metricLabel": "yGqTkG_metricLabel",
-			"metrics": "yGqTkG_metrics",
-			"modeChoice": "yGqTkG_modeChoice",
-			"modeChoices": "yGqTkG_modeChoices",
-			"modelChip": "yGqTkG_modelChip",
-			"modelEntry": "yGqTkG_modelEntry",
-			"modelEntryHeading": "yGqTkG_modelEntryHeading",
-			"modelRows": "yGqTkG_modelRows",
-			"mono": "yGqTkG_mono",
-			"navActive": "yGqTkG_navActive",
-			"navLabel": "yGqTkG_navLabel",
-			"navigation": "yGqTkG_navigation",
-			"notice": "yGqTkG_notice",
-			"page": "yGqTkG_page",
-			"pageFoot": "yGqTkG_pageFoot",
-			"pickerHeader": "yGqTkG_pickerHeader",
-			"plainText": "yGqTkG_plainText",
-			"previewEnvelope": "yGqTkG_previewEnvelope",
-			"previewFrame": "yGqTkG_previewFrame",
-			"primary": "yGqTkG_primary",
-			"protectedBadge": "yGqTkG_protectedBadge",
-			"providerDot": "yGqTkG_providerDot",
-			"providerDotReady": "yGqTkG_providerDotReady",
-			"providerEditor": "yGqTkG_providerEditor",
-			"providerLayout": "yGqTkG_providerLayout",
-			"providerList": "yGqTkG_providerList",
-			"providerOption": "yGqTkG_providerOption",
-			"providerOptionSelected": "yGqTkG_providerOptionSelected",
-			"providerOptionText": "yGqTkG_providerOptionText",
-			"providerPicker": "yGqTkG_providerPicker",
-			"quickIcon": "yGqTkG_quickIcon",
-			"quickLinks": "yGqTkG_quickLinks",
-			"search": "yGqTkG_search",
-			"section": "yGqTkG_section",
-			"sectionHeading": "yGqTkG_sectionHeading",
-			"sectionHint": "yGqTkG_sectionHint",
-			"sectionKicker": "yGqTkG_sectionKicker",
-			"sectionTitle": "yGqTkG_sectionTitle",
-			"shell": "yGqTkG_shell",
-			"sidebar": "yGqTkG_sidebar",
-			"sidebarFoot": "yGqTkG_sidebarFoot",
-			"signOut": "yGqTkG_signOut",
-			"skipLink": "yGqTkG_skipLink",
-			"srOnly": "yGqTkG_srOnly",
-			"stateChoice": "yGqTkG_stateChoice",
-			"stateChoices": "yGqTkG_stateChoices",
-			"statusBody": "yGqTkG_statusBody",
-			"statusCard": "yGqTkG_statusCard",
-			"statusConfigured": "yGqTkG_statusConfigured",
-			"statusDot": "yGqTkG_statusDot",
-			"statusError": "yGqTkG_statusError",
-			"statusGrid": "yGqTkG_statusGrid",
-			"statusIcon": "yGqTkG_statusIcon",
-			"statusInfo": "yGqTkG_statusInfo",
-			"statusMuted": "yGqTkG_statusMuted",
-			"statusPill": "yGqTkG_statusPill",
-			"statusReady": "yGqTkG_statusReady",
-			"statusTopline": "yGqTkG_statusTopline",
-			"steps": "yGqTkG_steps",
-			"subtitle": "yGqTkG_subtitle",
-			"success": "yGqTkG_success",
-			"table": "yGqTkG_table",
-			"tableWrap": "yGqTkG_tableWrap",
-			"tabs": "yGqTkG_tabs",
-			"textButton": "yGqTkG_textButton",
-			"textarea": "yGqTkG_textarea",
-			"title": "yGqTkG_title",
-			"toggleField": "yGqTkG_toggleField",
-			"toolbar": "yGqTkG_toolbar",
-			"topbar": "yGqTkG_topbar",
-			"unavailableBadge": "yGqTkG_unavailableBadge"
+			"accessGroups": "jd4TFW_accessGroups",
+			"account": "jd4TFW_account",
+			"actionControls": "jd4TFW_actionControls",
+			"actionGroup": "jd4TFW_actionGroup",
+			"actionGroups": "jd4TFW_actionGroups",
+			"actionInfo": "jd4TFW_actionInfo",
+			"actionRow": "jd4TFW_actionRow",
+			"actions": "jd4TFW_actions",
+			"activeTab": "jd4TFW_activeTab",
+			"addIcon": "jd4TFW_addIcon",
+			"adminBadge": "jd4TFW_adminBadge",
+			"advanced": "jd4TFW_advanced",
+			"advancedBody": "jd4TFW_advancedBody",
+			"avatar": "jd4TFW_avatar",
+			"backLink": "jd4TFW_backLink",
+			"brand": "jd4TFW_brand",
+			"brandMark": "jd4TFW_brandMark",
+			"button": "jd4TFW_button",
+			"card": "jd4TFW_card",
+			"checkLabel": "jd4TFW_checkLabel",
+			"checkMessage": "jd4TFW_checkMessage",
+			"checkboxGroup": "jd4TFW_checkboxGroup",
+			"confirmGroup": "jd4TFW_confirmGroup",
+			"contentGrid": "jd4TFW_contentGrid",
+			"contextCard": "jd4TFW_contextCard",
+			"contextCardWide": "jd4TFW_contextCardWide",
+			"contextGrid": "jd4TFW_contextGrid",
+			"countBadge": "jd4TFW_countBadge",
+			"customBadge": "jd4TFW_customBadge",
+			"customOption": "jd4TFW_customOption",
+			"customOptionSelected": "jd4TFW_customOptionSelected",
+			"customTag": "jd4TFW_customTag",
+			"dangerButton": "jd4TFW_dangerButton",
+			"deliveryDetails": "jd4TFW_deliveryDetails",
+			"discovered": "jd4TFW_discovered",
+			"discoveryRow": "jd4TFW_discoveryRow",
+			"editorCopy": "jd4TFW_editorCopy",
+			"editorForm": "jd4TFW_editorForm",
+			"editorHeading": "jd4TFW_editorHeading",
+			"editorTitle": "jd4TFW_editorTitle",
+			"empty": "jd4TFW_empty",
+			"envManaged": "jd4TFW_envManaged",
+			"error": "jd4TFW_error",
+			"eyebrow": "jd4TFW_eyebrow",
+			"field": "jd4TFW_field",
+			"fieldError": "jd4TFW_fieldError",
+			"fieldGrid": "jd4TFW_fieldGrid",
+			"fieldHint": "jd4TFW_fieldHint",
+			"form": "jd4TFW_form",
+			"formFields": "jd4TFW_formFields",
+			"fullButton": "jd4TFW_fullButton",
+			"header": "jd4TFW_header",
+			"headerActions": "jd4TFW_headerActions",
+			"headerMark": "jd4TFW_headerMark",
+			"helpCard": "jd4TFW_helpCard",
+			"identity": "jd4TFW_identity",
+			"importRow": "jd4TFW_importRow",
+			"info": "jd4TFW_info",
+			"input": "jd4TFW_input",
+			"loading": "jd4TFW_loading",
+			"loadingInline": "jd4TFW_loadingInline",
+			"loginCopy": "jd4TFW_loginCopy",
+			"loginFootnote": "jd4TFW_loginFootnote",
+			"loginMark": "jd4TFW_loginMark",
+			"loginPage": "jd4TFW_loginPage",
+			"loginPanel": "jd4TFW_loginPanel",
+			"loginTitle": "jd4TFW_loginTitle",
+			"message": "jd4TFW_message",
+			"metric": "jd4TFW_metric",
+			"metricAttention": "jd4TFW_metricAttention",
+			"metricLabel": "jd4TFW_metricLabel",
+			"metrics": "jd4TFW_metrics",
+			"modeChoice": "jd4TFW_modeChoice",
+			"modeChoices": "jd4TFW_modeChoices",
+			"modelChip": "jd4TFW_modelChip",
+			"modelEntry": "jd4TFW_modelEntry",
+			"modelEntryHeading": "jd4TFW_modelEntryHeading",
+			"modelRows": "jd4TFW_modelRows",
+			"mono": "jd4TFW_mono",
+			"navActive": "jd4TFW_navActive",
+			"navLabel": "jd4TFW_navLabel",
+			"navigation": "jd4TFW_navigation",
+			"notice": "jd4TFW_notice",
+			"page": "jd4TFW_page",
+			"pageFoot": "jd4TFW_pageFoot",
+			"pickerHeader": "jd4TFW_pickerHeader",
+			"plainText": "jd4TFW_plainText",
+			"previewEnvelope": "jd4TFW_previewEnvelope",
+			"previewFrame": "jd4TFW_previewFrame",
+			"primary": "jd4TFW_primary",
+			"protectedBadge": "jd4TFW_protectedBadge",
+			"providerDot": "jd4TFW_providerDot",
+			"providerDotReady": "jd4TFW_providerDotReady",
+			"providerEditor": "jd4TFW_providerEditor",
+			"providerLayout": "jd4TFW_providerLayout",
+			"providerList": "jd4TFW_providerList",
+			"providerOption": "jd4TFW_providerOption",
+			"providerOptionSelected": "jd4TFW_providerOptionSelected",
+			"providerOptionText": "jd4TFW_providerOptionText",
+			"providerPicker": "jd4TFW_providerPicker",
+			"quickIcon": "jd4TFW_quickIcon",
+			"quickLinks": "jd4TFW_quickLinks",
+			"search": "jd4TFW_search",
+			"section": "jd4TFW_section",
+			"sectionHeading": "jd4TFW_sectionHeading",
+			"sectionHint": "jd4TFW_sectionHint",
+			"sectionKicker": "jd4TFW_sectionKicker",
+			"sectionTitle": "jd4TFW_sectionTitle",
+			"shell": "jd4TFW_shell",
+			"sidebar": "jd4TFW_sidebar",
+			"sidebarFoot": "jd4TFW_sidebarFoot",
+			"signOut": "jd4TFW_signOut",
+			"skipLink": "jd4TFW_skipLink",
+			"srOnly": "jd4TFW_srOnly",
+			"stateChoice": "jd4TFW_stateChoice",
+			"stateChoices": "jd4TFW_stateChoices",
+			"statusBody": "jd4TFW_statusBody",
+			"statusCard": "jd4TFW_statusCard",
+			"statusConfigured": "jd4TFW_statusConfigured",
+			"statusDot": "jd4TFW_statusDot",
+			"statusError": "jd4TFW_statusError",
+			"statusGrid": "jd4TFW_statusGrid",
+			"statusIcon": "jd4TFW_statusIcon",
+			"statusInfo": "jd4TFW_statusInfo",
+			"statusMuted": "jd4TFW_statusMuted",
+			"statusPill": "jd4TFW_statusPill",
+			"statusReady": "jd4TFW_statusReady",
+			"statusTopline": "jd4TFW_statusTopline",
+			"steps": "jd4TFW_steps",
+			"subtitle": "jd4TFW_subtitle",
+			"success": "jd4TFW_success",
+			"table": "jd4TFW_table",
+			"tableWrap": "jd4TFW_tableWrap",
+			"tabs": "jd4TFW_tabs",
+			"textButton": "jd4TFW_textButton",
+			"textarea": "jd4TFW_textarea",
+			"title": "jd4TFW_title",
+			"toggleField": "jd4TFW_toggleField",
+			"toolbar": "jd4TFW_toolbar",
+			"topbar": "jd4TFW_topbar",
+			"unavailableBadge": "jd4TFW_unavailableBadge"
 		};
 		//#endregion
 		//#region src/client/SocActionApprovalSettings.tsx
@@ -292,11 +292,74 @@ window.__ModuleLoader__.load({
 				})
 			};
 		}
+		/** Per-model capacity fields the model rows expose and discovery fills. */
+		const CAPACITY_KEYS = ["contextWindow", "maxTokens"];
+		const CAPACITY_LABELS = {
+			contextWindow: "context window",
+			maxTokens: "max output tokens"
+		};
 		function persistableModels(models) {
-			return models.map((model) => ({
-				...model,
-				id: stringValue(model.id).trim()
-			}));
+			return models.map((model) => {
+				const next = {
+					...model,
+					id: stringValue(model.id).trim()
+				};
+				for (const key of CAPACITY_KEYS) {
+					const value = next[key];
+					if (typeof value === "string") {
+						const trimmed = value.trim();
+						if (trimmed === "") delete next[key];
+						else next[key] = Number(trimmed);
+					}
+				}
+				return next;
+			});
+		}
+		/** The editable text for one capacity field: the number, or empty when unset. */
+		function capacityText(model, key) {
+			const value = model[key];
+			return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? String(value) : "";
+		}
+		function capacityInvalid(model, key) {
+			const value = model[key];
+			if (value === void 0 || value === "") return false;
+			if (typeof value === "number") return !Number.isSafeInteger(value) || value <= 0;
+			return typeof value !== "string" || !/^\d+$/u.test(value.trim());
+		}
+		function protocolLabel(api) {
+			return SUPPORTED_PROTOCOLS.find((protocol) => protocol.value === api)?.label ?? api;
+		}
+		/**
+		* Fold discovered models into the draft rows: a row the endpoint also
+		* advertises gains the capacities it was missing, and everything new is
+		* appended in endpoint order with all reasoning levels enabled — the
+		* discoverable default for an endpoint that says nothing about reasoning.
+		* Blank rows are the add form's placeholders, so adoption clears them.
+		*/
+		function adoptDiscoveredModels(models, discovered) {
+			const adopted = models.filter((model) => stringValue(model.id).trim() !== "");
+			const indexById = new Map(adopted.map((model, index) => [stringValue(model.id).trim(), index]));
+			for (const model of discovered) {
+				const existing = indexById.get(model.id);
+				if (existing !== void 0) {
+					const next = { ...adopted[existing] };
+					for (const key of CAPACITY_KEYS) if (next[key] === void 0 || next[key] === "") {
+						const value = model[key];
+						if (value !== void 0) next[key] = value;
+					}
+					if (next.name === void 0 && model.name !== void 0) next.name = model.name;
+					adopted[existing] = next;
+					continue;
+				}
+				indexById.set(model.id, adopted.length);
+				adopted.push({
+					...newProviderModel(model.id),
+					...model.name === void 0 ? {} : { name: model.name },
+					...model.contextWindow === void 0 ? {} : { contextWindow: model.contextWindow },
+					...model.maxTokens === void 0 ? {} : { maxTokens: model.maxTokens }
+				});
+			}
+			return adopted;
 		}
 		function modelValidation(models) {
 			if (models.length === 0) return "Add at least one model.";
@@ -308,6 +371,7 @@ window.__ModuleLoader__.load({
 				if (!id) return `Model ${index + 1} needs a model ID.`;
 				if (seen.has(id)) return `Model ID "${id}" is listed more than once.`;
 				seen.add(id);
+				for (const key of CAPACITY_KEYS) if (capacityInvalid(model, key)) return `Model ${index + 1}'s ${CAPACITY_LABELS[key]} must be a positive whole number.`;
 				const reasoning = reasoningDraft(model);
 				if (reasoning.mode === "customize" && reasoning.levels.length === 0) return `Model ${index + 1} needs at least one reasoning level.`;
 			}
@@ -1559,6 +1623,31 @@ window.__ModuleLoader__.load({
 									disabled
 								})]
 							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: AdminConsole_module_css_default.fieldGrid,
+								children: CAPACITY_KEYS.map((key) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+									className: AdminConsole_module_css_default.field,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [
+										key === "contextWindow" ? "Context window" : "Max output tokens",
+										" ",
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("em", { children: "optional" })
+									] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										className: AdminConsole_module_css_default.input,
+										value: capacityText(model, key),
+										onChange: (event) => {
+											const raw = event.target.value;
+											patch(index, {
+												...model,
+												[key]: raw.trim() === "" ? "" : raw
+											});
+										},
+										inputMode: "numeric",
+										placeholder: "auto",
+										"aria-label": `Model ${index + 1} ${CAPACITY_LABELS[key]}`,
+										disabled
+									})]
+								}, key))
+							}),
 							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
 								className: AdminConsole_module_css_default.field,
 								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Reasoning capability" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
@@ -1678,15 +1767,11 @@ window.__ModuleLoader__.load({
 			const [models, setModels] = (0, react.useState)(() => isCustomProvider ? initialModels.map(defaultReasoningModel) : initialModels);
 			const [defaultEffort, setDefaultEffort] = (0, react.useState)(stringValue(profile.reasoning));
 			const [secret, setSecret] = (0, react.useState)("");
-			const [discovered, setDiscovered] = (0, react.useState)([]);
 			const { message, setMessage, busy, run } = useStatus();
 			const canEditProtocol = provider.settingsNs === "llm-pi-ai" && isCustomProvider;
 			const canRemoveProvider = provider.declared === true && Boolean(namespace) && provider.settingsPath.length > 0;
 			const modelsError = isCustomProvider ? modelValidation(models) : void 0;
 			const defaultError = isCustomProvider ? defaultReasoningValidation(defaultEffort, models) : void 0;
-			function addDiscoveredModel(id) {
-				if (!models.map((model) => stringValue(model.id).trim()).includes(id)) setModels([...models, newProviderModel(id)]);
-			}
 			async function save() {
 				if (!namespace || !row.writable || modelsError || defaultError) return;
 				return run(async () => {
@@ -1773,13 +1858,14 @@ window.__ModuleLoader__.load({
 						settingsNs: provider.settingsNs,
 						provider: provider.provider,
 						baseURL: baseURL.trim() || void 0,
-						api: canEditProtocol ? api.trim() || void 0 : void 0,
+						api: canEditProtocol && api.trim() ? api.trim() : void 0,
 						apiKey: secret.trim() || void 0
 					}));
-					setDiscovered(result.models);
+					setModels((current) => adoptDiscoveredModels(current, result.models));
+					if (canEditProtocol && !api.trim() && result.detectedApi) setApi(result.detectedApi);
 					setMessage({
-						kind: "info",
-						text: result.models.length ? "Choose a model to add it to the provider." : "No models were discovered."
+						kind: "success",
+						text: result.models.length ? `Adopted ${result.models.length} model${result.models.length === 1 ? "" : "s"}${result.detectedApi ? ` — the endpoint speaks ${protocolLabel(result.detectedApi)}` : ""}. Review the model list and save.` : "The endpoint answered but listed no models."
 					});
 				});
 			}
@@ -1860,6 +1946,7 @@ window.__ModuleLoader__.load({
 										className: AdminConsole_module_css_default.input,
 										value: api,
 										onChange: (event) => setApi(event.target.value),
+										"aria-label": "API protocol",
 										disabled: !row.writable || busy,
 										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
 											value: "",
@@ -1905,26 +1992,9 @@ window.__ModuleLoader__.load({
 										children: busy ? "Working…" : "Discover models"
 									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 										className: AdminConsole_module_css_default.fieldHint,
-										children: "Uses the draft URL and key when provided."
+										children: "Fetches the endpoint's protocol and model list and adopts them below; the draft URL and key are used when provided."
 									})]
-								}),
-								discovered.length ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-									className: AdminConsole_module_css_default.discovered,
-									"aria-label": "Discovered models",
-									children: discovered.map((model) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
-										className: AdminConsole_module_css_default.modelChip,
-										type: "button",
-										onClick: () => addDiscoveredModel(model.id),
-										children: [
-											model.id,
-											" ",
-											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-												"aria-hidden": "true",
-												children: "+"
-											})
-										]
-									}, model.id))
-								}) : null
+								})
 							]
 						})]
 					}) : null]
@@ -2019,19 +2089,39 @@ window.__ModuleLoader__.load({
 			const [route, setRoute] = (0, react.useState)("");
 			const [displayName, setDisplayName] = (0, react.useState)("");
 			const [baseURL, setBaseURL] = (0, react.useState)("");
-			const [api, setApi] = (0, react.useState)("openai-completions");
+			const [api, setApi] = (0, react.useState)("");
 			const [models, setModels] = (0, react.useState)([newProviderModel()]);
 			const [defaultEffort, setDefaultEffort] = (0, react.useState)("");
 			const [secret, setSecret] = (0, react.useState)("");
 			const [savedRoute, setSavedRoute] = (0, react.useState)("");
+			const [advancedOpen, setAdvancedOpen] = (0, react.useState)(false);
 			const { message, setMessage, busy, run } = useStatus();
 			const normalizedRoute = route.trim().toLowerCase();
 			const routeTaken = providers.some((row) => row.provider.provider === normalizedRoute);
 			const routeValid = PROVIDER_ROUTE_PATTERN.test(normalizedRoute);
 			const modelsError = modelValidation(models);
 			const defaultError = defaultReasoningValidation(defaultEffort, models);
-			const canSave = Boolean(namespace && writable && routeValid && !routeTaken && baseURL.trim() && !modelsError && !defaultError);
+			const protocolError = api.trim() ? void 0 : "Run Auto-detect, or choose the API protocol under it.";
+			const canSave = Boolean(namespace && writable && routeValid && !routeTaken && baseURL.trim() && api.trim() && !modelsError && !defaultError);
 			const credentialRef = `${normalizedRoute.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}_API_KEY`;
+			async function discover() {
+				if (!namespace || !baseURL.trim()) return;
+				return run(async () => {
+					const result = apiValue(await connection.api.llm.discoverModels({
+						settingsNs: namespace.ns,
+						baseURL: baseURL.trim(),
+						api: api.trim() || void 0,
+						apiKey: secret.trim() || void 0
+					}));
+					setModels((current) => adoptDiscoveredModels(current, result.models));
+					if (!api.trim() && result.detectedApi) setApi(result.detectedApi);
+					setAdvancedOpen(true);
+					setMessage({
+						kind: "success",
+						text: result.models.length ? `Detected ${result.detectedApi ? protocolLabel(result.detectedApi) : "the endpoint"} — ${result.models.length} model${result.models.length === 1 ? "" : "s"} loaded. Review the list below and save.` : `The endpoint answered${result.detectedApi ? ` as ${protocolLabel(result.detectedApi)}` : ""} but listed no models. Enter them by hand.`
+					});
+				});
+			}
 			async function save() {
 				if (!namespace || !canSave) return;
 				return run(async () => {
@@ -2110,9 +2200,85 @@ window.__ModuleLoader__.load({
 								})
 							]
 						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: AdminConsole_module_css_default.field,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Base URL" }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: AdminConsole_module_css_default.input,
+									type: "url",
+									value: baseURL,
+									onChange: (event) => setBaseURL(event.target.value),
+									placeholder: "https://api.example.com",
+									disabled: busy,
+									required: true
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+									className: AdminConsole_module_css_default.fieldHint,
+									children: "With or without the /v1 suffix — auto-detect tries both."
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: AdminConsole_module_css_default.field,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["API key ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("em", { children: "optional for provider-native auth" })] }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: AdminConsole_module_css_default.input,
+									type: "password",
+									value: secret,
+									onChange: (event) => setSecret(event.target.value),
+									placeholder: "Enter the provider API key",
+									autoComplete: "new-password",
+									disabled: busy
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+									className: AdminConsole_module_css_default.fieldHint,
+									children: "Stored securely under a provider-derived credential name. Auto-detect uses it to verify access."
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: AdminConsole_module_css_default.discoveryRow,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								className: `${AdminConsole_module_css_default.button} ${AdminConsole_module_css_default.primary}`,
+								type: "button",
+								onClick: () => void discover(),
+								disabled: busy || !namespace || !baseURL.trim(),
+								children: busy ? "Detecting…" : "Auto-detect provider"
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: AdminConsole_module_css_default.fieldHint,
+								children: "Probes the endpoint, detects its protocol, and loads its model list with capacities."
+							})]
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							className: AdminConsole_module_css_default.field,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "API protocol" }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+									className: AdminConsole_module_css_default.input,
+									value: api,
+									onChange: (event) => setApi(event.target.value),
+									"aria-label": "API protocol",
+									disabled: busy,
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+										value: "",
+										children: "Auto-detect (recommended)"
+									}), SUPPORTED_PROTOCOLS.map((protocol) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+										value: protocol.value,
+										children: protocol.label
+									}, protocol.value))]
+								}),
+								protocolError ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+									className: AdminConsole_module_css_default.fieldError,
+									children: protocolError
+								}) : null
+							]
+						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
 							className: AdminConsole_module_css_default.advanced,
-							open: true,
+							open: advancedOpen,
+							onToggle: (event) => setAdvancedOpen(event.target.open),
 							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", { children: "Advanced provider settings" }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 								className: AdminConsole_module_css_default.advancedBody,
 								children: [
@@ -2124,31 +2290,6 @@ window.__ModuleLoader__.load({
 											onChange: (event) => setDisplayName(event.target.value),
 											placeholder: "My AI provider",
 											disabled: busy
-										})]
-									}),
-									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-										className: AdminConsole_module_css_default.field,
-										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "Base URL" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-											className: AdminConsole_module_css_default.input,
-											type: "url",
-											value: baseURL,
-											onChange: (event) => setBaseURL(event.target.value),
-											placeholder: "https://api.example.com/v1",
-											disabled: busy,
-											required: true
-										})]
-									}),
-									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-										className: AdminConsole_module_css_default.field,
-										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "API protocol" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("select", {
-											className: AdminConsole_module_css_default.input,
-											value: api,
-											onChange: (event) => setApi(event.target.value),
-											disabled: busy,
-											children: SUPPORTED_PROTOCOLS.map((protocol) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
-												value: protocol.value,
-												children: protocol.label
-											}, protocol.value))
 										})]
 									}),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -2178,25 +2319,6 @@ window.__ModuleLoader__.load({
 									}) : null
 								]
 							})]
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-							className: AdminConsole_module_css_default.field,
-							children: [
-								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: ["API key ", /* @__PURE__ */ (0, react_jsx_runtime.jsx)("em", { children: "optional for provider-native auth" })] }),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-									className: AdminConsole_module_css_default.input,
-									type: "password",
-									value: secret,
-									onChange: (event) => setSecret(event.target.value),
-									placeholder: "Enter the provider API key",
-									autoComplete: "new-password",
-									disabled: busy
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
-									className: AdminConsole_module_css_default.fieldHint,
-									children: "Stored securely under a provider-derived credential name."
-								})
-							]
 						})
 					]
 				}),

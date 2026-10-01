@@ -61,4 +61,7 @@ export const llmDiscoverModelsRequestSchema = z.object({
 /** llm.discoverModels response value. */
 export const llmDiscoverModelsValueSchema = z.object({
   models: z.array(discoveredModelViewSchema),
+  // Protocol the endpoint was confirmed speaking, present only when the host
+  // probed the wire with the draft's protocol left undetected.
+  detectedApi: z.string().min(1).optional(),
 }) satisfies z.ZodType<Wire<ResponseValue<'llm.discoverModels'>>>

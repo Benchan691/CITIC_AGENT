@@ -157,8 +157,82 @@ function defaultReasoningModel(model: ProviderModelDraft): ProviderModelDraft {
     : { ...model, reasoningEfforts: reasoningEffortsValue({ mode: 'all', levels: [] }) }
 }
 
+/** Per-model capacity fields the model rows expose and discovery fills. */
+const CAPACITY_KEYS = ['contextWindow', 'maxTokens'] as const
+const CAPACITY_LABELS: Record<(typeof CAPACITY_KEYS)[number], string> = {
+  contextWindow: 'context window',
+  maxTokens: 'max output tokens',
+}
+
 function persistableModels(models: readonly ProviderModelDraft[]): ProviderModelDraft[] {
-  return models.map(model => ({ ...model, id: stringValue(model.id).trim() }))
+  return models.map(model => {
+    const next: ProviderModelDraft = { ...model, id: stringValue(model.id).trim() }
+    for (const key of CAPACITY_KEYS) {
+      const value = next[key]
+      if (typeof value === 'string') {
+        const trimmed = value.trim()
+        if (trimmed === '') delete next[key]
+        else next[key] = Number(trimmed)
+      }
+    }
+    return next
+  })
+}
+
+/** The editable text for one capacity field: the number, or empty when unset. */
+function capacityText(model: ProviderModelDraft, key: (typeof CAPACITY_KEYS)[number]): string {
+  const value = model[key]
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? String(value) : ''
+}
+
+function capacityInvalid(model: ProviderModelDraft, key: (typeof CAPACITY_KEYS)[number]): boolean {
+  const value = model[key]
+  if (value === undefined || value === '') return false
+  if (typeof value === 'number') return !Number.isSafeInteger(value) || value <= 0
+  return typeof value !== 'string' || !/^\d+$/u.test(value.trim())
+}
+
+function protocolLabel(api: string): string {
+  return SUPPORTED_PROTOCOLS.find((protocol) => protocol.value === api)?.label ?? api
+}
+
+/**
+ * Fold discovered models into the draft rows: a row the endpoint also
+ * advertises gains the capacities it was missing, and everything new is
+ * appended in endpoint order with all reasoning levels enabled — the
+ * discoverable default for an endpoint that says nothing about reasoning.
+ * Blank rows are the add form's placeholders, so adoption clears them.
+ */
+function adoptDiscoveredModels(
+  models: readonly ProviderModelDraft[],
+  discovered: readonly DiscoveredModelView[],
+): ProviderModelDraft[] {
+  const adopted = models.filter((model) => stringValue(model.id).trim() !== '')
+  const indexById = new Map(adopted.map((model, index) => [stringValue(model.id).trim(), index]))
+  for (const model of discovered) {
+    const existing = indexById.get(model.id)
+    if (existing !== undefined) {
+      const current = adopted[existing]!
+      const next: ProviderModelDraft = { ...current }
+      for (const key of CAPACITY_KEYS) {
+        if (next[key] === undefined || next[key] === '') {
+          const value = model[key]
+          if (value !== undefined) next[key] = value
+        }
+      }
+      if (next.name === undefined && model.name !== undefined) next.name = model.name
+      adopted[existing] = next
+      continue
+    }
+    indexById.set(model.id, adopted.length)
+    adopted.push({
+      ...newProviderModel(model.id),
+      ...(model.name === undefined ? {} : { name: model.name }),
+      ...(model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow }),
+      ...(model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens }),
+    })
+  }
+  return adopted
 }
 
 function modelValidation(models: readonly ProviderModelDraft[]): string | undefined {
@@ -171,6 +245,11 @@ function modelValidation(models: readonly ProviderModelDraft[]): string | undefi
     if (!id) return `Model ${index + 1} needs a model ID.`
     if (seen.has(id)) return `Model ID "${id}" is listed more than once.`
     seen.add(id)
+    for (const key of CAPACITY_KEYS) {
+      if (capacityInvalid(model, key)) {
+        return `Model ${index + 1}'s ${CAPACITY_LABELS[key]} must be a positive whole number.`
+      }
+    }
     const reasoning = reasoningDraft(model)
     if (reasoning.mode === 'customize' && reasoning.levels.length === 0) {
       return `Model ${index + 1} needs at least one reasoning level.`
@@ -1009,6 +1088,25 @@ function ModelRows({ models, onChange, disabled }: { models: ProviderModelDraft[
                 disabled={disabled}
               />
             </label>
+            <div className={styles.fieldGrid}>
+              {CAPACITY_KEYS.map((key) => (
+                <label className={styles.field} key={key}>
+                  <span>{key === 'contextWindow' ? 'Context window' : 'Max output tokens'} <em>optional</em></span>
+                  <input
+                    className={styles.input}
+                    value={capacityText(model, key)}
+                    onChange={(event) => {
+                      const raw = event.target.value
+                      patch(index, { ...model, [key]: raw.trim() === '' ? '' : raw })
+                    }}
+                    inputMode="numeric"
+                    placeholder="auto"
+                    aria-label={`Model ${index + 1} ${CAPACITY_LABELS[key]}`}
+                    disabled={disabled}
+                  />
+                </label>
+              ))}
+            </div>
             <label className={styles.field}>
               <span>Reasoning capability</span>
               <select
@@ -1089,17 +1187,11 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
   const [models, setModels] = useState<ProviderModelDraft[]>(() => isCustomProvider ? initialModels.map(defaultReasoningModel) : initialModels)
   const [defaultEffort, setDefaultEffort] = useState(stringValue(profile.reasoning))
   const [secret, setSecret] = useState('')
-  const [discovered, setDiscovered] = useState<DiscoveredModelView[]>([])
   const { message, setMessage, busy, run } = useStatus()
   const canEditProtocol = provider.settingsNs === 'llm-pi-ai' && isCustomProvider
   const canRemoveProvider = provider.declared === true && Boolean(namespace) && provider.settingsPath.length > 0
   const modelsError = isCustomProvider ? modelValidation(models) : undefined
   const defaultError = isCustomProvider ? defaultReasoningValidation(defaultEffort, models) : undefined
-
-  function addDiscoveredModel(id: string) {
-    const current = models.map(model => stringValue(model.id).trim())
-    if (!current.includes(id)) setModels([...models, newProviderModel(id)])
-  }
 
   async function save() {
     if (!namespace || !row.writable || modelsError || defaultError) return
@@ -1149,15 +1241,23 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
 
   async function discover() {
     return run(async () => {
-      const result = apiValue<{ models: DiscoveredModelView[] }>(await connection.api.llm.discoverModels({
+      const result = apiValue<{ models: DiscoveredModelView[]; detectedApi?: string }>(await connection.api.llm.discoverModels({
         settingsNs: provider.settingsNs,
         provider: provider.provider,
         baseURL: baseURL.trim() || undefined,
-        api: canEditProtocol ? api.trim() || undefined : undefined,
+        // A draft with no protocol chosen yet is probed across the shapes the
+        // host can read; an explicit choice is pinned to its own single probe.
+        api: canEditProtocol && api.trim() ? api.trim() : undefined,
         apiKey: secret.trim() || undefined,
       }))
-      setDiscovered(result.models)
-      setMessage({ kind: 'info', text: result.models.length ? 'Choose a model to add it to the provider.' : 'No models were discovered.' })
+      setModels((current) => adoptDiscoveredModels(current, result.models))
+      if (canEditProtocol && !api.trim() && result.detectedApi) setApi(result.detectedApi)
+      setMessage({
+        kind: 'success',
+        text: result.models.length
+          ? `Adopted ${result.models.length} model${result.models.length === 1 ? '' : 's'}${result.detectedApi ? ` — the endpoint speaks ${protocolLabel(result.detectedApi)}` : ''}. Review the model list and save.`
+          : 'The endpoint answered but listed no models.',
+      })
     })
   }
 
@@ -1199,7 +1299,7 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
               {canEditProtocol ? (
                 <label className={styles.field}>
                   <span>API protocol</span>
-                  <select className={styles.input} value={api} onChange={(event) => setApi(event.target.value)} disabled={!row.writable || busy}>
+                  <select className={styles.input} value={api} onChange={(event) => setApi(event.target.value)} aria-label="API protocol" disabled={!row.writable || busy}>
                     <option value="">Provider default</option>
                     {SUPPORTED_PROTOCOLS.map((protocol) => <option value={protocol.value} key={protocol.value}>{protocol.label}</option>)}
                   </select>
@@ -1216,13 +1316,8 @@ function ProviderEditor({ connection, row, onChanged }: { connection: any; row: 
                 <button className={styles.button} type="button" onClick={() => void discover()} disabled={busy || !provider.settingsNs}>
                   {busy ? 'Working…' : 'Discover models'}
                 </button>
-                <span className={styles.fieldHint}>Uses the draft URL and key when provided.</span>
+                <span className={styles.fieldHint}>Fetches the endpoint's protocol and model list and adopts them below; the draft URL and key are used when provided.</span>
               </div>
-              {discovered.length ? (
-                <div className={styles.discovered} aria-label="Discovered models">
-                  {discovered.map((model) => <button className={styles.modelChip} type="button" key={model.id} onClick={() => addDiscoveredModel(model.id)}>{model.id} <span aria-hidden="true">+</span></button>)}
-                </div>
-              ) : null}
             </div>
           </details>
         ) : null}
@@ -1276,11 +1371,14 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
   const [route, setRoute] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [baseURL, setBaseURL] = useState('')
-  const [api, setApi] = useState('openai-completions')
+  // '' is the auto-detect posture: the protocol is unknown until discovery
+  // names one, and the save path refuses to guess on the user's behalf.
+  const [api, setApi] = useState('')
   const [models, setModels] = useState<ProviderModelDraft[]>([newProviderModel()])
   const [defaultEffort, setDefaultEffort] = useState('')
   const [secret, setSecret] = useState('')
   const [savedRoute, setSavedRoute] = useState('')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const { message, setMessage, busy, run } = useStatus()
 
   const normalizedRoute = route.trim().toLowerCase()
@@ -1288,8 +1386,32 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
   const routeValid = PROVIDER_ROUTE_PATTERN.test(normalizedRoute)
   const modelsError = modelValidation(models)
   const defaultError = defaultReasoningValidation(defaultEffort, models)
-  const canSave = Boolean(namespace && writable && routeValid && !routeTaken && baseURL.trim() && !modelsError && !defaultError)
+  const protocolError = api.trim() ? undefined : 'Run Auto-detect, or choose the API protocol under it.'
+  const canSave = Boolean(namespace && writable && routeValid && !routeTaken && baseURL.trim() && api.trim() && !modelsError && !defaultError)
   const credentialRef = `${normalizedRoute.replace(/[^a-z0-9]+/gi, '_').toUpperCase()}_API_KEY`
+
+  async function discover() {
+    if (!namespace || !baseURL.trim()) return
+    return run(async () => {
+      const result = apiValue<{ models: DiscoveredModelView[]; detectedApi?: string }>(await connection.api.llm.discoverModels({
+        settingsNs: namespace.ns,
+        baseURL: baseURL.trim(),
+        // A protocol picked by hand is pinned to its own probe; auto-detect
+        // (empty) asks the host to try every shape it can read.
+        api: api.trim() || undefined,
+        apiKey: secret.trim() || undefined,
+      }))
+      setModels((current) => adoptDiscoveredModels(current, result.models))
+      if (!api.trim() && result.detectedApi) setApi(result.detectedApi)
+      setAdvancedOpen(true)
+      setMessage({
+        kind: 'success',
+        text: result.models.length
+          ? `Detected ${result.detectedApi ? protocolLabel(result.detectedApi) : 'the endpoint'} — ${result.models.length} model${result.models.length === 1 ? '' : 's'} loaded. Review the list below and save.`
+          : `The endpoint answered${result.detectedApi ? ` as ${protocolLabel(result.detectedApi)}` : ''} but listed no models. Enter them by hand.`,
+      })
+    })
+  }
 
   async function save() {
     if (!namespace || !canSave) return
@@ -1338,22 +1460,40 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
           <input className={styles.input} value={route} onChange={(event) => setRoute(event.target.value)} placeholder="my-provider" disabled={Boolean(savedRoute) || busy} autoComplete="off" />
           <small className={styles.fieldHint}>{route && !routeValid ? 'Use lowercase letters, numbers, and hyphens.' : routeTaken ? 'That provider already exists.' : 'This becomes the provider identifier.'}</small>
         </label>
-        <details className={styles.advanced} open>
+        <label className={styles.field}>
+          <span>Base URL</span>
+          <input className={styles.input} type="url" value={baseURL} onChange={(event) => setBaseURL(event.target.value)} placeholder="https://api.example.com" disabled={busy} required />
+          <small className={styles.fieldHint}>With or without the /v1 suffix — auto-detect tries both.</small>
+        </label>
+        <label className={styles.field}>
+          <span>API key <em>optional for provider-native auth</em></span>
+          <input className={styles.input} type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="Enter the provider API key" autoComplete="new-password" disabled={busy} />
+          <small className={styles.fieldHint}>Stored securely under a provider-derived credential name. Auto-detect uses it to verify access.</small>
+        </label>
+        <div className={styles.discoveryRow}>
+          <button className={`${styles.button} ${styles.primary}`} type="button" onClick={() => void discover()} disabled={busy || !namespace || !baseURL.trim()}>
+            {busy ? 'Detecting…' : 'Auto-detect provider'}
+          </button>
+          <span className={styles.fieldHint}>Probes the endpoint, detects its protocol, and loads its model list with capacities.</span>
+        </div>
+        <label className={styles.field}>
+          <span>API protocol</span>
+          <select className={styles.input} value={api} onChange={(event) => setApi(event.target.value)} aria-label="API protocol" disabled={busy}>
+            <option value="">Auto-detect (recommended)</option>
+            {SUPPORTED_PROTOCOLS.map((protocol) => <option value={protocol.value} key={protocol.value}>{protocol.label}</option>)}
+          </select>
+          {protocolError ? <small className={styles.fieldError}>{protocolError}</small> : null}
+        </label>
+        <details
+          className={styles.advanced}
+          open={advancedOpen}
+          onToggle={(event) => setAdvancedOpen((event.target as HTMLDetailsElement).open)}
+        >
           <summary>Advanced provider settings</summary>
           <div className={styles.advancedBody}>
             <label className={styles.field}>
               <span>Display name <em>optional</em></span>
               <input className={styles.input} value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="My AI provider" disabled={busy} />
-            </label>
-            <label className={styles.field}>
-              <span>Base URL</span>
-              <input className={styles.input} type="url" value={baseURL} onChange={(event) => setBaseURL(event.target.value)} placeholder="https://api.example.com/v1" disabled={busy} required />
-            </label>
-            <label className={styles.field}>
-              <span>API protocol</span>
-              <select className={styles.input} value={api} onChange={(event) => setApi(event.target.value)} disabled={busy}>
-                {SUPPORTED_PROTOCOLS.map((protocol) => <option value={protocol.value} key={protocol.value}>{protocol.label}</option>)}
-              </select>
             </label>
             <div className={styles.field}>
               <span>Models</span>
@@ -1364,11 +1504,6 @@ function CustomProviderEditor({ connection, namespace, providers, writable, onCh
             {defaultError ? <small className={styles.fieldError}>{defaultError}</small> : null}
           </div>
         </details>
-        <label className={styles.field}>
-          <span>API key <em>optional for provider-native auth</em></span>
-          <input className={styles.input} type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="Enter the provider API key" autoComplete="new-password" disabled={busy} />
-          <small className={styles.fieldHint}>Stored securely under a provider-derived credential name.</small>
-        </label>
       </div>
       <StatusNotice message={message} />
       <div className={styles.actions}>

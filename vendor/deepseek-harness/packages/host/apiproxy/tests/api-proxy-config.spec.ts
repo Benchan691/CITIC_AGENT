@@ -13,7 +13,7 @@ import SessionStore from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
-import LlmRuntime, { LlmAdapter } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, LlmModelInfo, LlmProviderInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { SettingsProvider, settingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
@@ -781,7 +781,7 @@ describe('llm.discoverModels', () => {
   it('reports a failed interrogation as the form\'s next move, naming no credential', async () => {
     const ctx = await harness()
     ctx.llm.registerModelDiscovery('llm-pi-ai', () =>
-      Promise.reject(new Error('https://gateway.acme.example/v1/models answered 401; check the API key')))
+      Promise.reject(new LlmError('https://gateway.acme.example/v1/models answered 401; check the API key', 'DISCOVERY_UNAUTHORIZED')))
     const api = createApiProxy(ctx, DEFAULTS)
 
     const error = expectErr(await api.llm.discoverModels(request({
@@ -790,10 +790,13 @@ describe('llm.discoverModels', () => {
       apiKey: 'wrong',
     })))
 
+    // The refusal is worded as the user's next move: the mapped message names
+    // no credential value and no endpoint URL.
     expect(error.code).toBe('model-discovery-failed')
-    expect(error.message).toBe('model discovery failed')
-    expect(error.details).toEqual({ settingsNs: 'llm-pi-ai' })
+    expect(error.message).toBe('The endpoint rejected the credentials (401/403). Check the API key for this provider.')
+    expect(error.details).toEqual({ settingsNs: 'llm-pi-ai', reason: 'unauthorized' })
     expect(JSON.stringify(error)).not.toContain('wrong')
+    expect(JSON.stringify(error)).not.toContain('gateway.acme.example')
   })
 
   it('does not echo a credential-bearing draft endpoint on failure', async () => {
@@ -807,9 +810,10 @@ describe('llm.discoverModels', () => {
       baseURL: 'https://user:password@gateway.acme.example/v1?api_key=query-secret',
     })))
 
-    expect(error.details).toEqual({ settingsNs: 'llm-pi-ai' })
+    expect(error.details).toEqual({ settingsNs: 'llm-pi-ai', reason: 'unreachable' })
     expect(JSON.stringify(error)).not.toContain('password')
     expect(JSON.stringify(error)).not.toContain('query-secret')
+    expect(JSON.stringify(error)).not.toContain('gateway.acme.example')
   })
 
   it('reports a namespace no adapter family serves', async () => {
@@ -822,6 +826,7 @@ describe('llm.discoverModels', () => {
     })))
 
     expect(error.code).toBe('model-discovery-failed')
-    expect(error.message).toBe('model discovery failed')
+    expect(error.message).toBe('No provider family serves this settings namespace.')
+    expect(error.details).toEqual({ settingsNs: 'llm-deepseek', reason: 'no-discovery' })
   })
 })

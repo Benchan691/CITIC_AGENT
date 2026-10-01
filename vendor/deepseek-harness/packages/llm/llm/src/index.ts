@@ -14,6 +14,7 @@ import type {
   LlmFailure,
   LlmModelContext,
   LlmModelDiscoveryRequest,
+  LlmModelDiscoveryResult,
   LlmModelInfo,
   LlmResolvedModelInfo,
   LlmProviderInfo,
@@ -313,7 +314,7 @@ export class LlmRuntime extends Service {
   private directory = new Map<string, LlmConfigurableProvider>()
   private discoveries = new Map<
     string,
-    (request: LlmModelDiscoveryRequest) => Promise<readonly LlmDiscoveredModel[]>
+    (request: LlmModelDiscoveryRequest) => Promise<LlmModelDiscoveryResult | readonly LlmDiscoveredModel[]>
   >()
 
   constructor(ctx: Context) {
@@ -530,7 +531,7 @@ export class LlmRuntime extends Service {
    */
   registerModelDiscovery(
     settingsNs: string,
-    discover: (request: LlmModelDiscoveryRequest) => Promise<readonly LlmDiscoveredModel[]>,
+    discover: (request: LlmModelDiscoveryRequest) => Promise<LlmModelDiscoveryResult | readonly LlmDiscoveredModel[]>,
   ): () => void {
     const dispose = this.ctx.effect(function* (this: LlmRuntime) {
       if (settingsNs.length === 0) {
@@ -554,12 +555,14 @@ export class LlmRuntime extends Service {
    * candidate metadata a surface may offer for adoption.
    * @param settingsNs - namespace whose registered discovery serves this draft.
    * @param request - the endpoint, protocol, and one-shot credential to use.
-   * @returns the advertised models, deduplicated in endpoint order.
+   * @returns the advertised models, deduplicated in endpoint order, plus the
+   *   protocol the endpoint was confirmed speaking when the discovery probed
+   *   the wire with one left undetected.
    */
   async discoverModels(
     settingsNs: string,
     request: LlmModelDiscoveryRequest,
-  ): Promise<LlmDiscoveredModel[]> {
+  ): Promise<LlmModelDiscoveryResult> {
     const discover = this.discoveries.get(settingsNs)
     if (discover === undefined) {
       throw new LlmError(`no model discovery is registered for "${settingsNs}"`, 'NO_DISCOVERY')
@@ -569,10 +572,17 @@ export class LlmRuntime extends Service {
     if ((request.provider ?? '').length === 0 && (request.baseURL ?? '').length === 0) {
       throw new LlmError('model discovery needs a provider route or a baseURL', 'INVALID_DISCOVERY')
     }
-    const discovered = await discover(request)
+    const answered = await discover(request)
+    // Adapters registered before the protocol-detection result keep working:
+    // a bare model array reads as a result with no detected protocol. A
+    // `LlmModelDiscoveryResult` is never itself an array, so the shape test
+    // below is total.
+    const result: LlmModelDiscoveryResult = Array.isArray(answered)
+      ? { models: answered as readonly LlmDiscoveredModel[] }
+      : answered as LlmModelDiscoveryResult
     const seen = new Set<string>()
     const models: LlmDiscoveredModel[] = []
-    for (const model of discovered) {
+    for (const model of result.models) {
       if (typeof model.id !== 'string' || model.id.length === 0 || seen.has(model.id)) continue
       seen.add(model.id)
       models.push({
@@ -582,7 +592,10 @@ export class LlmRuntime extends Service {
         ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
       })
     }
-    return models
+    return {
+      models,
+      ...result.detectedApi === undefined ? {} : { detectedApi: result.detectedApi },
+    }
   }
 
   /**

@@ -213,7 +213,7 @@ describe('model discovery registry', () => {
 
     const dispose = ctx.llm.registerModelDiscovery('llm-example', discover)
     await expect(ctx.llm.discoverModels('llm-example', { baseURL: 'https://gateway.example/v1' }))
-      .resolves.toEqual([{ id: 'from-endpoint' }])
+      .resolves.toEqual({ models: [{ id: 'from-endpoint' }] })
     expect(discover).toHaveBeenCalledWith({ baseURL: 'https://gateway.example/v1' })
 
     // Disposal is observed through the offer itself, which is the only thing
@@ -232,7 +232,7 @@ describe('model discovery registry', () => {
     expect(() => ctx.llm.registerModelDiscovery('llm-example', discover)).toThrow(/already registered/)
     // The refused second registration left the first one serving.
     await expect(ctx.llm.discoverModels('llm-example', { baseURL: 'https://gateway.example/v1' }))
-      .resolves.toEqual([])
+      .resolves.toEqual({ models: [] })
   })
 
   it('normalizes what an interrogation returns without inventing capacities', async () => {
@@ -244,10 +244,12 @@ describe('model discovery registry', () => {
       { id: 'bare' },
     ] as never))
 
-    expect(await ctx.llm.discoverModels('llm-example', { baseURL: 'https://gateway.example/v1' })).toEqual([
-      { id: 'keep', name: 'Keep', contextWindow: 1024, maxTokens: 256 },
-      { id: 'bare' },
-    ])
+    expect(await ctx.llm.discoverModels('llm-example', { baseURL: 'https://gateway.example/v1' })).toEqual({
+      models: [
+        { id: 'keep', name: 'Keep', contextWindow: 1024, maxTokens: 256 },
+        { id: 'bare' },
+      ],
+    })
   })
 
   it('refuses a namespace nothing serves and a draft with no endpoint', async () => {
@@ -263,6 +265,6 @@ describe('model discovery registry', () => {
     await expect(ctx.llm.discoverModels('llm-example', {}))
       .rejects.toMatchObject({ code: 'INVALID_DISCOVERY' })
     // Naming a route alone is enough: the adapter may know it without an endpoint.
-    await expect(ctx.llm.discoverModels('llm-example', { provider: 'known-route' })).resolves.toEqual([])
+    await expect(ctx.llm.discoverModels('llm-example', { provider: 'known-route' })).resolves.toEqual({ models: [] })
   })
 })

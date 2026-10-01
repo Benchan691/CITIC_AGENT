@@ -229,6 +229,20 @@ export interface LlmDiscoveredModel {
   maxTokens?: number
 }
 
+/**
+ * What one interrogation concluded. `models` is the candidate metadata a
+ * surface may adopt; `detectedApi` names the wire protocol the interrogation
+ * confirmed the endpoint speaking, and is present only when the answer came
+ * from the network under a protocol the adapter recognizes — a catalog answer
+ * and a draft the caller pinned to one protocol both leave it unset.
+ */
+export interface LlmModelDiscoveryResult {
+  /** Advertised models, deduplicated in endpoint order. */
+  models: readonly LlmDiscoveredModel[]
+  /** Protocol the endpoint was confirmed speaking, e.g. `openai-completions`. */
+  detectedApi?: string
+}
+
 /** One adapter-discovered model; catalog membership is advisory, not request validation. */
 export interface LlmModelInfo {
   /** Provider route that owns this model entry. */

@@ -14,7 +14,7 @@ import type { Agent, ModelSelection, ModelSelectionRef, AgentOptions, AgentStatu
 import type {} from '@deepseek-ai/dsh-agent-presets/types'
 import { AttachmentError, admitEncodedImages } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import { createUserMessage, freezeMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, freezeMessage, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { errorChain } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, MessageSource, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { isAppendSurfaceEvent, isJsonValue } from '@deepseek-ai/dsh-session'
@@ -369,6 +369,52 @@ async function buildModelCatalog(ctx: Context): Promise<{
 /** Wrap an error result echoing the request's rpcId. */
 function err<T>(request: RpcRequest<unknown>, error: RpcError): RpcResponse<T> {
   return { rpcId: request.rpcId, result: { ok: false, error } }
+}
+
+/**
+ * The surface-facing wording for one model-discovery failure, keyed by the
+ * adapter's failure code. The messages describe the user's next move rather
+ * than the wire exchange: no endpoint URL (a draft endpoint can carry
+ * credentials in userinfo/query components) and no underlying error chain.
+ * `reason` rides `details` for callers that branch on it.
+ * @param code - the `LlmError` failure code, or undefined for a non-LlmError.
+ * @returns the message to show and the machine reason for `details`.
+ */
+function discoveryFailure(code: string | undefined): { message: string; reason?: string } {
+  switch (code) {
+    case 'DISCOVERY_UNAUTHORIZED':
+      return {
+        message: 'The endpoint rejected the credentials (401/403). Check the API key for this provider.',
+        reason: 'unauthorized',
+      }
+    case 'DISCOVERY_UNSUPPORTED':
+      return {
+        message: 'This protocol has no model listing this build can read. Enter the models by hand.',
+        reason: 'unsupported-protocol',
+      }
+    case 'INVALID_CREDENTIAL':
+      return {
+        message: 'The API key contains characters no HTTP header can carry. Paste the raw key only.',
+        reason: 'invalid-credential',
+      }
+    case 'NO_DISCOVERY':
+      return {
+        message: 'No provider family serves this settings namespace.',
+        reason: 'no-discovery',
+      }
+    case 'INVALID_DISCOVERY':
+      return {
+        message: 'Model discovery needs a provider route or a Base URL.',
+        reason: 'invalid-request',
+      }
+    case 'ABORTED':
+      return { message: 'Model discovery was cancelled.', reason: 'aborted' }
+    default:
+      return {
+        message: 'Could not reach the endpoint or read its model listing. Check the Base URL, or enter the models by hand.',
+        reason: 'unreachable',
+      }
+  }
 }
 
 /**
@@ -3641,24 +3687,30 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       async discoverModels(request, signal) {
         const { settingsNs, provider, baseURL, api, apiKey } = request.payload
         try {
-          const models = await ctx.llm.discoverModels(settingsNs, {
+          const result = await ctx.llm.discoverModels(settingsNs, {
             ...provider === undefined ? {} : { provider },
             ...baseURL === undefined ? {} : { baseURL },
             ...api === undefined ? {} : { api },
             ...apiKey === undefined ? {} : { apiKey },
             ...signal === undefined ? {} : { signal },
           })
-          return ok(request, { models })
+          return ok(request, {
+            models: [...result.models],
+            ...result.detectedApi === undefined ? {} : { detectedApi: result.detectedApi },
+          })
         } catch (error: unknown) {
           // Every failure here is the user's next move, not a transport fault:
           // a wrong endpoint, a rejected key, or a protocol with no listing all
-          // end at the same place — fill the models in by hand. Do not echo the
-          // draft endpoint: callers can put credentials in URL userinfo/query
-          // components, and the error has no need to repeat it.
+          // end at the same place — fill the models in by hand. The reply maps
+          // the failure's code to that next move; it never echoes the draft
+          // endpoint (callers can put credentials in URL userinfo/query
+          // components) and never the underlying error chain.
+          const code = error instanceof LlmError ? error.failure.code : undefined
+          const { message, reason } = discoveryFailure(code)
           return err(request, {
             code: 'model-discovery-failed',
-            message: 'model discovery failed',
-            details: { settingsNs },
+            message,
+            details: { settingsNs, ...(reason === undefined ? {} : { reason }) },
           })
         }
       },

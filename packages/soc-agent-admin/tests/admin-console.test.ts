@@ -40,7 +40,13 @@ test('admin forms retain drafts, show request failures, retry loading, and submi
           : success({ namespaces, writable: true }),
         mutate: async (request: typeof mutations[number]) => { mutations.push(request); return mutationResult(request) },
       },
-      llm: { providers: async () => success({ providers: [] }) },
+      llm: {
+        providers: async () => success({ providers: [] }),
+        discoverModels: async () => success({
+          detectedApi: 'openai-completions',
+          models: [{ id: 'model-a', name: 'Model A', contextWindow: 65536, maxTokens: 4096 }],
+        }),
+      },
       credentials: { describe: async () => success({ credentials: {} }) },
     },
     rpc: { call: async () => ({ ok: true, value: { tools: [
@@ -120,6 +126,15 @@ test('admin forms retain drafts, show request failures, retry loading, and submi
     await input(route, 'my-provider')
     await input(providers.querySelector('input[type="url"]')!, 'https://models.example/v1')
     await input(providers.querySelector('input[placeholder="model-name"]')!, 'model-a')
+    // The protocol is undetected and unpinned, so the provider cannot be saved
+    // on hand-entered models alone any more.
+    assert.equal(button(providers, 'Add provider').disabled, true)
+    await click(button(providers, 'Auto-detect provider'))
+    const protocol = providers.querySelector('select[aria-label="API protocol"]') as HTMLSelectElement
+    assert.equal(protocol.value, 'openai-completions', 'Discovery writes the detected protocol into the form')
+    const adopted = providers.querySelector('input[aria-label="Model 1 context window"]') as HTMLInputElement
+    assert.equal(adopted.value, '65536', 'Discovered capacities land in the model rows')
+    assert.match(providers.querySelector('[role="status"]')!.textContent!, /Detected OpenAI Chat Completions/)
     assert.equal(button(providers, 'Add provider').disabled, false)
     await navigate('agent-context')
     await navigate('providers')
@@ -145,10 +160,10 @@ test('admin forms retain drafts, show request failures, retry loading, and submi
       op: 'set',
       path: ['providers', 'my-provider'],
       value: {
-      api: 'openai-completions',
-      baseURL: 'https://models.example/v1',
+        api: 'openai-completions',
+        baseURL: 'https://models.example/v1',
         models: [
-          { id: 'model-a', reasoningEfforts: { off: null, high: 'high' } },
+          { id: 'model-a', reasoningEfforts: { off: null, high: 'high' }, name: 'Model A', contextWindow: 65536, maxTokens: 4096 },
           { id: 'model-b', reasoningEfforts: { off: null, minimal: 'minimal', low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' } },
         ],
         reasoning: 'high',
@@ -247,6 +262,119 @@ test('custom provider editor preserves model fields and validates reasoning defa
           { id: 'model-a', reasoningEfforts: { off: null, high: 'high' }, keepMe: 'yes' },
           { id: 'model-b', reasoningEfforts: false },
           { id: 'legacy-model', reasoningEfforts: { off: null, minimal: 'minimal', low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' }, keepMe: 'preserve-me' },
+        ],
+      },
+      { op: 'unset', path: ['providers', 'custom-gateway', 'reasoning'] },
+    ])
+  } finally {
+    await act(async () => root.unmount())
+    cssHook.deregister()
+    globalThis.fetch = originalFetch
+    dom.window.close()
+    Reflect.deleteProperty(globalThis, 'window')
+    Reflect.deleteProperty(globalThis, 'document')
+    Reflect.deleteProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT')
+  }
+})
+test('provider discovery adopts the detected protocol and capacities onto saved rows', async () => {
+  const dom = new JSDOM('<div id="root"></div>', { url: 'https://soc.example/admin#providers' })
+  const originalFetch = globalThis.fetch
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true })
+  globalThis.fetch = async () => new Response(JSON.stringify({ authenticated: true, email: 'admin@example.com' }))
+  const cssHook = registerHooks({
+    load(url, context, nextLoad) {
+      return url.endsWith('.css')
+        ? { format: 'module', shortCircuit: true, source: 'export default new Proxy({}, {get: (_, name) => name})' }
+        : nextLoad(url, context)
+    },
+  })
+  const { createRoot } = require('../../../vendor/deepseek-harness/packages/client/web/node_modules/react-dom/client')
+  const { AdminConsole } = await import('../src/client/AdminConsole.tsx')
+  const root = createRoot(document.getElementById('root'))
+  const namespace = (ns: string, value: unknown) => ({ ns, revision: 11, value })
+  const namespaces = [
+    namespace('llm-pi-ai', {
+      providers: {
+        'custom-gateway': {
+          displayName: 'Custom Gateway',
+          baseURL: 'https://gateway.example/v1',
+          reasoning: 'high',
+          models: [
+            { id: 'model-a', reasoningEfforts: { off: null, high: 'high' }, keepMe: 'yes' },
+            { id: 'model-b', reasoningEfforts: { off: null, low: 'low' } },
+          ],
+        },
+      },
+    }),
+  ]
+  const success = (value: unknown) => ({ result: { ok: true, value } })
+  const mutations: Array<{ ns: string; expectedRevision: number; ops: any[] }> = []
+  const connection = {
+    api: {
+      settings: {
+        describe: async () => success({ namespaces, writable: true }),
+        mutate: async (request: typeof mutations[number]) => { mutations.push(request); return success(namespace(request.ns, {})) },
+      },
+      llm: {
+        providers: async () => success({ providers: [{
+          provider: 'custom-gateway',
+          displayName: 'Custom Gateway',
+          settingsNs: 'llm-pi-ai',
+          settingsPath: ['providers', 'custom-gateway'],
+          declared: true,
+        }] }),
+        discoverModels: async () => success({
+          detectedApi: 'anthropic-messages',
+          models: [
+            { id: 'model-a', contextWindow: 200_000 },
+            { id: 'new-model', name: 'New Model', contextWindow: 4096, maxTokens: 1024 },
+          ],
+        }),
+      },
+      credentials: { describe: async () => success({ credentials: {} }) },
+    },
+  }
+  const socClient = { surface: 'admin' as const, rpc: async () => ({}) }
+  const section = () => document.querySelector('[aria-labelledby="provider-settings-title"]') as HTMLElement
+  const button = (container: HTMLElement, label: string) => {
+    const found = [...container.querySelectorAll('button')].find((item) => item.textContent === label)
+    assert.ok(found, `Button is rendered: ${label}`)
+    return found
+  }
+  const select = async (field: HTMLSelectElement, value: string) => act(async () => {
+    field.value = value
+    field.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  })
+  const click = async (field: HTMLElement) => act(async () => { field.click() })
+  try {
+    await act(async () => root.render(createElement(AdminConsole, { connection, socClient })))
+    const providers = section()
+    const protocol = providers.querySelector('select[aria-label="API protocol"]') as HTMLSelectElement
+    assert.equal(protocol.value, '', 'The saved profile named no protocol')
+
+    await click(button(providers, 'Discover models'))
+
+    // The detection result lands in the draft: protocol written, existing rows
+    // gain the capacities they were missing, unknown models are appended, and
+    // fields discovery says nothing about are untouched.
+    assert.equal(protocol.value, 'anthropic-messages')
+    assert.equal((providers.querySelector('input[aria-label="Model 1 context window"]') as HTMLInputElement).value, '200000')
+    assert.equal((providers.querySelector('input[aria-label="Model ID 3"]') as HTMLInputElement).value, 'new-model')
+    assert.match(providers.querySelector('[role="status"]')!.textContent!, /Adopted 2 models/)
+
+    // The appended model does not declare `high`, so the stored provider
+    // default no longer holds for every row and the draft drops it.
+    await select(providers.querySelector('select[aria-label="Default reasoning effort"]') as HTMLSelectElement, '')
+    await click(button(providers, 'Save provider'))
+    assert.deepEqual(mutations.at(-1)!.ops, [
+      { op: 'set', path: ['providers', 'custom-gateway', 'api'], value: 'anthropic-messages' },
+      {
+        op: 'set',
+        path: ['providers', 'custom-gateway', 'models'],
+        value: [
+          { id: 'model-a', reasoningEfforts: { off: null, high: 'high' }, keepMe: 'yes', contextWindow: 200_000 },
+          { id: 'model-b', reasoningEfforts: { off: null, low: 'low' } },
+          { id: 'new-model', reasoningEfforts: { off: null, minimal: 'minimal', low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' }, name: 'New Model', contextWindow: 4096, maxTokens: 1024 },
         ],
       },
       { op: 'unset', path: ['providers', 'custom-gateway', 'reasoning'] },
