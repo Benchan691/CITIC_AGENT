@@ -483,13 +483,6 @@ async function handleEndpoint(endpoint, payload, signal, ctx) {
       return ok(policyValue(ctx))
     }
     case 'get-settings': requireAdmin(ctx); return ok(await runAdmin('get-settings'))
-    case 'update-settings': requireAdmin(ctx); return badRequest('Service configuration is managed by the server environment.')
-    case 'delete-setting': requireAdmin(ctx); return badRequest('Service configuration is managed by the server environment.')
-    case 'list-accounts': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
-    case 'add-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
-    case 'update-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
-    case 'delete-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
-    case 'test-account': throw new Error('Stored Zimbra accounts are no longer supported; log in with Zimbra.')
     case 'send-email': {
       const session = requireUser(ctx)
       return ok(await runAuthCommand('send-email', { ...payload, session_id: session.id }))
@@ -505,7 +498,6 @@ async function handleEndpoint(endpoint, payload, signal, ctx) {
       const request = validateAttachmentPayload(payload)
       return ok(await runAdmin('convert-attachment', undefined, request, signal))
     }
-    case 'migrate': requireAdmin(ctx); return ok(await runAdmin('migrate'))
     default: return badRequest(`Unknown endpoint: ${endpoint}`)
   }
 }

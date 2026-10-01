@@ -53,16 +53,6 @@ def _read_payload() -> dict[str, Any]:
     return payload
 
 
-def update_settings(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
-    del store, payload
-    raise RuntimeError("Service configuration is managed by the server .env file.")
-
-
-def delete_setting(store: PostgresStore, key: str) -> dict[str, Any]:
-    del store, key
-    raise RuntimeError("Service configuration is managed by the server .env file.")
-
-
 async def test_subscription_server(store: PostgresStore) -> dict[str, Any]:
     settings = _settings(store)
     service = EmailSubscriptionService(settings.email_server)
@@ -71,18 +61,6 @@ async def test_subscription_server(store: PostgresStore) -> dict[str, Any]:
         return {"ok": True}
     finally:
         await service.close()
-
-
-async def test_account(store: PostgresStore, account_id: str) -> dict[str, Any]:
-    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
-
-
-async def send_email(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
-    raise RuntimeError("Authenticated Zimbra sessions are required for mail operations.")
-
-
-async def list_signatures(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
-    raise RuntimeError("Authenticated Zimbra sessions are required for mail operations.")
 
 
 def convert_attachment(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -107,27 +85,6 @@ def convert_attachment(store: PostgresStore, payload: Mapping[str, Any]) -> dict
         str(payload.get("content_type", "")),
         AttachmentConversionLimits(max_bytes=max_bytes, max_chars=max_chars),
     )
-
-
-def add_account(store: PostgresStore, payload: Mapping[str, Any]) -> dict[str, Any]:
-    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
-
-
-def update_account(store: PostgresStore, account_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:
-    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
-
-
-def list_accounts(store: PostgresStore) -> dict[str, Any]:
-    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
-
-
-def delete_account(store: PostgresStore, account_id: str) -> dict[str, Any]:
-    raise RuntimeError("Stored Zimbra accounts are no longer supported; log in with Zimbra.")
-
-
-def migrate(store: PostgresStore) -> dict[str, Any]:
-    del store
-    return {"ok": True}
 
 
 def _safe_error_details(error: ServiceError) -> dict[str, Any]:
@@ -169,30 +126,10 @@ def main() -> None:
     try:
         if command == "get-settings":
             result = _public_settings(store)
-        elif command == "update-settings":
-            result = update_settings(store, payload)
-        elif command == "delete-setting":
-            result = delete_setting(store, args.arg or "")
-        elif command == "list-accounts":
-            result = list_accounts(store)
-        elif command == "add-account":
-            result = add_account(store, payload)
-        elif command == "update-account":
-            result = update_account(store, args.arg or "", payload)
-        elif command == "delete-account":
-            result = delete_account(store, args.arg or "")
-        elif command == "test-account":
-            result = asyncio.run(test_account(store, args.arg or ""))
-        elif command == "send-email":
-            result = asyncio.run(send_email(store, payload))
-        elif command == "list-signatures":
-            result = asyncio.run(list_signatures(store, payload))
         elif command == "convert-attachment":
             result = convert_attachment(store, payload)
         elif command == "test-subscription-server":
             result = asyncio.run(test_subscription_server(store))
-        elif command == "migrate":
-            result = migrate(store)
         else:
             raise RuntimeError(f"Unknown command: {command}")
     except ServiceError as error:

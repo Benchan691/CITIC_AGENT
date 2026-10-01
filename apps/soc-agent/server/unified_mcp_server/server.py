@@ -25,7 +25,7 @@ from .env_loader import load_server_env
 from .errors import ServiceError
 from .email.service import EmailSubscriptionService
 from .email.tools import register_tools as register_email_tools
-from .postgres_store import PostgresAccountStore, PostgresStore
+from .postgres_store import PostgresStore
 from .responses import failure, success
 from .request_context import operation_budget, operation_context
 from .blocking_io import run_blocking
@@ -66,7 +66,7 @@ class Runtime:
     email_subscriptions: EmailSubscriptionService
     zimbra_filters: ZimbraFilterService | None = None
     postgres: PostgresStore | None = None
-    account_store: AccountStore | PostgresAccountStore | None = None
+    account_store: AccountStore | None = None
     identity: ZimbraIdentity | None = None
     owns_services: bool = True
     config_revision: str = field(init=False)
@@ -83,7 +83,7 @@ class Runtime:
     def create(
         cls,
         settings: ServerSettings,
-        accounts: AccountStore | PostgresAccountStore | None = None,
+        accounts: AccountStore | None = None,
         postgres: PostgresStore | None = None,
     ) -> "Runtime":
         accounts = accounts or AccountStore(

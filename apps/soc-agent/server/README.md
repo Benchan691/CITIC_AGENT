@@ -2,9 +2,8 @@
 
 Python MCP backend for the Zimbra and subscription tools used by the SOC Agent.
 Splunk is connected separately through the official `splunk_mcp` bridge. See
-the [repository guide](../../../README.md) for workspace commands and the
-[shortening-plan implementation report](../../../docs/SHORTENING_PLAN_IMPLEMENTATION.md)
-for the current refactors and dependency boundaries.
+the [repository guide](../../../README.md) for workspace commands and
+dependency boundaries.
 
 ```bash
 cp .env.example .env
@@ -132,9 +131,6 @@ cancels; each SOAP request checks the remaining deadline. PostgreSQL pooling def
 with up to four connections per store, a five-second connection/pool wait and
 a 15-second statement timeout. `APP_POSTGRES_POOL=false` restores per-call
 connections. Deployment configuration changes require a host/backend restart.
-
-See the [implementation and validation report](../../../docs/SHORTENING_PLAN_IMPLEMENTATION.md)
-for the completed refactors, recorded checks, remaining work, and rollout implications.
 
 Direct official MCP reads rely on provider-side guardrails. Keep these controls
 layered with Splunk role-level controls such as

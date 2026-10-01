@@ -10,14 +10,6 @@ server, and pinned harness source.
 - `packages` — isolated SOC browser packages (mandatory core/sidebar/workspace plus optional feature plugins)
 - `vendor/deepseek-harness` — JavaScript workspace and web runtime
 - `skills` — SOC operating playbooks
-- `docs` — project structure and operating notes
-
-See the [shortening-plan implementation report](docs/SHORTENING_PLAN_IMPLEMENTATION.md)
-for the completed refactors, measured source reduction, validation results,
-compatibility decisions, and deployment implications.
-
-The browser architecture and selective feature switches are documented in
-[SOC client plugins](docs/SOC_CLIENT_PLUGINS.md).
 
 ## First-time setup
 
