@@ -211,25 +211,7 @@ test('forward editor requires confirmation, retains its source after edits, and 
     assert.equal(previewPanel!.hasAttribute('hidden'), true)
     assert.equal(sourcePanel!.hasAttribute('hidden'), false)
     assert.equal(body.value, form.body)
-    const guide = sourcePanel!.querySelector('details')!
-    assert.equal(guide.querySelector('summary')!.textContent, 'HTML drafting guide')
-    assert.match(guide.textContent!, /black text on white/)
-    assert.match(guide.textContent!, /Escape customer data/)
-    assert.match(guide.textContent!, /without Markdown fences, scripts, or external stylesheets/)
-    const exampleSource = guide.querySelector('pre code')!
-    assert.equal(exampleSource.querySelector('div'), null, 'Example HTML is displayed as copyable source')
-    Object.assign(globalThis, { DOMParser: dom.window.DOMParser })
-    const examplePreview = new JSDOM(renderEmailPreviewDocument(exampleSource.textContent!))
-    try {
-      assert.match(examplePreview.window.document.body.textContent!, /Example & Co\./)
-      assert.equal(examplePreview.window.document.querySelectorAll('p').length, 3)
-      const wrapperStyle = examplePreview.window.getComputedStyle(examplePreview.window.document.querySelector('div'))
-      assert.equal(wrapperStyle.color, 'rgb(0, 0, 0)')
-      assert.equal(wrapperStyle.backgroundColor, 'rgb(255, 255, 255)')
-    } finally {
-      Reflect.deleteProperty(globalThis, 'DOMParser')
-      examplePreview.window.close()
-    }
+    assert.equal(sourcePanel!.querySelector('details'), null, 'HTML drafting guide is not shown')
     await act(async () => {
       Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')!.set!.call(body, 'Edited note')
       body.dispatchEvent(new dom.window.Event('input', { bubbles: true }))

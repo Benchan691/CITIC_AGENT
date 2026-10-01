@@ -117,11 +117,15 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
     move_tool = next(tool for tool in tools if tool.name == "zimbra_move_email")
     assert set(move_tool.parameters["required"]) == {"message_id", "folder_id"}
     search_email_tool = next(tool for tool in tools if tool.name == "zimbra_search_emails")
-    assert set(search_email_tool.parameters["properties"]) == {
-        "query", "limit", "offset",
-    }
-    assert "date:mm/dd/yyyy" in search_email_tool.description.lower()
+    assert set(search_email_tool.parameters["properties"]) == {"query", "limit", "offset"}
+    assert search_email_tool.parameters["required"] == ["query"]
+    assert "Dates are optional" in search_email_tool.parameters["properties"]["query"]["description"]
+    assert 'in:"Inbox/SOC" date:09/30/2026' in search_email_tool.parameters["properties"]["query"]["description"]
+    assert "mm/dd/yyyy" in search_email_tool.description.lower()
     assert "d:yyyymmdd" in search_email_tool.description.lower()
+    assert "has:attachment" in search_email_tool.description
+    assert "folder_not_found" in search_email_tool.description
+    assert search_email_tool.annotations.readOnlyHint is True
     attachment_tool = next(tool for tool in tools if tool.name == "zimbra_get_attachment_text")
     assert set(attachment_tool.parameters["properties"]) == {
         "message_id", "part", "max_chars",

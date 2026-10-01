@@ -55,6 +55,7 @@ _DEFAULT_HEADER_NAMES = (
     "Authentication-Results", "Received-SPF", "DKIM-Signature",
 )
 _INVALID_DATE_ALIAS = re.compile(r"(?:^|(?<=[\s(-]))d\s*:\s*(?P<value>[^\s()]+)", re.IGNORECASE)
+_QUOTED_QUERY_TEXT = re.compile(r'"(?:\\.|[^"\\])*"')
 
 
 _EMAIL_ACTIONS = {"send", "reply", "forward"}
@@ -143,17 +144,19 @@ def _email_attachments(value: Any) -> list[Attachment]:
 
 
 def _validate_search_query(query: str) -> None:
-    match = next(
-        (candidate for candidate in _INVALID_DATE_ALIAS.finditer(query) if query[:candidate.start()].count('"') % 2 == 0),
-        None,
-    )
+    # Only reject the known invalid date alias. Let Zimbra parse its native
+    # language, including folder/date expressions and less common operators.
+    outside_quotes = _QUOTED_QUERY_TEXT.sub(lambda match: " " * len(match.group()), query)
+    match = _INVALID_DATE_ALIAS.search(outside_quotes)
     if match is None:
         return
     value = match.group("value")
     suggested_query = None
-    if re.fullmatch(r"\d{8}", value):
+    if re.fullmatch(r"[0-9]{8}", value):
         try:
-            suggested_query = f"date:{datetime.strptime(value, '%Y%m%d'):%m/%d/%Y}"
+            parsed = datetime.strptime(value, "%Y%m%d")
+            replacement = f"date:{parsed.month:02d}/{parsed.day:02d}/{parsed.year:04d}"
+            suggested_query = query[:match.start()] + replacement + query[match.end():]
         except ValueError:
             pass
     raise _query_validation_error(invalid_operator="d", suggested_query=suggested_query)
@@ -321,9 +324,9 @@ class ZimbraMailService(ZimbraCore):
         account_id: str = "",
         offset: int = 0,
     ) -> dict[str, Any]:
+        if not isinstance(query, str) or not query.strip():
+            raise ServiceError("invalid_input", "query must be a non-empty native Zimbra search expression, for example subject:alert or in:\"Inbox/SOC\". Dates are optional.")
         query = query.strip()
-        if not query:
-            raise ServiceError("invalid_input", "query cannot be empty")
         _validate_search_query(query)
         limit = min(max(1, int(limit)), 100)
         offset = min(max(0, int(offset)), 100_000)
@@ -760,6 +763,8 @@ class ZimbraMailService(ZimbraCore):
             verify_ssl=self.settings.verify_ssl,
             timeout=remaining_seconds(self.settings.timeout),
             allow_insecure_http=self.settings.allow_insecure_http,
+            # Keep the documented MM/DD/YYYY syntax stable across mailboxes.
+            locale="en_US",
         )
 
     def _get_email(self, account: StoredAccount, message_id: str) -> dict[str, Any] | None:

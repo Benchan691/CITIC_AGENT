@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from zimbra_client import Attachment, ZimbraClient
 from zimbra_client.errors import (
@@ -15,12 +15,14 @@ from zimbra_client.errors import (
     ZimbraSOAPFault,
 )
 from zimbra_client.mail import (
+    build_get_message_request,
     build_send_message_request,
     ensure_recipients,
     format_forwarded_html,
     format_forwarded_text,
     format_reply_html,
     format_reply_text,
+    parse_get_message_response,
     parse_send_response,
     prepend_html,
     prepend_text,
@@ -454,6 +456,53 @@ def _header_value(headers, name: str) -> str:
     return ""
 
 
+class _InlineImageReferences(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.content_ids: set[str] = set()
+        self.content_locations: set[str] = set()
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.casefold() != "img":
+            return
+        source = next((value or "" for name, value in attrs if name.casefold() == "src"), "").strip()
+        if source.casefold().startswith("cid:"):
+            self.content_ids.add(_content_id_key(source))
+        elif source:
+            self.content_locations.add(source)
+
+
+def _content_id_key(value: str) -> str:
+    content_id = str(value or "").strip()
+    if content_id.casefold().startswith("cid:"):
+        content_id = content_id[4:]
+    return unquote(content_id).strip().strip("<>").strip().casefold()
+
+
+def _reply_inline_image_parts(response: ET.Element, message_id: str, source_html: str) -> list[tuple[str, str]]:
+    references = _InlineImageReferences()
+    references.feed(source_html)
+    if not references.content_ids and not references.content_locations:
+        return []
+
+    parts: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for element in response.iter():
+        if _local_name(element.tag) != "mp" or not _is_inline_image_part(element):
+            continue
+        content_id = _content_id_key(element.get("ci", ""))
+        content_location = str(element.get("cl", "")).strip()
+        if content_id not in references.content_ids and content_location not in references.content_locations:
+            continue
+        part = str(element.get("part", "")).strip()
+        if part and part not in seen:
+            parts.append((message_id, part))
+            seen.add(part)
+            if len(parts) >= _MAX_INLINE_IMAGES_REPORTED:
+                break
+    return parts
+
+
 def _uploaded_action(
     client: _TokenClient,
     *,
@@ -537,13 +586,8 @@ def zimbra_reply_message(
         host, token, email=email, verify_ssl=verify_ssl, timeout=timeout,
         allow_insecure_http=allow_insecure_http,
     )
-    if not attachments:
-        result = client.reply_message(
-            message_id, to=recipients, cc=cc, bcc=bcc, subject=subject or None,
-            text=text_body, html=html_body, reply_all=bool(reply_all),
-        )
-        return {"message_id": result.message_id}
-    source = client.get_message(message_id)
+    response = client.request(build_get_message_request(message_id, html=True))
+    source = parse_get_message_response(response, message_id)
     explicit_recipients = any(value is not None for value in (recipients, cc, bcc))
     if explicit_recipients:
         to_recipients, cc_recipients, bcc_recipients = ensure_recipients(to=recipients, cc=cc, bcc=bcc)
@@ -563,6 +607,7 @@ def zimbra_reply_message(
         attachments=attachments,
         source_message_id=message_id,
         reply_type="r",
+        attached_message_parts=_reply_inline_image_parts(response, message_id, source.body_html),
         in_reply_to=_header_value(source.headers, "Message-ID"),
         original_subject=source.subject,
     )
@@ -631,7 +676,7 @@ def _attachment_filename(element):
     return ""
 
 
-def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl=True, timeout=60, allow_insecure_http=False):
+def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl=True, timeout=60, allow_insecure_http=False, locale=None):
     """Search once and normalize the summary metadata returned by Zimbra."""
     query = str(query or "").strip()
     # Zimbra uses is:anywhere for all mail; in:anywhere is parsed as a folder
@@ -641,10 +686,12 @@ def zimbra_search_messages(host, token, query, limit=25, offset=0, *, verify_ssl
     query = html.escape(query)
     limit = max(1, min(int(limit), 100))
     offset = max(0, int(offset))
+    locale_xml = f"<locale>{html.escape(locale)}</locale>" if locale else ""
     root = soap_request(
         host,
         f"""<SearchRequest xmlns="urn:zimbraMail" types="message" sortBy="dateDesc" limit="{limit}" offset="{offset}">
   <query>{query}</query>
+  {locale_xml}
 </SearchRequest>""",
         token,
         verify_ssl=verify_ssl,
@@ -782,7 +829,7 @@ def zimbra_list_folders(host, token, *, verify_ssl=True, timeout=60, allow_insec
     )
     folders = []
     for elem in root.iter():
-        if _local_name(elem.tag) != "folder" or not elem.get("id"):
+        if _local_name(elem.tag) not in {"folder", "link"} or not elem.get("id"):
             continue
         folders.append(
             {

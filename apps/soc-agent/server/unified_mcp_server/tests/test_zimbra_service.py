@@ -359,7 +359,11 @@ async def test_reply_action_derives_recipients_sets_headers_and_keeps_mime_alter
       <e t="t" a="peer@example.com"/><e t="c" a="copy@example.com"/>
       <header n="Message-ID">&lt;message-42@example.com&gt;</header>
       <mp ct="text/plain" body="1"><content>Original content</content></mp>
-      <mp ct="text/html" body="1"><content>&lt;p&gt;Original HTML&lt;/p&gt;</content></mp>
+      <mp ct="text/html" body="1"><content>&lt;p&gt;Original HTML&lt;/p&gt;&lt;img src=&quot;cid:logo%40example.com&quot;&gt;&lt;img src=&quot;https://mail.example.com/banner.png&quot;&gt;&lt;img src=&quot;cid:missing&quot;&gt;</content></mp>
+      <mp part="2.3" filename="logo.png" ct="image/png" ci="cid:logo@example.com" cd="inline" s="12"/>
+      <mp part="2.4" filename="banner.png" ct="image/png" cl="https://mail.example.com/banner.png" s="14"/>
+      <mp part="2.5" filename="unused.png" ct="image/png" ci="cid:unused@example.com" cd="inline" s="16"/>
+      <mp part="2.6" filename="attached.png" ct="image/png" ci="cid:logo@example.com" cd="attachment" s="18"/>
     </m></GetMsgResponse>'''
 
     def fake_soap(host, body, auth_token="", **options):
@@ -410,6 +414,11 @@ async def test_reply_action_derives_recipients_sets_headers_and_keeps_mime_alter
     assert "Original content" in parts["text/plain"]
     assert parts["text/html"].startswith(html_note)
     assert "Original HTML" in parts["text/html"]
+    assert 'src="cid:logo%40example.com"' in parts["text/html"]
+    inline_parts = message.findall(".//{*}attach/{*}mp")
+    assert {(part.get("mid"), part.get("part")) for part in inline_parts} == {
+        ("42", "2.3"), ("42", "2.4"),
+    }
     assert "Forwarded message" not in parts["text/plain"]
 
 

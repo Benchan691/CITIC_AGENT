@@ -71,6 +71,37 @@ subscription tools.
 
 Standalone MCP clients should set `cwd` to this directory and pass `MCP_SERVER_ROOT` when workspace data lives elsewhere (for example the repository root `.data/` directory). The former misspelling `MCP_SEVER_ROOT` remains accepted for compatibility.
 
+`zimbra_search_emails` accepts a native Zimbra `query`, plus `limit` and `offset`.
+All filters, including folder paths and dates, go directly in `query`. Folder
+and date filters are optional; sender, recipient, subject, text, unread status,
+attachments and other native filters may be used alone or combined. Examples:
+
+```json
+{"query": "in:\"Inbox/SOC\" date:09/30/2026", "limit": 20}
+{"query": "in:\"Inbox/SOC\" subject:alert is:unread", "limit": 20}
+{"query": "from:analyst@example.com has:attachment", "limit": 20}
+```
+
+Use a full path confirmed by the user or returned by `zimbra_list_folders`.
+For `/Inbox/SOC`, both `in:"Inbox/SOC"` and `in:"/Inbox/SOC"` work; `in:"SOC"`
+refers to `/SOC`. `under:` also searches subfolders; `inid:` and `underid:` use
+returned folder IDs. The backend passes the query through without looking up
+or guessing folder paths. Group OR alternatives to preserve intended scope,
+e.g. `in:"Inbox/SOC" (subject:alert OR subject:warning)`.
+
+Absolute dates use `MM/DD/YYYY` with `date:`, `after:` or `before:`. The tool
+sets the parsing locale to `en_US` so these dates do not depend on the mailbox
+locale; dates still follow its timezone. Relative dates such as `after:-7d`
+are supported. `d:YYYYMMDD` is rejected with a suggested corrected query when
+the date is valid. Empty queries are rejected.
+
+The MCP tool descriptions carry this guidance; it is not added to `AGENTS.md`.
+SOAP faults retain a safe `upstream_code` while omitting raw upstream messages.
+Missing folders return `folder_not_found` with full-path/ID guidance, malformed
+queries return `query_validation_error` with native syntax examples, and
+permission/authentication failures have distinct errors. Folder and syntax
+errors are non-retryable until corrected; known transient faults are retryable.
+
 Zimbra supports bounded metadata/body pagination, header-only evidence,
 MarkItDown-based attachment-to-Markdown conversion for PDF, Word, PowerPoint,
 Excel, images, ZIP, EPUB, CSV, JSON, XML, HTML, and text files; attachment

@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from mcp.server.fastmcp import Context
+from pydantic import Field
 
 
 def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> None:
     @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_list_folders(ctx: Context) -> dict[str, Any]:
-        """List visible Zimbra mail folders and their message counts."""
+        """List your mailbox folders with IDs, complete paths and message counts.
+
+        In zimbra_search_emails.query, use a returned full path with in: or
+        under:, or a returned ID with inid: or underid:. For a folder whose
+        path is /Inbox/SOC, use in:"/Inbox/SOC"; in:"SOC" refers to /SOC and
+        does not identify that nested folder. Ask the user if the intended
+        folder is unclear; do not guess from a basename.
+        """
         return await execute(ctx, "zimbra", "list_folders", lambda: get_runtime(ctx).zimbra_mail.list_folders())
 
     @server.tool(annotations={"readOnlyHint": True})
@@ -49,9 +57,50 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         return await execute(ctx, "zimbra", "create_folder", lambda: get_runtime(ctx).zimbra_mail.create_folder(name, parent_id))
 
     @server.tool(annotations={"readOnlyHint": True})
-    async def zimbra_search_emails(ctx: Context, query: str, limit: int = 20, offset: int = 0) -> dict[str, Any]:
-        """Search one page of Zimbra message metadata using native query syntax. Use date:MM/DD/YYYY, after:MM/DD/YYYY, or before:MM/DD/YYYY for dates (for example date:08/29/2026); use from:address, subject:text, in:Inbox, or is:unread for other filters. The d:YYYYMMDD form is invalid."""
-        return await execute(ctx, "zimbra", "search_emails", lambda: get_runtime(ctx).zimbra_mail.search_emails(query, limit, offset=offset))
+    async def zimbra_search_emails(
+        ctx: Context,
+        query: Annotated[str, Field(min_length=1, description='Native Zimbra query, including optional folder/date filters. Example: in:"Inbox/SOC" date:09/30/2026. Dates are optional; subject:alert is:unread also works.')],
+        limit: int = 20,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """Search one bounded page of email metadata with a native Zimbra query.
+
+        Put all filters directly in query. Folder and date filters are
+        optional; sender, recipient, subject, text, status, attachment and
+        other native filters can be used alone or combined. Only query,
+        limit and offset are accepted; there are no separate folder/date fields.
+
+        Folder paths start at the mailbox root. Use a full path confirmed by
+        the user or zimbra_list_folders, e.g. in:"Inbox/SOC" or in:"/Inbox/SOC".
+        Do not shorten /Inbox/SOC to in:"SOC", which refers to /SOC. in:
+        searches that folder; under: includes its subfolders. Alternatively,
+        use inid:<id> or underid:<id> with an ID from zimbra_list_folders.
+        Ask the user if the target is unclear; never invent a path or ID.
+
+        Dates are optional. For absolute dates use MM/DD/YYYY:
+        date:09/30/2026 for one day, or after:09/01/2026 before:10/01/2026
+        for a range. Relative dates such as after:-7d also work. This tool
+        fixes the parsing locale to en_US; dates follow the mailbox timezone.
+        Do not use d:YYYYMMDD or ISO YYYY-MM-DD dates in query.
+
+        Other examples: from:analyst@example.com, to:team@example.com,
+        subject:"security alert", is:unread, has:attachment, filename:report.pdf.
+        Use double quotes for phrases/paths with spaces. Spaces combine
+        filters with AND; group OR alternatives in parentheses to keep scope:
+        in:"Inbox/SOC" (subject:alert OR subject:warning).
+        Combined example: in:"Inbox/SOC" date:09/30/2026 is:unread.
+        Without a date: in:"Inbox/SOC" subject:alert has:attachment.
+
+        Start with limit=20 (maximum 100); use offset for subsequent pages.
+        For folder_not_found, confirm the intended full path/ID before
+        correcting query. For query_validation_error, follow the returned
+        syntax guidance or suggested_query. Do not repeat an unchanged
+        non-retryable request or remove requested filters to bypass an error.
+        """
+        return await execute(
+            ctx, "zimbra", "search_emails",
+            lambda: get_runtime(ctx).zimbra_mail.search_emails(query, limit, offset=offset),
+        )
 
     @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_get_email(ctx: Context, message_id: str, max_body_chars: int = 20_000) -> dict[str, Any]:

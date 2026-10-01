@@ -121,38 +121,6 @@
   min-height: 240px;
 }
 
-.htmlGuide {
-  margin-top: 8px;
-  color: var(--dsw-alias-text-l2);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.htmlGuide summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.htmlGuide p,
-.htmlGuide ul {
-  margin: 8px 0;
-}
-
-.htmlGuide ul {
-  padding-left: 20px;
-}
-
-.htmlExample {
-  margin: 8px 0 0;
-  padding: 10px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 6px;
-  background: var(--dsw-alias-surface-l0, transparent);
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 .preview {
   display: block;
   width: 100%;
