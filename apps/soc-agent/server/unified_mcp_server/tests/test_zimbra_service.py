@@ -352,9 +352,9 @@ async def test_reply_action_derives_recipients_sets_headers_and_keeps_mime_alter
     identity = ZimbraIdentity("user-1", "analyst@example.com", "server-token", "app-session")
     service = ZimbraService(settings(), identity=identity)
     requests = []
-    source_xml = '''<GetMsgResponse xmlns="urn:zimbraMail"><m id="42" d="1791189658000">
+    source_xml = '''<GetMsgResponse xmlns="urn:zimbraMail"><m id="42">
       <su>Incident update</su>
-      <e t="f" a="sender@example.com" p="SOC &amp; Ops"/><e t="r" a="reply@example.com"/>
+      <e t="f" a="sender@example.com"/><e t="r" a="reply@example.com"/>
       <e t="t" a="analyst@example.com"/>
       <e t="t" a="peer@example.com"/><e t="c" a="copy@example.com"/>
       <header n="Message-ID">&lt;message-42@example.com&gt;</header>
@@ -414,23 +414,8 @@ async def test_reply_action_derives_recipients_sets_headers_and_keeps_mime_alter
     assert "Original content" in parts["text/plain"]
     assert parts["text/html"].startswith(html_note)
     assert "Original HTML" in parts["text/html"]
-    assert '<hr style="border: 0; border-top: 1px solid #b5b5b5;' in parts["text/html"]
-    assert "<strong>From:</strong> SOC &amp; Ops &lt;sender@example.com&gt;" in parts["text/html"]
-    assert "<strong>To:</strong> analyst@example.com, peer@example.com" in parts["text/html"]
-    assert "<strong>Cc:</strong> copy@example.com" in parts["text/html"]
-    assert "<strong>Sent:</strong> Mon, 05 Oct 2026 08:40:58 +0000" in parts["text/html"]
-    assert "<strong>Subject:</strong> Incident update" in parts["text/html"]
-    assert "________________________________________\n\nFrom: SOC & Ops <sender@example.com>" in parts["text/plain"]
-    assert "wrote:" not in parts["text/html"] + parts["text/plain"]
-    assert "<blockquote>" not in parts["text/html"]
-    assert message.findall("{*}attach") == []
-    related = message.find("{*}mp/{*}mp[@ct='multipart/related']")
-    assert related is not None
-    inline_images = related.findall("{*}mp[@ci]")
-    assert len(inline_images) == 2
-    assert all(f'src="cid:{image.get("ci")}"' in parts["text/html"] for image in inline_images)
-    assert 'src="cid:missing"' in parts["text/html"]
-    inline_parts = related.findall("{*}mp/{*}attach/{*}mp")
+    assert 'src="cid:logo%40example.com"' in parts["text/html"]
+    inline_parts = message.findall(".//{*}attach/{*}mp")
     assert {(part.get("mid"), part.get("part")) for part in inline_parts} == {
         ("42", "2.3"), ("42", "2.4"),
     }

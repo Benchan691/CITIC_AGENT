@@ -1,4 +1,4 @@
-"""Unified MCP server exposing Zimbra, subscription, and customer report tools."""
+"""Unified MCP server exposing Zimbra and subscription tools."""
 
 import json
 import asyncio
@@ -25,7 +25,6 @@ from .env_loader import load_server_env
 from .errors import ServiceError
 from .email.service import EmailSubscriptionService
 from .email.tools import register_tools as register_email_tools
-from .reports.tools import register_tools as register_report_tools
 from .postgres_store import PostgresStore
 from .responses import failure, success
 from .request_context import operation_budget, operation_context
@@ -176,10 +175,7 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         started = time.monotonic()
         prepare_ms: float | None = None
         try:
-            async with operation_budget(
-                _meta_value(ctx, "soc_deadline_ms"),
-                maximum_seconds=900 if operation == "generate_customer_report" else 180,
-            ):
+            async with operation_budget(_meta_value(ctx, "soc_deadline_ms")):
                 prepare_started = time.monotonic()
                 await fresh_runtime(ctx)
                 prepare_ms = (time.monotonic() - prepare_started) * 1000
@@ -297,7 +293,6 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         get_runtime=runtime,
         execute=execute,
     )
-    register_report_tools(server, get_runtime=runtime, execute=execute)
     return server
 
 

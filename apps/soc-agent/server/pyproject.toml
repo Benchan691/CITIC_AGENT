@@ -15,7 +15,6 @@ dependencies = [
     "mcp>=1.28.1,<2",
     "psycopg[pool,binary]>=3.2,<4",
     "python-dotenv>=1.0,<2",
-    "soc-agent-reports",
     "zimbra-client>=0.3.4,<0.4",
 ]
 
@@ -41,11 +40,7 @@ packages = [
     "unified_mcp_server.zimbra.mail",
     "unified_mcp_server.zimbra.filters",
     "unified_mcp_server.email",
-    "unified_mcp_server.reports",
 ]
-
-[tool.uv.sources]
-soc-agent-reports = { path = "../../../packages/soc-agent-reports/python", editable = true }
 
 [tool.pytest.ini_options]
 addopts = "-q"

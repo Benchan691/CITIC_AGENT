@@ -5,11 +5,10 @@ import { ACTION_TOOLS } from '../policy.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
   assert.equal(READ_ONLY_TOOLS.length, 29)
-  assert.equal(DOMAIN_TOOLS.size, 42)
+  assert.equal(DOMAIN_TOOLS.size, 41)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
-    'mcp__soc_agent__generate_customer_report',
     'mcp__soc_agent__update_subscription',
     'mcp__soc_agent__zimbra_create_email_filter',
     'mcp__soc_agent__zimbra_create_folder',
@@ -74,7 +73,6 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__list_subscriptions' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__get_subscription_schema' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__preview_subscription' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
-  assert.equal((await preExecute({ name: 'mcp__soc_agent__generate_customer_report' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__create_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__update_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')
   assert.equal((await preExecute({ name: 'mcp__soc_agent__delete_subscription' }, () => ({ kind: 'delegate' }))).kind, 'ask')

@@ -230,9 +230,9 @@
           - create_subscription
           - update_subscription
           - delete_subscription
-          - generate_customer_report
-        # Reports may take 900 seconds; other server operations retain 180 seconds.
-        toolCallTimeoutMs: 905000
+        # One 180-second end-to-end operation budget plus cleanup margin; the
+        # MCP transport deadline is derived from it (see redesign plan, §6).
+        toolCallTimeoutMs: 185000
         failOnStartupError: true
     - id: splunk-official-mcp
       name: dsh-soc-agent/splunk-bridge
@@ -275,10 +275,6 @@
       name: dsh-soc-agent-email-draft
       disabled: false
       description: Optional editable Zimbra email draft tool views.
-    - id: soc-agent-reports
-      name: dsh-soc-agent-reports
-      disabled: false
-      description: Customer report settings and downloadable Excel/PDF session artifacts.
 
 - id: connection
   name: '@deepseek-ai/dsh-client-connection'

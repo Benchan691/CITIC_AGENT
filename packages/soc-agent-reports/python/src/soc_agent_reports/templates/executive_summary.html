@@ -1,7 +1,0 @@
-<!-- Writing rule: use our SOC perspective (we, our, us); preserve evidence and confirmed customer outcomes. -->
-<h1>C. Executive Summary</h1>
-<p>We reviewed the supplied case records for {{ period_start_display }} through {{ period_end_display }}. {% if reported_security_incidents is not none %}The separately reported security incident total is {{ reported_security_incidents }}. {% endif %}Our case review covers {{ case_count }} records within this reporting period.</p>
-<p>Our supplied records comprise {{ severity_counts.CRITICAL }} critical, {{ severity_counts.HIGH }} high, and {{ severity_counts.MEDIUM }} medium alerts. We use these recorded severities to prioritize review; the alerts alone do not establish that a compromise occurred.</p>
-<p>We retain the customer remarks and confirmation status supplied with each case. We treat an unavailable customer confirmation as unresolved and do not infer a true-positive or false-positive verdict from a rule name or severity.</p>
-<p>We recommend reviewing repeated alerts alongside the associated logs, business activity, and customer authorization. We require supporting evidence before presenting a cause, confirmed security impact, or completed remediation.</p>
-<p>Our next-period priorities are to obtain outstanding customer confirmations, verify recurring patterns, and propose measured detection tuning where the evidence supports it. Our assessment concerns the supplied case records and does not establish the security state of the entire environment.</p>

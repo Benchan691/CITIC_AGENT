@@ -40,7 +40,6 @@
     "dsh-soc-agent-action-policy": "workspace:*",
     "dsh-soc-agent-attachments": "workspace:*",
     "dsh-soc-agent-email-draft": "workspace:*",
-    "dsh-soc-agent-reports": "workspace:*",
     "pg": "^8.16.3"
   },
   "dsh": {

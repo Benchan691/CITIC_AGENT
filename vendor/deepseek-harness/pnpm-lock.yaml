@@ -156,9 +156,6 @@ importers:
       dsh-soc-agent-email-draft:
         specifier: workspace:*
         version: link:../../packages/soc-agent-email-draft
-      dsh-soc-agent-reports:
-        specifier: workspace:*
-        version: link:../../packages/soc-agent-reports
       dsh-soc-agent-sidebar:
         specifier: workspace:*
         version: link:../../packages/soc-agent-sidebar
@@ -353,43 +350,6 @@ importers:
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
-      react:
-        specifier: ^18.2.0
-        version: 18.3.1
-
-  ../../packages/soc-agent-reports:
-    dependencies:
-      dsh-soc-agent-client:
-        specifier: workspace:*
-        version: link:../soc-agent-client
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:*
-        version: link:../../vendor/deepseek-harness/vendor/cordis
-      '@deepseek-ai/dsh-client-connection':
-        specifier: workspace:*
-        version: link:../../vendor/deepseek-harness/packages/client/connection
-      '@deepseek-ai/dsh-client-runtime':
-        specifier: workspace:*
-        version: link:../../vendor/deepseek-harness/packages/client/runtime
-      '@deepseek-ai/dsh-client-ui-settings':
-        specifier: workspace:*
-        version: link:../../vendor/deepseek-harness/packages/client/ui-settings
-      '@deepseek-ai/dsh-client-ui-slots':
-        specifier: workspace:*
-        version: link:../../vendor/deepseek-harness/packages/client/ui-slots
-      '@deepseek-ai/dsh-client-ui-tool':
-        specifier: workspace:*
-        version: link:../../vendor/deepseek-harness/packages/client/ui-tool
-      '@types/node':
-        specifier: ^24.13.3
-        version: 24.13.3
-      '@types/react':
-        specifier: ~18.3.1
-        version: 18.3.31
-      dsh-soc-agent:
-        specifier: workspace:*
-        version: link:../../apps/soc-agent
       react:
         specifier: ^18.2.0
         version: 18.3.1

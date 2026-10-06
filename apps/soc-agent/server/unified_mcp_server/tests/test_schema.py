@@ -71,7 +71,7 @@ def test_concurrent_startup_adopts_existing_rows_and_bootstrap_marker(database):
         list(workers.map(migrate, [database] * 4))
     with psycopg.connect(database) as connection:
         assert connection.execute("SELECT version FROM soc_schema_migrations ORDER BY version").fetchall() == [
-            ("001_initial.sql",), ("002_remove_catalog.sql",), ("003_two_factor_challenges.sql",), ("004_customer_reports.sql",),
+            ("001_initial.sql",), ("002_remove_catalog.sql",), ("003_two_factor_challenges.sql",),
         ]
         for table in ("app_config", "zimbra_accounts", "soc_users", "soc_app_sessions",
                       "soc_workspace_owners", "soc_session_owners", "soc_folder_owners"):
@@ -131,67 +131,4 @@ def test_node_startup_uses_python_migrations_for_its_resolved_uri(database):
                                 "APP_POSTGRES_URI": "postgresql://invalid.example.test/wrong-database",
                                 "APP_SETTINGS_ENCRYPTION_KEY": "",
                             })
-    assert json.loads(result.stdout) == [{"count": "4"}]
-
-
-def test_customer_report_profiles_and_artifacts_use_real_encryption_and_ownership_sql(database, tmp_path):
-    from unified_mcp_server.errors import ServiceError
-    from unified_mcp_server.postgres_store import PostgresStore
-    from unified_mcp_server.reports.store import PDF_MIME, XLSX_MIME, ReportStore
-
-    postgres = PostgresStore(database, "isolated-report-test-encryption-key")
-    try:
-        with postgres._connect() as connection:
-            connection.execute("""
-                INSERT INTO soc_users (id, zimbra_email, last_login_at)
-                    VALUES ('report-user', 'report@example.test', NOW()), ('other-user', 'other@example.test', NOW());
-                INSERT INTO soc_workspace_owners (workspace_id, owner_user_id, workspace_path)
-                    VALUES ('report-workspace', 'report-user', '/isolated-report-workspace'),
-                           ('other-workspace', 'other-user', '/isolated-other-workspace');
-                INSERT INTO soc_session_owners (session_id, owner_user_id, workspace_id)
-                    VALUES ('report-chat', 'report-user', 'report-workspace'),
-                           ('same-user-other-chat', 'report-user', 'report-workspace'),
-                           ('foreign-chat', 'other-user', 'other-workspace');
-            """)
-        store = ReportStore(postgres, tmp_path / "reports")
-        profile = {"customer_id": "customer", "display_name": "Customer", "report_id": "50238", "company_name": "Customer",
-                   "email": {"account": "report@example.test", "scope_type": "folder", "scope": "/Inbox/Customer"},
-                   "customer_senders": ["customer@example.test"],
-                   "report": {"template": {"owner": "nobody", "app": "search", "view": "report_template"}},
-                   "news": {"scope_type": "folder", "scope": "/Inbox/News"}, "extensions": {}}
-        saved = store.save_profiles("report-user", "report@example.test", [profile])
-        assert store.get_profiles("report-user", "report@example.test") == saved
-        assert store.get_profiles("other-user", "other@example.test") == []
-        with postgres._connect() as connection:
-            encrypted = connection.execute("SELECT profiles_encrypted FROM soc_report_profiles WHERE owner_user_id = %s", ("report-user",)).fetchone()[0]
-        assert "Customer" not in encrypted and json.loads(postgres._decrypt_text(encrypted)) == saved
-
-        run = str(uuid.uuid4())
-        directory = store.run_directory("report-user", "report-chat", run)
-        directory.mkdir(parents=True)
-        artifacts = []
-        for filename, mime, content in (("report.xlsx", XLSX_MIME, b"test-excel"), ("report.pdf", PDF_MIME, b"test-pdf")):
-            path = directory / filename
-            path.write_bytes(content)
-            artifacts.append({"id": str(uuid.uuid4()), "filename": filename, "mime_type": mime,
-                              "size_bytes": len(content), "relative_path": str(path.relative_to(store.root))})
-        store.register_artifacts("report-user", "report-chat", run, artifacts)
-        for artifact in artifacts:
-            authorized = store.get_artifact("report-user", "report-chat", artifact["id"])
-            assert authorized["session_id"] == "report-chat"
-            assert Path(authorized["path"]).read_bytes()
-            for user, chat in (("other-user", "foreign-chat"), ("report-user", "same-user-other-chat")):
-                with pytest.raises(ServiceError) as failure:
-                    store.get_artifact(user, chat, artifact["id"])
-                assert failure.value.code == "report_artifact_not_found"
-
-        # A failure inserting the second file must roll back the first row too.
-        new_id = str(uuid.uuid4())
-        duplicate_pair = [{**artifacts[0], "id": new_id}, artifacts[1]]
-        with pytest.raises(psycopg.errors.UniqueViolation):
-            store.register_artifacts("report-user", "report-chat", str(uuid.uuid4()), duplicate_pair)
-        with postgres._connect() as connection:
-            assert connection.execute("SELECT COUNT(*) FROM soc_report_artifacts").fetchone() == (2,)
-            assert connection.execute("SELECT COUNT(*) FROM soc_report_artifacts WHERE id = %s", (new_id,)).fetchone() == (0,)
-    finally:
-        postgres.close()
+    assert json.loads(result.stdout) == [{"count": "3"}]

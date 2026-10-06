@@ -1,11 +1,8 @@
 import html
-import re
-import uuid
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from email.utils import format_datetime
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlsplit
 
@@ -23,12 +20,13 @@ from zimbra_client.mail import (
     ensure_recipients,
     format_forwarded_html,
     format_forwarded_text,
+    format_reply_html,
+    format_reply_text,
     parse_get_message_response,
     parse_send_response,
     prepend_html,
     prepend_text,
 )
-from zimbra_client.models import Message, Recipient
 from ..request_context import remaining_seconds
 
 
@@ -413,22 +411,18 @@ def zimbra_send_message(
     if body_format != "html":
         raise ValueError("Email actions must use body_format=html")
     text_body, html_body = _composer_body(body, body_format)
-    client = _token_client(
+    result = _token_client(
         host, token, verify_ssl=verify_ssl, timeout=timeout,
         allow_insecure_http=allow_insecure_http,
-    )
-    to_recipients, cc_recipients, bcc_recipients = ensure_recipients(to=recipients, cc=cc, bcc=bcc)
-    attachment_ids = client._upload_attachments(attachments)
-    request = build_send_message_request(
-        to=to_recipients,
-        cc=cc_recipients,
-        bcc=bcc_recipients,
+    ).send_message(
+        to=recipients,
+        cc=cc,
+        bcc=bcc,
         subject=str(subject),
         text=text_body,
         html=html_body,
-        attachment_ids=(",".join(attachment_ids),) if attachment_ids else (),
+        attachments=attachments,
     )
-    result = parse_send_response(client.request(request))
     return {"message_id": result.message_id}
 
 
@@ -462,78 +456,20 @@ def _header_value(headers, name: str) -> str:
     return ""
 
 
-def _reply_header_rows(message: Message) -> list[tuple[str, str]]:
-    def address(recipient: Recipient) -> str:
-        return f"{recipient.name} <{recipient.email}>" if recipient.name else recipient.email
-
-    rows: list[tuple[str, str]] = []
-    sender = message.from_ or (message.reply_to[0] if message.reply_to else None)
-    if sender:
-        rows.append(("From", address(sender)))
-    if message.to:
-        rows.append(("To", ", ".join(address(recipient) for recipient in message.to)))
-    if message.cc:
-        rows.append(("Cc", ", ".join(address(recipient) for recipient in message.cc)))
-    if message.date:
-        rows.append(("Sent", format_datetime(message.date)))
-    if message.subject:
-        rows.append(("Subject", message.subject))
-    return rows
-
-
-def _reply_history_text(message: Message) -> str:
-    headers = "\n".join(f"{name}: {value}" for name, value in _reply_header_rows(message))
-    body = message.body_text or message.fragment
-    return "\n\n".join(part for part in ("________________________________________", headers, body) if part)
-
-
-def _reply_history_html(message: Message) -> str:
-    headers = "<br>".join(
-        f"<strong>{name}:</strong> {html.escape(value)}"
-        for name, value in _reply_header_rows(message)
-    )
-    body = message.body_html or html.escape(message.body_text or message.fragment).replace("\n", "<br>\n")
-    return (
-        '<hr style="border: 0; border-top: 1px solid #b5b5b5; margin: 12px 0;">'
-        '<div style="color: #000; background-color: #fff; font-family: Arial, sans-serif; '
-        f'font-size: 14px; line-height: 1.4;">{headers}</div><br>{body}'
-    )
-
-
-_HTML_ATTRIBUTE = re.compile(r'''(?P<name>[^\s=<>/]+)\s*=\s*(?P<value>"[^"]*"|'[^']*'|[^\s>]+)''')
-
-
 class _InlineImageReferences(HTMLParser):
-    def __init__(self, source_html: str) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.source_html = source_html
-        self.sources: set[str] = set()
-        self.source_ranges: list[tuple[int, int, str]] = []
-        self.line_offsets = [0, *(index + 1 for index, char in enumerate(source_html) if char == "\n")]
-        self.feed(source_html)
+        self.content_ids: set[str] = set()
+        self.content_locations: set[str] = set()
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag.casefold() != "img":
             return
         source = next((value or "" for name, value in attrs if name.casefold() == "src"), "").strip()
-        if not source:
-            return
-        self.sources.add(source)
-        line, column = self.getpos()
-        offset = self.line_offsets[line - 1] + column
-        for attribute in _HTML_ATTRIBUTE.finditer(self.get_starttag_text()):
-            if attribute.group("name").casefold() == "src":
-                start, end = attribute.span("value")
-                self.source_ranges.append((offset + start, offset + end, source))
-                break
-
-    def rewrite(self, replacements: dict[str, str]) -> str:
-        result = self.source_html
-        for start, end, source in reversed(self.source_ranges):
-            if source in replacements:
-                value = html.escape(replacements[source], quote=True)
-                result = result[:start] + f'"{value}"' + result[end:]
-        return result
+        if source.casefold().startswith("cid:"):
+            self.content_ids.add(_content_id_key(source))
+        elif source:
+            self.content_locations.add(source)
 
 
 def _content_id_key(value: str) -> str:
@@ -543,74 +479,28 @@ def _content_id_key(value: str) -> str:
     return unquote(content_id).strip().strip("<>").strip().casefold()
 
 
-@dataclass(frozen=True)
-class _InlineImagePart:
-    message_id: str
-    part: str
-    content_type: str
-    content_id: str
+def _reply_inline_image_parts(response: ET.Element, message_id: str, source_html: str) -> list[tuple[str, str]]:
+    references = _InlineImageReferences()
+    references.feed(source_html)
+    if not references.content_ids and not references.content_locations:
+        return []
 
-
-def _inline_image_parts(
-    response: ET.Element, message_id: str, source_html: str,
-) -> tuple[str, list[_InlineImagePart]]:
-    references = _InlineImageReferences(source_html)
-    if not references.sources:
-        return source_html, []
-
-    parts: list[_InlineImagePart] = []
+    parts: list[tuple[str, str]] = []
     seen: set[str] = set()
-    replacements: dict[str, str] = {}
-    candidates = [
-        element for element in response.iter()
-        if _local_name(element.tag) == "mp" and _mime_type(element.get("ct")).startswith("image/")
-    ]
-    # Prefer declared inline images when duplicate IDs exist. An image marked
-    # attachment can still be embedded when HTML actually references its ID.
-    for element in sorted(candidates, key=lambda element: not _is_inline_image_part(element)):
+    for element in response.iter():
+        if _local_name(element.tag) != "mp" or not _is_inline_image_part(element):
+            continue
         content_id = _content_id_key(element.get("ci", ""))
         content_location = str(element.get("cl", "")).strip()
-        sources = {
-            source for source in references.sources
-            if source not in replacements and (
-                (content_id and source.casefold().startswith("cid:") and _content_id_key(source) == content_id)
-                or (content_location and source == content_location)
-            )
-        }
-        if not sources:
+        if content_id not in references.content_ids and content_location not in references.content_locations:
             continue
         part = str(element.get("part", "")).strip()
         if part and part not in seen:
-            # Fresh IDs also bind Content-Location images to copied MIME parts,
-            # without relying on remote URLs or the original message's IDs.
-            cid = f"soc-agent-{uuid.uuid4().hex}@inline.invalid"
-            parts.append(_InlineImagePart(message_id, part, _mime_type(element.get("ct")), cid))
-            replacements.update({source: f"cid:{cid}" for source in sources})
+            parts.append((message_id, part))
             seen.add(part)
             if len(parts) >= _MAX_INLINE_IMAGES_REPORTED:
                 break
-    return references.rewrite(replacements), parts
-
-
-def _add_inline_image_parts(message: ET.Element, parts: Sequence[_InlineImagePart]) -> None:
-    if not parts:
-        return
-    namespace = "{urn:zimbraMail}"
-    body = message.find(f"{namespace}mp")
-    parent = body if body is not None and body.get("ct") == "multipart/alternative" else message
-    html_part = next((part for part in parent if part.tag == f"{namespace}mp" and part.get("ct") == "text/html"), None)
-    if html_part is None:
-        raise ZimbraProtocolError("Inline images require an HTML message body")
-    related = ET.Element(f"{namespace}mp", {"ct": "multipart/related"})
-    parent.insert(list(parent).index(html_part), related)
-    parent.remove(html_part)
-    related.append(html_part)
-    for part in parts:
-        # Zimbra treats <attach> inside a body <mp> as inline; placing these
-        # references in <m>/<attach> would turn them into normal attachments.
-        image = ET.SubElement(related, f"{namespace}mp", {"ct": part.content_type, "ci": part.content_id})
-        attachment = ET.SubElement(image, f"{namespace}attach")
-        ET.SubElement(attachment, f"{namespace}mp", {"mid": part.message_id, "part": part.part})
+    return parts
 
 
 def _uploaded_action(
@@ -622,11 +512,10 @@ def _uploaded_action(
     subject: str,
     text: str,
     html_body: str,
-    attachments: Sequence[Attachment] | None,
+    attachments: Sequence[Attachment],
     source_message_id: str,
     reply_type: str,
     attached_message_parts=(),
-    inline_image_parts: Sequence[_InlineImagePart] = (),
     in_reply_to: str = "",
     original_subject: str = "",
 ) -> dict[str, str]:
@@ -640,21 +529,12 @@ def _uploaded_action(
         subject=subject or _default_subject(prefix, original_subject),
         text=text,
         html=html_body,
-        # Zimbra reads one top-level <attach> element, with comma-separated
-        # upload IDs and any copied source files beneath that same element.
-        attachment_ids=(",".join(attachment_ids),) if attachment_ids else (),
+        attachment_ids=attachment_ids,
         original_id=source_message_id,
         reply_type=reply_type,
         in_reply_to=in_reply_to,
+        attached_message_parts=attached_message_parts,
     )
-    message = request.find("{urn:zimbraMail}m")
-    if attached_message_parts:
-        attachment = message.find("{urn:zimbraMail}attach")
-        if attachment is None:
-            attachment = ET.SubElement(message, "{urn:zimbraMail}attach")
-        for message_id, part in attached_message_parts:
-            ET.SubElement(attachment, "{urn:zimbraMail}mp", {"mid": message_id, "part": part})
-    _add_inline_image_parts(message, inline_image_parts)
     return {"message_id": parse_send_response(client.request(request)).message_id}
 
 
@@ -668,17 +548,15 @@ def zimbra_forward_message(
         host, token, verify_ssl=verify_ssl, timeout=timeout,
         allow_insecure_http=allow_insecure_http,
     )
-    response = client.request(build_get_message_request(message_id, html=True))
-    source = parse_get_message_response(response, message_id)
-    original_html, inline_parts = _inline_image_parts(response, message_id, format_forwarded_html(source))
-    embedded_parts = {
-        element.get("part") for element in response.iter()
-        if _local_name(element.tag) == "mp" and _is_inline_image_part(element)
-    } | {part.part for part in inline_parts}
+    if not attachments:
+        result = client.forward_message(
+            message_id, to=recipients, cc=cc, bcc=bcc, subject=subject or None,
+            text=text_body, html=html_body,
+        )
+        return {"message_id": result.message_id}
+    source = client.get_message(message_id)
     attached_message_parts = []
     for attachment in source.attachments:
-        if attachment.part in embedded_parts:
-            continue
         if not attachment.part:
             raise ValueError("Source attachment did not include a MIME part id")
         attached_message_parts.append((message_id, attachment.part))
@@ -689,12 +567,11 @@ def zimbra_forward_message(
         bcc=bcc,
         subject=subject,
         text=prepend_text(text_body, format_forwarded_text(source)),
-        html_body=prepend_html(html_body, original_html),
+        html_body=prepend_html(html_body, format_forwarded_html(source)),
         attachments=attachments,
         source_message_id=message_id,
         reply_type="w",
         attached_message_parts=attached_message_parts,
-        inline_image_parts=inline_parts,
         original_subject=source.subject,
     )
 
@@ -711,7 +588,6 @@ def zimbra_reply_message(
     )
     response = client.request(build_get_message_request(message_id, html=True))
     source = parse_get_message_response(response, message_id)
-    original_html, inline_parts = _inline_image_parts(response, message_id, _reply_history_html(source))
     explicit_recipients = any(value is not None for value in (recipients, cc, bcc))
     if explicit_recipients:
         to_recipients, cc_recipients, bcc_recipients = ensure_recipients(to=recipients, cc=cc, bcc=bcc)
@@ -726,12 +602,12 @@ def zimbra_reply_message(
         cc=cc_recipients,
         bcc=bcc_recipients,
         subject=subject or "",
-        text=prepend_text(text_body, _reply_history_text(source)),
-        html_body=prepend_html(html_body, original_html),
+        text=prepend_text(text_body, format_reply_text(source)),
+        html_body=prepend_html(html_body, format_reply_html(source)),
         attachments=attachments,
         source_message_id=message_id,
         reply_type="r",
-        inline_image_parts=inline_parts,
+        attached_message_parts=_reply_inline_image_parts(response, message_id, source.body_html),
         in_reply_to=_header_value(source.headers, "Message-ID"),
         original_subject=source.subject,
     )

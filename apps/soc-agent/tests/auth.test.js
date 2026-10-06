@@ -464,19 +464,6 @@ test('analyst RPCs keep the user principal when an admin cookie also exists', as
     assert.throws(() => auth.requireSession(), /authentication required/)
   }, '/soc-agent-config')
   assert.equal(adminPrincipal.email, 'admin@example.com')
-
-  for (const path of ['/soc-agent-reports', '/soc-agent-reports/download/11111111-1111-4111-8111-111111111111?session_id=chat-a']) {
-    let reportPrincipal
-    await auth.withNodeRequest(nodeRequest({
-      method: path.includes('/download/') ? 'GET' : 'POST',
-      url: path,
-      headers: { host: '127.0.0.1', cookie },
-    }), nodeResponse(), () => {
-      reportPrincipal = auth.requireSession()
-      assert.throws(() => auth.requireAdmin(), /admin authentication required/)
-    }, path.split('?')[0])
-    assert.equal(reportPrincipal.id, 'user-session')
-  }
 })
 
 test('scoped API prevents cross-user workspace/session IDOR and filters queries', async () => {
@@ -786,10 +773,6 @@ test('SOC auth plugin attaches session metadata to the Harness MCP client withou
   assert.equal(metadata.trace, 'test')
   assert.equal(typeof metadata.soc_correlation_id, 'string')
   assert.ok(metadata.soc_deadline_ms > Date.now())
-  assert.ok(metadata.soc_deadline_ms <= Date.now() + 180_000)
-  const reportMetadata = await executeListener({ name: "mcp__soc_agent__generate_customer_report", agent: { id: "agent-a" } }, "soc_agent", async () => ({}))
-  assert.ok(reportMetadata.soc_deadline_ms > Date.now() + 890_000)
-  assert.ok(reportMetadata.soc_deadline_ms <= Date.now() + 900_000)
   assert.equal(JSON.stringify(metadata).includes('zimbra'), false)
   const officialMetadata = await executeListener({ agent: { id: 'agent-a' } }, 'splunk_mcp', async () => ({ trace: 'official' }))
   assert.equal(officialMetadata.soc_session_id, 'app-session-a')

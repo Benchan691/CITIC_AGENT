@@ -25,7 +25,6 @@ from .zimbra import (
 )
 from .blocking_io import run_blocking
 from .request_context import operation_budget
-from .reports.control_api import report_artifact_get, report_settings_get, report_settings_save
 
 
 @dataclass
@@ -276,9 +275,6 @@ _SYNC_COMMANDS = {
     "get-2fa": get_two_factor,
     "cancel-2fa": cancel_two_factor,
     "logout": logout,
-    "report-settings-get": report_settings_get,
-    "report-settings-save": report_settings_save,
-    "report-artifact-get": report_artifact_get,
 }
 
 _ASYNC_COMMANDS = {

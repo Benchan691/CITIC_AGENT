@@ -1,6 +1,6 @@
-# Zimbra, subscription, and customer report MCP server
+# Zimbra + subscription MCP server
 
-Python MCP backend for the Zimbra, subscription, and customer report tools used by the SOC Agent.
+Python MCP backend for the Zimbra and subscription tools used by the SOC Agent.
 Splunk is connected separately through the official `splunk_mcp` bridge. See
 the [repository guide](../../../README.md) for workspace commands and
 dependency boundaries.
@@ -61,14 +61,12 @@ connection and does not disable TLS checks process-wide.
 
 The `soc_agent` MCP server does not register Splunk tools. The admin connection
 check probes `splunk_get_info` through the same official bridge configuration.
-The retired general-purpose Python Splunk tools and REST fallback are no longer shipped.
-Customer reports retain their dedicated dashboard renderer inside the report plugin;
-it creates a temporary dashboard and removes it after printing. The report tool
-therefore uses the configured Harness approval flow.
+The retired Python Splunk APIs and REST fallback are no longer shipped. No
+Splunk write tool or REST mutation method is exposed to the SOC Agent.
 
 Remove either official MCP setting and restart the host to disable the direct
-bridge. The `soc_agent` MCP server continues to expose Zimbra, subscription,
-and customer report tools.
+bridge. The `soc_agent` MCP server continues to expose only Zimbra and
+subscription tools.
 
 Standalone MCP clients should set `cwd` to this directory and pass `MCP_SERVER_ROOT` when workspace data lives elsewhere (for example the repository root `.data/` directory). The former misspelling `MCP_SEVER_ROOT` remains accepted for compatibility.
 
@@ -126,9 +124,8 @@ Splunk query limits, evidence retention, and provider-side guardrails belong to
 the separately deployed official MCP service. The SOC host still sanitizes and
 size-limits direct `splunk_mcp` output before it reaches model context.
 
-An ordinary operation has one 180-second budget including authentication and admission.
-Report generation has a 900-second budget; the SOC MCP transport permits 905 seconds.
-Zimbra blocking calls
+An operation has one 180-second budget including authentication and admission;
+the host MCP transport allows 185 seconds for cleanup. Zimbra blocking calls
 retain their admission slots until their worker exits, even if a caller
 cancels; each SOAP request checks the remaining deadline. PostgreSQL pooling defaults on,
 with up to four connections per store, a five-second connection/pool wait and
@@ -145,23 +142,6 @@ data, not the amount of work Splunk performs.
 Legacy REST credentials, planner, lookup, query-policy, and resource-admission
 settings are ignored. Readiness requires the official MCP endpoint and token;
 REST-only deployments must configure both before Splunk tools are available.
-
-Customer report generation is packaged separately as
-[`dsh-soc-agent-reports`](../../../packages/soc-agent-reports/README.md).
-Save customer email account/folder or label settings under **Settings → Customer reports**.
-`generate_customer_report` resolves the authenticated user's saved profile, reads
-the period's mail using the existing Zimbra service, validates canonical JSON,
-and invokes that plugin. A successful result provides Excel and PDF download
-links in the session. Missing settings, inaccessible mail, malformed evidence,
-rendering failures, and failed artifact publication return explicit errors.
-The parser uses deterministic field extraction and explicit customer verdicts.
-
-Configure `REPORT_SPLUNK_*` rendering variables in `.env`; they are independent
-of the official Splunk MCP bridge. Install the browser once with
-`uv run playwright install chromium`, or configure `REPORT_CHROME_BINARY`.
-The report profile and artifact registry migration is applied by the existing
-PostgreSQL migration runner. Report profiles are encrypted and owned by the user;
-downloads check both user and session ownership.
 
 The web UI authenticates users directly against the configured Zimbra server.
 The PostgreSQL-backed application session stores the authenticated Zimbra token

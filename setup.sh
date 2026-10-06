@@ -238,7 +238,6 @@ SOC_CLIENT_MATRIX=(
   "dsh-soc-agent-action-policy|soc-agent-action-policy|$REPO_ROOT/packages/soc-agent-action-policy/lib/client.js"
   "dsh-soc-agent-attachments|soc-agent-attachments|$REPO_ROOT/packages/soc-agent-attachments/lib/client.js"
   "dsh-soc-agent-email-draft|soc-agent-email-draft|$REPO_ROOT/packages/soc-agent-email-draft/lib/client.js"
-  "dsh-soc-agent-reports|soc-agent-reports|$REPO_ROOT/packages/soc-agent-reports/lib/client.js"
 )
 SOC_CLIENT_PACKAGE_NAMES=()
 SOC_CLIENT_PACKAGE_DIRS=()
@@ -284,7 +283,7 @@ PLUGIN_NAMES=(
 PLUGIN_SPECS=()
 
 # Direct profile dependencies setup.sh owns besides the external plugins:
-# the SOC product bundle and its nine browser packages (wired by
+# the SOC product bundle and its eight browser packages (wired by
 # ensure_soc_bundle).
 # Any other direct dependency found in the profile manifest is stale and gets
 # pruned (see prune_stale_plugins) — so removing a plugin from
@@ -299,7 +298,6 @@ SOC_MANAGED_DEPS=(
   dsh-soc-agent-action-policy
   dsh-soc-agent-attachments
   dsh-soc-agent-email-draft
-  dsh-soc-agent-reports
 )
 
 read_plugin_requirements() {
@@ -1235,7 +1233,6 @@ verify_profile_resolution() { # $1 = profile dir; prints one line per plugin nam
     dsh-soc-agent-action-policy \
     dsh-soc-agent-attachments \
     dsh-soc-agent-email-draft \
-    dsh-soc-agent-reports \
     @deepseek-ai/dsh-time-context \
     @linxin666/dsh-client-ui-skin-center \
     dsh-auto-collapse
@@ -1281,8 +1278,7 @@ ensure_soc_bundle() {
     && profile_lists "$pdir/package.json" "dsh-soc-agent-admin" \
     && profile_lists "$pdir/package.json" "dsh-soc-agent-action-policy" \
     && profile_lists "$pdir/package.json" "dsh-soc-agent-attachments" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-email-draft" \
-    && profile_lists "$pdir/package.json" "dsh-soc-agent-reports"; then
+    && profile_lists "$pdir/package.json" "dsh-soc-agent-email-draft"; then
     ok "SOC bundle and browser feature packages already registered in the '$DSH_PROFILE' profile"
   else
     echo "Registering the SOC product bundle in the '$DSH_PROFILE' profile…"
@@ -1295,8 +1291,7 @@ ensure_soc_bundle() {
         "$REPO_ROOT/packages/soc-agent-admin" \
         "$REPO_ROOT/packages/soc-agent-action-policy" \
         "$REPO_ROOT/packages/soc-agent-attachments" \
-        "$REPO_ROOT/packages/soc-agent-email-draft" \
-        "$REPO_ROOT/packages/soc-agent-reports" 2>&1 | tail -n 3); then
+        "$REPO_ROOT/packages/soc-agent-email-draft" 2>&1 | tail -n 3); then
       ok "installed dsh-soc-agent and all browser feature packages"
     else
       bad "could not install the SOC bundle into the harness profile (see output above)"
@@ -1423,8 +1418,7 @@ run_check_mode() {
       && profile_lists "$pdir/package.json" "dsh-soc-agent-admin" \
       && profile_lists "$pdir/package.json" "dsh-soc-agent-action-policy" \
       && profile_lists "$pdir/package.json" "dsh-soc-agent-attachments" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-email-draft" \
-      && profile_lists "$pdir/package.json" "dsh-soc-agent-reports"; then
+      && profile_lists "$pdir/package.json" "dsh-soc-agent-email-draft"; then
       ok "SOC bundle and browser feature packages registered in the '$DSH_PROFILE' profile"
     else
       bad "SOC bundle not registered — run: ./setup.sh --plugins"; fails=$((fails+1))

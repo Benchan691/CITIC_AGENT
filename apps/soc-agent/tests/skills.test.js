@@ -78,7 +78,7 @@ test('SOC profile exposes only allowlisted official Splunk reads when configured
   assert.ok(config.allowedToolNames.every(name => !/splunk_(create|update|delete|write)_/.test(name)))
 })
 
-test('soc_agent MCP allowlist contains only Zimbra, subscription, and report tools', () => {
+test('soc_agent MCP allowlist contains only Zimbra and subscription tools', () => {
   const productRoot = fileURLToPath(new URL('..', import.meta.url))
   const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
   const start = patch.indexOf('- id: soc-agent-mcp')
@@ -95,7 +95,7 @@ test('soc_agent MCP allowlist contains only Zimbra, subscription, and report too
     'zimbra_delete_email_filter', 'zimbra_set_email_filter_enabled',
     'zimbra_reorder_email_filter', 'list_subscriptions', 'get_subscription_schema',
     'preview_subscription', 'create_subscription', 'update_subscription',
-    'delete_subscription', 'generate_customer_report',
+    'delete_subscription',
   ]
   const allowlist = socBlock.match(/allowedToolNames:\n([\s\S]*?)(?=\n\s*#|\n\s*toolCallTimeoutMs)/)?.[1] ?? ''
   const actual = [...allowlist.matchAll(/^\s+- ([a-z][a-z_]*)$/gm)].map(match => match[1])
