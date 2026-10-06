@@ -27,7 +27,7 @@ export function apply(ctx) {
       soc_investigation_id: String(exec.agent?.session?.id ?? exec.agent?.id ?? ''),
       soc_customer_id: '',
       soc_correlation_id: randomUUID(),
-      soc_deadline_ms: Date.now() + 180_000,
+      soc_deadline_ms: Date.now() + (exec.name === 'mcp__soc_agent__generate_customer_report' ? 900_000 : 180_000),
     }
   }, { global: true })
   ctx.provide('socAuth', auth)

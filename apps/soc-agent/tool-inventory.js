@@ -17,6 +17,7 @@ export const OFFICIAL_SPLUNK_TOOL_NAMES = Object.freeze([
 ])
 
 export const TOOL_CATALOG = Object.freeze([
+  { name: 'mcp__soc_agent__generate_customer_report', group: 'Reports', label: 'Generate customer report', kind: 'mutation' },
   { name: 'mcp__soc_agent__zimbra_list_folders', group: 'Zimbra', label: 'List mail folders', kind: 'read' },
   { name: 'mcp__soc_agent__zimbra_search_emails', group: 'Zimbra', label: 'Search email', kind: 'read' },
   { name: 'mcp__soc_agent__zimbra_get_email', group: 'Zimbra', label: 'Read email', kind: 'read' },

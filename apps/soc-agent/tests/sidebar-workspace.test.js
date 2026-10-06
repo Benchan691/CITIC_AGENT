@@ -57,6 +57,7 @@ test('real base + web + SOC composition disables official surfaces and enables o
     ['soc-agent-action-policy-ui', 'dsh-soc-agent-action-policy'],
     ['soc-agent-attachments-ui', 'dsh-soc-agent-attachments'],
     ['soc-agent-email-draft-ui', 'dsh-soc-agent-email-draft'],
+    ['soc-agent-reports', 'dsh-soc-agent-reports'],
   ]
   for (const [id, name] of optionalRows) {
     const feature = row(rows, id)
@@ -77,6 +78,7 @@ test('each optional feature can be disabled without disabling core or the isolat
     'soc-agent-action-policy-ui',
     'soc-agent-attachments-ui',
     'soc-agent-email-draft-ui',
+    'soc-agent-reports',
   ]) {
     const rows = composed([{ id, disabled: true }])
     assert.equal(row(rows, id).disabled, true, `${id} is independently disabled`)
@@ -112,6 +114,11 @@ test('optional bundles have explicit core edges and own only their declared surf
       directory: 'soc-agent-email-draft',
       row: 'soc-agent-email-draft-ui',
       markers: ['tool.call.toolview', 'zimbra_send_email'],
+    },
+    {
+      directory: 'soc-agent-reports',
+      row: 'soc-agent-reports',
+      markers: ['tool.call.toolview', 'generate_customer_report', 'settings.section'],
     },
   ]
   for (const feature of features) {

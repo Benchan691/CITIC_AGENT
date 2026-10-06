@@ -1,0 +1,21 @@
+<!-- Writing rules: at most three analysis themes; each incident table contains at most six records. Preserve all in-period cases and actual customer remarks. -->
+<h1>F. Security Analysis</h1>
+<p>We reviewed {{ case_count }} supplied case records from {{ period_start_display }} through {{ period_end_display }}. These records comprise {{ severity_counts.CRITICAL }} critical, {{ severity_counts.HIGH }} high, and {{ severity_counts.MEDIUM }} medium alerts{% if reported_security_incidents is not none %}; the separately supplied reported-incident total is {{ reported_security_incidents }}{% endif %}.</p>
+{% for group in groups %}
+<h2>Top Suspicious Correlated Event Analysis {{ loop.index }}: <strong>{{ group.severity|title }} severity alerts</strong></h2>
+<p>We grouped {{ group.cases|length }} records by their recorded {{ group.severity|lower }} severity for review. The supplied rule families are {{ group.rule_names|join('; ') }}. This grouping does not establish a shared cause or a confirmed compromise.</p>
+{% for batch in group.cases|batch(6) %}
+<table>
+  <thead><tr><th>Incident Time</th><th>Severity</th><th>Case Number</th><th>Remark of customer</th></tr></thead>
+  <tbody>
+  {% for case in batch %}
+    <tr><td>{{ case.formatted_ticket_time }}</td><td>{{ case.severity }}</td><td>{{ case.ticket_number }}</td><td>{{ case.reason }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+<p><strong>Recommendation</strong></p>
+<p>We recommend verifying the associated event evidence and customer authorization, following up on missing confirmations, and considering tuning only after the recorded activity and customer outcome have been established.</p>
+{% else %}
+<p>No case-review records fall within the reporting period.</p>
+{% endfor %}

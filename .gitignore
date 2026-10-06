@@ -8,5 +8,6 @@ coverage/
 **/__pycache__/
 *.py[cod]
 *.egg-info/
+packages/soc-agent-reports/python/build/
 /.data/
 **/.state/

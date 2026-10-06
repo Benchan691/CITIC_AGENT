@@ -243,6 +243,7 @@ describe('SOC browser composition', () => {
       'dsh-soc-agent-action-policy',
       'dsh-soc-agent-attachments',
       'dsh-soc-agent-email-draft',
+      'dsh-soc-agent-reports',
     ]
     for (const bundle of expectedBundles) {
       assert.ok(browserRequests.some(url => decodeURIComponent(url).includes(bundle)), `browser loaded ${bundle}`)

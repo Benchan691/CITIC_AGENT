@@ -319,6 +319,7 @@ export function isMixedApiPath(path) {
 function isUserSocConfigPath(path) {
   const prefix = '/soc-agent-config/'
   const value = String(path ?? '')
+  if (value === '/soc-agent-reports' || value.startsWith('/soc-agent-reports/')) return true
   return value.startsWith(prefix) && USER_SOC_CONFIG_ENDPOINTS.has(value.slice(prefix.length))
 }
 

@@ -38,8 +38,9 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "create_subscription",
         "update_subscription",
         "delete_subscription",
+        "generate_customer_report",
     }
-    assert len(tools) == 27
+    assert len(tools) == 28
     assert not {tool.name for tool in tools if tool.name.startswith("splunk_")}
     assert "system_get_status" not in {tool.name for tool in tools}
     assert not {tool.name for tool in tools if tool.name.startswith("catalog_")}
@@ -139,3 +140,12 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "name", "expected_fingerprint",
     }
     assert set(delete_filter_tool.parameters["required"]) == {"name", "expected_fingerprint"}
+
+
+def test_report_tool_has_bounded_orchestration_inputs(monkeypatch):
+    monkeypatch.delenv("APP_POSTGRES_URI", raising=False)
+    tools = create_server()._tool_manager.list_tools()
+    report = next(tool for tool in tools if tool.name == "generate_customer_report")
+    assert set(report.parameters["properties"]) == {"customer_id", "period_start", "period_end", "reported_security_incidents"}
+    assert report.parameters["required"] == ["customer_id"]
+    assert report.annotations.readOnlyHint is False

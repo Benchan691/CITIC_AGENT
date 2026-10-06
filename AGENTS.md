@@ -114,6 +114,8 @@ Never describe a proposed action as completed.
 
 ## Response Style
 
+Generate customer reports through the MCP `generate_customer_report` tool. Customer email accounts and folders or labels are resolved from the authenticated user's configuration. Successful execution returns downloadable Excel and PDF files in the session.
+
 Be concise and operationally useful.
 
 Prefer:
