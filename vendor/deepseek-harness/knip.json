@@ -48,8 +48,6 @@
         "headless-agent/tests/fixtures/goal-domain/seed-goal.ts",
         "headless-agent/tests/fixtures/time-context-driver.ts",
         "headless-agent/tests/fixtures/time-context-mock-llm.ts",
-        "headless-agent/tests/fixtures/session-telemetry-otel-driver.ts",
-        "headless-agent/tests/fixtures/telemetry-redact-rule.ts",
         "acp-agent/tests/fixtures/child-question-tripwire.ts",
         "acp-agent/tests/fixtures/parent-sandbox-override.ts",
         "acp-agent/tests/fixtures/partial-landlock-sandbox.ts",
@@ -253,16 +251,6 @@
         "tests/**/*.ts"
       ]
     },
-    "packages/session/session-telemetry-otel": {
-      "entry": [
-        "tests/**/*.spec.ts",
-        "tests/**/*.e2e.ts"
-      ],
-      "project": [
-        "src/**/*.ts",
-        "tests/**/*.ts"
-      ]
-    },
     "packages/util/brand": {
       "project": [
         "src/**/*.ts"
@@ -354,16 +342,6 @@
       ]
     },
     "packages/llm/llm-pi-ai": {
-      "entry": [
-        "tests/**/*.spec.ts",
-        "tests/**/*.e2e.ts"
-      ],
-      "project": [
-        "src/**/*.ts",
-        "tests/**/*.ts"
-      ]
-    },
-    "packages/session/session-title-first-prompt-llm": {
       "entry": [
         "tests/**/*.spec.ts",
         "tests/**/*.e2e.ts"

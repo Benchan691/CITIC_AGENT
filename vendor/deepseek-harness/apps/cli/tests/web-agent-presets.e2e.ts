@@ -61,7 +61,7 @@ async function bootWeb(
     // this test's boot. Same reason the settings row above is pinned.
     { id: 'storage-json', config: { root: storageRoot } },
     // Host rows with side effects outside this process: a bound port, a served
-    // asset tree, a telemetry exporter. `api-gateway` and `directory-picker`
+    // asset tree. `api-gateway` and `directory-picker`
     // stay ENABLED on purpose — the api-proxy is the host row that injects
     // `subagents`, `workspace`, and the rest of the agent plane, so disabling
     // it would hide exactly the breakage this file exists to catch: a service
@@ -73,7 +73,6 @@ async function bootWeb(
     // and the URL prompt line — surface glue, not anything that decides an
     // agent's capabilities, which is all this file asserts.
     { id: 'web-runtime', disabled: true },
-    { id: 'session-telemetry-otel', disabled: true },
     // A deployment-level skill on the host registry's GLOBAL layer — the same
     // registration shape a repository plugin's skill root uses. The layered
     // skills test below proves it reaches preset-composed agents.

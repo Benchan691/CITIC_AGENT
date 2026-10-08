@@ -56,7 +56,18 @@ Retain shared service definitions whenever another runtime or build consumer
 uses them. Removing entire shell, filesystem, jobs, goals, or subagent families
 is outside this three-stage cleanup.
 
-Status: planned; no stage 3 packages removed.
+Status: completed on 2026-10-08. All three packages and their local build
+artifacts are removed. The base and web bundle manifests and composition
+patches no longer reference them, and the SOC patch no longer needs disable
+overrides for them. The lockfile drops 13 unused dependency versions, including
+the OTLP exporter stack and trajectory virtualization libraries; their 13
+orphan installed folders were also removed.
+
+The deterministic session-title provider, shared session telemetry and feedback
+contracts, and generic conversation extension slots remain. Feedback records
+are local without an exporter. The CLI's exporter-specific boot switch and its
+obsolete test were removed. Compatibility opt-out environment variables in
+upstream release/CI scripts remain harmless when used with older binaries.
 
 ## Validation
 
@@ -135,4 +146,33 @@ These wider checks do not pass in the existing vendored checkout:
   entries for removed LSP/team source types were deleted; retained entries
   remain unchanged.
 
-Stage 3 remains planned; stages 1 and 2 are complete.
+### Stage 3 results
+
+- Complete harness and web build: passed.
+- SOC application tests: 46 passed; SOC browser composition: 1 passed with
+  fixture authentication and workspace data.
+- Shipped web preset composition tests: 29 passed.
+- Feedback and retained navigation browser fixtures: refreshed, then replayed
+  successfully (8 passed, 1 live-recording test skipped). The feedback snapshot
+  now states that session sharing is not configured; the remaining single chat
+  view, search, export, and terminal-card checks pass without a model API.
+- Focused harness suite: 872 passed, 4 failed across 67 files. All four failures
+  reproduce before stage 3: two legacy workspace-button assertions, one
+  prompt mock argument mismatch, and the client catalog's two undocumented
+  workspace slots. The changed package removals introduce no new failures in
+  that suite.
+- Client catalog regeneration remains blocked by missing JSDoc on
+  `conversation.hero.workspace.directoryFlow` and
+  `sidebar.workspaces.directoryFlow`. Only the conversation-view description
+  and the removed trajectory occupant were updated in the generated catalog;
+  all other entries remain unchanged.
+- Lint for all 14 changed TypeScript files, package-path validation,
+  configuration-source ownership, and diff whitespace: passed.
+- All nine changed English/Chinese pairing records were refreshed. Four pairs
+  retain existing missing-upstream-document link mismatches; comparison with
+  the original documents confirms no new structural mismatches.
+- Authentication, policy, user ownership, and Splunk bridge source match the
+  pre-removal versions. The SOC composition patch only loses the three obsolete
+  disable overrides.
+
+All three stages are complete: 16 optional plugin packages have been removed.

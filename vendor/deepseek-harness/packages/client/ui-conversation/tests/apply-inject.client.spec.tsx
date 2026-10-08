@@ -328,7 +328,7 @@ describe('conversation slot inject API', () => {
     const before = injected.views.version()
     const listener = vi.fn()
     const unsub = injected.views.subscribe(listener)
-    // A second ring rider (what ui-trajectory does in production).
+    // A second view extension contributes to the shared ring.
     const off = b.slots.register(
       { name: 'conversation.view', id: 'chat2', order: 5, label: 'X' } as never, (() => null) as never)
     await Promise.resolve() // ledger notifications batch per microtask

@@ -113,8 +113,6 @@
   disabled: true
 - id: command-feedback
   disabled: true
-- id: session-telemetry-otel
-  disabled: true
 - id: skill-badge
   disabled: true
 - id: cordis-host-runner
@@ -178,12 +176,6 @@
   disabled: false
 - id: ui-user-questions
   disabled: false
-- id: ui-trajectory
-  disabled: true
-# The auxiliary session-title LLM is redundant: the deterministic session-title
-# fallback names sessions without a generation request on every conversation.
-- id: session-title-llm
-  disabled: true
 
 # ── SOC product plugins ─────────────────────────────────────────────────────
 

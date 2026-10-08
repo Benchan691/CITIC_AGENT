@@ -1096,8 +1096,8 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     key: 'conversation.view',
     kind: 'list',
     scope: 'session',
-    summary: 'The conversation view ring: one list entry per view tab (chat here; trajectory/waterfall from ui-trajectory), rendered one-at-a-time by the session body via `only: <active id>`.',
-    doc: 'The conversation view ring: one list entry per view tab (chat here;\ntrajectory/waterfall from ui-trajectory), rendered one-at-a-time by\nthe session body via `only: <active id>`. Declared by this package\'s\nbody entry (declaring is claiming). Session scope: views read the\nconversation snapshot through the standard kit.',
+    summary: 'The conversation view ring: one list entry per view tab (chat here; alternate views from extension plugins), rendered one-at-a-time by the session body via `only: <active id>`.',
+    doc: 'The conversation view ring: one list entry per view tab (chat here;\nalternate views from extension plugins), rendered one-at-a-time by\nthe session body via `only: <active id>`. Declared by this package\'s\nbody entry (declaring is claiming). Session scope: views read the\nconversation snapshot through the standard kit.',
     registerOptions: [
       {
         name: 'id',
@@ -1137,7 +1137,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'conversation.session\' (client-ui-conversation), so it exists while that entry is mounted',
     occupants: [
       'client-ui-conversation ChatView id \'chat\'',
-      'client-ui-trajectory TrajectoryView id \'trajectory\'',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'conversation.view\', () => ctx.slots.register(\n      { name: \'conversation.view\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',

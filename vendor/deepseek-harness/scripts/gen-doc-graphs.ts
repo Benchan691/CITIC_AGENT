@@ -201,7 +201,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'session-telemetry',
     title: 'Session telemetry seam',
     mode: 'seam',
-    implementations: ['session-telemetry-otel'],
+    implementations: [],
     consumers: [],
     note: 'The seam captures, redacts, and hands session records to one backend; nothing else consumes the service — its output leaves the process.',
   },
@@ -266,7 +266,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'session-title',
     title: 'Log-backed session titles',
     mode: 'seam',
-    implementations: ['session-title-first-prompt-llm'],
+    implementations: [],
     note: 'Owns the deterministic fallback, latest-title fold, and sole optional asynchronous provider registration.',
   },
   {
