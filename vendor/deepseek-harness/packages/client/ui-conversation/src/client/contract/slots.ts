@@ -128,7 +128,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.session.header.utilities': { kind: 'list'; scope: 'session'; owner: ConversationHeaderActionOwnerProps }
     /**
      * The conversation view ring: one list entry per view tab (chat here;
-     * trajectory/waterfall from ui-trajectory), rendered one-at-a-time by
+     * alternate views from extension plugins), rendered one-at-a-time by
      * the session body via `only: <active id>`. Declared by this package's
      * body entry (declaring is claiming). Session scope: views read the
      * conversation snapshot through the standard kit.
@@ -491,7 +491,7 @@ export type CommandRowProps = PropsRuntime<'conversation.chat.commandview'>
  * conversation snapshot by the runtime merge, sessionId, useSessions).
  * Entries declaring the shared store or an inject face compose their shares
  * on top (the chat entry's {@link ChatViewSlotProps}); store-less pure
- * readers (ui-trajectory) take this base alone.
+ * alternate-view readers take this base alone.
  */
 export type ConvViewProps = PropsRuntime<'conversation.view'>
 

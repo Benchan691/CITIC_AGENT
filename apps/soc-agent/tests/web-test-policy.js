@@ -30,7 +30,6 @@ export const SOC_UNSUPPORTED_WEB_TESTS = Object.freeze([
   'apps/web/tests/subagent-interrupt-ui.e2e.ts',
   'apps/web/tests/subagent-interrupt.e2e.ts',
   'apps/web/tests/todo-row.snapshot.ts',
-  'apps/web/tests/trajectory-virtualization.e2e.ts',
   'apps/web/tests/web-search-round.e2e.ts',
   'apps/web/tests/workflow-run.e2e.ts',
 ])

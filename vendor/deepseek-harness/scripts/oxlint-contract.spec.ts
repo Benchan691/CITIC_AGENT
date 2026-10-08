@@ -55,7 +55,7 @@ describe('Oxlint executable contract', () => {
       ['client package source', 'packages/client/ui-primitives/src', 'packages/client/ui-primitives/tsconfig.json'],
       // A test under packages/client states its face in the filename, so the
       // probe carries the Client suffix to reach the Client aggregate.
-      ['client package test', 'packages/client/ui-trajectory/tests', 'tsconfig.client.json', '.client.ts'],
+      ['client package test', 'packages/client/ui-conversation/tests', 'tsconfig.client.json', '.client.ts'],
       ['example', 'examples/headless-agent/tests', 'tsconfig.host.json'],
       ['website', 'website', 'tsconfig.host.json'],
     ] as const
