@@ -20,7 +20,7 @@
 
 #### 模型看到的内容
 
-策略归属方会贡献与具体能力无关的 `sandbox:policy` 上下文。模型通过 `@deepseek-ai/dsh-tool-terminal` 或其他 PTY 消费方还可能收到有界的 MOTD、发送增量、scrollback 页、就绪原因和清理错误。
+策略归属方会贡献与具体能力无关的 `sandbox:policy` 上下文。持久化 shell 工具消费此后端的有界终端输出与就绪结果。
 
 #### Token 影响
 

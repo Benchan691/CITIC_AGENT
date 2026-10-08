@@ -402,8 +402,8 @@ describe('Node 24 lane ownership', () => {
     })
     expect(subject.find(item => item.id === 'built-bin-smoke')?.args).toEqual(
       expect.arrayContaining([
-        'packages/subagent/subagent-codex/tests/loader-composition.e2e.ts',
-        'packages/subagent/subagent-claude-code/tests/loader-composition.e2e.ts',
+        'packages/workflow/workflow-worker-thread/tests/built-worker.e2e.ts',
+        'packages/code-runtime/code-runtime-worker-thread/tests/built-lib.e2e.ts',
       ]),
     )
     expect(subject.find(item => item.id === 'web-snapshot')).toMatchObject({

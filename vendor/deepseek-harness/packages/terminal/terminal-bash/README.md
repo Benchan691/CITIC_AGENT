@@ -20,7 +20,7 @@ Send cancellation marks queued input as canceled before asking the terminal hand
 
 #### What the model sees
 
-The policy owner contributes capability-neutral `sandbox:policy` context. Through `@deepseek-ai/dsh-tool-terminal` or another PTY consumer, the model may also receive bounded MOTD, send deltas, scrollback pages, readiness reasons, and cleanup errors.
+The policy owner contributes capability-neutral `sandbox:policy` context. Persistent shell tools consume this backend's bounded terminal output and readiness results.
 
 #### Token effect
 

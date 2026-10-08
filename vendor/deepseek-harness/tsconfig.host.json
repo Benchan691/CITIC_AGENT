@@ -206,7 +206,6 @@
     { "path": "./packages/terminal/terminal-bash" },
     { "path": "./packages/shell/tool-bash-persistent" },
     { "path": "./packages/shell/tool-pwsh-persistent" },
-    { "path": "./packages/terminal/tool-terminal" },
     { "path": "./packages/code-runtime/code-runtime" },
     { "path": "./packages/code-runtime/code-runtime-python" },
     { "path": "./packages/code-runtime/code-runtime-worker-thread" },
@@ -269,14 +268,9 @@
     { "path": "./packages/subagent/subagent-spawn-in-process" },
     { "path": "./packages/subagent/subagent-fork-in-process" },
     { "path": "./packages/subagent/subagent-acp" },
-    { "path": "./packages/subagent/subagent-claude-code" },
-    { "path": "./packages/subagent/subagent-codex" },
-    { "path": "./packages/subagent/subagent-dsh-sdk" },
     { "path": "./packages/jobs/jobs" },
     { "path": "./packages/jobs/jobs-local" },
     { "path": "./packages/jobs/tool-jobs" },
-    { "path": "./packages/experimental/agent-team" },
-    { "path": "./packages/experimental/tool-agent-team" },
     { "path": "./packages/workflow/workflow" },
     { "path": "./packages/workflow/workflow-worker-thread" },
     { "path": "./packages/workflow/tool-workflow" },
@@ -302,9 +296,6 @@
     { "path": "./packages/host/webserver" },
     { "path": "./packages/sdk/client" },
     { "path": "./packages/sdk/protocol" },
-    { "path": "./packages/lsp/lsp" },
-    { "path": "./packages/lsp/lsp-stdio" },
-    { "path": "./packages/lsp/tool-lsp" },
     { "path": "./apps/cli" }
   ]
 }
