@@ -199,14 +199,6 @@ describe('CI workflow', () => {
     }
   })
 
-  it('keeps supported LSP source under native Windows coverage', () => {
-    const config = readFileSync(resolve(root, 'vitest.config.ts'), 'utf8')
-
-    expect(config).not.toContain('packages/lsp/lsp-stdio/src/connection.ts')
-    expect(config).not.toContain('packages/lsp/lsp-stdio/src/index.ts')
-    expect(config).not.toContain('packages/lsp/lsp-stdio/src/instance.ts')
-  })
-
   it('requires one release-shaped Python runtime target on every pull request', () => {
     const workflow = loadWorkflow('.github/workflows/ci.yml')
     const pythonRuntime = workflowJob(workflow, 'python-runtime')

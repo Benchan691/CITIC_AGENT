@@ -35,7 +35,13 @@ documentation, and test references:
 - `@deepseek-ai/dsh-subagent-codex`, `@deepseek-ai/dsh-subagent-claude-code`, `@deepseek-ai/dsh-subagent-dsh-sdk`
 - `@deepseek-ai/dsh-tool-terminal`
 
-Status: planned; no stage 2 packages removed.
+Status: completed on 2026-10-08. All nine packages and their local build artifacts
+are removed. Retained package manifests have no dependencies on these packages.
+The lockfile drops 22 dependency versions, including the Codex CLI, Claude Agent
+SDK, and language-server libraries; 10 orphan installed dependency folders were
+also removed. Optional product-provider rows and their authoring guidance were
+removed from the shipped presets. Shared terminal services, persistent shell
+tools, and the in-process and ACP subagent providers remain.
 
 ## Stage 3: disabled bundle plugins
 
@@ -87,8 +93,10 @@ These wider checks do not pass in the existing vendored checkout:
 
 - Full API-catalog regeneration is blocked by missing JSDoc on the retained MCP,
   session-folder, session-persistence, and workspace-cleanup contracts. A targeted
-  TypeScript syntax-tree update removed only the obsolete generated E2B service
-  entry. The retained MCP source remains unchanged.
+  TypeScript syntax-tree update removed the obsolete E2B service in stage 1 and
+  the two LSP/team services plus 25 associated types in stage 2. All retained
+  generated catalog entries match their pre-removal versions. The retained MCP
+  source remains unchanged.
 - The README model-experience check requires `docs/tool-catalog.md`, which is
   absent from the baseline checkout.
 - README limitations and package invariant checks report missing documentation
@@ -99,4 +107,32 @@ These wider checks do not pass in the existing vendored checkout:
   refreshed, and comparison with the original documents confirms no new
   structural mismatches from this removal.
 
-Stage 2 and stage 3 remain planned; this change does not execute them.
+### Stage 2 results
+
+- Complete harness and web build: passed.
+- SOC application tests: 46 passed; SOC browser composition: 1 passed with
+  fixture authentication and workspace data.
+- Focused harness tests: 610 passed, 3 skipped across 34 files, covering the
+  retained terminal services, persistent shell tools, subagent services, base
+  bundle, catalogs, and build/CI configuration.
+- Additional job-control and gate tests: 159 passed across 4 files. Job notice
+  fixtures now use the retained subagent kind instead of the removed PTY-tool
+  kind, preserving the bounded-output and collection-action assertions.
+- Shipped web preset composition tests: 29 passed.
+- Lint for all 12 changed TypeScript files, package-path validation,
+  configuration-source ownership, and diff whitespace checks: passed.
+- Dependency and source audit: no retained active imports or compositions
+  require the removed packages. Historical architecture notes and durable
+  replay recordings retain their original descriptions; negative regression
+  tests continue to assert that removed providers are absent.
+- The SOC patch, policy, authentication, ownership, Splunk bridge, and base/web
+  composition patches match the pre-removal versions.
+- All eight changed English/Chinese pairing records were refreshed. Three
+  pairs retain existing missing-upstream-document link mismatches; comparison
+  with the original documents confirms no new structural mismatches.
+- The type-equivalence documentation gate also cannot pass because the
+  baseline vendored checkout omits its upstream `docs/` tree. The 14 manifest
+  entries for removed LSP/team source types were deleted; retained entries
+  remain unchanged.
+
+Stage 3 remains planned; stages 1 and 2 are complete.

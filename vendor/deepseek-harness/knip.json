@@ -50,7 +50,6 @@
         "headless-agent/tests/fixtures/time-context-mock-llm.ts",
         "headless-agent/tests/fixtures/session-telemetry-otel-driver.ts",
         "headless-agent/tests/fixtures/telemetry-redact-rule.ts",
-        "acp-agent/tests/snapshots/lsp-definition/workspace/subject.ts",
         "acp-agent/tests/fixtures/child-question-tripwire.ts",
         "acp-agent/tests/fixtures/parent-sandbox-override.ts",
         "acp-agent/tests/fixtures/partial-landlock-sandbox.ts",
@@ -61,13 +60,6 @@
         "acp-agent/tests/fixtures/workspace-context-compaction.ts",
         "acp-agent/tests/fixtures/subagent/subagent-acp/mock-delegating-llm.ts",
         "acp-agent/tests/fixtures/subagent/subagent-acp/driver.ts",
-        "acp-agent/tests/fixtures/subagent/subagent-claude-code/fixture.ts",
-        "acp-agent/tests/fixtures/subagent/subagent-claude-code/driver.ts",
-        "acp-agent/tests/fixtures/subagent/subagent-codex/fixture.ts",
-        "acp-agent/tests/fixtures/subagent/subagent-codex/driver.ts",
-        "jsonrpc-agent/tests/fixtures/subagent/subagent-dsh-sdk/driver.ts",
-        "jsonrpc-agent/tests/fixtures/subagent/subagent-dsh-sdk/child-mock-llm.ts",
-        "jsonrpc-agent/tests/fixtures/subagent/subagent-dsh-sdk/mock-delegating-llm.ts",
         "*/tests/**/*.e2e.ts",
         "*/tests/**/*.snapshot.ts"
       ],
@@ -249,20 +241,6 @@
       "project": [
         "src/**/*.ts",
         "tests/**/*.ts"
-      ]
-    },
-    "packages/lsp/lsp-stdio": {
-      "entry": [
-        "tests/**/*.spec.ts",
-        "tests/**/*.e2e.ts",
-        "tests/fixture-server.ts"
-      ],
-      "project": [
-        "src/**/*.ts",
-        "tests/**/*.ts"
-      ],
-      "ignoreDependencies": [
-        "typescript-language-server"
       ]
     },
     "packages/sandbox/sandbox-local": {
@@ -533,26 +511,6 @@
         "tests/**/*.ts"
       ]
     },
-    "packages/subagent/subagent-codex": {
-      "entry": [
-        "tests/**/*.spec.ts",
-        "tests/**/*.e2e.ts"
-      ],
-      "project": [
-        "src/**/*.ts",
-        "tests/**/*.ts"
-      ]
-    },
-    "packages/subagent/subagent-claude-code": {
-      "entry": [
-        "tests/**/*.spec.ts",
-        "tests/**/*.e2e.ts"
-      ],
-      "project": [
-        "src/**/*.ts",
-        "tests/**/*.ts"
-      ]
-    },
     "packages/fs/tool-fs": {
       "entry": [
         "tests/**/*.spec.ts",
@@ -627,16 +585,6 @@
       ],
       "ignoreDependencies": [
         "@deepseek-ai/.+"
-      ]
-    },
-    "packages/subagent/subagent-dsh-sdk": {
-      "entry": [
-        "tests/**/*.spec.ts",
-        "tests/**/*.e2e.ts"
-      ],
-      "project": [
-        "src/**/*.ts",
-        "tests/**/*.ts"
       ]
     },
     "packages/bundle/base": {
