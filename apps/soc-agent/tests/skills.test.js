@@ -78,7 +78,7 @@ test('SOC profile exposes only allowlisted official Splunk reads when configured
   assert.ok(config.allowedToolNames.every(name => !/splunk_(create|update|delete|write)_/.test(name)))
 })
 
-test('soc_agent MCP allowlist contains only Zimbra and subscription tools', () => {
+test('soc_agent MCP allowlist contains Zimbra, spreadsheet and subscription tools', () => {
   const productRoot = fileURLToPath(new URL('..', import.meta.url))
   const patch = readFileSync(join(productRoot, 'cordis.patch.yml'), 'utf8')
   const start = patch.indexOf('- id: soc-agent-mcp')
@@ -88,6 +88,7 @@ test('soc_agent MCP allowlist contains only Zimbra and subscription tools', () =
     'zimbra_list_folders', 'zimbra_list_signatures', 'zimbra_create_signature',
     'zimbra_delete_signature', 'zimbra_create_folder', 'zimbra_search_emails',
     'zimbra_get_email', 'zimbra_get_email_headers', 'zimbra_get_attachment_text',
+    'excel_inspect', 'excel_profile', 'excel_count', 'excel_aggregate', 'excel_group', 'excel_rows',
     'zimbra_send_email', 'zimbra_use_signature_on_email', 'zimbra_move_email',
     'zimbra_list_email_filters', 'zimbra_get_email_filter',
     'zimbra_validate_email_filter', 'zimbra_preview_email_filter_update',

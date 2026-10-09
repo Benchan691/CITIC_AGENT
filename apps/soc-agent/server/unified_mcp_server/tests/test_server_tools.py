@@ -20,6 +20,8 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "zimbra_get_email",
         "zimbra_get_email_headers",
         "zimbra_get_attachment_text",
+        "excel_inspect", "excel_profile", "excel_count",
+        "excel_aggregate", "excel_group", "excel_rows",
         "zimbra_send_email",
         "zimbra_use_signature_on_email",
         "zimbra_move_email",
@@ -39,7 +41,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "update_subscription",
         "delete_subscription",
     }
-    assert len(tools) == 27
+    assert len(tools) == 33
     assert not {tool.name for tool in tools if tool.name.startswith("splunk_")}
     assert "system_get_status" not in {tool.name for tool in tools}
     assert not {tool.name for tool in tools if tool.name.startswith("catalog_")}
@@ -49,6 +51,10 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         assert "ctx" not in tool.parameters.get("required", [])
         if tool.name.startswith("zimbra_"):
             assert "account_id" not in tool.parameters.get("properties", {})
+        if tool.name.startswith("excel_"):
+            assert tool.annotations.readOnlyHint is True
+            assert "file_id" in tool.parameters["required"]
+            assert not {"file_path", "user_id", "session_id", "investigation_id", "account_id"} & tool.parameters["properties"].keys()
 
     schema_tool = next(tool for tool in tools if tool.name == "get_subscription_schema")
     assert schema_tool.parameters.get("required", []) == []

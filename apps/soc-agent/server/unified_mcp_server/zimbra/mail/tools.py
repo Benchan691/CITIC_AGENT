@@ -106,7 +106,11 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
 
     @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_get_attachment_text(ctx: Context, message_id: str, part: str, max_chars: int = 20_000) -> dict[str, Any]:
-        """Download one bounded Zimbra attachment and return readable Markdown evidence.
+        """Read one bounded attachment. XLSX/XLS/CSV return a private file_id for
+        excel_inspect and analysis tools; other documents use MarkItDown.
+        Inspect spreadsheet headers, calculate with count/aggregate/group,
+        and retrieve only relevant evidence rows. Use the original file for
+        calculations even if a Markdown preview already exists.
 
         This includes attached email parts such as ``message/rfc822``. Review
         each normal attachment independently; if one file returns

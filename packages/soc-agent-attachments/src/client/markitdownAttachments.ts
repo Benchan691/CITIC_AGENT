@@ -109,6 +109,7 @@ export class MarkItDownDocumentController implements ComposerDocumentProvider {
         const bytes = new Uint8Array(await document.file.arrayBuffer())
         const response = await this.connection.rpc.call(CHANNEL, 'convert-attachment', {
           filename: document.file.name,
+          investigation_id: sessionId,
           content_type: document.file.type,
           data: bytesToBase64(bytes),
           limits: { max_bytes: limits.maxBytesPerFile, max_chars: limits.maxCharsPerFile },

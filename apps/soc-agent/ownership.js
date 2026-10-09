@@ -29,6 +29,7 @@ const USER_SOC_CONFIG_ENDPOINTS = new Set([
   'set-action-mode',
   'send-email',
   'list-signatures',
+  'convert-attachment',
 ])
 const PRIVILEGED_API_METHODS = new Set([
   'agentPreset.read',

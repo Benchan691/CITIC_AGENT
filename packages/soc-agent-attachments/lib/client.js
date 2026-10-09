@@ -244,21 +244,22 @@ window.__ModuleLoader__.load({
 					className: MarkItDownAttachmentSettings_module_css_default.header,
 					type: "button",
 					"aria-expanded": open,
-					"aria-label": `${open ? "Collapse" : "Expand"} settings: MarkItDown attachments`,
+					"aria-label": `${open ? "Collapse" : "Expand"} settings: Attachment processing`,
 					onClick: () => setOpen((value) => !value),
 					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 						className: MarkItDownAttachmentSettings_module_css_default.headText,
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 							className: MarkItDownAttachmentSettings_module_css_default.name,
-							children: "MarkItDown attachments"
+							children: "Attachment processing"
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 							className: MarkItDownAttachmentSettings_module_css_default.description,
-							children: "Upload files and send their readable text to the AI."
+							children: "Analyse spreadsheets and read document text."
 						})]
 					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Chevron, { open })]
 				}), open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					className: MarkItDownAttachmentSettings_module_css_default.body,
 					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Excel and CSV files use their original data for analysis. Other documents are converted to text. Markdown limits apply to document text." }),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
 							id: "markitdown-max-files",
 							label: "Maximum files per message",
@@ -435,6 +436,7 @@ window.__ModuleLoader__.load({
 						const bytes = new Uint8Array(await document.file.arrayBuffer());
 						const response = await this.connection.rpc.call(CHANNEL, "convert-attachment", {
 							filename: document.file.name,
+							investigation_id: sessionId,
 							content_type: document.file.type,
 							data: bytesToBase64(bytes),
 							limits: {

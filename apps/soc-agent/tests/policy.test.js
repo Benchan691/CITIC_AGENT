@@ -4,8 +4,8 @@ import { ACTION_CATALOG, apply, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS, T
 import { ACTION_TOOLS } from '../policy.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 29)
-  assert.equal(DOMAIN_TOOLS.size, 41)
+  assert.equal(READ_ONLY_TOOLS.length, 35)
+  assert.equal(DOMAIN_TOOLS.size, 47)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',
@@ -47,6 +47,10 @@ test('host policy delegates reads, asks for mutations, and denies generic tools'
   roots.push(lateAgent)
   assert.doesNotThrow(() => handlers.get('agent/created')({ agent: lateAgent }))
   const preExecute = handlers.get('tools/pre-execute')
+  for (const name of ['excel_inspect', 'excel_profile', 'excel_count', 'excel_aggregate', 'excel_group', 'excel_rows']) {
+    assert.deepEqual(await preExecute({ name: 'mcp__soc_agent__' + name }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
+  }
+  assert.equal((await preExecute({ name: 'mcp__excel__filter_and_get_rows' }, () => ({ kind: 'delegate' }))).kind, 'deny')
   assert.deepEqual(await preExecute({ name: 'skill' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'exit_plan_mode' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })
   assert.deepEqual(await preExecute({ name: 'ask_user_question' }, () => ({ kind: 'delegate' })), { kind: 'delegate' })

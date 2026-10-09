@@ -121,14 +121,15 @@ export function MarkItDownAttachmentSettingsCard(props: CardProps) {
   if (!state.available) return null
   const disabled = !state.writable
   return <li className={`${css.card}${open ? ` ${css.cardOpen}` : ''}`}>
-    <button className={css.header} type="button" aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} settings: MarkItDown attachments`} onClick={() => setOpen(value => !value)}>
+    <button className={css.header} type="button" aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} settings: Attachment processing`} onClick={() => setOpen(value => !value)}>
       <span className={css.headText}>
-        <span className={css.name}>MarkItDown attachments</span>
-        <span className={css.description}>Upload files and send their readable text to the AI.</span>
+        <span className={css.name}>Attachment processing</span>
+        <span className={css.description}>Analyse spreadsheets and read document text.</span>
       </span>
       <Chevron open={open} />
     </button>
     {open && <div className={css.body}>
+      <p>Excel and CSV files use their original data for analysis. Other documents are converted to text. Markdown limits apply to document text.</p>
       <Field id="markitdown-max-files" label="Maximum files per message" hint="Default: 5" state={state.maxFiles} disabled={disabled} edit={value => props.edit('maxFiles', value)} reset={() => props.resetField('maxFiles')} />
       <Field id="markitdown-max-file-bytes" label="Maximum bytes per file" hint="Default: 10 MB" state={state.maxBytesPerFile} disabled={disabled} edit={value => props.edit('maxBytesPerFile', value)} reset={() => props.resetField('maxBytesPerFile')} />
       <Field id="markitdown-max-total-bytes" label="Maximum total upload bytes" hint="Default: 50 MB" state={state.maxTotalBytes} disabled={disabled} edit={value => props.edit('maxTotalBytes', value)} reset={() => props.resetField('maxTotalBytes')} />
