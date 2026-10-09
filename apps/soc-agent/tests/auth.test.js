@@ -441,7 +441,7 @@ test('analyst RPCs keep the user principal when an admin cookie also exists', as
   })
   const cookie = `soc_session=user-session; ${ADMIN_SESSION_COOKIE}=${adminToken}`
 
-  for (const endpoint of ['get-action-catalog', 'get-action-policy', 'set-action-mode', 'send-email', 'list-signatures']) {
+  for (const endpoint of ['get-action-catalog', 'get-action-policy', 'set-action-mode', 'send-email', 'list-signatures', 'convert-attachment']) {
     let userPrincipal
     await auth.withNodeRequest(nodeRequest({
       method: 'POST',

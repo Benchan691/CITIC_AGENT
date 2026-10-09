@@ -466,6 +466,18 @@ function validateAttachmentPayload(payload) {
   return { filename, content_type: contentType, data, limits: { max_bytes: maxBytes, max_chars: maxChars } }
 }
 
+// The host validates chat ownership and supplies the application identity.
+// File references never accept a user ID from browser/model arguments.
+export async function prepareAttachmentRequest(ctx, payload) {
+  const session = requireUser(ctx)
+  const request = validateAttachmentPayload(payload)
+  const investigationId = typeof payload.investigation_id === 'string' ? payload.investigation_id : ''
+  if (!investigationId || investigationId.length > 128) throw new Error('attachment_invalid_request: Choose a chat before attaching a file.')
+  const owner = await ctx.get('socAuth').store.sessionOwner(investigationId)
+  if (owner?.userId !== session.userId) throw new Error('attachment_invalid_request: This chat is unavailable.')
+  return { ...request, session_id: session.id, investigation_id: investigationId }
+}
+
 async function handleEndpoint(endpoint, payload, signal, ctx) {
   switch (endpoint) {
     case 'get-action-catalog': requireUser(ctx); return ok({ actions: ACTION_CATALOG, tools: TOOL_CATALOG })
@@ -494,8 +506,7 @@ async function handleEndpoint(endpoint, payload, signal, ctx) {
     case 'test-splunk': requireAdmin(ctx); return ok(await testOfficialSplunkConnection(ctx, signal))
     case 'test-subscription-server': requireAdmin(ctx); return ok(await runAdmin('test-subscription-server'))
     case 'convert-attachment': {
-      requireAdmin(ctx)
-      const request = validateAttachmentPayload(payload)
+      const request = await prepareAttachmentRequest(ctx, payload)
       return ok(await runAdmin('convert-attachment', undefined, request, signal))
     }
     default: return badRequest(`Unknown endpoint: ${endpoint}`)
@@ -574,13 +585,13 @@ export function apply(ctx) {
         if (endpoint === 'convert-attachment') {
           const message = error instanceof Error ? error.message : 'attachment_conversion_failed'
           const [code] = message.split(': ')
-          const stableCodes = new Set(['attachment_invalid_request', 'attachment_invalid_filename', 'attachment_invalid_mime', 'attachment_too_large', 'attachment_invalid_limits', 'attachment_conversion_cancelled', 'attachment_unsupported', 'attachment_converter_unavailable', 'attachment_malformed', 'attachment_encrypted', 'attachment_too_complex', 'attachment_conversion_failed'])
+          const stableCodes = new Set(['attachment_invalid_request', 'attachment_invalid_filename', 'attachment_invalid_mime', 'attachment_too_large', 'attachment_invalid_limits', 'attachment_conversion_cancelled', 'attachment_unsupported', 'attachment_converter_unavailable', 'attachment_malformed', 'attachment_encrypted', 'attachment_too_complex', 'attachment_conversion_failed', 'spreadsheet_empty', 'spreadsheet_encoding', 'spreadsheet_malformed', 'spreadsheet_too_complex', 'spreadsheet_storage_limit', 'spreadsheet_unsupported', 'session_expired'])
           const reason = stableCodes.has(code) ? code : 'attachment_conversion_failed'
           return {
             ok: false,
             error: {
               code: 'attachment-error',
-              message: 'The attachment conversion failed.',
+              message: stableCodes.has(code) && message.includes(': ') ? message.slice(message.indexOf(': ') + 2) : 'The attachment could not be processed.',
               details: { reason },
             },
           }

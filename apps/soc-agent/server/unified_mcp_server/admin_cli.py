@@ -12,6 +12,8 @@ from typing import Any
 
 from .config import ServerSettings
 from .attachment_converter import AttachmentConversionLimits, AttachmentConverter
+from .auth import identity_for_session
+from .spreadsheets.service import SpreadsheetService, spreadsheet_extension
 from .email.service import EmailSubscriptionService
 from .env_loader import load_server_env
 from .errors import ServiceError
@@ -79,10 +81,23 @@ def convert_attachment(store: PostgresStore, payload: Mapping[str, Any]) -> dict
         max_chars = int(limits.get("max_chars", settings.zimbra.max_attachment_text_chars))
     except (TypeError, ValueError) as exc:
         raise RuntimeError("Attachment conversion limits are invalid.") from exc
+    filename = str(payload.get("filename", ""))
+    content_type = str(payload.get("content_type", ""))
+    if spreadsheet_extension(filename, content_type):
+        identity = identity_for_session(store, str(payload.get("session_id", "")))
+        if identity is None:
+            raise ServiceError("session_expired", "Log in again before attaching a spreadsheet.")
+        investigation_id = str(payload.get("investigation_id", ""))
+        if not investigation_id:
+            raise ServiceError("attachment_invalid_request", "Choose a chat before attaching a spreadsheet.")
+        return SpreadsheetService().put(
+            data, filename, content_type, user_id=identity.user_id,
+            investigation_id=investigation_id, max_bytes=max_bytes,
+        )
     return AttachmentConverter(settings.markitdown).convert(
         data,
-        str(payload.get("filename", "")),
-        str(payload.get("content_type", "")),
+        filename,
+        content_type,
         AttachmentConversionLimits(max_bytes=max_bytes, max_chars=max_chars),
     )
 

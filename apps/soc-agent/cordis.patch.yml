@@ -204,6 +204,12 @@
           - zimbra_get_email
           - zimbra_get_email_headers
           - zimbra_get_attachment_text
+          - excel_inspect
+          - excel_profile
+          - excel_count
+          - excel_aggregate
+          - excel_group
+          - excel_rows
           - zimbra_send_email
           - zimbra_use_signature_on_email
           - zimbra_move_email
@@ -262,7 +268,7 @@
     - id: soc-agent-attachments-ui
       name: dsh-soc-agent-attachments
       disabled: false
-      description: Optional MarkItDown document attachment feature.
+      description: Optional attachment feature with spreadsheet analysis and MarkItDown documents.
     - id: soc-agent-email-draft-ui
       name: dsh-soc-agent-email-draft
       disabled: false

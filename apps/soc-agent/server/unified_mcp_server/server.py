@@ -1,4 +1,4 @@
-"""Unified MCP server exposing Zimbra and subscription tools."""
+"""Unified MCP server exposing Zimbra, spreadsheet and subscription tools."""
 
 import json
 import asyncio
@@ -34,6 +34,8 @@ from .zimbra.mail.service import ZimbraMailService
 from .zimbra.mail.tools import register_tools as register_mail_tools
 from .zimbra.filters.service import ZimbraFilterService
 from .zimbra.filters.tools import register_tools as register_filter_tools
+from .spreadsheets.service import SpreadsheetService
+from .spreadsheets.tools import register_tools as register_spreadsheet_tools
 
 load_server_env()
 logger = logging.getLogger(__name__)
@@ -68,6 +70,7 @@ class Runtime:
     postgres: PostgresStore | None = None
     account_store: AccountStore | None = None
     identity: ZimbraIdentity | None = None
+    spreadsheets: SpreadsheetService = field(default_factory=SpreadsheetService)
     owns_services: bool = True
     config_revision: str = field(init=False)
     _mail_sessions: OrderedDict = field(default_factory=OrderedDict, init=False)
@@ -91,13 +94,15 @@ class Runtime:
             settings.zimbra.key_file,
             settings.zimbra.explicit_key,
         )
+        spreadsheets = SpreadsheetService()
         return cls(
             settings,
-            ZimbraMailService(settings.zimbra, accounts, settings.markitdown),
+            ZimbraMailService(settings.zimbra, accounts, settings.markitdown, spreadsheets=spreadsheets),
             EmailSubscriptionService(settings.email_server),
             zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
             postgres=postgres,
             account_store=accounts,
+            spreadsheets=spreadsheets,
         )
 
     async def close(self) -> None:
@@ -121,6 +126,7 @@ class Runtime:
                 None,
                 self.settings.markitdown,
                 identity,
+                spreadsheets=self.spreadsheets,
             ),
             email_subscriptions=self.email_subscriptions,
             zimbra_filters=ZimbraFilterService(
@@ -131,6 +137,7 @@ class Runtime:
             postgres=self.postgres,
             account_store=self.account_store,
             identity=identity,
+            spreadsheets=self.spreadsheets,
             owns_services=False,
         )
         self._mail_sessions[identity.session_id] = scoped
@@ -293,6 +300,7 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         get_runtime=runtime,
         execute=execute,
     )
+    register_spreadsheet_tools(server, get_runtime=runtime, execute=execute)
     return server
 
 

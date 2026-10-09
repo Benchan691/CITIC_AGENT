@@ -1,6 +1,6 @@
-# Zimbra + subscription MCP server
+# SOC MCP server
 
-Python MCP backend for the Zimbra and subscription tools used by the SOC Agent.
+Python MCP backend for Zimbra, spreadsheet analysis and subscription tools used by the SOC Agent.
 Splunk is connected separately through the official `splunk_mcp` bridge. See
 the [repository guide](../../../README.md) for workspace commands and
 dependency boundaries.
@@ -65,7 +65,7 @@ The retired Python Splunk APIs and REST fallback are no longer shipped. No
 Splunk write tool or REST mutation method is exposed to the SOC Agent.
 
 Remove either official MCP setting and restart the host to disable the direct
-bridge. The `soc_agent` MCP server continues to expose only Zimbra and
+bridge. The `soc_agent` MCP server continues to expose Zimbra, spreadsheet and
 subscription tools.
 
 Standalone MCP clients should set `cwd` to this directory and pass `MCP_SERVER_ROOT` when workspace data lives elsewhere (for example the repository root `.data/` directory). The former misspelling `MCP_SEVER_ROOT` remains accepted for compatibility.
@@ -108,11 +108,11 @@ permission/authentication failures have distinct errors. Folder and syntax
 errors are non-retryable until corrected; known transient faults are retryable.
 
 Zimbra supports bounded metadata/body pagination, header-only evidence,
-MarkItDown-based attachment-to-Markdown conversion for PDF, Word, PowerPoint,
-Excel, images, ZIP, EPUB, CSV, JSON, XML, HTML, and text files; attachment
-hashes; and verified reversible message moves. Body-embedded CID/content-
-hashes; attached RFC822/EML messages are read from their text parts without
-resolving remote HTML images; and verified reversible message moves. Body-
+spreadsheet analysis for XLSX, XLS and CSV, and MarkItDown-based document
+conversion for PDF, Word, PowerPoint, images, ZIP, EPUB, JSON, XML, HTML and
+text files. Attached RFC822/EML messages are read from their text parts without
+resolving remote HTML images. Attachment hashes and verified reversible
+message moves are supported. Body-
 embedded CID/content-location images are omitted from normal attachment
 metadata, and conversion-only failures are reported as skipped attachment
 results so other message content can still be read. The authenticated email
@@ -155,3 +155,62 @@ Attachment conversion is local by default. Set `MARKITDOWN_LLM_ENABLED=true`
 with the `MARKITDOWN_LLM_*` variables when OpenAI-compatible OCR or image
 descriptions are explicitly required; `setup.sh` installs the optional
 `markitdown-llm` dependencies automatically.
+
+## Spreadsheet attachments
+
+Composer uploads and `zimbra_get_attachment_text` route XLSX, XLS and CSV to
+the pinned [jwadow/mcp-excel](https://github.com/jwadow/mcp-excel) engine inside
+the existing authenticated MCP server. CSV support and the private file-ID
+wrapper are local adapters. No additional MCP server configuration is needed.
+The dependency is pinned to `eb088c5edd5335c67ffc14e521be607a46d49b2a` and
+uses the upstream AGPL-3.0-or-later license.
+
+The model receives a short manifest with a `file_id`, filename, hash and sheet
+names. It does not receive the full spreadsheet as Markdown. Tool descriptions
+and the manifest guide it to inspect headers, calculate on the full original
+file, and request only a small evidence sample:
+
+| Tool | Fields and purpose |
+| --- | --- |
+| `excel_inspect` | `file_id`, optional `sheet_name`, `header_row`; list sheets or inspect columns/types and up to 3 sample rows |
+| `excel_profile` | `file_id`, `sheet_name`, `columns`, optional `top_n`, `header_row`; null/distinct counts, statistics and top values |
+| `excel_count` | `file_id`, `sheet_name`, optional `filters`, `logic`, `header_row`; count all matching rows |
+| `excel_aggregate` | same filtering fields plus `operation`, `target_column`; full-file calculation |
+| `excel_group` | same filtering fields plus `group_columns`, `agg_column`, `agg_operation`; grouped calculation |
+| `excel_rows` | same filtering fields plus required `columns`, optional `limit`, `offset`; bounded selected rows |
+
+Header rows are zero-based; inspect and verify them before calculations. CSV
+has one sheet named `CSV`. Aggregations support sum, mean, median, min, max,
+std, var and count. Aggregate/group count counts non-empty selected values;
+`excel_count` counts rows. Rows with empty grouping keys are excluded. Mixed
+non-numeric columns return an explicit error instead of silently dropping
+values. Undefined aggregate statistics return an insufficient-data error.
+
+Filters use `column`, `operator`, `value` (or `values` for membership), and
+optional `negate`. Operators: `==`, `!=`, `>`, `<`, `>=`, `<=`, `in`, `not_in`,
+`contains`, `startswith`, `endswith`, `is_null`, `is_not_null`. Combine up to
+32 simple filters with AND/OR. Regex and nested filters are unavailable.
+
+MarkItDown continues to process other supported documents. If a spreadsheet
+was previously converted to Markdown, retrieve the original email attachment
+again or reattach the original upload; use its new file ID for calculations.
+Do not calculate from a truncated Markdown excerpt or page through the whole
+file. File contents remain untrusted evidence, not instructions. The guidance
+is in MCP descriptions and attachment manifests, not `AGENTS.md`.
+
+Files are stored under `.data/spreadsheets` with private permissions and are
+scoped to the authenticated user, chat and host-provided customer context.
+Tools accept file IDs, never arbitrary paths or user identities. IDs expire
+after 24 hours; expired files are removed on the next upload in that scope.
+Metadata and original bytes survive an application restart until expiry.
+
+Limits: 10 MB per file, 200,000 rows, 200 columns, 2 million total workbook
+cells, 32 sheets; 20 files/100 MB per chat. Results are at most 12 KB. Row
+samples are at most 50 rows/10 selected columns. Large inspection samples are
+omitted while keeping the schema. CSV supports UTF-8/UTF-16, comma, semicolon,
+tab or pipe delimiters and quoted newlines. Text identifiers retain leading
+zeros and literal `NA` values. Formulas are not recalculated; Excel reads their
+saved values. Password-protected workbooks must be unlocked first.
+
+After copying these changes to another server, refresh dependencies/builds
+with `./setup.sh --plugins` from the repository root and restart the web app.

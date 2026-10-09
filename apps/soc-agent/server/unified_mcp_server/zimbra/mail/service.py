@@ -37,7 +37,8 @@ from unified_mcp_server.attachment_converter import (
 from unified_mcp_server.config import MarkItDownSettings, ZimbraSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 from unified_mcp_server.blocking_io import run_blocking
-from unified_mcp_server.request_context import remaining_seconds
+from unified_mcp_server.request_context import remaining_seconds, operation_context
+from unified_mcp_server.spreadsheets.service import SpreadsheetService, spreadsheet_extension
 from ..core.service import ZimbraCore
 from ..errors import _query_validation_error, _upstream_error
 from .email_html import sanitize_email_html
@@ -169,10 +170,12 @@ class ZimbraMailService(ZimbraCore):
         accounts: AccountStore | None = None,
         markitdown_settings: MarkItDownSettings | None = None,
         identity: ZimbraIdentity | None = None,
+        spreadsheets: SpreadsheetService | None = None,
     ) -> None:
         super().__init__(settings, accounts, identity)
         self.markitdown_settings = markitdown_settings or MarkItDownSettings()
         self._attachment_converter = AttachmentConverter(self.markitdown_settings)
+        self._spreadsheets = spreadsheets or SpreadsheetService()
 
     async def test_account(self, account: StoredAccount) -> None:
         await self._run_login(account)
@@ -869,6 +872,20 @@ class ZimbraMailService(ZimbraCore):
         content_type = str(attachment.get("content_type", "")).split(";", 1)[0].lower()
         if not filename and content_type in _EMAIL_ATTACHMENT_CONTENT_TYPES:
             filename = f"attachment-{part.replace('.', '-')}.eml"
+        if spreadsheet_extension(filename, content_type):
+            # Both mailbox files and composer uploads use private file IDs.
+            # Do not flatten spreadsheet records through MarkItDown.
+            if self.identity is None:
+                raise ServiceError("authentication_required", "Log in before analysing spreadsheet attachments.")
+            scope = operation_context.get()
+            converted = self._spreadsheets.put(
+                data, filename or f"attachment-{part.replace('.', '-')}", content_type,
+                user_id=self.identity.user_id,
+                investigation_id=scope.investigation_id or self.identity.session_id,
+                customer_id=scope.customer_id, max_bytes=self.settings.max_attachment_bytes,
+            )
+            return {**converted, "message_id": message_id, "part": part,
+                    "account_id": account.id, "account": account.agent_dict()}
         try:
             converted = self._attachment_converter.convert(data, filename, content_type, AttachmentConversionLimits(
                 max_bytes=self.settings.max_attachment_bytes, max_chars=max_chars,
