@@ -241,6 +241,9 @@
     - id: soc-agent-admin-host
       name: dsh-soc-agent/host
       description: Host policy, tool allowlists, and admin RPC for the SOC Agent product.
+    - id: soc-spreadsheet-skills
+      name: dsh-soc-agent/spreadsheet-skills
+      description: Load spreadsheet guidance before executing Excel analysis calls.
     - id: soc-agent-client-core
       name: dsh-soc-agent-client
       disabled: false
