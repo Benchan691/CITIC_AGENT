@@ -135,6 +135,9 @@ importers:
       '@deepseek-ai/dsh-mcp-client':
         specifier: link:../../vendor/deepseek-harness/packages/mcp/mcp-client
         version: link:../../vendor/deepseek-harness/packages/mcp/mcp-client
+      '@deepseek-ai/dsh-skill':
+        specifier: workspace:*
+        version: link:../../vendor/deepseek-harness/packages/skill/skill
       '@deepseek-ai/schemastery':
         specifier: link:../../vendor/deepseek-harness/vendor/schemastery
         version: link:../../vendor/deepseek-harness/vendor/schemastery

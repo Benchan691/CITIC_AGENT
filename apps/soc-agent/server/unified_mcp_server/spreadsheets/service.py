@@ -12,6 +12,8 @@ import re
 import threading
 import time
 import uuid
+import unicodedata
+from collections import Counter
 from pathlib import Path
 
 import pandas as pd
@@ -44,7 +46,9 @@ MAX_RESPONSE_BYTES = 12_000
 FILE_TTL = 24 * 3600
 GUIDANCE = (
     "Call excel_inspect with file_id, then inspect the selected sheet and verify "
-    "its header_row (zero-based). Use excel_count, excel_aggregate or excel_group "
+    "its header_row using numbered raw_preview rows (zero-based). Pass that "
+    "header_row explicitly to analysis tools. Use column refs such as @A when "
+    "labels are blank or repeated. Use excel_count, excel_aggregate or excel_group "
     "for full-sheet calculations. Use excel_rows for a small filtered sample "
     "with selected columns. Use the original file for calculations even if a "
     "Markdown preview exists. Do not convert this file to Markdown or read every "
@@ -64,6 +68,62 @@ def spreadsheet_extension(filename: str, content_type: str = "") -> str | None:
 def _check_shape(rows: int, columns: int) -> None:
     if rows > MAX_ROWS or columns > MAX_COLUMNS or rows * columns > MAX_CELLS:
         raise ServiceError("spreadsheet_too_complex", "The spreadsheet exceeds the row, column or cell limit.")
+
+
+def _column_id(index: int) -> str:
+    result = ""
+    index += 1
+    while index:
+        index, remainder = divmod(index - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+
+def _normalize_label(value: str) -> str:
+    return " ".join(unicodedata.normalize("NFC", value).replace("\u00a0", " ").split())
+
+
+def _label(value) -> str | None:
+    return None if pd.isna(value) or not str(value).strip() else str(value)
+
+
+def _with_headers(raw: pd.DataFrame, header_row: int) -> pd.DataFrame:
+    if not 0 <= header_row < len(raw):
+        raise ServiceError("spreadsheet_invalid_input", "header_row must identify an existing row, starting at zero. Inspect the numbered raw_preview first.")
+    labels = [_label(value) for value in raw.iloc[header_row]]
+    occurrences = Counter(_normalize_label(label) for label in labels if label is not None)
+    columns = []
+    for index, label in enumerate(labels):
+        ref = "@" + _column_id(index)
+        issue = ("blank" if label is None else
+                 "duplicate" if occurrences[_normalize_label(label)] > 1 else
+                 "reserved" if _normalize_label(label).startswith("@") else
+                 "long" if len(json.dumps(label, ensure_ascii=False).encode()) > 120 else None)
+        columns.append({"column_id": _column_id(index), "ref": ref,
+                        "label": label, "name": ref if issue else label, "issue": issue})
+    frame = raw.iloc[header_row + 1:].reset_index(drop=True).copy()
+    frame.columns = [column["name"] for column in columns]
+    frame.attrs["columns"] = columns
+    return frame
+
+
+def _preview_value(value) -> tuple[object, bool]:
+    if pd.isna(value):
+        return None, False
+    if hasattr(value, "isoformat"):
+        value = value.isoformat()
+    elif hasattr(value, "item"):
+        value = value.item()
+    if isinstance(value, str) and len(json.dumps(value, ensure_ascii=False).encode()) > 120:
+        low, high = 0, min(len(value), 120)
+        while low < high:
+            middle = (low + high + 1) // 2
+            if len(json.dumps(value[:middle] + "…", ensure_ascii=False).encode()) <= 120:
+                low = middle
+            else:
+                high = middle - 1
+        return value[:low] + "…", True
+    return value, False
 
 
 def _csv_frame(path: Path, header_row: int | None) -> pd.DataFrame:
@@ -91,14 +151,10 @@ def _csv_frame(path: Path, header_row: int | None) -> pd.DataFrame:
         raise ServiceError("spreadsheet_empty", "The CSV contains no rows.")
     if len({len(row) for row in rows}) > 1:
         raise ServiceError("spreadsheet_malformed", "CSV rows have inconsistent column counts. Check its delimiter and quoting.")
+    raw = pd.DataFrame(rows).replace("", None)
     if header_row is None:
-        return pd.DataFrame(rows)
-    if not 0 <= header_row < len(rows):
-        raise ServiceError("spreadsheet_invalid_input", "header_row must identify an existing row, starting at zero.")
-    headers = rows[header_row]
-    if len(set(headers)) != len(headers) or any(not name.strip() for name in headers):
-        raise ServiceError("spreadsheet_invalid_input", "The selected CSV header has empty or duplicate names. Choose the correct header_row.")
-    frame = pd.DataFrame(rows[header_row + 1:], columns=headers).replace("", None)
+        return raw
+    frame = _with_headers(raw, header_row)
     # Keep text identifiers (including leading zeros). Infer numbers only when
     # every populated value is numeric, without interpreting text as dates.
     for column in frame:
@@ -126,13 +182,7 @@ class AttachmentLoader(FileLoader):
                 result = pd.read_excel(path, sheet_name=sheet_name, header=None,
                                        engine=engine, dtype=object, keep_default_na=False)
                 if header_row is not None:
-                    if header_row >= len(result):
-                        raise ServiceError("spreadsheet_invalid_input", "header_row must identify an existing row, starting at zero.")
-                    headers = result.iloc[header_row].tolist()
-                    if len(set(headers)) != len(headers) or any(not str(c).strip() for c in headers):
-                        raise ServiceError("spreadsheet_invalid_input", "Choose a header row with unique, non-empty column names.")
-                    result = result.iloc[header_row + 1:].reset_index(drop=True)
-                    result.columns = headers
+                    result = _with_headers(result, header_row)
                 result = result.mask(result.eq("")).infer_objects()
                 if use_cache:
                     self._cache.put(path, result, key)
@@ -146,8 +196,6 @@ class AttachmentLoader(FileLoader):
                 if use_cache:
                     self._cache.put(path, result, key)
         _check_shape(len(result), len(result.columns))
-        if header_row is not None and (result.columns.duplicated().any() or any(not str(c).strip() for c in result.columns)):
-            raise ServiceError("spreadsheet_invalid_input", "Choose a header row with unique, non-empty column names.")
         return result.copy(deep=True)
 
     def get_sheet_names(self, file_path):
@@ -290,6 +338,105 @@ class SpreadsheetService:
     async def analyse(self, action: str, file_id: str, **arguments) -> dict:
         return await run_blocking(self._analyse, action, file_id, arguments)
 
+    def _inspect_sheet(self, path: Path, arguments: dict) -> dict:
+        sheet = arguments["sheet_name"]
+        raw = self.loader.load(path, sheet, header_row=None)
+        header = arguments.get("header_row")
+        detection = None
+        if header is None and not raw.empty:
+            detected = self.inspection._header_detector.detect(raw)
+            header = int(detected.header_row)
+            detection = {"header_row": header, "confidence": float(detected.confidence),
+                         "suggestion_only": True}
+        frame = self.loader.load(path, sheet, header_row=header) if header is not None else raw
+        columns = frame.attrs.get("columns", [])
+        offset = arguments.get("column_offset", 0)
+        if offset < 0 or (columns and offset >= len(columns)):
+            raise ServiceError("spreadsheet_invalid_input", f"column_offset must be between 0 and {max(0, len(columns) - 1)}.")
+        selected = columns[offset:offset + 8]
+        start = arguments.get("preview_start_row")
+        if start is None:
+            start = max(0, (header or 0) - 2)
+        if start < 0 or (len(raw) and start >= len(raw)):
+            raise ServiceError("spreadsheet_invalid_input", f"preview_start_row must be between 0 and {max(0, len(raw) - 1)}.")
+
+        def row_values(row, *, positional):
+            values, truncated = {}, []
+            for index, column in enumerate(selected, start=offset):
+                key = column["ref"] if positional else column["name"]
+                value, clipped = _preview_value(row.iloc[index])
+                values[key] = value
+                if clipped:
+                    truncated.append(key)
+            return values, truncated
+
+        preview = []
+        for index in range(start, min(start + 5, len(raw))):
+            values, clipped = row_values(raw.iloc[index], positional=True)
+            preview.append({"row_index": index, "values": values, "truncated_columns": clipped})
+        samples, samples_truncated = [], False
+        for index in range(min(3, len(frame))):
+            values, clipped = row_values(frame.iloc[index], positional=False)
+            samples.append(values)
+            samples_truncated |= bool(clipped)
+        descriptors, types = [], {}
+        for column in selected:
+            label, clipped = _preview_value(column["label"])
+            descriptors.append({**column, "label": label, "label_truncated": clipped})
+            dtype = frame[column["name"]].dtype
+            types[column["name"]] = (
+                "boolean" if pd.api.types.is_bool_dtype(dtype) else
+                "integer" if pd.api.types.is_integer_dtype(dtype) else
+                "float" if pd.api.types.is_float_dtype(dtype) else
+                "datetime" if pd.api.types.is_datetime64_any_dtype(dtype) else "string"
+            )
+        return {"sheet_name": sheet, "header_row": header, "header_detection": detection,
+                "header_needs_verification": True, "data_start_row": header + 1 if header is not None else 0,
+                "column_names": [column["name"] for column in selected], "columns": descriptors,
+                "column_count": len(raw.columns), "column_types": types,
+                "column_offset": offset, "columns_truncated": offset + len(selected) < len(columns),
+                "next_column_offset": offset + len(selected) if offset + len(selected) < len(columns) else None,
+                "row_count": len(frame), "raw_preview": preview,
+                "preview_start_row": start, "preview_rows_truncated": start + len(preview) < len(raw),
+                "sample_rows": samples, "sample_values_truncated": samples_truncated,
+                "guidance": "Verify header_row from raw_preview row_index (zero-based). Labels are preserved; use @A/@B refs for blank, duplicate or reserved labels. Pass the verified header_row to every analysis call."}
+
+    @staticmethod
+    def _resolve_columns(frame: pd.DataFrame, arguments: dict) -> tuple[dict, dict]:
+        columns = frame.attrs["columns"]
+
+        def resolve(value):
+            if value.startswith("@"):
+                matches = [column for column in columns if column["ref"] == value]
+            else:
+                matches = [column for column in columns if column["label"] is not None
+                           and _normalize_label(column["label"]) == _normalize_label(value)]
+            if len(matches) > 1:
+                refs = [column["ref"] for column in matches]
+                label, _ = _preview_value(value)
+                raise ServiceError("spreadsheet_ambiguous_column",
+                                   f"Column label {label!r} matches {', '.join(refs)}. Use one of these refs from excel_inspect.",
+                                   details={"column_refs": refs})
+            if not matches:
+                label, _ = _preview_value(value)
+                raise ServiceError("spreadsheet_column_not_found",
+                                   f"Column {label!r} was not found. Use a name or @A/@B ref returned by excel_inspect.")
+            column = matches[0]
+            used[column["name"]] = column["ref"]
+            return column["name"]
+
+        used = {}
+        result = dict(arguments)
+        for key in ("columns", "group_columns"):
+            if key in result:
+                result[key] = [resolve(value) for value in result[key]]
+        for key in ("target_column", "agg_column"):
+            if key in result:
+                result[key] = resolve(result[key])
+        if result.get("filters"):
+            result["filters"] = [{**item, "column": resolve(item["column"])} for item in result["filters"]]
+        return result, used
+
     def _analyse(self, operation: str, file_id: str, arguments: dict) -> dict:
         handlers = {
             "inspect": (self.inspection.inspect_file, requests.InspectFileRequest),
@@ -327,7 +474,14 @@ class SpreadsheetService:
                         "sheet_count": len(meta["sheet_names"]), "sheet_names": meta["sheet_names"],
                         "sheets_info": meta["sheets_info"], "rows_include_header": True,
                     }, file_id, meta, operation)
+                if operation == "sheet":
+                    return self._response(self._inspect_sheet(path, arguments), file_id, meta, operation)
+                if arguments.get("header_row") is None:
+                    raise ServiceError("spreadsheet_header_required", "Inspect the numbered raw_preview, then pass the verified zero-based header_row explicitly. Inspection suggestions are not confirmation.")
                 function, model = handlers[operation]
+                request = model(file_path=str(path), **arguments)
+                frame = self.loader.load(path, request.sheet_name, header_row=request.header_row)
+                arguments, column_refs = self._resolve_columns(frame, arguments)
                 request = model(file_path=str(path), **arguments)
                 count = None
                 if operation in {"aggregate", "group"}:
@@ -350,6 +504,7 @@ class SpreadsheetService:
                         raise ServiceError("spreadsheet_insufficient_data", "This calculation has too few non-empty values. std and var require at least two; mean, median, min and max require at least one.")
                 # Pydantic serializes undefined numeric statistics as JSON null.
                 response = json.loads(function(request).model_dump_json())
+                response["column_refs"] = column_refs
                 if operation == "aggregate" and count is not None:
                     response["value"] = count
             return self._response(response, file_id, meta, operation)

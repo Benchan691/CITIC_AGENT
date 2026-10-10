@@ -139,10 +139,110 @@ def test_refs_survive_restart_but_expire_and_cleanup_on_next_upload(service, mon
 
 
 @pytest.mark.parametrize("extension", [".csv", ".xlsx"])
-def test_duplicate_headers_are_not_silently_renamed(service, extension):
-    manifest = store(service, [["Value", "Value"], ["1", "2"]], extension)
-    with pytest.raises(ServiceError, match="unique|duplicate"):
-        analyse(service, manifest, "sheet", sheet_name="CSV" if extension == ".csv" else "Events", header_row=0)
+def test_blank_and_duplicate_headers_preserve_columns_and_support_all_analysis(service, extension):
+    rows = [["Roster", "", "", ""], ["Name", "Shift", "Shift", ""],
+            ["Person A", "2", "4", "East"], ["Person B", "3", "6", "West"]]
+    manifest = store(service, rows, extension)
+    sheet = "CSV" if extension == ".csv" else "Events"
+    common = dict(sheet_name=sheet, header_row=1)
+    schema = analyse(service, manifest, "sheet", **common)
+    assert schema["column_names"] == ["Name", "@B", "@C", "@D"]
+    assert [column["label"] for column in schema["columns"]] == ["Name", "Shift", "Shift", None]
+    assert [column["issue"] for column in schema["columns"]] == [None, "duplicate", "duplicate", "blank"]
+    assert schema["raw_preview"][1]["row_index"] == 1
+    assert schema["raw_preview"][1]["values"]["@B"] == "Shift"
+    assert schema["data_start_row"] == 2 and schema["row_count"] == 2
+    assert schema["sample_rows"][0]["@B"] in (2, "2")
+    assert schema["sample_rows"][0]["@C"] in (4, "4")
+    assert analyse(service, manifest, "count", **common, filters=[
+        {"column": "@D", "operator": "==", "value": "East"}])["count"] == 1
+    assert analyse(service, manifest, "aggregate", **common, operation="sum", target_column="@B")["value"] == 5
+    assert analyse(service, manifest, "aggregate", **common, operation="sum", target_column="@C")["value"] == 10
+    profile = analyse(service, manifest, "profile", **common, columns=["@C"])
+    assert profile["profiles"]["@C"]["total_count"] == 2
+    grouped = analyse(service, manifest, "group", **common, group_columns=["@D"],
+                      agg_column="@B", agg_operation="sum")
+    assert sum(row["@B_sum"] for row in grouped["groups"]) == 5
+    sample = analyse(service, manifest, "rows", **common, columns=["@A", "@B", "@C", "@D"])
+    assert len(sample["rows"][0]) == 4
+    assert sample["column_refs"] == {"Name": "@A", "@B": "@B", "@C": "@C", "@D": "@D"}
+    with pytest.raises(ServiceError) as error:
+        analyse(service, manifest, "aggregate", **common, operation="sum", target_column="Shift")
+    assert error.value.code == "spreadsheet_ambiguous_column"
+    assert error.value.details["column_refs"] == ["@B", "@C"]
+    assert str(service.root) not in error.value.message
+
+
+def test_merged_roster_header_inspection_and_header_verification(service):
+    book = Workbook()
+    sheet = book.active
+    sheet.title = "Roster"
+    sheet.append(["October roster"])
+    sheet.merge_cells("A1:C1")
+    sheet.append(["Name", "Shift", None])
+    sheet.append(["Person A", 2, 4])
+    sheet.append(["Person B", 3, 6])
+    output = io.BytesIO()
+    book.save(output)
+    book.close()
+    manifest = service.put(output.getvalue(), "roster.xlsx", "",
+                           user_id="user-a", investigation_id="chat-a")
+    schema = analyse(service, manifest, "sheet", sheet_name="Roster", header_row=1)
+    assert schema["column_names"] == ["Name", "Shift", "@C"]
+    assert schema["raw_preview"][0]["values"]["@A"] == "October roster"
+    assert schema["raw_preview"][1]["values"]["@C"] is None
+    suggestion = analyse(service, manifest, "sheet", sheet_name="Roster")
+    assert suggestion["header_detection"]["suggestion_only"] is True
+    # An incorrect title-row selection is visible without losing any columns.
+    title = analyse(service, manifest, "sheet", sheet_name="Roster", header_row=0)
+    assert title["column_names"] == ["October roster", "@B", "@C"]
+    with pytest.raises(ServiceError) as error:
+        analyse(service, manifest, "count", sheet_name="Roster")
+    assert error.value.code == "spreadsheet_header_required"
+    assert analyse(service, manifest, "count", sheet_name="Roster", header_row=1)["count"] == 2
+    # @B selects column B even when addressed by its unique label previously.
+    result = analyse(service, manifest, "aggregate", sheet_name="Roster", header_row=1,
+                     operation="sum", target_column="@B")
+    assert result["value"] == 5 and result["column_refs"] == {"Shift": "@B"}
+
+
+def test_normalized_and_reserved_labels_cannot_select_the_wrong_column(service):
+    manifest = store(service, [["Name", " Name\u00a0", "@A", "Other"], ["left", "right", "literal", "OK"]])
+    schema = analyse(service, manifest, "sheet", sheet_name="CSV", header_row=0)
+    assert schema["column_names"] == ["@A", "@B", "@C", "Other"]
+    assert schema["columns"][2]["label"] == "@A"
+    with pytest.raises(ServiceError) as error:
+        analyse(service, manifest, "rows", sheet_name="CSV", header_row=0, columns=["Name"])
+    assert error.value.code == "spreadsheet_ambiguous_column"
+    result = analyse(service, manifest, "rows", sheet_name="CSV", header_row=0, columns=["@A", "@C"])
+    assert result["rows"] == [{"@A": "left", "@C": "literal"}]
+
+
+def test_inspection_of_empty_and_wide_sheets_stays_bounded(service):
+    manifest = store(service, [[f"Field {i}" for i in range(30)], list(range(30))], ".xlsx")
+    schema = analyse(service, manifest, "sheet", sheet_name="Events", header_row=0, column_offset=24)
+    assert schema["column_count"] == 30 and len(schema["columns"]) == 6
+    assert schema["columns"][2]["ref"] == "@AA"
+    result = analyse(service, manifest, "rows", sheet_name="Events", header_row=0, columns=["@AA"])
+    assert result["rows"] == [{"Field 26": 26}]
+    empty = store(service, [], ".xlsx")
+    schema = analyse(service, empty, "sheet", sheet_name="Events")
+    assert schema["raw_preview"] == [] and schema["column_count"] == 0
+
+
+def test_preview_clipping_handles_large_escaped_labels_without_changing_data(service):
+    headers = [f"Label {i} " + "\0" * 100 for i in range(8)]
+    rows = [headers] + [["中文\n" * 100] * 8 for _ in range(6)]
+    manifest = store(service, rows)
+    schema = analyse(service, manifest, "sheet", sheet_name="CSV", header_row=0)
+    assert len(json.dumps(schema, ensure_ascii=False).encode()) <= module.MAX_RESPONSE_BYTES
+    assert all(column["label_truncated"] for column in schema["columns"])
+    assert all(column["name"] == column["ref"] for column in schema["columns"])
+    values = analyse(service, manifest, "rows", sheet_name="CSV", header_row=0, columns=["@A"], limit=1)
+    assert values["rows"][0]["@A"] == rows[1][0]
+    # Preview narrowing does not change the header or data row positions.
+    preview = analyse(service, manifest, "sheet", sheet_name="CSV", header_row=0, preview_start_row=4)
+    assert preview["raw_preview"][0]["row_index"] == 4
 
 
 def test_analysis_limits_errors_and_undefined_statistics(service, monkeypatch):
@@ -176,7 +276,9 @@ def test_inspect_uses_metadata_and_large_cells_do_not_block_schema(service, monk
     monkeypatch.setattr(service.loader, "load", original_load)
     schema = analyse(service, manifest, "sheet", sheet_name="CSV", header_row=0)
     assert schema["column_names"] == ["Description", "Value"]
-    assert schema["sample_rows_omitted"] is True
+    assert schema["sample_values_truncated"] is True
+    assert schema["raw_preview"][1]["truncated_columns"] == ["@A"]
+    assert len(json.dumps(schema, ensure_ascii=False).encode()) <= module.MAX_RESPONSE_BYTES
     with pytest.raises(ServiceError) as error:
         analyse(service, manifest, "rows", sheet_name="CSV", header_row=0, columns=["Description"], limit=1)
     assert error.value.code in {"spreadsheet_response_too_large", "spreadsheet_invalid_input"}
@@ -253,6 +355,12 @@ async def test_registered_mcp_tool_reauthenticates_and_uses_host_scope(service, 
     result = await tool.fn(ctx, manifest["file_id"], "CSV",
                            filters=[ExcelFilter(column="Value", operator=">", value=2)], header_row=0)
     assert result["ok"] is True and result["data"]["count"] == 1
+    inspector = server._tool_manager.get_tool("excel_inspect")
+    roster = store(service, [["Title", ""], ["Name", ""], ["Person A", "Day"]])
+    result = await inspector.fn(ctx, roster["file_id"], "CSV", header_row=1)
+    assert result["ok"] is True
+    assert result["data"]["columns"][1]["ref"] == "@B"
+    assert result["data"]["raw_preview"][1]["row_index"] == 1
     meta["soc_investigation_id"] = "chat-b"
     with pytest.raises(server_module.McpFailureEnvelope) as error:
         await tool.fn(ctx, manifest["file_id"], "CSV", header_row=0)

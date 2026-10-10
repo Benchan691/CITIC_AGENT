@@ -53,8 +53,11 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
             assert "account_id" not in tool.parameters.get("properties", {})
         if tool.name.startswith("excel_"):
             assert tool.annotations.readOnlyHint is True
+            assert "spreadsheet-mcp-analysis" in tool.description
             assert "file_id" in tool.parameters["required"]
             assert not {"file_path", "user_id", "session_id", "investigation_id", "account_id"} & tool.parameters["properties"].keys()
+            if tool.name != "excel_inspect":
+                assert "header_row" in tool.parameters["required"]
 
     schema_tool = next(tool for tool in tools if tool.name == "get_subscription_schema")
     assert schema_tool.parameters.get("required", []) == []

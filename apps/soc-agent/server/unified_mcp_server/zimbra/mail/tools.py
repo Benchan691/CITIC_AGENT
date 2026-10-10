@@ -108,8 +108,9 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
     async def zimbra_get_attachment_text(ctx: Context, message_id: str, part: str, max_chars: int = 20_000) -> dict[str, Any]:
         """Read one bounded attachment. XLSX/XLS/CSV return a private file_id for
         excel_inspect and analysis tools; other documents use MarkItDown.
-        Inspect spreadsheet headers, calculate with count/aggregate/group,
-        and retrieve only relevant evidence rows. Use the original file for
+        Verify zero-based header_row from excel_inspect.raw_preview; use
+        @A/@B refs for blank/repeated labels. Pass header_row to analysis and
+        retrieve only relevant evidence rows. Use the original file for
         calculations even if a Markdown preview already exists.
 
         This includes attached email parts such as ``message/rfc822``. Review

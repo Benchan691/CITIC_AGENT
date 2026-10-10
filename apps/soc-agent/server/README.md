@@ -168,19 +168,49 @@ uses the upstream AGPL-3.0-or-later license.
 The model receives a short manifest with a `file_id`, filename, hash and sheet
 names. It does not receive the full spreadsheet as Markdown. Tool descriptions
 and the manifest guide it to inspect headers, calculate on the full original
-file, and request only a small evidence sample:
+file, and request only a small evidence sample.
+
+Each Excel tool describes the `spreadsheet-mcp-analysis` skill prerequisite.
+The product's `soc-spreadsheet-skills` plugin also enforces loading: if the
+model has not received the full skill before choosing an Excel call, the
+request is deferred without contacting the MCP server. A notice explicitly
+states that the operation was not executed, and trusted skill instructions
+enter the next model request so it can reconsider its arguments. Parallel
+calls share one injection. Skill presence is checked against the active
+conversation, so compaction that removes it causes reloading. Existing
+authorization and tool restrictions still run before this loading step.
+Deploy `skills/spreadsheet-mcp-analysis/SKILL.md` along with the product;
+missing or model-disabled guidance stops Excel dispatch with
+`SPREADSHEET_SKILL_UNAVAILABLE`.
 
 | Tool | Fields and purpose |
 | --- | --- |
-| `excel_inspect` | `file_id`, optional `sheet_name`, `header_row`; list sheets or inspect columns/types and up to 3 sample rows |
-| `excel_profile` | `file_id`, `sheet_name`, `columns`, optional `top_n`, `header_row`; null/distinct counts, statistics and top values |
-| `excel_count` | `file_id`, `sheet_name`, optional `filters`, `logic`, `header_row`; count all matching rows |
+| `excel_inspect` | `file_id`, optional `sheet_name`, `header_row`, `preview_start_row`, `column_offset`; list sheets or inspect numbered source rows, column labels/refs/types and up to 3 samples |
+| `excel_profile` | `file_id`, `sheet_name`, `columns`, required `header_row`, optional `top_n`; null/distinct counts, statistics and top values |
+| `excel_count` | `file_id`, `sheet_name`, required `header_row`, optional `filters`, `logic`; count all matching rows |
 | `excel_aggregate` | same filtering fields plus `operation`, `target_column`; full-file calculation |
 | `excel_group` | same filtering fields plus `group_columns`, `agg_column`, `agg_operation`; grouped calculation |
 | `excel_rows` | same filtering fields plus required `columns`, optional `limit`, `offset`; bounded selected rows |
 
-Header rows are zero-based; inspect and verify them before calculations. CSV
-has one sheet named `CSV`. Aggregations support sum, mean, median, min, max,
+Header rows are zero-based (`1` means the second row). Inspection succeeds
+with blank, repeated or merged headings and returns a numbered `raw_preview`.
+An omitted `header_row` produces a suggestion, which the agent must verify
+against those rows. Every analysis tool requires the verified `header_row`
+explicitly; calculations never silently select a header. Use `preview_start_row`
+to inspect later source rows and `column_offset` to inspect more columns.
+
+Every column has a position ID (A, B, C, ..., AA) and a stable reference
+(`@A`, `@B`, `@C`, ..., `@AA`). Original labels are preserved in inspection
+metadata. Unique labels work as before. Blank, repeated, reserved or oversized
+labels use their references as output names, preserving every column without
+guessing a label. References work in `columns`, grouping, aggregate targets
+and filters. An ambiguous label returns `spreadsheet_ambiguous_column` with
+the matching references. Literal labels starting with `@` must be addressed
+by their position reference. Results include a `column_refs` mapping for
+selected columns. Preview cells/labels may be shortened and are marked as
+truncated; calculations and evidence row tools use full original values.
+
+CSV has one sheet named `CSV`. Aggregations support sum, mean, median, min, max,
 std, var and count. Aggregate/group count counts non-empty selected values;
 `excel_count` counts rows. Rows with empty grouping keys are excluded. Mixed
 non-numeric columns return an explicit error instead of silently dropping
@@ -206,8 +236,9 @@ Metadata and original bytes survive an application restart until expiry.
 
 Limits: 10 MB per file, 200,000 rows, 200 columns, 2 million total workbook
 cells, 32 sheets; 20 files/100 MB per chat. Results are at most 12 KB. Row
-samples are at most 50 rows/10 selected columns. Large inspection samples are
-omitted while keeping the schema. CSV supports UTF-8/UTF-16, comma, semicolon,
+samples are at most 50 rows/10 selected columns. Inspection returns at most
+8 columns, 5 source rows and 3 data samples per call; preview cells are capped
+at 120 bytes, with explicit truncation markers. CSV supports UTF-8/UTF-16, comma, semicolon,
 tab or pipe delimiters and quoted newlines. Text identifiers retain leading
 zeros and literal `NA` values. Formulas are not recalculated; Excel reads their
 saved values. Password-protected workbooks must be unlocked first.
