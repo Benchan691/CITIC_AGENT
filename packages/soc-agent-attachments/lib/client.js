@@ -40,8 +40,8 @@ window.__ModuleLoader__.load({
 			maxTotalChars: 5e5
 		};
 		//#endregion
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-attachments/src/client/MarkItDownAttachmentSettings.module.css.mjs
-		const css$1 = ".Y3zsUW_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.Y3zsUW_card:hover,.Y3zsUW_cardOpen{border-color:var(--dsw-alias-label-dimmed)}.Y3zsUW_cardOpen{background:var(--dsw-alias-bg-layer-2)}.Y3zsUW_header{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.Y3zsUW_header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.Y3zsUW_headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.Y3zsUW_name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.Y3zsUW_description,.Y3zsUW_hint,.Y3zsUW_invalid{font-size:12px;line-height:1.5}.Y3zsUW_description,.Y3zsUW_hint{color:var(--dsw-alias-label-tertiary)}.Y3zsUW_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s}.Y3zsUW_chevronOpen{transform:rotate(180deg)}.Y3zsUW_body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding-bottom:8px}.Y3zsUW_field{flex-direction:column;gap:6px;padding:12px 0;display:flex}.Y3zsUW_field+.Y3zsUW_field{border-top:1px solid var(--dsw-alias-border-l2)}.Y3zsUW_fieldHead{align-items:center;gap:8px;display:flex}.Y3zsUW_fieldLabel{min-width:0;color:var(--dsw-alias-label-primary);flex:1;font-size:13px;font-weight:500;line-height:1.5}.Y3zsUW_badges{align-items:center;gap:8px;display:inline-flex}.Y3zsUW_badge{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);white-space:nowrap;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}.Y3zsUW_reset{color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border:0;padding:0;font-size:12px;line-height:1.5}.Y3zsUW_reset:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.Y3zsUW_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);width:100%;height:34px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 12px;font-size:13px;line-height:1.5}.Y3zsUW_input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}.Y3zsUW_input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}.Y3zsUW_inputInvalid{border-color:var(--dsw-alias-label-error)}.Y3zsUW_hint,.Y3zsUW_invalid,.Y3zsUW_failed{margin:0}.Y3zsUW_invalid,.Y3zsUW_failed{color:var(--dsw-alias-label-error)}.Y3zsUW_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px;display:flex}.Y3zsUW_failed{flex:1;min-width:0;font-size:12px;line-height:1.5}.Y3zsUW_discard,.Y3zsUW_save{font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}.Y3zsUW_discard{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:0 0}.Y3zsUW_save{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.Y3zsUW_discard:disabled,.Y3zsUW_save:disabled{opacity:.4;cursor:default}.Y3zsUW_discard:focus-visible,.Y3zsUW_save:focus-visible,.Y3zsUW_reset:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
+		//#region \0dsh-css:/home/chan-kok-pan/Documents/CITIC_AGENT/packages/soc-agent-attachments/src/client/MarkItDownAttachmentSettings.module.css.mjs
+		const css$1 = ".afetRq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.afetRq_card:hover,.afetRq_cardOpen{border-color:var(--dsw-alias-label-dimmed)}.afetRq_cardOpen{background:var(--dsw-alias-bg-layer-2)}.afetRq_header{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.afetRq_header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.afetRq_headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.afetRq_name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.afetRq_description,.afetRq_hint,.afetRq_invalid{font-size:12px;line-height:1.5}.afetRq_description,.afetRq_hint{color:var(--dsw-alias-label-tertiary)}.afetRq_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s}.afetRq_chevronOpen{transform:rotate(180deg)}.afetRq_body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding-bottom:8px}.afetRq_field{flex-direction:column;gap:6px;padding:12px 0;display:flex}.afetRq_field+.afetRq_field{border-top:1px solid var(--dsw-alias-border-l2)}.afetRq_fieldHead{align-items:center;gap:8px;display:flex}.afetRq_fieldLabel{min-width:0;color:var(--dsw-alias-label-primary);flex:1;font-size:13px;font-weight:500;line-height:1.5}.afetRq_badges{align-items:center;gap:8px;display:inline-flex}.afetRq_badge{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);white-space:nowrap;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}.afetRq_reset{color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border:0;padding:0;font-size:12px;line-height:1.5}.afetRq_reset:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.afetRq_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);width:100%;height:34px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 12px;font-size:13px;line-height:1.5}.afetRq_input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}.afetRq_input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}.afetRq_inputInvalid{border-color:var(--dsw-alias-label-error)}.afetRq_hint,.afetRq_invalid,.afetRq_failed{margin:0}.afetRq_invalid,.afetRq_failed{color:var(--dsw-alias-label-error)}.afetRq_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px;display:flex}.afetRq_failed{flex:1;min-width:0;font-size:12px;line-height:1.5}.afetRq_discard,.afetRq_save{font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}.afetRq_discard{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:0 0}.afetRq_save{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.afetRq_discard:disabled,.afetRq_save:disabled{opacity:.4;cursor:default}.afetRq_discard:focus-visible,.afetRq_save:focus-visible,.afetRq_reset:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
 		const tagId$1 = "dsh-soc-agent-attachments/MarkItDownAttachmentSettings.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
 			const tag = document.createElement("style");
@@ -51,29 +51,29 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MarkItDownAttachmentSettings_module_css_default = {
-			"badge": "Y3zsUW_badge",
-			"badges": "Y3zsUW_badges",
-			"body": "Y3zsUW_body",
-			"card": "Y3zsUW_card",
-			"cardOpen": "Y3zsUW_cardOpen",
-			"chevron": "Y3zsUW_chevron",
-			"chevronOpen": "Y3zsUW_chevronOpen",
-			"description": "Y3zsUW_description",
-			"discard": "Y3zsUW_discard",
-			"failed": "Y3zsUW_failed",
-			"field": "Y3zsUW_field",
-			"fieldHead": "Y3zsUW_fieldHead",
-			"fieldLabel": "Y3zsUW_fieldLabel",
-			"footer": "Y3zsUW_footer",
-			"headText": "Y3zsUW_headText",
-			"header": "Y3zsUW_header",
-			"hint": "Y3zsUW_hint",
-			"input": "Y3zsUW_input",
-			"inputInvalid": "Y3zsUW_inputInvalid",
-			"invalid": "Y3zsUW_invalid",
-			"name": "Y3zsUW_name",
-			"reset": "Y3zsUW_reset",
-			"save": "Y3zsUW_save"
+			"badge": "afetRq_badge",
+			"badges": "afetRq_badges",
+			"body": "afetRq_body",
+			"card": "afetRq_card",
+			"cardOpen": "afetRq_cardOpen",
+			"chevron": "afetRq_chevron",
+			"chevronOpen": "afetRq_chevronOpen",
+			"description": "afetRq_description",
+			"discard": "afetRq_discard",
+			"failed": "afetRq_failed",
+			"field": "afetRq_field",
+			"fieldHead": "afetRq_fieldHead",
+			"fieldLabel": "afetRq_fieldLabel",
+			"footer": "afetRq_footer",
+			"headText": "afetRq_headText",
+			"header": "afetRq_header",
+			"hint": "afetRq_hint",
+			"input": "afetRq_input",
+			"inputInvalid": "afetRq_inputInvalid",
+			"invalid": "afetRq_invalid",
+			"name": "afetRq_name",
+			"reset": "afetRq_reset",
+			"save": "afetRq_save"
 		};
 		//#endregion
 		//#region src/client/MarkItDownAttachmentSettings.tsx
@@ -506,8 +506,8 @@ window.__ModuleLoader__.load({
 			}
 		};
 		//#endregion
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-attachments/src/client/MarkItDownDocuments.module.css.mjs
-		const css = ".jH9gTW_rail{flex-wrap:wrap;gap:8px;padding:10px 12px 0;display:flex}.jH9gTW_item{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);min-width:0;max-width:min(100%,360px);color:var(--dsw-alias-label-primary);border-radius:8px;align-items:center;gap:7px;padding:6px 8px;font-size:13px;line-height:20px;display:inline-flex}.jH9gTW_icon{flex:none;font-size:14px;line-height:1}.jH9gTW_name{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}.jH9gTW_status{color:var(--dsw-alias-label-tertiary);white-space:nowrap;flex:none;font-size:12px}.jH9gTW_remove{width:20px;height:20px;color:var(--dsw-alias-label-tertiary);font:inherit;cursor:pointer;background:0 0;border:0;border-radius:50%;flex:none;padding:0;font-size:18px;line-height:18px}.jH9gTW_remove:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.jH9gTW_remove:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
+		//#region \0dsh-css:/home/chan-kok-pan/Documents/CITIC_AGENT/packages/soc-agent-attachments/src/client/MarkItDownDocuments.module.css.mjs
+		const css = "._0870EG_rail{flex-wrap:wrap;gap:8px;padding:10px 12px 0;display:flex}._0870EG_item{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);min-width:0;max-width:min(100%,360px);color:var(--dsw-alias-label-primary);border-radius:8px;align-items:center;gap:7px;padding:6px 8px;font-size:13px;line-height:20px;display:inline-flex}._0870EG_icon{flex:none;font-size:14px;line-height:1}._0870EG_name{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}._0870EG_status{color:var(--dsw-alias-label-tertiary);white-space:nowrap;flex:none;font-size:12px}._0870EG_remove{width:20px;height:20px;color:var(--dsw-alias-label-tertiary);font:inherit;cursor:pointer;background:0 0;border:0;border-radius:50%;flex:none;padding:0;font-size:18px;line-height:18px}._0870EG_remove:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}._0870EG_remove:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
 		const tagId = "dsh-soc-agent-attachments/MarkItDownDocuments.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -517,12 +517,12 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var MarkItDownDocuments_module_css_default = {
-			"icon": "jH9gTW_icon",
-			"item": "jH9gTW_item",
-			"name": "jH9gTW_name",
-			"rail": "jH9gTW_rail",
-			"remove": "jH9gTW_remove",
-			"status": "jH9gTW_status"
+			"icon": "_0870EG_icon",
+			"item": "_0870EG_item",
+			"name": "_0870EG_name",
+			"rail": "_0870EG_rail",
+			"remove": "_0870EG_remove",
+			"status": "_0870EG_status"
 		};
 		//#endregion
 		//#region src/client/MarkItDownDocuments.tsx

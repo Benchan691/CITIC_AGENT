@@ -1,5 +1,22 @@
+import { existsSync, readdirSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { defineConfig } from 'tsdown'
 import { typertPlugin } from './packages/typert/generator/lib/types/tsdown-plugin.js'
+
+function subdirectories(path: string): string[] {
+  return readdirSync(resolve(import.meta.dirname, path), { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => `${path}/${entry.name}`)
+}
+
+function workspacePackages(): string[] {
+  // Old checkouts can retain generated directories after a package is removed.
+  return [
+    ...subdirectories('vendor'),
+    ...subdirectories('packages').flatMap(subdirectories),
+    'apps/cli',
+  ].filter(path => existsSync(resolve(import.meta.dirname, path, 'package.json')))
+}
 
 function isBuildFaceClient(value: unknown): boolean {
   if (value === undefined || value === 'host') return false
@@ -16,7 +33,7 @@ function isBuildFaceClient(value: unknown): boolean {
 export default defineConfig(({ env }) => {
   const client = isBuildFaceClient(env?.DSH_BUILD_FACE)
   return {
-    workspace: ['vendor/*', 'packages/*/*', 'apps/cli'],
+    workspace: workspacePackages(),
     entry: client ? '' : ['lib/types/{index,invariant,startup}.js'],
     outDir: 'lib',
     format: ['esm'],

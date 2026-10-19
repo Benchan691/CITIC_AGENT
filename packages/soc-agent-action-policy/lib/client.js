@@ -36,8 +36,8 @@ window.__ModuleLoader__.load({
 			return value.mode;
 		}
 		//#endregion
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-action-policy/src/client/SocActionPolicyMenu.module.css.mjs
-		const css = ".RnLWea_root{align-items:center;display:inline-flex;position:relative}.RnLWea_trigger{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:30px;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;border-radius:8px;align-items:center;gap:6px;padding:0 10px;font-size:12px;display:inline-flex}.RnLWea_trigger:hover,.RnLWea_trigger[aria-expanded=true]{border-color:var(--dsw-alias-label-dimmed);color:var(--dsw-alias-label-primary)}.RnLWea_trigger:focus-visible,.RnLWea_modeRadio:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.RnLWea_icon{font-size:15px;line-height:1}.RnLWea_panel{z-index:20;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:min(380px,100vw - 24px);max-height:min(70vh,560px);box-shadow:var(--dsw-shadow-lv2);border-radius:12px;padding:14px;position:absolute;bottom:calc(100% + 8px);right:0;overflow-y:auto}.RnLWea_error,.RnLWea_status{color:var(--dsw-alias-label-tertiary);margin:5px 0 0;font-size:11px;line-height:1.5}.RnLWea_error{color:var(--dsw-alias-label-error)}.RnLWea_modes{border:0;gap:7px;margin-top:12px;padding:0;display:grid}.RnLWea_modeLegend{color:var(--dsw-alias-label-secondary);margin:0 0 4px;font-size:11px;font-weight:600}.RnLWea_mode{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary);cursor:pointer;border-radius:8px;align-items:center;gap:8px;padding:8px 9px;font-size:12px;line-height:1.4;display:flex}.RnLWea_mode:hover{border-color:var(--dsw-alias-label-dimmed)}.RnLWea_modeRadio{width:15px;height:15px;accent-color:var(--dsw-alias-brand-primary);flex:none;margin:0}.RnLWea_modeText{gap:2px;display:grid}.RnLWea_modeLabel{color:var(--dsw-alias-label-primary);font-weight:600}.RnLWea_modeDescription{color:var(--dsw-alias-label-tertiary);font-size:11px}";
+		//#region \0dsh-css:/home/chan-kok-pan/Documents/CITIC_AGENT/packages/soc-agent-action-policy/src/client/SocActionPolicyMenu.module.css.mjs
+		const css = ".OiS8_G_root{align-items:center;display:inline-flex;position:relative}.OiS8_G_trigger{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:30px;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;border-radius:8px;align-items:center;gap:6px;padding:0 10px;font-size:12px;display:inline-flex}.OiS8_G_trigger:hover,.OiS8_G_trigger[aria-expanded=true]{border-color:var(--dsw-alias-label-dimmed);color:var(--dsw-alias-label-primary)}.OiS8_G_trigger:focus-visible,.OiS8_G_modeRadio:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}.OiS8_G_icon{font-size:15px;line-height:1}.OiS8_G_panel{z-index:20;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);width:min(380px,100vw - 24px);max-height:min(70vh,560px);box-shadow:var(--dsw-shadow-lv2);border-radius:12px;padding:14px;position:absolute;bottom:calc(100% + 8px);right:0;overflow-y:auto}.OiS8_G_error,.OiS8_G_status{color:var(--dsw-alias-label-tertiary);margin:5px 0 0;font-size:11px;line-height:1.5}.OiS8_G_error{color:var(--dsw-alias-label-error)}.OiS8_G_modes{border:0;gap:7px;margin-top:12px;padding:0;display:grid}.OiS8_G_modeLegend{color:var(--dsw-alias-label-secondary);margin:0 0 4px;font-size:11px;font-weight:600}.OiS8_G_mode{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary);cursor:pointer;border-radius:8px;align-items:center;gap:8px;padding:8px 9px;font-size:12px;line-height:1.4;display:flex}.OiS8_G_mode:hover{border-color:var(--dsw-alias-label-dimmed)}.OiS8_G_modeRadio{width:15px;height:15px;accent-color:var(--dsw-alias-brand-primary);flex:none;margin:0}.OiS8_G_modeText{gap:2px;display:grid}.OiS8_G_modeLabel{color:var(--dsw-alias-label-primary);font-weight:600}.OiS8_G_modeDescription{color:var(--dsw-alias-label-tertiary);font-size:11px}";
 		const tagId = "dsh-soc-agent-action-policy/SocActionPolicyMenu.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -47,19 +47,19 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var SocActionPolicyMenu_module_css_default = {
-			"error": "RnLWea_error",
-			"icon": "RnLWea_icon",
-			"mode": "RnLWea_mode",
-			"modeDescription": "RnLWea_modeDescription",
-			"modeLabel": "RnLWea_modeLabel",
-			"modeLegend": "RnLWea_modeLegend",
-			"modeRadio": "RnLWea_modeRadio",
-			"modeText": "RnLWea_modeText",
-			"modes": "RnLWea_modes",
-			"panel": "RnLWea_panel",
-			"root": "RnLWea_root",
-			"status": "RnLWea_status",
-			"trigger": "RnLWea_trigger"
+			"error": "OiS8_G_error",
+			"icon": "OiS8_G_icon",
+			"mode": "OiS8_G_mode",
+			"modeDescription": "OiS8_G_modeDescription",
+			"modeLabel": "OiS8_G_modeLabel",
+			"modeLegend": "OiS8_G_modeLegend",
+			"modeRadio": "OiS8_G_modeRadio",
+			"modeText": "OiS8_G_modeText",
+			"modes": "OiS8_G_modes",
+			"panel": "OiS8_G_panel",
+			"root": "OiS8_G_root",
+			"status": "OiS8_G_status",
+			"trigger": "OiS8_G_trigger"
 		};
 		//#endregion
 		//#region src/client/SocActionPolicyMenu.tsx
