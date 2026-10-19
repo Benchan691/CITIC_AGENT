@@ -5,8 +5,8 @@ window.__ModuleLoader__.load({
 		var exports = module.exports;
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 		let react_jsx_runtime = require("react/jsx-runtime");
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-brand/src/client/CiticBrand.module.css.mjs
-		const css = ".RNJa9W_wordmark{text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;align-items:center;min-width:0;max-width:100%;font-size:16px;font-weight:700;line-height:24px;display:inline-flex;overflow:hidden}";
+		//#region \0dsh-css:/home/chan-kok-pan/Documents/CITIC_AGENT/packages/soc-agent-brand/src/client/CiticBrand.module.css.mjs
+		const css = "._8gkDBa_wordmark{text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;align-items:center;min-width:0;max-width:100%;font-size:16px;font-weight:700;line-height:24px;display:inline-flex;overflow:hidden}";
 		const tagId = "dsh-soc-agent-brand/CiticBrand.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
 			tag.textContent = css;
 			document.head.appendChild(tag);
 		}
-		var CiticBrand_module_css_default = { "wordmark": "RNJa9W_wordmark" };
+		var CiticBrand_module_css_default = { "wordmark": "_8gkDBa_wordmark" };
 		//#endregion
 		//#region src/client/CiticBrand.tsx
 		/** CITIC Telecom CPC's red emblem, adapted from the official logo artwork. */

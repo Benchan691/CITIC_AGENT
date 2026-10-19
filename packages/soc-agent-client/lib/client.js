@@ -29,8 +29,8 @@ window.__ModuleLoader__.load({
 		let react = require("react");
 		react = __toESM(react, 1);
 		let react_jsx_runtime = require("react/jsx-runtime");
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/core/AuthGate.module.css.mjs
-		const css$1 = ".-poFUG_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}.-poFUG_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}.-poFUG_title{margin:0 0 20px;font-size:20px;font-weight:600}.-poFUG_field{gap:6px;margin:14px 0;font-size:13px;display:grid}.-poFUG_description{color:#cbd6e2;margin:-4px 0 18px;font-size:13px;line-height:1.5}.-poFUG_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}.-poFUG_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}.-poFUG_button:disabled{cursor:wait;opacity:.65}.-poFUG_actions{gap:8px;margin-top:8px;display:grid}.-poFUG_secondaryButton{width:100%;color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:8px;padding:9px 12px}.-poFUG_secondaryButton:disabled{cursor:wait;opacity:.65}.-poFUG_error{color:#ffb7b7;margin:10px 0;font-size:13px}.-poFUG_notice{color:#ffe0a6;margin:10px 0;font-size:13px}.-poFUG_loading{color:#cbd6e2;font-size:14px}.-poFUG_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}.-poFUG_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
+		//#region \0dsh-css:/home/chan-kok-pan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/core/AuthGate.module.css.mjs
+		const css$1 = "._1uCArG_layer{z-index:10000;color:#eef3f8;pointer-events:auto;background:#0c121cb8;place-items:center;display:grid;position:fixed;inset:0}._1uCArG_card{background:#182230;border:1px solid #ffffff29;border-radius:14px;width:min(390px,100vw - 40px);padding:28px;box-shadow:0 18px 55px #00000052}._1uCArG_title{margin:0 0 20px;font-size:20px;font-weight:600}._1uCArG_field{gap:6px;margin:14px 0;font-size:13px;display:grid}._1uCArG_description{color:#cbd6e2;margin:-4px 0 18px;font-size:13px;line-height:1.5}._1uCArG_input{box-sizing:border-box;width:100%;color:inherit;font:inherit;background:#101923;border:1px solid #fff3;border-radius:8px;padding:10px 11px}._1uCArG_button{color:#fff;cursor:pointer;width:100%;font:inherit;background:#4b8cf7;border:0;border-radius:8px;margin-top:8px;padding:10px 12px}._1uCArG_button:disabled{cursor:wait;opacity:.65}._1uCArG_actions{gap:8px;margin-top:8px;display:grid}._1uCArG_secondaryButton{width:100%;color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:8px;padding:9px 12px}._1uCArG_secondaryButton:disabled{cursor:wait;opacity:.65}._1uCArG_error{color:#ffb7b7;margin:10px 0;font-size:13px}._1uCArG_notice{color:#ffe0a6;margin:10px 0;font-size:13px}._1uCArG_loading{color:#cbd6e2;font-size:14px}._1uCArG_badge{z-index:10001;color:#dce7f2;pointer-events:auto;background:#182230eb;border:1px solid #ffffff1f;border-radius:999px;align-items:center;gap:10px;padding:6px 9px 6px 11px;font-size:12px;display:flex;position:fixed;top:12px;right:16px}._1uCArG_logout{color:inherit;cursor:pointer;font:inherit;background:0 0;border:1px solid #fff3;border-radius:6px;padding:3px 7px}";
 		const tagId$1 = "dsh-soc-agent-client/AuthGate.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
 			const tag = document.createElement("style");
@@ -40,20 +40,20 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AuthGate_module_css_default = {
-			"actions": "-poFUG_actions",
-			"badge": "-poFUG_badge",
-			"button": "-poFUG_button",
-			"card": "-poFUG_card",
-			"description": "-poFUG_description",
-			"error": "-poFUG_error",
-			"field": "-poFUG_field",
-			"input": "-poFUG_input",
-			"layer": "-poFUG_layer",
-			"loading": "-poFUG_loading",
-			"logout": "-poFUG_logout",
-			"notice": "-poFUG_notice",
-			"secondaryButton": "-poFUG_secondaryButton",
-			"title": "-poFUG_title"
+			"actions": "_1uCArG_actions",
+			"badge": "_1uCArG_badge",
+			"button": "_1uCArG_button",
+			"card": "_1uCArG_card",
+			"description": "_1uCArG_description",
+			"error": "_1uCArG_error",
+			"field": "_1uCArG_field",
+			"input": "_1uCArG_input",
+			"layer": "_1uCArG_layer",
+			"loading": "_1uCArG_loading",
+			"logout": "_1uCArG_logout",
+			"notice": "_1uCArG_notice",
+			"secondaryButton": "_1uCArG_secondaryButton",
+			"title": "_1uCArG_title"
 		};
 		//#endregion
 		//#region src/client/core/AuthGate.tsx
@@ -377,8 +377,8 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
-		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/core/AdminUnavailable.module.css.mjs
-		const css = ".Oy1xEW_root{color:#202c35;background:#f4f6f5;place-items:center;min-height:100vh;padding:32px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;display:grid}.Oy1xEW_card{background:#fff;border:1px solid #dfe5e5;border-radius:16px;width:min(100%,520px);padding:32px;box-shadow:0 16px 40px #202c3514}.Oy1xEW_kicker{color:#216b5c;letter-spacing:.08em;margin:0 0 12px;font-size:12px;font-weight:700}.Oy1xEW_card h1{margin:0;font-size:24px}.Oy1xEW_card p:not(.Oy1xEW_kicker){color:#65747d;margin:12px 0 24px}.Oy1xEW_link{color:#216b5c;font-weight:600}";
+		//#region \0dsh-css:/home/chan-kok-pan/Documents/CITIC_AGENT/packages/soc-agent-client/src/client/core/AdminUnavailable.module.css.mjs
+		const css = ".wuYGFW_root{color:#202c35;background:#f4f6f5;place-items:center;min-height:100vh;padding:32px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;display:grid}.wuYGFW_card{background:#fff;border:1px solid #dfe5e5;border-radius:16px;width:min(100%,520px);padding:32px;box-shadow:0 16px 40px #202c3514}.wuYGFW_kicker{color:#216b5c;letter-spacing:.08em;margin:0 0 12px;font-size:12px;font-weight:700}.wuYGFW_card h1{margin:0;font-size:24px}.wuYGFW_card p:not(.wuYGFW_kicker){color:#65747d;margin:12px 0 24px}.wuYGFW_link{color:#216b5c;font-weight:600}";
 		const tagId = "dsh-soc-agent-client/AdminUnavailable.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -388,10 +388,10 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var AdminUnavailable_module_css_default = {
-			"card": "Oy1xEW_card",
-			"kicker": "Oy1xEW_kicker",
-			"link": "Oy1xEW_link",
-			"root": "Oy1xEW_root"
+			"card": "wuYGFW_card",
+			"kicker": "wuYGFW_kicker",
+			"link": "wuYGFW_link",
+			"root": "wuYGFW_root"
 		};
 		//#endregion
 		//#region src/client/core/AdminUnavailable.tsx
