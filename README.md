@@ -97,10 +97,12 @@ cd vendor/deepseek-harness
 pnpm dsh web --no-open
 ```
 
-Open `http://127.0.0.1:3080`, or use an SSH tunnel for remote access:
+SOC Agent defaults to `http://127.0.0.1:3081`, keeping its browser state separate
+from the official Harness on port `3080`. Pass `--port <port>` to override it,
+or use an SSH tunnel for remote access:
 
 ```bash
-ssh -L 3080:127.0.0.1:3080 usr@ip
+ssh -L 3081:127.0.0.1:3081 usr@ip
 ```
 
 Runtime configuration and data, including `.env`, `.data`, PostgreSQL, and

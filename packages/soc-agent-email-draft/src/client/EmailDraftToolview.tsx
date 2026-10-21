@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
+import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SocClientRuntime } from 'dsh-soc-agent-client/client'
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -15,6 +16,7 @@ import {
   type EmailDraftFormFields,
 } from './emailDraft.ts'
 import { escapeHtml, renderEmailPreviewDocument, sanitizeEmailHtml } from './htmlEmail.ts'
+import { createEmailDraftViewStore } from './stores.ts'
 
 export {
   EMAIL_ATTACHMENT_LIMITS,
@@ -128,18 +130,20 @@ function signatureAsHtml(signature: Signature): string {
   return sanitizeEmailHtml(value)
 }
 
-interface EmailDraftProps extends ToolCallViewProps {
+interface EmailDraftProps extends ToolCallViewProps, PropsStore<ReturnType<typeof createEmailDraftViewStore>> {
   socClient: SocClientRuntime
 }
 
-export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
+export function EmailDraftToolview({ block, callId, socClient, useStore, actions }: EmailDraftProps) {
   const envelope = useMemo(() => parseEnvelope(block), [block])
   const sourceKey = useMemo(() => JSON.stringify(envelope?.draft ?? null), [envelope])
   const action = actionFromEnvelope(envelope?.draft.action)
   const [fields, setFields] = useState<EmailDraftFormFields>(() => envelope ? formFromEnvelope(envelope) : {
     to: '', cc: '', bcc: '', subject: '', body: '',
   })
-  const [status, setStatus] = useState<'editing' | 'sending' | 'sent' | 'failed' | 'discarded'>('editing')
+  const outcome = useStore(state => state.outcomes[callId])
+  const [sendStatus, setSendStatus] = useState<'editing' | 'sending' | 'failed'>('editing')
+  const status = outcome ?? sendStatus
   const [sendError, setSendError] = useState<string | null>(null)
   const [selectedAttachments, setSelectedAttachments] = useState<SelectedAttachment[]>([])
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
@@ -156,7 +160,7 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
   useEffect(() => {
     if (envelope?.draft) {
       setFields(formFromEnvelope(envelope))
-      setStatus('editing')
+      setSendStatus('editing')
       setSendError(null)
       setSelectedAttachments([])
       setAttachmentError(null)
@@ -164,7 +168,7 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
       setSignatureStatus(null)
       setBodyView('preview')
     }
-  }, [sourceKey])
+  }, [callId, sourceKey])
 
   if (!('kind' in block)) {
     return <div className={css.card} data-dshcf-preserve="true"><div className={css.message}>Preparing email draft…</div></div>
@@ -181,7 +185,8 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
     setAttachmentError(null)
     setSendError(null)
     setBodyView('preview')
-    setStatus('editing')
+    setSendStatus('editing')
+    actions.reopen(callId)
   }
 
   if (status === 'discarded') {
@@ -269,7 +274,7 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
         ? 'Forward this email with the original message and all its attachments plus selected attachments now?'
         : 'Send this email now?'
     if (typeof window !== 'undefined' && !window.confirm(confirmation)) return
-    setStatus('sending')
+    setSendStatus('sending')
     setSendError(null)
     try {
       const attachments = await Promise.all(selectedAttachments.map(item => fileToEmailAttachment(item.file)))
@@ -279,9 +284,9 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
         attachments,
       })
       if (result?.sent !== true) throw new Error('Zimbra did not confirm that the email was sent.')
-      setStatus('sent')
+      actions.setOutcome(callId, 'sent')
     } catch (error) {
-      setStatus('failed')
+      setSendStatus('failed')
       setSendError(error instanceof Error ? error.message : String(error))
     }
   }
@@ -477,7 +482,7 @@ export function EmailDraftToolview({ block, socClient }: EmailDraftProps) {
           </div>
         )}
         <div className={css.actions}>
-          <button className={`${css.button} ${css.danger}`} type="button" disabled={status === 'sending'} onClick={() => setStatus('discarded')}>Discard</button>
+          <button className={`${css.button} ${css.danger}`} type="button" disabled={status === 'sending'} onClick={() => actions.setOutcome(callId, 'discarded')}>Discard</button>
           <button className={`${css.button} ${css.signatureButton}`} type="button" disabled={status === 'sending'} onClick={() => { void loadSignatures() }}>Add signature</button>
           <button className={`${css.button} ${css.primary}`} type="button" disabled={status === 'sending'} onClick={submit}>
             {status === 'sending' ? 'Sending…' : status === 'failed' ? 'Retry' : 'Send'}
@@ -493,10 +498,12 @@ export const emailDraftToolview = {
   inject: ['slots', 'socClient'],
   apply(ctx: Context): void {
     const socClient = ctx.get('socClient') as SocClientRuntime
+    const store = createEmailDraftViewStore()
     for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) {
       ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
         name: 'tool.call.toolview',
         key,
+        store,
         inject: () => ({ socClient }),
       }, EmailDraftToolview))
     }

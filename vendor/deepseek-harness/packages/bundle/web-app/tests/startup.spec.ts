@@ -12,7 +12,7 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { internals, provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { afterEach, describe, expect, it } from 'vitest'
-import { apply, WEB_STARTUP_SERVICE, type WebStartupValues } from '../src/startup.ts'
+import { apply, Config, WEB_STARTUP_SERVICE, type WebStartupValues } from '../src/startup.ts'
 
 /** What one fixture boot observed. */
 interface Observed {
@@ -32,9 +32,10 @@ afterEach(async () => {
 /**
  * Mount the real provider and a consumer using injection-ordered config.
  * @param args - the invocation's inner arguments.
+ * @param config - the provider's deployment defaults.
  * @returns the service value and observed consumer/process effects.
  */
-async function bootProvider(args: string[]): Promise<{
+async function bootProvider(args: string[], config: Config = {}): Promise<{
   values: WebStartupValues | undefined
   observed: Observed
 }> {
@@ -48,7 +49,8 @@ export function apply(_ctx, config) { globalThis.__webStartupObserved.readerConf
   writeFileSync(join(dir, 'provider.mjs'), `
 export const name = 'web-startup'
 export const inject = ['cmdlineArgs']
-export const apply = ctx => globalThis.__webStartupApply(ctx)
+export const Config = globalThis.__webStartupConfig
+export const apply = (ctx, config) => globalThis.__webStartupApply(ctx, config)
 `)
   writeFileSync(join(dir, 'cordis.yml'), [
     '- id: reader',
@@ -61,6 +63,7 @@ export const apply = ctx => globalThis.__webStartupApply(ctx)
     '    trustedHosts: !!js ctx.webStartup.trustedHosts',
     '- id: provider',
     `  name: ${pathToFileURL(join(dir, 'provider.mjs')).href}`,
+    `  config: ${JSON.stringify(config)}`,
     '',
   ].join('\n'))
   const observing = { write: (chunk: string) => { observed.out += chunk; return true } }
@@ -68,9 +71,11 @@ export const apply = ctx => globalThis.__webStartupApply(ctx)
   internals.stderr = observing
   const globals = globalThis as unknown as {
     __webStartupApply: typeof apply
+    __webStartupConfig: typeof Config
     __webStartupObserved: Observed
   }
   globals.__webStartupApply = apply
+  globals.__webStartupConfig = Config
   globals.__webStartupObserved = observed
 
   const ctx = new Context()
@@ -114,6 +119,19 @@ describe('web command-line provider', () => {
       port: 3080,
       trustedHosts: [],
     })
+  })
+
+  it.each([
+    { args: [], port: 3081 },
+    { args: ['--port', '8080'], port: 8080 },
+    { args: ['--port', '0'], port: 0 },
+  ])('resolves deployment port 3081 with flags $args to $port', async ({ args, port }) => {
+    const { values, observed } = await bootProvider(args, { defaultPort: 3081 })
+    expect(values).toEqual({ openBrowser: true, port, trustedHosts: [] })
+    expect(observed.readerConfig).toEqual({
+      host: '127.0.0.1', openBrowser: true, port, trustedHosts: [],
+    })
+    expect(observed.exits).toEqual([])
   })
 
   it('prints its own help and leaves the consumer pending', async () => {

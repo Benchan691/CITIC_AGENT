@@ -28,6 +28,7 @@ window.__ModuleLoader__.load({
 		//#endregion
 		let react = require("react");
 		react = __toESM(react, 1);
+		let _deepseek_ai_dsh_client_runtime_client = require("@deepseek-ai/dsh-client-runtime/client");
 		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region \0dsh-css:/home/chan-kok-pan/Documents/CITIC_AGENT/packages/soc-agent-email-draft/src/client/EmailDraftToolview.module.css.mjs
 		const css = ".t3FHDG_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l1,transparent);border-radius:10px;margin:6px 0;overflow:hidden}.t3FHDG_header{background:var(--dsw-alias-surface-l2,transparent);justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;display:flex}.t3FHDG_title{font-weight:600}.t3FHDG_account{color:var(--dsw-alias-text-l2);font-size:12px}.t3FHDG_content{gap:9px;padding:12px;display:grid}.t3FHDG_field{gap:4px;display:grid}.t3FHDG_label{color:var(--dsw-alias-text-l2);font-size:12px;font-weight:600}.t3FHDG_input,.t3FHDG_textarea{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l0,transparent);width:100%;color:inherit;font:inherit;border-radius:6px;padding:8px 9px}.t3FHDG_textarea{resize:vertical;min-height:180px;line-height:1.45}.t3FHDG_bodyEditor{gap:4px;min-width:0;display:grid}.t3FHDG_editorHeader{justify-content:space-between;align-items:center;gap:12px;min-width:0;display:flex}.t3FHDG_viewTabs{flex-shrink:0;align-items:center;gap:2px;display:flex}.t3FHDG_viewTab{color:var(--dsw-alias-text-l2);cursor:pointer;font:inherit;white-space:nowrap;background:0 0;border:0;border-radius:6px;padding:6px 10px;line-height:1.2}.t3FHDG_viewTab:hover,.t3FHDG_viewTab[data-active=true]{color:inherit}.t3FHDG_viewTab[data-active=true]{background:var(--dsw-alias-surface-l2,#e5e7eb);font-weight:600}.t3FHDG_viewTab:focus-visible{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.t3FHDG_bodyPanel{min-width:0;min-height:240px}.t3FHDG_bodyPanel[hidden]{display:none}.t3FHDG_bodySource{height:240px;min-height:240px}.t3FHDG_preview{border:1px solid var(--dsw-alias-border-l2);background:#fff;border-radius:6px;width:100%;height:240px;min-height:240px;display:block}.t3FHDG_preview:focus-visible,.t3FHDG_bodySource:focus-visible{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.t3FHDG_attachmentPanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:7px;padding:10px;display:grid}.t3FHDG_hiddenInput{clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;width:1px;height:1px;position:absolute;overflow:hidden}.t3FHDG_attachmentList{gap:5px;display:grid}.t3FHDG_attachmentItem{background:var(--dsw-alias-surface-l0,transparent);overflow-wrap:anywhere;border-radius:5px;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;display:flex}.t3FHDG_removeButton{color:var(--dsw-alias-danger,#b42318);cursor:pointer;font:inherit;white-space:nowrap;background:0 0;border:0;padding:2px 4px}.t3FHDG_removeButton:disabled{cursor:wait;opacity:.6}.t3FHDG_help{color:var(--dsw-alias-text-l2);font-size:12px}.t3FHDG_input:focus,.t3FHDG_textarea:focus{outline:2px solid var(--dsw-alias-primary,currentColor);outline-offset:1px}.t3FHDG_actions{justify-content:flex-end;gap:8px;padding-top:3px;display:flex}.t3FHDG_signaturePanel{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);border-radius:8px;gap:9px;padding:10px;display:grid}.t3FHDG_button{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-surface-l2,transparent);color:inherit;cursor:pointer;font:inherit;border-radius:6px;padding:7px 12px}.t3FHDG_primary{color:var(--dsw-alias-on-primary,#fff);background:#2563eb;border-color:#2563eb}.t3FHDG_primary:hover{background:#1d4ed8;border-color:#1d4ed8}.t3FHDG_danger{color:#fff;background:#dc2626;border-color:#dc2626}.t3FHDG_danger:hover{background:#b91c1c;border-color:#b91c1c}.t3FHDG_signatureButton{color:#fff;background:#7c3aed;border-color:#7c3aed}.t3FHDG_signatureButton:hover{background:#6d28d9;border-color:#6d28d9}.t3FHDG_button:disabled{cursor:wait;opacity:.6}.t3FHDG_message{color:var(--dsw-alias-text-l2);padding:10px 12px;font-size:13px}.t3FHDG_error{color:var(--dsw-alias-danger,#b42318)}@media (width<=700px){.t3FHDG_editorHeader{flex-wrap:wrap;align-items:flex-start}.t3FHDG_viewTabs{margin-left:auto}}";
@@ -317,6 +318,23 @@ window.__ModuleLoader__.load({
 			return `<!doctype html><html><head><meta charset="utf-8"><style>${PREVIEW_CSS}</style></head><body>${sanitizeEmailHtml(value)}</body></html>`;
 		}
 		//#endregion
+		//#region src/client/stores.ts
+		/** Session-scoped presentation outcomes, keyed by the durable tool call ID. */
+		function createEmailDraftViewStore() {
+			return (0, _deepseek_ai_dsh_client_runtime_client.defineStore)({
+				init: () => ({ outcomes: {} }),
+				persist: "soc.email-draft.view.v1",
+				actions: {
+					setOutcome: (state, callId, outcome) => {
+						state.outcomes[callId] = outcome;
+					},
+					reopen: (state, callId) => {
+						delete state.outcomes[callId];
+					}
+				}
+			});
+		}
+		//#endregion
 		//#region src/client/EmailDraftToolview.tsx
 		const BODY_VIEW_TABS = [{
 			id: "preview",
@@ -382,7 +400,7 @@ window.__ModuleLoader__.load({
 		function signatureAsHtml(signature) {
 			return sanitizeEmailHtml(signature.html?.trim() ? signature.html : escapeHtml(signature.text || "").replace(/\r?\n/gu, "<br>"));
 		}
-		function EmailDraftToolview({ block, socClient }) {
+		function EmailDraftToolview({ block, callId, socClient, useStore, actions }) {
 			const envelope = (0, react.useMemo)(() => parseEnvelope(block), [block]);
 			const sourceKey = (0, react.useMemo)(() => JSON.stringify(envelope?.draft ?? null), [envelope]);
 			const action = actionFromEnvelope(envelope?.draft.action);
@@ -393,7 +411,9 @@ window.__ModuleLoader__.load({
 				subject: "",
 				body: ""
 			});
-			const [status, setStatus] = (0, react.useState)("editing");
+			const outcome = useStore((state) => state.outcomes[callId]);
+			const [sendStatus, setSendStatus] = (0, react.useState)("editing");
+			const status = outcome ?? sendStatus;
 			const [sendError, setSendError] = (0, react.useState)(null);
 			const [selectedAttachments, setSelectedAttachments] = (0, react.useState)([]);
 			const [attachmentError, setAttachmentError] = (0, react.useState)(null);
@@ -409,7 +429,7 @@ window.__ModuleLoader__.load({
 			(0, react.useEffect)(() => {
 				if (envelope?.draft) {
 					setFields(formFromEnvelope(envelope));
-					setStatus("editing");
+					setSendStatus("editing");
 					setSendError(null);
 					setSelectedAttachments([]);
 					setAttachmentError(null);
@@ -417,7 +437,7 @@ window.__ModuleLoader__.load({
 					setSignatureStatus(null);
 					setBodyView("preview");
 				}
-			}, [sourceKey]);
+			}, [callId, sourceKey]);
 			if (!("kind" in block)) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				className: EmailDraftToolview_module_css_default.card,
 				"data-dshcf-preserve": "true",
@@ -441,7 +461,8 @@ window.__ModuleLoader__.load({
 				setAttachmentError(null);
 				setSendError(null);
 				setBodyView("preview");
-				setStatus("editing");
+				setSendStatus("editing");
+				actions.reopen(callId);
 			};
 			if (status === "discarded") return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: EmailDraftToolview_module_css_default.card,
@@ -531,7 +552,7 @@ window.__ModuleLoader__.load({
 				}
 				const confirmation = action === "reply" ? "Reply to this email now?" : action === "forward" ? "Forward this email with the original message and all its attachments plus selected attachments now?" : "Send this email now?";
 				if (typeof window !== "undefined" && !window.confirm(confirmation)) return;
-				setStatus("sending");
+				setSendStatus("sending");
 				setSendError(null);
 				try {
 					const attachments = await Promise.all(selectedAttachments.map((item) => fileToEmailAttachment(item.file)));
@@ -540,9 +561,9 @@ window.__ModuleLoader__.load({
 						body_format: "html",
 						attachments
 					}))?.sent !== true) throw new Error("Zimbra did not confirm that the email was sent.");
-					setStatus("sent");
+					actions.setOutcome(callId, "sent");
 				} catch (error) {
-					setStatus("failed");
+					setSendStatus("failed");
 					setSendError(error instanceof Error ? error.message : String(error));
 				}
 			};
@@ -841,7 +862,7 @@ window.__ModuleLoader__.load({
 									className: `${EmailDraftToolview_module_css_default.button} ${EmailDraftToolview_module_css_default.danger}`,
 									type: "button",
 									disabled: status === "sending",
-									onClick: () => setStatus("discarded"),
+									onClick: () => actions.setOutcome(callId, "discarded"),
 									children: "Discard"
 								}),
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -871,9 +892,11 @@ window.__ModuleLoader__.load({
 			inject: ["slots", "socClient"],
 			apply(ctx) {
 				const socClient = ctx.get("socClient");
+				const store = createEmailDraftViewStore();
 				for (const key of [ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME]) ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
 					name: "tool.call.toolview",
 					key,
+					store,
 					inject: () => ({ socClient })
 				}, EmailDraftToolview));
 			}
