@@ -1333,7 +1333,7 @@ summary() {
   echo "  1. Start the web app:  cd vendor/deepseek-harness && pnpm dsh web --no-open"
   echo "     (the SOC product bundle is registered in the '$DSH_PROFILE' profile —"
   echo "      restart any running instance so it picks the plugins up)"
-  echo "  2. Open http://127.0.0.1:3080 (remote: ssh -L 3080:127.0.0.1:3080 usr@ip)"
+  echo "  2. Open http://127.0.0.1:3081 (remote: ssh -L 3081:127.0.0.1:3081 usr@ip)"
   echo
   echo "${D}Re-run ./setup.sh any time; --check audits without changing anything,"
   echo "${D}--plugins re-runs install/build/repair/wiring without prompts;"

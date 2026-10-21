@@ -1,14 +1,16 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client';
+import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots';
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
 import type { SocClientRuntime } from 'dsh-soc-agent-client/client';
 import React from 'react';
+import { createEmailDraftViewStore } from './stores.ts';
 export { EMAIL_ATTACHMENT_LIMITS, draftFromForm, fileToEmailAttachment, parseRecipientText, validateEmailAttachmentSelection, ZIMBRA_DRAFT_TOOL_NAME, ZIMBRA_SIGNATURE_DRAFT_TOOL_NAME, } from './emailDraft.ts';
 export type { EmailAttachmentPayload, EmailDraftAction, EmailDraftFields, EmailDraftFormFields, EmailDraftMetadata, } from './emailDraft.ts';
-interface EmailDraftProps extends ToolCallViewProps {
+interface EmailDraftProps extends ToolCallViewProps, PropsStore<ReturnType<typeof createEmailDraftViewStore>> {
     socClient: SocClientRuntime;
 }
-export declare function EmailDraftToolview({ block, socClient }: EmailDraftProps): React.JSX.Element;
+export declare function EmailDraftToolview({ block, callId, socClient, useStore, actions }: EmailDraftProps): React.JSX.Element;
 export declare const emailDraftToolview: {
     name: string;
     inject: string[];

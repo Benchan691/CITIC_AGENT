@@ -8,6 +8,7 @@
 
 import { Command } from 'commander'
 import type { Context } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
 import { parseCmdline } from '@deepseek-ai/dsh-cmdline'
 
 /** Stable Cordis plugin name. */
@@ -19,13 +20,24 @@ export const inject = ['cmdlineArgs']
 /** Service provided by this ordinary plugin and injected by flag-configured rows. */
 export const WEB_STARTUP_SERVICE = 'webStartup'
 
+/** Deployment defaults applied before flag-configured consumers activate. */
+export interface Config {
+  /** Listen port when --port is omitted; omission leaves each consumer's fallback in effect. */
+  defaultPort?: number
+}
+
+/** Schemastery validation for the deployment's optional listen port. */
+export const Config: z<Config> = z.object({
+  defaultPort: z.natural().max(65535),
+})
+
 /** What the web rows read from {@link WEB_STARTUP_SERVICE}. */
 export interface WebStartupValues {
   /** Whether this invocation opens the default browser after startup. */
   openBrowser: boolean
   /** `--host`, absent when the invocation did not name one. */
   host?: string
-  /** `--port`, absent when the invocation did not name one. */
+  /** Resolved --port or deployment default; absent when neither is set. */
   port?: number
   /** Explicit `--trusted-host` authorities, in argument order. */
   trustedHosts: string[]
@@ -62,12 +74,13 @@ Examples:
 
 /**
  * Parse and provide the Web invocation as an ordinary Cordis service. The
- * command's action publishes the flags this invocation named; `--host 0.0.0.0`
+ * command's action publishes the flags and deployment defaults; `--host 0.0.0.0`
  * or a non-numeric `--port` is a usage error, so on rejection (and on `--help`)
  * nothing is provided.
  * @param ctx - plugin context carrying the command line.
+ * @param config - deployment defaults overridden by explicit flags.
  */
-export function apply(ctx: Context): void {
+export function apply(ctx: Context, config: Config = {}): void {
   const program = webCommand()
   program.action(() => {
     const options = program.opts<WebOptions>()
@@ -77,10 +90,11 @@ export function apply(ctx: Context): void {
     if (options.port !== undefined && !/^\d+$/.test(options.port)) {
       program.error(`error: --port must be a number, got ${JSON.stringify(options.port)}`)
     }
+    const port = options.port !== undefined ? Number(options.port) : config.defaultPort
     ctx.provide(WEB_STARTUP_SERVICE, {
       openBrowser: options.open,
       ...options.host !== undefined && { host: options.host },
-      ...options.port !== undefined && { port: Number(options.port) },
+      ...port !== undefined && { port },
       trustedHosts: options.trustedHost ?? [],
     } satisfies WebStartupValues)
   })

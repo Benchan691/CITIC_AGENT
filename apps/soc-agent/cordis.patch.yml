@@ -2,6 +2,11 @@
 # Keep coding tools off; keep fs provider on so agent-instructions can load
 # $DSH_HOME/AGENTS.md. Model-facing fs/shell tools stay disabled below.
 
+# Keep SOC browser state on a separate origin from the official Harness.
+- id: web-startup
+  config:
+    defaultPort: 3081
+
 - id: tools
   config:
     mode: native

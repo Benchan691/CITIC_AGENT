@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createRequire, registerHooks } from 'node:module'
-import test from 'node:test'
-import { act, createElement } from 'react'
+import test, { after } from 'node:test'
+import { act, createElement, useSyncExternalStore } from 'react'
 import {
   EMAIL_ATTACHMENT_LIMITS,
   draftFromForm,
@@ -11,6 +11,25 @@ import {
   type EmailDraftFormFields,
 } from '../src/client/emailDraft.ts'
 import { renderEmailPreviewDocument, sanitizeEmailHtml } from '../src/client/htmlEmail.ts'
+
+// Browser entrypoints are loader factories; Node tests use the same store engine source.
+const runtimeHook = registerHooks({
+  resolve(specifier, context, nextResolve) {
+    return nextResolve(specifier === '@deepseek-ai/dsh-client-runtime/client'
+      ? new URL('../../../vendor/deepseek-harness/packages/client/runtime/src/client/contract/store.ts', import.meta.url).href
+      : specifier, context)
+  },
+})
+after(() => runtimeHook.deregister())
+const { createEmailDraftViewStore } = await import('../src/client/stores.ts')
+
+function draftStoreProps(store = createEmailDraftViewStore().create('test-session')) {
+  return {
+    useStore: <S>(select: (state: ReturnType<typeof store.getSnapshot>) => S): S =>
+      useSyncExternalStore(store.subscribe, () => select(store.getSnapshot())),
+    actions: store.actions,
+  }
+}
 
 const form: EmailDraftFormFields = {
   to: 'to@example.com, second@example.com\nto@example.com',
@@ -138,7 +157,10 @@ test('forward editor requires confirmation, retains its source after edits, and 
   const require = createRequire(import.meta.url)
   const { JSDOM } = require('../../../vendor/deepseek-harness/node_modules/jsdom')
   const dom = new JSDOM('<div id="root"></div>', { url: 'https://soc.example/' })
-  Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true })
+  Object.assign(globalThis, {
+    window: dom.window, document: dom.window.document, localStorage: dom.window.localStorage,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  })
   const cssHook = registerHooks({
     load(url, context, nextLoad) {
       return url.endsWith('.css')
@@ -149,6 +171,8 @@ test('forward editor requires confirmation, retains its source after edits, and 
   const { createRoot } = require('../../../vendor/deepseek-harness/packages/client/web/node_modules/react-dom/client')
   const { EmailDraftToolview } = await import('../src/client/EmailDraftToolview.tsx')
   const root = createRoot(document.getElementById('root'))
+  const store = createEmailDraftViewStore().create('forward-session')
+  const storeProps = draftStoreProps(store)
   const calls: unknown[][] = []
   let confirmed = false
   let sent = false
@@ -181,7 +205,7 @@ test('forward editor requires confirmation, retains its source after edits, and 
   })
   try {
     await act(async () => root.render(createElement(EmailDraftToolview,
-      { block, socClient } as unknown as Parameters<typeof EmailDraftToolview>[0])))
+      { block, socClient, callId: 'forward-call', ...storeProps } as unknown as Parameters<typeof EmailDraftToolview>[0])))
     assert.match(document.body.textContent!, /report\.pdf/)
     assert.match(document.body.textContent!, /full original message will be included/)
     assert.equal(document.querySelector('img'), null, 'Original HTML is shown as text')
@@ -260,16 +284,18 @@ test('forward editor requires confirmation, retains its source after edits, and 
       attachments: [{ filename: 'selected.txt', content_type: 'text/plain', data: 'c2VsZWN0ZWQ=' }],
     }])
     assert.match(document.querySelector('[role="alert"]')!.textContent!, /did not confirm/)
+    assert.equal(store.getSnapshot().outcomes['forward-call'], undefined)
     assert.equal(body.value, 'Edited note')
     sent = true
     await click('Retry')
     assert.equal(calls.length, 2)
     assert.match(document.body.textContent!, /Email sent successfully/)
+    assert.equal(store.getSnapshot().outcomes['forward-call'], 'sent')
   } finally {
     await act(async () => root.unmount())
     cssHook.deregister()
     dom.window.close()
-    for (const key of ['window', 'document', 'IS_REACT_ACT_ENVIRONMENT']) Reflect.deleteProperty(globalThis, key)
+    for (const key of ['window', 'document', 'localStorage', 'IS_REACT_ACT_ENVIRONMENT']) Reflect.deleteProperty(globalThis, key)
   }
 })
 
@@ -277,7 +303,10 @@ test('reply editor permits derived recipients and preserves reply metadata', asy
   const require = createRequire(import.meta.url)
   const { JSDOM } = require('../../../vendor/deepseek-harness/node_modules/jsdom')
   const dom = new JSDOM('<div id="root"></div>', { url: 'https://soc.example/' })
-  Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true })
+  Object.assign(globalThis, {
+    window: dom.window, document: dom.window.document, localStorage: dom.window.localStorage,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  })
   const cssHook = registerHooks({
     load(url, context, nextLoad) {
       return url.endsWith('.css')
@@ -288,6 +317,7 @@ test('reply editor permits derived recipients and preserves reply metadata', asy
   const { createRoot } = require('../../../vendor/deepseek-harness/packages/client/web/node_modules/react-dom/client')
   const { EmailDraftToolview } = await import('../src/client/EmailDraftToolview.tsx')
   const root = createRoot(document.getElementById('root'))
+  const storeProps = draftStoreProps()
   const calls: unknown[][] = []
   dom.window.confirm = (message: string) => {
     assert.equal(message, 'Reply to this email now?')
@@ -316,7 +346,7 @@ test('reply editor permits derived recipients and preserves reply metadata', asy
   })
   try {
     await act(async () => root.render(createElement(EmailDraftToolview,
-      { block, socClient } as unknown as Parameters<typeof EmailDraftToolview>[0])))
+      { block, socClient, callId: 'reply-call', ...storeProps } as unknown as Parameters<typeof EmailDraftToolview>[0])))
     assert.match(document.body.textContent!, /Reply to email/)
     assert.match(document.body.textContent!, /attachments will not be reattached/)
     const selectedFile = new dom.window.File(['reply'], 'reply.txt', { type: 'text/plain' })
@@ -335,6 +365,82 @@ test('reply editor permits derived recipients and preserves reply metadata', asy
     await act(async () => root.unmount())
     cssHook.deregister()
     dom.window.close()
-    for (const key of ['window', 'document', 'IS_REACT_ACT_ENVIRONMENT']) Reflect.deleteProperty(globalThis, key)
+    for (const key of ['window', 'document', 'localStorage', 'IS_REACT_ACT_ENVIRONMENT']) Reflect.deleteProperty(globalThis, key)
   }
 })
+
+for (const outcome of ['sent', 'discarded'] as const) {
+  test(`${outcome} email draft survives browser reload with a fresh store and tool result`, async () => {
+    const require = createRequire(import.meta.url)
+    const { JSDOM } = require('../../../vendor/deepseek-harness/node_modules/jsdom')
+    const dom = new JSDOM('<div id="root"></div>', { url: 'https://soc.example/' })
+    Object.assign(globalThis, {
+      window: dom.window, document: dom.window.document, localStorage: dom.window.localStorage,
+      IS_REACT_ACT_ENVIRONMENT: true,
+    })
+    const cssHook = registerHooks({
+      load(url, context, nextLoad) {
+        return url.endsWith('.css')
+          ? { format: 'module', shortCircuit: true, source: 'export default new Proxy({}, {get: (_, name) => name})' }
+          : nextLoad(url, context)
+      },
+    })
+    const { createRoot } = require('../../../vendor/deepseek-harness/packages/client/web/node_modules/react-dom/client')
+    const { EmailDraftToolview } = await import('../src/client/EmailDraftToolview.tsx')
+    let root = createRoot(document.getElementById('root'))
+    let sendCalls = 0
+    dom.window.confirm = () => true
+    const socClient = {
+      surface: 'workspace' as const,
+      rpc: async () => { sendCalls++; return { sent: true } },
+    }
+    const render = async (sessionId = 'refresh-session', callId = 'draft-call') => {
+      // A reload reconstructs both the plugin's store handle and the result block.
+      const store = createEmailDraftViewStore().create(sessionId)
+      const block = { kind: 'tool-result', content: [{ type: 'text', text: JSON.stringify({
+        data: { draft: draftFromForm(form) },
+      }) }] }
+      await act(async () => root.render(createElement(EmailDraftToolview, {
+        block, callId, socClient, ...draftStoreProps(store),
+      } as unknown as Parameters<typeof EmailDraftToolview>[0])))
+    }
+    const click = async (label: string) => {
+      const button = [...document.querySelectorAll('button')].find(item => item.textContent === label)
+      assert.ok(button, `Button is rendered: ${label}`)
+      await act(async () => button.click())
+    }
+    const refresh = async (sessionId = 'refresh-session', callId = 'draft-call') => {
+      await act(async () => root.unmount())
+      root = createRoot(document.getElementById('root'))
+      await render(sessionId, callId)
+    }
+    const message = outcome === 'sent' ? /Email sent successfully/ : /Email draft discarded/
+    try {
+      await render()
+      await click(outcome === 'sent' ? 'Send' : 'Discard')
+      assert.match(document.body.textContent!, message)
+      await refresh()
+      assert.match(document.body.textContent!, message)
+      assert.equal(document.querySelector('[aria-label="Editable Zimbra email draft"]'), null)
+      assert.equal(sendCalls, outcome === 'sent' ? 1 : 0, 'Reload never sends an email')
+
+      await refresh('another-session')
+      assert.ok(document.querySelector('[aria-label="Editable Zimbra email draft"]'), 'Other sessions stay editable')
+      await refresh('refresh-session', 'another-call')
+      assert.ok(document.querySelector('[aria-label="Editable Zimbra email draft"]'), 'Other calls stay editable')
+      await refresh()
+      assert.match(document.body.textContent!, message)
+
+      if (outcome === 'discarded') {
+        await click('Reopen')
+        await refresh()
+        assert.ok(document.querySelector('[aria-label="Editable Zimbra email draft"]'), 'Reopen persists across reload')
+      }
+    } finally {
+      await act(async () => root.unmount())
+      cssHook.deregister()
+      dom.window.close()
+      for (const key of ['window', 'document', 'localStorage', 'IS_REACT_ACT_ENVIRONMENT']) Reflect.deleteProperty(globalThis, key)
+    }
+  })
+}
