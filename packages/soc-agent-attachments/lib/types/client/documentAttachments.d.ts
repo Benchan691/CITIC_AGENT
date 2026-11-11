@@ -1,8 +1,8 @@
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client';
 import type { ComposerDocument, ComposerDocumentProvider, DraftAttachmentId, MarkdownAttachment } from '@deepseek-ai/dsh-client-ui-conversation/client';
 import type { SessionId, SettingsScope } from '@deepseek-ai/dsh-client-runtime/client';
-import { type MarkItDownAttachmentSettings } from '../attachment-constants.ts';
-export declare class MarkItDownDocumentController implements ComposerDocumentProvider {
+import { type DocumentAttachmentSettings } from '../attachment-constants.ts';
+export declare class DocumentAttachmentController implements ComposerDocumentProvider {
     private readonly connection;
     private readonly settings;
     private readonly drafts;
@@ -10,7 +10,7 @@ export declare class MarkItDownDocumentController implements ComposerDocumentPro
     private readonly listeners;
     private version;
     private readonly converted;
-    constructor(connection: ConnectionHandle, settings: SettingsScope<MarkItDownAttachmentSettings>);
+    constructor(connection: ConnectionHandle, settings: SettingsScope<DocumentAttachmentSettings>);
     /** Abort pending conversions and release all browser-local draft state. */
     dispose(): void;
     subscribe: (listener: () => void) => (() => void);

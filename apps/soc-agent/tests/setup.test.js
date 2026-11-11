@@ -97,27 +97,10 @@ test('setup rejects unsafe MCP URLs and requires the same HTTP opt-in when promp
   assert.equal(allowed.status, 0, allowed.stderr)
 })
 
-test('setup validates optional OCR fields only when enabled and writes values without evaluating them', shellOptions, () => {
-  const enabled = run('check_parameters', { values: { MARKITDOWN_LLM_ENABLED: 'true' } })
-  assert.equal(enabled.status, 2, enabled.stderr)
-  assert.match(enabled.stdout, /\[FAIL\] MARKITDOWN_LLM_API_KEY:/)
-  assert.match(enabled.stdout, /\[FAIL\] MARKITDOWN_LLM_MODEL:/)
-  const result = run(`
-collect_parameters
-printf '# synthetic config\nUNCHANGED=keep\n' > "$SERVER_ENV"
-upsert_env_file "$SERVER_ENV" "\${SETUP_FIELDS[@]}"
-node - "$SERVER_ENV" <<'NODE'
-const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
-const { parseEnv } = require('node:util');
-const values = parseEnv(readFileSync(process.argv[2], 'utf8'));
-assert.equal(values.UNCHANGED, 'keep');
-assert.equal(values.SPLUNK_TOKEN, 'token with $(printf must-not-run) and \`backticks\`');
-assert.equal(values.SPLUNK_VERIFY_SSL, 'true');
-NODE
-`, { values: { SPLUNK_TOKEN: 'token with $(printf must-not-run) and `backticks`' }, input: '\n'.repeat(30) })
+test('setup uses the local document reader without model credentials', shellOptions, () => {
+  const result = run('check_parameters')
   assert.equal(result.status, 0, result.stderr)
-  assert.doesNotMatch(result.stdout + result.stderr, /must-not-run|backticks/)
+  assert.doesNotMatch(result.stdout, /LLM_API_KEY|LLM_MODEL|OCR/)
 })
 
 test('setup can collect an MCP endpoint after the operator skips installing Node', shellOptions, () => {

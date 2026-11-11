@@ -20,6 +20,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "zimbra_get_email",
         "zimbra_get_email_headers",
         "zimbra_get_attachment_text",
+        "read_document",
         "excel_inspect", "excel_profile", "excel_count",
         "excel_aggregate", "excel_group", "excel_rows",
         "zimbra_send_email",
@@ -41,7 +42,7 @@ def test_server_exposes_exact_domain_tool_set(monkeypatch, tmp_path):
         "update_subscription",
         "delete_subscription",
     }
-    assert len(tools) == 33
+    assert len(tools) == 34
     assert not {tool.name for tool in tools if tool.name.startswith("splunk_")}
     assert "system_get_status" not in {tool.name for tool in tools}
     assert not {tool.name for tool in tools if tool.name.startswith("catalog_")}

@@ -25,9 +25,6 @@ def test_defaults_are_safe_and_services_can_be_unconfigured():
     assert settings.zimbra.configured is False
     assert settings.splunk.missing == ["SPLUNK_MCP_ENDPOINT", "SPLUNK_TOKEN"]
     assert settings.zimbra.max_attachment_bytes == 10_000_000
-    assert settings.zimbra.max_attachment_text_chars == 200_000
-    assert settings.markitdown.llm_enabled is False
-    assert settings.markitdown.llm_timeout == 60
     assert settings.email_server.url == ""
     assert settings.email_server.configured is False
 

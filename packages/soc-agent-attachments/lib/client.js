@@ -31,18 +31,16 @@ window.__ModuleLoader__.load({
 		let _deepseek_ai_dsh_client_runtime_client = require("@deepseek-ai/dsh-client-runtime/client");
 		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region src/attachment-constants.ts
-		const MARKITDOWN_ATTACHMENTS_NAMESPACE = "soc-agent-markitdown-attachments";
-		const DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS = {
+		const DOCUMENT_ATTACHMENTS_NAMESPACE = "soc-agent-document-attachments";
+		const DEFAULT_DOCUMENT_ATTACHMENT_SETTINGS = {
 			maxFiles: 5,
 			maxBytesPerFile: 1e7,
-			maxTotalBytes: 5e7,
-			maxCharsPerFile: 2e5,
-			maxTotalChars: 5e5
+			maxTotalBytes: 5e7
 		};
 		//#endregion
-		//#region \0dsh-css:/home/chan-kok-pan/Documents/CITIC_AGENT/packages/soc-agent-attachments/src/client/MarkItDownAttachmentSettings.module.css.mjs
-		const css$1 = ".afetRq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.afetRq_card:hover,.afetRq_cardOpen{border-color:var(--dsw-alias-label-dimmed)}.afetRq_cardOpen{background:var(--dsw-alias-bg-layer-2)}.afetRq_header{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.afetRq_header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.afetRq_headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.afetRq_name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.afetRq_description,.afetRq_hint,.afetRq_invalid{font-size:12px;line-height:1.5}.afetRq_description,.afetRq_hint{color:var(--dsw-alias-label-tertiary)}.afetRq_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s}.afetRq_chevronOpen{transform:rotate(180deg)}.afetRq_body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding-bottom:8px}.afetRq_field{flex-direction:column;gap:6px;padding:12px 0;display:flex}.afetRq_field+.afetRq_field{border-top:1px solid var(--dsw-alias-border-l2)}.afetRq_fieldHead{align-items:center;gap:8px;display:flex}.afetRq_fieldLabel{min-width:0;color:var(--dsw-alias-label-primary);flex:1;font-size:13px;font-weight:500;line-height:1.5}.afetRq_badges{align-items:center;gap:8px;display:inline-flex}.afetRq_badge{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);white-space:nowrap;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}.afetRq_reset{color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border:0;padding:0;font-size:12px;line-height:1.5}.afetRq_reset:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.afetRq_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);width:100%;height:34px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 12px;font-size:13px;line-height:1.5}.afetRq_input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}.afetRq_input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}.afetRq_inputInvalid{border-color:var(--dsw-alias-label-error)}.afetRq_hint,.afetRq_invalid,.afetRq_failed{margin:0}.afetRq_invalid,.afetRq_failed{color:var(--dsw-alias-label-error)}.afetRq_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px;display:flex}.afetRq_failed{flex:1;min-width:0;font-size:12px;line-height:1.5}.afetRq_discard,.afetRq_save{font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}.afetRq_discard{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:0 0}.afetRq_save{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.afetRq_discard:disabled,.afetRq_save:disabled{opacity:.4;cursor:default}.afetRq_discard:focus-visible,.afetRq_save:focus-visible,.afetRq_reset:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
-		const tagId$1 = "dsh-soc-agent-attachments/MarkItDownAttachmentSettings.module.css";
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-attachments/src/client/DocumentAttachmentSettings.module.css.mjs
+		const css$1 = ".BnJYvq_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}.BnJYvq_card:hover,.BnJYvq_cardOpen{border-color:var(--dsw-alias-label-dimmed)}.BnJYvq_cardOpen{background:var(--dsw-alias-bg-layer-2)}.BnJYvq_header{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}.BnJYvq_header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.BnJYvq_headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}.BnJYvq_name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.BnJYvq_description,.BnJYvq_hint,.BnJYvq_invalid{font-size:12px;line-height:1.5}.BnJYvq_description,.BnJYvq_hint{color:var(--dsw-alias-label-tertiary)}.BnJYvq_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s}.BnJYvq_chevronOpen{transform:rotate(180deg)}.BnJYvq_body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding-bottom:8px}.BnJYvq_field{flex-direction:column;gap:6px;padding:12px 0;display:flex}.BnJYvq_field+.BnJYvq_field{border-top:1px solid var(--dsw-alias-border-l2)}.BnJYvq_fieldHead{align-items:center;gap:8px;display:flex}.BnJYvq_fieldLabel{min-width:0;color:var(--dsw-alias-label-primary);flex:1;font-size:13px;font-weight:500;line-height:1.5}.BnJYvq_badges{align-items:center;gap:8px;display:inline-flex}.BnJYvq_badge{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);white-space:nowrap;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}.BnJYvq_reset{color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;background:0 0;border:0;padding:0;font-size:12px;line-height:1.5}.BnJYvq_reset:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.BnJYvq_input{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);width:100%;height:34px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:0 12px;font-size:13px;line-height:1.5}.BnJYvq_input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}.BnJYvq_input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}.BnJYvq_inputInvalid{border-color:var(--dsw-alias-label-error)}.BnJYvq_hint,.BnJYvq_invalid,.BnJYvq_failed{margin:0}.BnJYvq_invalid,.BnJYvq_failed{color:var(--dsw-alias-label-error)}.BnJYvq_footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px;display:flex}.BnJYvq_failed{flex:1;min-width:0;font-size:12px;line-height:1.5}.BnJYvq_discard,.BnJYvq_save{font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}.BnJYvq_discard{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:0 0}.BnJYvq_save{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.BnJYvq_discard:disabled,.BnJYvq_save:disabled{opacity:.4;cursor:default}.BnJYvq_discard:focus-visible,.BnJYvq_save:focus-visible,.BnJYvq_reset:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
+		const tagId$1 = "dsh-soc-agent-attachments/DocumentAttachmentSettings.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-attachments";
@@ -50,39 +48,37 @@ window.__ModuleLoader__.load({
 			tag.textContent = css$1;
 			document.head.appendChild(tag);
 		}
-		var MarkItDownAttachmentSettings_module_css_default = {
-			"badge": "afetRq_badge",
-			"badges": "afetRq_badges",
-			"body": "afetRq_body",
-			"card": "afetRq_card",
-			"cardOpen": "afetRq_cardOpen",
-			"chevron": "afetRq_chevron",
-			"chevronOpen": "afetRq_chevronOpen",
-			"description": "afetRq_description",
-			"discard": "afetRq_discard",
-			"failed": "afetRq_failed",
-			"field": "afetRq_field",
-			"fieldHead": "afetRq_fieldHead",
-			"fieldLabel": "afetRq_fieldLabel",
-			"footer": "afetRq_footer",
-			"headText": "afetRq_headText",
-			"header": "afetRq_header",
-			"hint": "afetRq_hint",
-			"input": "afetRq_input",
-			"inputInvalid": "afetRq_inputInvalid",
-			"invalid": "afetRq_invalid",
-			"name": "afetRq_name",
-			"reset": "afetRq_reset",
-			"save": "afetRq_save"
+		var DocumentAttachmentSettings_module_css_default = {
+			"badge": "BnJYvq_badge",
+			"badges": "BnJYvq_badges",
+			"body": "BnJYvq_body",
+			"card": "BnJYvq_card",
+			"cardOpen": "BnJYvq_cardOpen",
+			"chevron": "BnJYvq_chevron",
+			"chevronOpen": "BnJYvq_chevronOpen",
+			"description": "BnJYvq_description",
+			"discard": "BnJYvq_discard",
+			"failed": "BnJYvq_failed",
+			"field": "BnJYvq_field",
+			"fieldHead": "BnJYvq_fieldHead",
+			"fieldLabel": "BnJYvq_fieldLabel",
+			"footer": "BnJYvq_footer",
+			"headText": "BnJYvq_headText",
+			"header": "BnJYvq_header",
+			"hint": "BnJYvq_hint",
+			"input": "BnJYvq_input",
+			"inputInvalid": "BnJYvq_inputInvalid",
+			"invalid": "BnJYvq_invalid",
+			"name": "BnJYvq_name",
+			"reset": "BnJYvq_reset",
+			"save": "BnJYvq_save"
 		};
 		//#endregion
-		//#region src/client/MarkItDownAttachmentSettings.tsx
+		//#region src/client/DocumentAttachmentSettings.tsx
 		const FIELDS = [
 			"maxFiles",
 			"maxBytesPerFile",
-			"maxTotalBytes",
-			"maxCharsPerFile",
-			"maxTotalChars"
+			"maxTotalBytes"
 		];
 		var AttachmentSettingsController = class {
 			scope;
@@ -181,21 +177,21 @@ window.__ModuleLoader__.load({
 		};
 		function Field({ id, label, hint, state, disabled, edit, reset }) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-				className: MarkItDownAttachmentSettings_module_css_default.field,
+				className: DocumentAttachmentSettings_module_css_default.field,
 				children: [
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						className: MarkItDownAttachmentSettings_module_css_default.fieldHead,
+						className: DocumentAttachmentSettings_module_css_default.fieldHead,
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("label", {
-							className: MarkItDownAttachmentSettings_module_css_default.fieldLabel,
+							className: DocumentAttachmentSettings_module_css_default.fieldLabel,
 							htmlFor: id,
 							children: label
 						}), state.overridden && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
-							className: MarkItDownAttachmentSettings_module_css_default.badges,
+							className: DocumentAttachmentSettings_module_css_default.badges,
 							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-								className: MarkItDownAttachmentSettings_module_css_default.badge,
+								className: DocumentAttachmentSettings_module_css_default.badge,
 								children: "Overridden"
 							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								className: MarkItDownAttachmentSettings_module_css_default.reset,
+								className: DocumentAttachmentSettings_module_css_default.reset,
 								type: "button",
 								disabled,
 								onClick: reset,
@@ -204,7 +200,7 @@ window.__ModuleLoader__.load({
 						})]
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-						className: state.invalid ? `${MarkItDownAttachmentSettings_module_css_default.input} ${MarkItDownAttachmentSettings_module_css_default.inputInvalid}` : MarkItDownAttachmentSettings_module_css_default.input,
+						className: state.invalid ? `${DocumentAttachmentSettings_module_css_default.input} ${DocumentAttachmentSettings_module_css_default.inputInvalid}` : DocumentAttachmentSettings_module_css_default.input,
 						id,
 						inputMode: "numeric",
 						value: state.text,
@@ -213,7 +209,7 @@ window.__ModuleLoader__.load({
 						onChange: (event) => edit(event.target.value)
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-						className: state.invalid ? MarkItDownAttachmentSettings_module_css_default.invalid : MarkItDownAttachmentSettings_module_css_default.hint,
+						className: state.invalid ? DocumentAttachmentSettings_module_css_default.invalid : DocumentAttachmentSettings_module_css_default.hint,
 						children: state.invalid ? "Enter a positive whole number." : hint
 					})
 				]
@@ -221,7 +217,7 @@ window.__ModuleLoader__.load({
 		}
 		function Chevron({ open }) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
-				className: open ? `${MarkItDownAttachmentSettings_module_css_default.chevron} ${MarkItDownAttachmentSettings_module_css_default.chevronOpen}` : MarkItDownAttachmentSettings_module_css_default.chevron,
+				className: open ? `${DocumentAttachmentSettings_module_css_default.chevron} ${DocumentAttachmentSettings_module_css_default.chevronOpen}` : DocumentAttachmentSettings_module_css_default.chevron,
 				width: "14",
 				height: "14",
 				viewBox: "0 0 14 14",
@@ -233,35 +229,35 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		function MarkItDownAttachmentSettingsCard(props) {
+		function DocumentAttachmentSettingsCard(props) {
 			const state = props.useAttachmentSettings((value) => value);
 			const [open, setOpen] = (0, react.useState)(false);
 			if (!state.available) return null;
 			const disabled = !state.writable;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", {
-				className: `${MarkItDownAttachmentSettings_module_css_default.card}${open ? ` ${MarkItDownAttachmentSettings_module_css_default.cardOpen}` : ""}`,
+				className: `${DocumentAttachmentSettings_module_css_default.card}${open ? ` ${DocumentAttachmentSettings_module_css_default.cardOpen}` : ""}`,
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
-					className: MarkItDownAttachmentSettings_module_css_default.header,
+					className: DocumentAttachmentSettings_module_css_default.header,
 					type: "button",
 					"aria-expanded": open,
-					"aria-label": `${open ? "Collapse" : "Expand"} settings: Attachment processing`,
+					"aria-label": `${open ? "Collapse" : "Expand"} settings: Documents`,
 					onClick: () => setOpen((value) => !value),
 					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
-						className: MarkItDownAttachmentSettings_module_css_default.headText,
+						className: DocumentAttachmentSettings_module_css_default.headText,
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: MarkItDownAttachmentSettings_module_css_default.name,
-							children: "Attachment processing"
+							className: DocumentAttachmentSettings_module_css_default.name,
+							children: "Documents"
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: MarkItDownAttachmentSettings_module_css_default.description,
+							className: DocumentAttachmentSettings_module_css_default.description,
 							children: "Analyse spreadsheets and read document text."
 						})]
 					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Chevron, { open })]
 				}), open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					className: MarkItDownAttachmentSettings_module_css_default.body,
+					className: DocumentAttachmentSettings_module_css_default.body,
 					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Excel and CSV files use their original data for analysis. Other documents are converted to text. Markdown limits apply to document text." }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "Files stay with this chat. The agent reads document text on request and analyses original spreadsheet data." }),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
-							id: "markitdown-max-files",
+							id: "documents-max-files",
 							label: "Maximum files per message",
 							hint: "Default: 5",
 							state: state.maxFiles,
@@ -270,7 +266,7 @@ window.__ModuleLoader__.load({
 							reset: () => props.resetField("maxFiles")
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
-							id: "markitdown-max-file-bytes",
+							id: "documents-max-file-bytes",
 							label: "Maximum bytes per file",
 							hint: "Default: 10 MB",
 							state: state.maxBytesPerFile,
@@ -279,7 +275,7 @@ window.__ModuleLoader__.load({
 							reset: () => props.resetField("maxBytesPerFile")
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
-							id: "markitdown-max-total-bytes",
+							id: "documents-max-total-bytes",
 							label: "Maximum total upload bytes",
 							hint: "Default: 50 MB",
 							state: state.maxTotalBytes,
@@ -287,41 +283,23 @@ window.__ModuleLoader__.load({
 							edit: (value) => props.edit("maxTotalBytes", value),
 							reset: () => props.resetField("maxTotalBytes")
 						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
-							id: "markitdown-max-file-chars",
-							label: "Maximum Markdown characters per file",
-							hint: "Default: 200,000",
-							state: state.maxCharsPerFile,
-							disabled,
-							edit: (value) => props.edit("maxCharsPerFile", value),
-							reset: () => props.resetField("maxCharsPerFile")
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Field, {
-							id: "markitdown-max-total-chars",
-							label: "Maximum total Markdown characters",
-							hint: "Default: 500,000",
-							state: state.maxTotalChars,
-							disabled,
-							edit: (value) => props.edit("maxTotalChars", value),
-							reset: () => props.resetField("maxTotalChars")
-						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							className: MarkItDownAttachmentSettings_module_css_default.footer,
+							className: DocumentAttachmentSettings_module_css_default.footer,
 							children: [
 								state.failed && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-									className: MarkItDownAttachmentSettings_module_css_default.failed,
+									className: DocumentAttachmentSettings_module_css_default.failed,
 									role: "status",
 									children: "Could not save these limits."
 								}),
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									className: MarkItDownAttachmentSettings_module_css_default.discard,
+									className: DocumentAttachmentSettings_module_css_default.discard,
 									type: "button",
 									disabled: !state.dirty || state.saving,
 									onClick: props.discard,
 									children: "Discard"
 								}),
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									className: MarkItDownAttachmentSettings_module_css_default.save,
+									className: DocumentAttachmentSettings_module_css_default.save,
 									type: "button",
 									disabled: !state.dirty || state.invalid || state.saving,
 									onClick: props.save,
@@ -334,7 +312,7 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
-		//#region src/client/markitdownAttachments.ts
+		//#region src/client/documentAttachments.ts
 		const CHANNEL = "/soc-agent-config";
 		function bytesToBase64(bytes) {
 			let binary = "";
@@ -344,11 +322,11 @@ window.__ModuleLoader__.load({
 		}
 		function settingsOf(scope) {
 			return {
-				...DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS,
+				...DEFAULT_DOCUMENT_ATTACHMENT_SETTINGS,
 				...scope.getSnapshot().value ?? {}
 			};
 		}
-		var MarkItDownDocumentController = class {
+		var DocumentAttachmentController = class {
 			connection;
 			settings;
 			drafts = /* @__PURE__ */ new Map();
@@ -360,7 +338,7 @@ window.__ModuleLoader__.load({
 				this.connection = connection;
 				this.settings = settings;
 			}
-			/** Abort pending conversions and release all browser-local draft state. */
+			/** Abort pending uploads and release all browser-local draft state. */
 			dispose() {
 				for (const controller of this.aborts.values()) controller.abort();
 				this.aborts.clear();
@@ -412,7 +390,7 @@ window.__ModuleLoader__.load({
 			}
 			async convert(sessionId, ids, signal) {
 				const limits = settingsOf(this.settings);
-				const cacheKey = JSON.stringify([limits.maxBytesPerFile, limits.maxCharsPerFile]);
+				const cacheKey = JSON.stringify([limits.maxBytesPerFile]);
 				const results = /* @__PURE__ */ new Map();
 				let next = 0;
 				let failure;
@@ -439,20 +417,16 @@ window.__ModuleLoader__.load({
 							investigation_id: sessionId,
 							content_type: document.file.type,
 							data: bytesToBase64(bytes),
-							limits: {
-								max_bytes: limits.maxBytesPerFile,
-								max_chars: limits.maxCharsPerFile
-							}
+							limits: { max_bytes: limits.maxBytesPerFile }
 						}, localAbort.signal);
-						if (!response?.ok) throw new Error(response?.error?.message || "The attachment conversion failed.");
+						if (!response?.ok) throw new Error(response?.error?.message || "The attachment upload failed.");
 						const value = response.value;
-						if (typeof value?.text !== "string") throw new Error("The converter returned no attachment text.");
+						if (typeof value?.text !== "string") throw new Error("The upload returned no attachment reference.");
 						if (!this.drafts.get(sessionId)?.has(id)) return;
-						const notice = value.text_truncated === true ? "[Attachment excerpt: text was truncated during conversion.]\n" : "";
 						const attachment = {
 							id,
 							filename: typeof value.filename === "string" ? value.filename : document.file.name,
-							markdown: notice + value.text
+							markdown: value.text
 						};
 						this.converted.set(id, {
 							key: cacheKey,
@@ -485,9 +459,7 @@ window.__ModuleLoader__.load({
 				await Promise.all([worker(), worker()]);
 				if (failure !== void 0) throw failure;
 				if (signal.aborted) throw new Error("attachment_conversion_cancelled");
-				const ordered = ids.flatMap((id) => results.has(id) ? [results.get(id)] : []);
-				if (ordered.reduce((total, item) => total + item.markdown.length, 0) > limits.maxTotalChars) throw new Error("The attachments exceed the configured Markdown character limit.");
-				return ordered;
+				return ids.flatMap((id) => results.has(id) ? [results.get(id)] : []);
 			}
 			setStatus(sessionId, id, status, error) {
 				const drafts = this.drafts.get(sessionId);
@@ -506,9 +478,9 @@ window.__ModuleLoader__.load({
 			}
 		};
 		//#endregion
-		//#region \0dsh-css:/home/chan-kok-pan/Documents/CITIC_AGENT/packages/soc-agent-attachments/src/client/MarkItDownDocuments.module.css.mjs
-		const css = "._0870EG_rail{flex-wrap:wrap;gap:8px;padding:10px 12px 0;display:flex}._0870EG_item{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);min-width:0;max-width:min(100%,360px);color:var(--dsw-alias-label-primary);border-radius:8px;align-items:center;gap:7px;padding:6px 8px;font-size:13px;line-height:20px;display:inline-flex}._0870EG_icon{flex:none;font-size:14px;line-height:1}._0870EG_name{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}._0870EG_status{color:var(--dsw-alias-label-tertiary);white-space:nowrap;flex:none;font-size:12px}._0870EG_remove{width:20px;height:20px;color:var(--dsw-alias-label-tertiary);font:inherit;cursor:pointer;background:0 0;border:0;border-radius:50%;flex:none;padding:0;font-size:18px;line-height:18px}._0870EG_remove:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}._0870EG_remove:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
-		const tagId = "dsh-soc-agent-attachments/MarkItDownDocuments.module.css";
+		//#region \0dsh-css:/Users/chankokpan/Documents/CITIC_AGENT/packages/soc-agent-attachments/src/client/Documents.module.css.mjs
+		const css = ".F0Kb6a_rail{flex-wrap:wrap;gap:8px;padding:10px 12px 0;display:flex}.F0Kb6a_item{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);min-width:0;max-width:min(100%,360px);color:var(--dsw-alias-label-primary);border-radius:8px;align-items:center;gap:7px;padding:6px 8px;font-size:13px;line-height:20px;display:inline-flex}.F0Kb6a_icon{flex:none;font-size:14px;line-height:1}.F0Kb6a_name{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}.F0Kb6a_status{color:var(--dsw-alias-label-tertiary);white-space:nowrap;flex:none;font-size:12px}.F0Kb6a_remove{width:20px;height:20px;color:var(--dsw-alias-label-tertiary);font:inherit;cursor:pointer;background:0 0;border:0;border-radius:50%;flex:none;padding:0;font-size:18px;line-height:18px}.F0Kb6a_remove:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.F0Kb6a_remove:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}";
+		const tagId = "dsh-soc-agent-attachments/Documents.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = "dsh-soc-agent-attachments";
@@ -516,23 +488,23 @@ window.__ModuleLoader__.load({
 			tag.textContent = css;
 			document.head.appendChild(tag);
 		}
-		var MarkItDownDocuments_module_css_default = {
-			"icon": "_0870EG_icon",
-			"item": "_0870EG_item",
-			"name": "_0870EG_name",
-			"rail": "_0870EG_rail",
-			"remove": "_0870EG_remove",
-			"status": "_0870EG_status"
+		var Documents_module_css_default = {
+			"icon": "F0Kb6a_icon",
+			"item": "F0Kb6a_item",
+			"name": "F0Kb6a_name",
+			"rail": "F0Kb6a_rail",
+			"remove": "F0Kb6a_remove",
+			"status": "F0Kb6a_status"
 		};
 		//#endregion
-		//#region src/client/MarkItDownDocuments.tsx
+		//#region src/client/Documents.tsx
 		function statusText(document, converting) {
-			if (document.status === "failed") return document.error ?? "Conversion failed";
-			if (converting || document.status === "converting") return "Converting…";
-			if (document.status === "converted") return "Ready";
+			if (document.status === "failed") return document.error ?? "Upload failed";
+			if (converting || document.status === "converting") return "Uploading…";
+			if (document.status === "converted") return "Attached";
 			return "Queued";
 		}
-		function MarkItDownDocuments(props) {
+		function Documents(props) {
 			const { controller, sessionId } = props;
 			(0, react.useSyncExternalStore)(controller.subscribe, controller.getVersion, controller.getVersion);
 			if (sessionId === void 0) return null;
@@ -540,7 +512,7 @@ window.__ModuleLoader__.load({
 			const pickerId = `soc-agent-file-picker-${sessionId}`;
 			if (documents.length === 0 && !props.canAcceptDocuments) return null;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-				className: MarkItDownDocuments_module_css_default.rail,
+				className: Documents_module_css_default.rail,
 				"aria-label": "Attached files",
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
 					id: pickerId,
@@ -553,24 +525,24 @@ window.__ModuleLoader__.load({
 						if (files.length > 0 && props.canAcceptDocuments) props.onAddDocuments(files);
 					}
 				}), documents.map((document) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					className: MarkItDownDocuments_module_css_default.item,
+					className: Documents_module_css_default.item,
 					title: document.error,
 					children: [
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: MarkItDownDocuments_module_css_default.icon,
+							className: Documents_module_css_default.icon,
 							"aria-hidden": "true",
 							children: "📎"
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: MarkItDownDocuments_module_css_default.name,
+							className: Documents_module_css_default.name,
 							children: document.file.name
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: MarkItDownDocuments_module_css_default.status,
+							className: Documents_module_css_default.status,
 							children: statusText(document, props.phase === "submitting")
 						}),
 						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							className: MarkItDownDocuments_module_css_default.remove,
+							className: Documents_module_css_default.remove,
 							type: "button",
 							"aria-label": `Remove ${document.file.name}`,
 							onClick: () => props.onRemoveDocument(document.id),
@@ -580,13 +552,13 @@ window.__ModuleLoader__.load({
 				}, document.id))]
 			});
 		}
-		function openMarkItDownPicker(sessionId) {
+		function openDocumentPicker(sessionId) {
 			const input = document.getElementById(`soc-agent-file-picker-${sessionId}`);
 			if (input instanceof HTMLInputElement) input.click();
 		}
 		//#endregion
 		//#region src/client/index.ts
-		/** Optional MarkItDown attachment/document feature. */
+		/** Optional on-demand attachment/document feature. */
 		const inject = [
 			"slots",
 			"connection",
@@ -597,19 +569,19 @@ window.__ModuleLoader__.load({
 		];
 		function apply(ctx) {
 			if (ctx.get("socClient").surface !== "workspace") return;
-			const documents = new MarkItDownDocumentController(ctx.get("connection"), ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
-			const settings = new AttachmentSettingsController(ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }));
+			const documents = new DocumentAttachmentController(ctx.get("connection"), ctx.settingsScope.bind({ namespace: DOCUMENT_ATTACHMENTS_NAMESPACE }));
+			const settings = new AttachmentSettingsController(ctx.settingsScope.bind({ namespace: DOCUMENT_ATTACHMENTS_NAMESPACE }));
 			ctx.effect(() => {
 				const disposeProvider = ctx.conversation.registerDocumentProvider(documents);
 				return () => {
 					disposeProvider();
 					documents.dispose();
 				};
-			}, "soc-agent-attachments: MarkItDown document provider");
+			}, "soc-agent-attachments: on-demand document provider");
 			ctx.slots.inject("conversation.input.documents", () => ctx.slots.register({
 				name: "conversation.input.documents",
 				locale: "conversation"
-			}, (props) => react.default.createElement(MarkItDownDocuments, {
+			}, (props) => react.default.createElement(Documents, {
 				...props,
 				controller: documents
 			})));
@@ -621,27 +593,27 @@ window.__ModuleLoader__.load({
 					kind: "action",
 					options: async () => [],
 					onSelect: (_option, session) => {
-						openMarkItDownPicker(session.sessionId);
+						openDocumentPicker(session.sessionId);
 					}
 				}
 			}), "soc-agent-attachments: file command");
 			ctx.slots.inject("settings.plugin.item", () => ctx.slots.register({
 				name: "settings.plugin.item",
-				key: MARKITDOWN_ATTACHMENTS_NAMESPACE,
+				key: DOCUMENT_ATTACHMENTS_NAMESPACE,
 				inject: () => settings.inject()
-			}, MarkItDownAttachmentSettingsCard));
+			}, DocumentAttachmentSettingsCard));
 			ctx.effect(() => () => settings.dispose(), "soc-agent-attachments: settings controller");
 		}
 		//#endregion
 		exports.AttachmentSettingsController = AttachmentSettingsController;
-		exports.DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS = DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS;
-		exports.MARKITDOWN_ATTACHMENTS_NAMESPACE = MARKITDOWN_ATTACHMENTS_NAMESPACE;
-		exports.MarkItDownAttachmentSettingsCard = MarkItDownAttachmentSettingsCard;
-		exports.MarkItDownDocumentController = MarkItDownDocumentController;
-		exports.MarkItDownDocuments = MarkItDownDocuments;
+		exports.DEFAULT_DOCUMENT_ATTACHMENT_SETTINGS = DEFAULT_DOCUMENT_ATTACHMENT_SETTINGS;
+		exports.DOCUMENT_ATTACHMENTS_NAMESPACE = DOCUMENT_ATTACHMENTS_NAMESPACE;
+		exports.DocumentAttachmentController = DocumentAttachmentController;
+		exports.DocumentAttachmentSettingsCard = DocumentAttachmentSettingsCard;
+		exports.Documents = Documents;
 		exports.apply = apply;
 		exports.inject = inject;
-		exports.openMarkItDownPicker = openMarkItDownPicker;
+		exports.openDocumentPicker = openDocumentPicker;
 		return module.exports;
 	}
 });

@@ -30,11 +30,8 @@ from unified_mcp_server.zimbra import (
 
 from unified_mcp_server.account_store import AccountStore, StoredAccount
 from unified_mcp_server.auth import ZimbraIdentity
-from unified_mcp_server.attachment_converter import (
-    AttachmentConversionLimits,
-    AttachmentConverter,
-)
-from unified_mcp_server.config import MarkItDownSettings, ZimbraSettings
+from unified_mcp_server.documents import DocumentService
+from unified_mcp_server.config import ZimbraSettings
 from unified_mcp_server.errors import ConfigurationError, ServiceError
 from unified_mcp_server.blocking_io import run_blocking
 from unified_mcp_server.request_context import remaining_seconds, operation_context
@@ -67,6 +64,7 @@ _EMAIL_FILENAME_CONTROL = re.compile(r"[\x00-\x1f\x7f\\/\r\n]")
 _EMAIL_MIME = re.compile(r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
 _NON_FATAL_ATTACHMENT_CONVERSION_CODES = frozenset({
     "attachment_unsupported",
+    "attachment_empty",
     "attachment_converter_unavailable",
     "attachment_malformed",
     "attachment_encrypted",
@@ -168,13 +166,12 @@ class ZimbraMailService(ZimbraCore):
         self,
         settings: ZimbraSettings,
         accounts: AccountStore | None = None,
-        markitdown_settings: MarkItDownSettings | None = None,
         identity: ZimbraIdentity | None = None,
         spreadsheets: SpreadsheetService | None = None,
+        documents: DocumentService | None = None,
     ) -> None:
         super().__init__(settings, accounts, identity)
-        self.markitdown_settings = markitdown_settings or MarkItDownSettings()
-        self._attachment_converter = AttachmentConverter(self.markitdown_settings)
+        self._documents = documents or DocumentService()
         self._spreadsheets = spreadsheets or SpreadsheetService()
 
     async def test_account(self, account: StoredAccount) -> None:
@@ -424,7 +421,7 @@ class ZimbraMailService(ZimbraCore):
         part = part.strip()
         if not message_id or not part:
             raise ServiceError("invalid_input", "message_id and part cannot be empty")
-        max_chars = min(max(1, int(max_chars)), self.settings.max_attachment_text_chars)
+        # max_chars is retained only for older callers; reading is now paginated.
         account = self.resolve_account(account_id)
         return await self._run(self._get_attachment_text, account, message_id, part, max_chars)
 
@@ -874,7 +871,7 @@ class ZimbraMailService(ZimbraCore):
             filename = f"attachment-{part.replace('.', '-')}.eml"
         if spreadsheet_extension(filename, content_type):
             # Both mailbox files and composer uploads use private file IDs.
-            # Do not flatten spreadsheet records through MarkItDown.
+            # Keep the original workbook for structured calculations.
             if self.identity is None:
                 raise ServiceError("authentication_required", "Log in before analysing spreadsheet attachments.")
             scope = operation_context.get()
@@ -887,9 +884,14 @@ class ZimbraMailService(ZimbraCore):
             return {**converted, "message_id": message_id, "part": part,
                     "account_id": account.id, "account": account.agent_dict()}
         try:
-            converted = self._attachment_converter.convert(data, filename, content_type, AttachmentConversionLimits(
-                max_bytes=self.settings.max_attachment_bytes, max_chars=max_chars,
-            ))
+            if self.identity is None:
+                raise ServiceError("authentication_required", "Log in before reading attachments.")
+            scope = operation_context.get()
+            converted = self._documents.put(
+                data, filename, content_type, user_id=self.identity.user_id,
+                investigation_id=scope.investigation_id or self.identity.session_id,
+                customer_id=scope.customer_id, max_bytes=self.settings.max_attachment_bytes,
+            )
         except ServiceError as exc:
             if exc.code not in _NON_FATAL_ATTACHMENT_CONVERSION_CODES:
                 raise
@@ -906,10 +908,8 @@ class ZimbraMailService(ZimbraCore):
                 "notice": "Attachment text was unavailable; continue with the message body and other attachments.",
             }
         except Exception:
-            # The converter is optional and third-party converters can still
-            # raise an unexpected conversion-only exception. Keep the
-            # attachment read fail-soft without swallowing download/auth
-            # failures, which occur before this boundary.
+            # Keep a storage-only failure non-fatal; authentication and
+            # download failures remain errors outside this boundary.
             return {
                 "account_id": account.id,
                 "account": account.agent_dict(),

@@ -705,13 +705,14 @@ async def test_attachment_limits_and_unsupported_types_return_stable_errors(monk
             "attachments": [{"part": "2", "filename": "archive.bin", "content_type": "application/octet-stream", "size": 50}],
         },
     )
-    service = ZimbraService(settings(max_attachment_bytes=10, max_attachment_text_chars=20))
+    from unified_mcp_server.auth import ZimbraIdentity
+    service = ZimbraService(settings(max_attachment_bytes=10), identity=ZimbraIdentity("test-user", "analyst@example.test", "token", "test-session"))
 
     with pytest.raises(ServiceError) as oversized:
         await service.get_attachment_text("42", "2")
     assert oversized.value.code == "attachment_too_large"
 
-    service.settings = settings(max_attachment_bytes=100, max_attachment_text_chars=20)
+    service.settings = settings(max_attachment_bytes=100)
     monkeypatch.setattr(module, "download_attachment", lambda *args, **kwargs: b"binary")
     unsupported = await service.get_attachment_text("42", "2")
     assert unsupported["skipped"] is True
@@ -740,13 +741,14 @@ async def test_attachment_conversion_failure_is_skipped_and_other_parts_remain_r
     )
 
     class Converter:
-        def convert(self, data, filename, content_type, limits):
+        def put(self, data, filename, content_type, **scope):
             if data == b"bad":
                 raise ServiceError("attachment_unsupported", "not readable")
             return {"filename": filename, "content_type": content_type, "text": "readable"}
 
-    service = ZimbraService(settings(max_attachment_bytes=100),)
-    service._attachment_converter = Converter()
+    from unified_mcp_server.auth import ZimbraIdentity
+    service = ZimbraService(settings(max_attachment_bytes=100), identity=ZimbraIdentity("test-user", "analyst@example.test", "token", "test-session"))
+    service._documents = Converter()
 
     skipped = await service.get_attachment_text("42", "2")
     readable = await service.get_attachment_text("42", "3")
@@ -772,11 +774,12 @@ async def test_unexpected_converter_exception_is_skipped_after_successful_downlo
     monkeypatch.setattr(module, "download_attachment", lambda *args, **kwargs: b"mail")
 
     class Converter:
-        def convert(self, *args, **kwargs):
+        def put(self, *args, **kwargs):
             raise RuntimeError("converter plugin crashed")
 
-    service = ZimbraService(settings(max_attachment_bytes=100))
-    service._attachment_converter = Converter()
+    from unified_mcp_server.auth import ZimbraIdentity
+    service = ZimbraService(settings(max_attachment_bytes=100), identity=ZimbraIdentity("test-user", "analyst@example.test", "token", "test-session"))
+    service._documents = Converter()
 
     result = await service.get_attachment_text("42", "3")
 

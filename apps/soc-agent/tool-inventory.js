@@ -22,6 +22,7 @@ export const TOOL_CATALOG = Object.freeze([
   { name: 'mcp__soc_agent__zimbra_get_email', group: 'Zimbra', label: 'Read email', kind: 'read' },
   { name: 'mcp__soc_agent__zimbra_get_email_headers', group: 'Zimbra', label: 'Read email headers', kind: 'read' },
   { name: 'mcp__soc_agent__zimbra_get_attachment_text', group: 'Zimbra', label: 'Read attachment text', kind: 'read' },
+  { name: 'mcp__soc_agent__read_document', group: 'Documents', label: 'Read document', kind: 'read' },
   { name: 'mcp__soc_agent__excel_inspect', group: 'Spreadsheets', label: 'Inspect spreadsheet', kind: 'read' },
   { name: 'mcp__soc_agent__excel_profile', group: 'Spreadsheets', label: 'Profile spreadsheet columns', kind: 'read' },
   { name: 'mcp__soc_agent__excel_count', group: 'Spreadsheets', label: 'Count spreadsheet rows', kind: 'read' },

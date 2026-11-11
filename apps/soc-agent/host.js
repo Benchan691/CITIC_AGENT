@@ -29,7 +29,6 @@ const BackgroundSettings = z.object({
 })
 const CONTROL_TOOLS = new Set(['exit_plan_mode', 'ask_user_question'])
 const HARD_ATTACHMENT_BYTES = 100_000_000
-const HARD_MARKDOWN_CHARS = 2_000_000
 
 export { ACTION_CATALOG, ACTION_TOOLS, APPROVAL_TOOLS, ALWAYS_ASK_ACTION_TOOLS, CONTROL_TOOLS, DOMAIN_TOOLS, MANAGED_TOOL_NAMES, OFFICIAL_SPLUNK_READ_TOOLS, READ_ONLY_TOOLS, TOOL_CATALOG }
 
@@ -460,10 +459,8 @@ function validateAttachmentPayload(payload) {
   if (bytes.length > HARD_ATTACHMENT_BYTES) throw new Error('attachment_too_large')
   const limits = payload.limits && typeof payload.limits === 'object' ? payload.limits : {}
   const maxBytes = Number(limits.max_bytes ?? 10_000_000)
-  const maxChars = Number(limits.max_chars ?? 200_000)
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > HARD_ATTACHMENT_BYTES) throw new Error('attachment_invalid_limits')
-  if (!Number.isSafeInteger(maxChars) || maxChars < 1 || maxChars > HARD_MARKDOWN_CHARS) throw new Error('attachment_invalid_limits')
-  return { filename, content_type: contentType, data, limits: { max_bytes: maxBytes, max_chars: maxChars } }
+  return { filename, content_type: contentType, data, limits: { max_bytes: maxBytes } }
 }
 
 // The host validates chat ownership and supplies the application identity.
@@ -585,7 +582,7 @@ export function apply(ctx) {
         if (endpoint === 'convert-attachment') {
           const message = error instanceof Error ? error.message : 'attachment_conversion_failed'
           const [code] = message.split(': ')
-          const stableCodes = new Set(['attachment_invalid_request', 'attachment_invalid_filename', 'attachment_invalid_mime', 'attachment_too_large', 'attachment_invalid_limits', 'attachment_conversion_cancelled', 'attachment_unsupported', 'attachment_converter_unavailable', 'attachment_malformed', 'attachment_encrypted', 'attachment_too_complex', 'attachment_conversion_failed', 'spreadsheet_empty', 'spreadsheet_encoding', 'spreadsheet_malformed', 'spreadsheet_too_complex', 'spreadsheet_storage_limit', 'spreadsheet_unsupported', 'session_expired'])
+          const stableCodes = new Set(['attachment_empty', 'attachment_storage_limit', 'attachment_invalid_request', 'attachment_invalid_filename', 'attachment_invalid_mime', 'attachment_too_large', 'attachment_invalid_limits', 'attachment_conversion_cancelled', 'attachment_unsupported', 'attachment_converter_unavailable', 'attachment_malformed', 'attachment_encrypted', 'attachment_too_complex', 'attachment_conversion_failed', 'spreadsheet_empty', 'spreadsheet_encoding', 'spreadsheet_malformed', 'spreadsheet_too_complex', 'spreadsheet_storage_limit', 'spreadsheet_unsupported', 'session_expired'])
           const reason = stableCodes.has(code) ? code : 'attachment_conversion_failed'
           return {
             ok: false,

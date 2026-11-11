@@ -461,6 +461,16 @@ class PostgresStore:
             expires_at=row[5],
         )
 
+    def owns_chat(self, user_id: str, investigation_id: str) -> bool:
+        """Check an existing chat without accepting a browser-selected identity."""
+        with self._connect() as connection:
+            return connection.execute(
+                """SELECT 1 FROM soc_session_owners AS s
+                   JOIN soc_workspace_owners AS w ON w.workspace_id = s.workspace_id
+                   WHERE s.session_id = %s AND s.owner_user_id = %s AND w.owner_user_id = %s""",
+                (investigation_id, user_id, user_id),
+            ).fetchone() is not None
+
     def delete_app_session(self, session_id: str) -> bool:
         value = str(session_id or "").strip()
         if not value:

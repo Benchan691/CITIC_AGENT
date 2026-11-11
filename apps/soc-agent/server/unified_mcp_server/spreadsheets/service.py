@@ -24,7 +24,8 @@ from mcp_excel.operations.data_operations import DataOperations
 from mcp_excel.operations.inspection import InspectionOperations
 from pydantic import ValidationError
 
-from ..attachment_converter import _safe_filename, _validate_archive_safety
+from ..attachment_validation import _safe_filename, _validate_archive_safety
+from ..attachment_store import scope_directory
 from ..blocking_io import run_blocking
 from ..env_loader import workspace_root
 from ..errors import ServiceError
@@ -221,15 +222,14 @@ class SpreadsheetService:
     def _directory(self, user_id: str, investigation_id: str, customer_id: str = "") -> Path:
         if not user_id or not investigation_id:
             raise ServiceError("authentication_required", "An authenticated user and chat are required to analyse attachments.")
-        scope = hashlib.sha256(json.dumps([user_id, investigation_id, customer_id]).encode()).hexdigest()
-        return self.root / scope
+        return scope_directory(self.root, user_id, investigation_id, customer_id)
 
     def put(self, data: bytes, filename: str, content_type: str, *,
             user_id: str, investigation_id: str, customer_id: str = "", max_bytes: int = MAX_BYTES) -> dict:
         filename = _safe_filename(filename)
         extension = spreadsheet_extension(filename, content_type)
         if extension is None:
-            raise ServiceError("spreadsheet_unsupported", "Excel analysis supports XLSX, XLS and CSV. Use MarkItDown for other document types.")
+            raise ServiceError("spreadsheet_unsupported", "Excel analysis supports XLSX, XLS and CSV. Use read_document for other document types.")
         if not data:
             raise ServiceError("spreadsheet_empty", "The spreadsheet attachment is empty.")
         if len(data) > min(max_bytes, MAX_BYTES):
@@ -240,20 +240,22 @@ class SpreadsheetService:
         file_id = hashlib.sha256(data + filename.encode()).hexdigest()
         path = directory / (file_id + extension)
         metadata_path = directory / (file_id + ".json")
-        with self._lock, (directory / ".lock").open("a") as lock:
-            os.chmod(directory / ".lock", 0o600)
+        with self._lock, (directory.parent / ".lock").open("a") as lock:
+            os.chmod(directory.parent / ".lock", 0o600)
             fcntl.flock(lock, fcntl.LOCK_EX)
+            if (directory.parent / ".deleted").exists():
+                raise ServiceError("attachment_not_found", "This chat was deleted. Choose an available chat.")
             now = time.time()
             kept = []
-            for item in directory.glob("*.json"):
+            for item in directory.parent.glob("*/*.json"):
                 meta = json.loads(item.read_text())
-                if now - meta["created_at"] > FILE_TTL:
-                    (directory / (item.stem + meta["extension"])).unlink(missing_ok=True)
+                if meta.get("retention") != "chat" and now - meta["created_at"] > FILE_TTL:
+                    (item.parent / (item.stem + meta["extension"])).unlink(missing_ok=True)
                     item.unlink()
                 elif item != metadata_path:
                     kept.append(meta)
             if len(kept) >= 20 or sum(item["bytes"] for item in kept) + len(data) > 100_000_000:
-                raise ServiceError("spreadsheet_storage_limit", "This chat reached its temporary spreadsheet storage limit. Reuse existing IDs or wait for expiry.")
+                raise ServiceError("spreadsheet_storage_limit", "This chat reached its spreadsheet storage limit (20 files or 100 MB). Reuse existing file IDs.")
             pending = directory / (uuid.uuid4().hex + extension)
             try:
                 with pending.open("xb") as output:
@@ -262,7 +264,7 @@ class SpreadsheetService:
                 dimensions = self._validate_shape(pending)
                 sheets = self.loader.get_sheet_names(pending)
                 meta = {"filename": filename, "extension": extension, "bytes": len(data),
-                        "sha256": hashlib.sha256(data).hexdigest(), "created_at": now,
+                        "sha256": hashlib.sha256(data).hexdigest(), "created_at": now, "retention": "chat",
                         "sheet_names": sheets, "sheets_info": [
                             {"sheet_name": name, "row_count": rows, "column_count": columns}
                             for name, (rows, columns) in zip(sheets, dimensions)
@@ -282,7 +284,7 @@ class SpreadsheetService:
                 pending.with_suffix(".json").unlink(missing_ok=True)
         manifest = {"file_id": file_id, "filename": filename, "bytes": len(data),
                     "sha256": meta["sha256"], "sheet_names": sheets,
-                    "expires_in_seconds": FILE_TTL, "preferred_tool": "excel_inspect", "guidance": GUIDANCE}
+                    "retention": "chat", "preferred_tool": "excel_inspect", "guidance": GUIDANCE}
         text = json.dumps(manifest, ensure_ascii=False)
         return {**manifest, "text": text, "characters": len(text), "text_truncated": False,
                 "converter": {"name": "jwadow/mcp-excel", "revision": REVISION}}
@@ -325,11 +327,20 @@ class SpreadsheetService:
         scope = operation_context.get()
         directory = self._directory(scope.principal_id, scope.investigation_id, scope.customer_id)
         try:
+            if (directory.parent / ".deleted").exists():
+                raise FileNotFoundError
+            if not (directory / (file_id + ".json")).exists():
+                # Preserve still-valid references created before the upgrade.
+                directory = self.root / hashlib.sha256(json.dumps([
+                    scope.principal_id, scope.investigation_id, scope.customer_id,
+                ]).encode()).hexdigest()
+            if directory.is_symlink():
+                raise FileNotFoundError
             meta = json.loads((directory / (file_id + ".json")).read_text())
-            if time.time() - meta["created_at"] > FILE_TTL:
+            if meta.get("retention") != "chat" and time.time() - meta["created_at"] > FILE_TTL:
                 raise ServiceError("spreadsheet_expired", "This file ID expired. Attach the original file again.")
             path = directory / (file_id + meta["extension"])
-            if not path.is_file():
+            if path.is_symlink() or not path.is_file():
                 raise FileNotFoundError
             return path, meta
         except (FileNotFoundError, KeyError, json.JSONDecodeError):
@@ -438,6 +449,14 @@ class SpreadsheetService:
         return result, used
 
     def _analyse(self, operation: str, file_id: str, arguments: dict) -> dict:
+        # Cache only within this call: deleted chats must leave no cached rows.
+        with self._lock:
+            try:
+                return self._analyse_current(operation, file_id, arguments)
+            finally:
+                self.loader.clear_cache()
+
+    def _analyse_current(self, operation: str, file_id: str, arguments: dict) -> dict:
         handlers = {
             "inspect": (self.inspection.inspect_file, requests.InspectFileRequest),
             "sheet": (self.inspection.get_sheet_info, requests.GetSheetInfoRequest),

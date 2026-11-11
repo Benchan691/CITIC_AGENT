@@ -150,7 +150,6 @@ class ZimbraSettings:
     timeout: int
     allow_send: bool = True
     max_attachment_bytes: int = 10_000_000
-    max_attachment_text_chars: int = 200_000
     accounts_file: str = ".data/zimbra_accounts.enc"
     key_file: str = ".data/zimbra_accounts.key"
     explicit_key: str = ""
@@ -192,21 +191,6 @@ class ZimbraSettings:
             "allow_insecure_http": self.allow_insecure_http,
             "timeout": self.timeout,
         }
-
-
-@dataclass(frozen=True)
-class MarkItDownSettings:
-    llm_enabled: bool = False
-    llm_api_key: str = ""
-    llm_base_url: str = ""
-    llm_model: str = ""
-    llm_timeout: int = 60
-
-    def __post_init__(self) -> None:
-        if self.llm_enabled and not self.llm_api_key:
-            raise ValueError("MARKITDOWN_LLM_API_KEY is required when MARKITDOWN_LLM_ENABLED is true")
-        if self.llm_enabled and not self.llm_model:
-            raise ValueError("MARKITDOWN_LLM_MODEL is required when MARKITDOWN_LLM_ENABLED is true")
 
 
 @dataclass(frozen=True)
@@ -262,7 +246,6 @@ class ServerSettings:
     log_level: str
     splunk: SplunkSettings
     zimbra: ZimbraSettings
-    markitdown: MarkItDownSettings
     email_server: EmailServerSettings
 
     @classmethod
@@ -305,7 +288,6 @@ class ServerSettings:
             allow_move=_boolean(env, "ZIMBRA_ALLOW_MOVE", True),
             allow_signature_write=_boolean(env, "ZIMBRA_ALLOW_SIGNATURE_WRITE", True),
             max_attachment_bytes=_integer(env, "ZIMBRA_MAX_ATTACHMENT_BYTES", 10_000_000, 1, 100_000_000),
-            max_attachment_text_chars=_integer(env, "ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS", 200_000, 1, 2_000_000),
             accounts_file=_storage_path(env, "ZIMBRA_ACCOUNTS_FILE", ".data/zimbra_accounts.enc"),
             key_file=_storage_path(env, "ZIMBRA_ACCOUNTS_KEY_FILE", ".data/zimbra_accounts.key"),
             explicit_key=_value(env, "ZIMBRA_ACCOUNTS_KEY"),
@@ -314,13 +296,6 @@ class ServerSettings:
             email=_value(env, "ZIMBRA_EMAIL"),
             password=_value(env, "ZIMBRA_PASSWORD"),
             allow_insecure_http=zimbra_allow_insecure_http,
-        )
-        markitdown = MarkItDownSettings(
-            llm_enabled=_boolean(env, "MARKITDOWN_LLM_ENABLED", False),
-            llm_api_key=_value(env, "MARKITDOWN_LLM_API_KEY"),
-            llm_base_url=_value(env, "MARKITDOWN_LLM_BASE_URL"),
-            llm_model=_value(env, "MARKITDOWN_LLM_MODEL"),
-            llm_timeout=_integer(env, "MARKITDOWN_LLM_TIMEOUT", 60, 1, 600),
         )
         email_server = EmailServerSettings(
             url=_value(env, "SUBSCRIPTION_SERVER_URL").rstrip("/"),
@@ -338,7 +313,6 @@ class ServerSettings:
             log_level=_value(env, "LOG_LEVEL", "INFO").upper(),
             splunk=splunk,
             zimbra=zimbra,
-            markitdown=markitdown,
             email_server=email_server,
         )
 
@@ -376,14 +350,8 @@ class ServerSettings:
                 "signature_write_enabled": self.zimbra.allow_signature_write,
                 "send_enabled": self.zimbra.allow_send,
                 "max_attachment_bytes": self.zimbra.max_attachment_bytes,
-                "max_attachment_text_chars": self.zimbra.max_attachment_text_chars,
             },
-            "markitdown": {
-                "llm_enabled": self.markitdown.llm_enabled,
-                "llm_base_url": redact_endpoint(self.markitdown.llm_base_url),
-                "llm_model": self.markitdown.llm_model,
-                "llm_timeout": self.markitdown.llm_timeout,
-            },
+            "documents": {"reader": "dsh-document", "on_demand": True},
             "email_server": {
                 "configured": self.email_server.configured,
                 "url": redact_endpoint(self.email_server.url),
@@ -398,7 +366,7 @@ class ServerSettings:
             "services": {
                 "splunk": {"configured": self.splunk.configured},
                 "zimbra": {"configured": self.zimbra.configured},
-                "markitdown": {"available": True},
+                "documents": {"reader": "dsh-document", "on_demand": True},
                 "subscription_server": {"configured": self.email_server.configured},
             },
         }

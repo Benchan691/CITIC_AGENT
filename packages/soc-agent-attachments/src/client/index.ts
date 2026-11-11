@@ -6,33 +6,33 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type { SocClientRuntime } from 'dsh-soc-agent-client/client'
 import React from 'react'
-import { MARKITDOWN_ATTACHMENTS_NAMESPACE } from '../attachment-constants.ts'
-import { AttachmentSettingsController, MarkItDownAttachmentSettingsCard } from './MarkItDownAttachmentSettings.tsx'
-import { MarkItDownDocumentController } from './markitdownAttachments.ts'
-import { MarkItDownDocuments, openMarkItDownPicker } from './MarkItDownDocuments.tsx'
+import { DOCUMENT_ATTACHMENTS_NAMESPACE } from '../attachment-constants.ts'
+import { AttachmentSettingsController, DocumentAttachmentSettingsCard } from './DocumentAttachmentSettings.tsx'
+import { DocumentAttachmentController } from './documentAttachments.ts'
+import { Documents, openDocumentPicker } from './Documents.tsx'
 
 export {
   AttachmentSettingsController,
-  MarkItDownAttachmentSettingsCard,
-} from './MarkItDownAttachmentSettings.tsx'
-export { MarkItDownDocumentController } from './markitdownAttachments.ts'
-export { MarkItDownDocuments, openMarkItDownPicker } from './MarkItDownDocuments.tsx'
-export { DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS, MARKITDOWN_ATTACHMENTS_NAMESPACE } from '../attachment-constants.ts'
-export type { MarkItDownAttachmentSettings } from '../attachment-constants.ts'
+  DocumentAttachmentSettingsCard,
+} from './DocumentAttachmentSettings.tsx'
+export { DocumentAttachmentController } from './documentAttachments.ts'
+export { Documents, openDocumentPicker } from './Documents.tsx'
+export { DEFAULT_DOCUMENT_ATTACHMENT_SETTINGS, DOCUMENT_ATTACHMENTS_NAMESPACE } from '../attachment-constants.ts'
+export type { DocumentAttachmentSettings } from '../attachment-constants.ts'
 
-/** Optional MarkItDown attachment/document feature. */
+/** Optional on-demand attachment/document feature. */
 export const inject = ['slots', 'connection', 'conversation', 'commandUi', 'settingsScope', 'socClient'] as const
 
 export function apply(ctx: ClientContext): void {
   const socClient = ctx.get('socClient') as SocClientRuntime
   if (socClient.surface !== 'workspace') return
   const connection = ctx.get('connection') as ConnectionHandle
-  const documents = new MarkItDownDocumentController(
+  const documents = new DocumentAttachmentController(
     connection,
-    ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }),
+    ctx.settingsScope.bind({ namespace: DOCUMENT_ATTACHMENTS_NAMESPACE }),
   )
   const settings = new AttachmentSettingsController(
-    ctx.settingsScope.bind({ namespace: MARKITDOWN_ATTACHMENTS_NAMESPACE }),
+    ctx.settingsScope.bind({ namespace: DOCUMENT_ATTACHMENTS_NAMESPACE }),
   )
   ctx.effect(() => {
     const disposeProvider = ctx.conversation.registerDocumentProvider(documents)
@@ -40,11 +40,11 @@ export function apply(ctx: ClientContext): void {
       disposeProvider()
       documents.dispose()
     }
-  }, 'soc-agent-attachments: MarkItDown document provider')
+  }, 'soc-agent-attachments: on-demand document provider')
   ctx.slots.inject('conversation.input.documents', () => ctx.slots.register({
     name: 'conversation.input.documents',
     locale: 'conversation',
-  }, props => React.createElement(MarkItDownDocuments, { ...props, controller: documents })))
+  }, props => React.createElement(Documents, { ...props, controller: documents })))
   ctx.effect(
     () => ctx.commandUi.register({
       name: 'attach-file',
@@ -54,7 +54,7 @@ export function apply(ctx: ClientContext): void {
         kind: 'action',
         options: async () => [],
         onSelect: (_option, session) => {
-          openMarkItDownPicker(session.sessionId)
+          openDocumentPicker(session.sessionId)
         },
       },
     }),
@@ -62,8 +62,8 @@ export function apply(ctx: ClientContext): void {
   )
   ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
     name: 'settings.plugin.item',
-    key: MARKITDOWN_ATTACHMENTS_NAMESPACE,
+    key: DOCUMENT_ATTACHMENTS_NAMESPACE,
     inject: () => settings.inject(),
-  }, MarkItDownAttachmentSettingsCard))
+  }, DocumentAttachmentSettingsCard))
   ctx.effect(() => () => settings.dispose(), 'soc-agent-attachments: settings controller')
 }

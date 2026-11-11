@@ -1,17 +1,13 @@
-export const MARKITDOWN_ATTACHMENTS_NAMESPACE = 'soc-agent-markitdown-attachments'
+export const DOCUMENT_ATTACHMENTS_NAMESPACE = 'soc-agent-document-attachments'
 
-export interface MarkItDownAttachmentSettings {
+export interface DocumentAttachmentSettings {
   maxFiles: number
   maxBytesPerFile: number
   maxTotalBytes: number
-  maxCharsPerFile: number
-  maxTotalChars: number
 }
 
-export const DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS: MarkItDownAttachmentSettings = {
+export const DEFAULT_DOCUMENT_ATTACHMENT_SETTINGS: DocumentAttachmentSettings = {
   maxFiles: 5,
   maxBytesPerFile: 10_000_000,
   maxTotalBytes: 50_000_000,
-  maxCharsPerFile: 200_000,
-  maxTotalChars: 500_000,
 }

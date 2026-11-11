@@ -4,7 +4,7 @@ import type {
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId, SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
 import {
-  DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS, type MarkItDownAttachmentSettings,
+  DEFAULT_DOCUMENT_ATTACHMENT_SETTINGS, type DocumentAttachmentSettings,
 } from '../attachment-constants.ts'
 
 const CHANNEL = '/soc-agent-config'
@@ -18,11 +18,11 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-function settingsOf(scope: SettingsScope<MarkItDownAttachmentSettings>): MarkItDownAttachmentSettings {
-  return { ...DEFAULT_MARKITDOWN_ATTACHMENT_SETTINGS, ...(scope.getSnapshot().value ?? {}) }
+function settingsOf(scope: SettingsScope<DocumentAttachmentSettings>): DocumentAttachmentSettings {
+  return { ...DEFAULT_DOCUMENT_ATTACHMENT_SETTINGS, ...(scope.getSnapshot().value ?? {}) }
 }
 
-export class MarkItDownDocumentController implements ComposerDocumentProvider {
+export class DocumentAttachmentController implements ComposerDocumentProvider {
   private readonly drafts = new Map<SessionId, Map<DraftAttachmentId, ComposerDocument>>()
   private readonly aborts = new Map<DraftAttachmentId, AbortController>()
   private readonly listeners = new Set<() => void>()
@@ -31,10 +31,10 @@ export class MarkItDownDocumentController implements ComposerDocumentProvider {
 
   constructor(
     private readonly connection: ConnectionHandle,
-    private readonly settings: SettingsScope<MarkItDownAttachmentSettings>,
+    private readonly settings: SettingsScope<DocumentAttachmentSettings>,
   ) {}
 
-  /** Abort pending conversions and release all browser-local draft state. */
+  /** Abort pending uploads and release all browser-local draft state. */
   dispose(): void {
     for (const controller of this.aborts.values()) controller.abort()
     this.aborts.clear()
@@ -90,7 +90,7 @@ export class MarkItDownDocumentController implements ComposerDocumentProvider {
 
   async convert(sessionId: SessionId, ids: readonly DraftAttachmentId[], signal: AbortSignal): Promise<readonly MarkdownAttachment[]> {
     const limits = settingsOf(this.settings)
-    const cacheKey = JSON.stringify([limits.maxBytesPerFile, limits.maxCharsPerFile])
+    const cacheKey = JSON.stringify([limits.maxBytesPerFile])
     const results = new Map<DraftAttachmentId, MarkdownAttachment>()
     let next = 0
     let failure: unknown
@@ -112,14 +112,13 @@ export class MarkItDownDocumentController implements ComposerDocumentProvider {
           investigation_id: sessionId,
           content_type: document.file.type,
           data: bytesToBase64(bytes),
-          limits: { max_bytes: limits.maxBytesPerFile, max_chars: limits.maxCharsPerFile },
+          limits: { max_bytes: limits.maxBytesPerFile },
         }, localAbort.signal)
-        if (!response?.ok) throw new Error(response?.error?.message || 'The attachment conversion failed.')
+        if (!response?.ok) throw new Error(response?.error?.message || 'The attachment upload failed.')
         const value = response.value as { text?: unknown; filename?: unknown; text_truncated?: unknown; characters?: unknown }
-        if (typeof value?.text !== 'string') throw new Error('The converter returned no attachment text.')
+        if (typeof value?.text !== 'string') throw new Error('The upload returned no attachment reference.')
         if (!this.drafts.get(sessionId)?.has(id)) return
-        const notice = value.text_truncated === true ? '[Attachment excerpt: text was truncated during conversion.]\n' : ''
-        const attachment = { id, filename: typeof value.filename === 'string' ? value.filename : document.file.name, markdown: notice + value.text }
+        const attachment = { id, filename: typeof value.filename === 'string' ? value.filename : document.file.name, markdown: value.text }
         this.converted.set(id, { key: cacheKey, value: attachment })
         results.set(id, attachment)
         this.setStatus(sessionId, id, 'converted')
@@ -141,15 +140,12 @@ export class MarkItDownDocumentController implements ComposerDocumentProvider {
         try { await convertOne(id) } catch (error) { failure = error }
       }
     }
-    // Drain both workers before returning, preserving successful conversions
+    // Drain both workers before returning, preserving successful uploads
     // even if another attachment failed. Retry only the unfinished work.
     await Promise.all([worker(), worker()])
     if (failure !== undefined) throw failure
     if (signal.aborted) throw new Error('attachment_conversion_cancelled')
     const ordered = ids.flatMap(id => results.has(id) ? [results.get(id)!] : [])
-    if (ordered.reduce((total, item) => total + item.markdown.length, 0) > limits.maxTotalChars) {
-      throw new Error('The attachments exceed the configured Markdown character limit.')
-    }
     return ordered
   }
 

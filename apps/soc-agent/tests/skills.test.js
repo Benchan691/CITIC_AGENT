@@ -87,7 +87,7 @@ test('soc_agent MCP allowlist contains Zimbra, spreadsheet and subscription tool
   const expected = [
     'zimbra_list_folders', 'zimbra_list_signatures', 'zimbra_create_signature',
     'zimbra_delete_signature', 'zimbra_create_folder', 'zimbra_search_emails',
-    'zimbra_get_email', 'zimbra_get_email_headers', 'zimbra_get_attachment_text',
+    'zimbra_get_email', 'zimbra_get_email_headers', 'zimbra_get_attachment_text', 'read_document',
     'excel_inspect', 'excel_profile', 'excel_count', 'excel_aggregate', 'excel_group', 'excel_rows',
     'zimbra_send_email', 'zimbra_use_signature_on_email', 'zimbra_move_email',
     'zimbra_list_email_filters', 'zimbra_get_email_filter',

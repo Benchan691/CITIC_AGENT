@@ -36,6 +36,7 @@ function authFixture() {
     ['folder-b', 'user-b'],
   ])
   const pendingResponses = new Map()
+  const attachmentDeletions = []
   const store = {
     async workspaceOwner(id) { const value = workspaces.get(id); return value && { ...value } },
     async workspaceOwnerByPath() { return undefined },
@@ -59,6 +60,7 @@ function authFixture() {
   }
   const auth = {
     store,
+    async deleteAttachmentFiles(payload) { attachmentDeletions.push(payload) },
     currentSession: () => ({ id: 'app-session-a', userId: 'user-a', email: 'a@example.com' }),
     bindAgentSession() {},
     unbindAgentSession() {},
@@ -66,8 +68,45 @@ function authFixture() {
     pendingResponseSession(rpcId) { return pendingResponses.get(String(rpcId)) },
     forgetPendingResponse(rpcId) { pendingResponses.delete(String(rpcId)) },
   }
-  return { auth, store, workspaces }
+  return { auth, store, workspaces, attachmentDeletions }
 }
+
+test('owned chat and workspace deletion clean up only their private attachments', async () => {
+  const first = authFixture()
+  const api = { sessions: { delete: async request => response(request, {}) } }
+  const scoped = createScopedApiProxy(api, first.auth)
+  const denied = await scoped.sessions.delete({ rpcId: 'foreign', payload: { sessionId: 'session-b' } })
+  assert.equal(denied.result.ok, false)
+  assert.deepEqual(first.attachmentDeletions, [])
+  const deleted = await scoped.sessions.delete({ rpcId: 'own', payload: { sessionId: 'session-a' } })
+  assert.equal(deleted.result.ok, true)
+  assert.deepEqual(first.attachmentDeletions, [{ session_id: 'app-session-a', investigation_ids: ['session-a'] }])
+
+  const second = authFixture()
+  const workspaces = createScopedApiProxy({ workspace: { delete: async request => response(request, {}) } }, second.auth)
+  await workspaces.workspace.delete({ rpcId: 'workspace', payload: { workspaceId: 'workspace-a' } })
+  assert.deepEqual(second.attachmentDeletions, [{ session_id: 'app-session-a', investigation_ids: ['session-a'] }])
+})
+
+test('attachment cleanup can retry after the Host has already deleted the chat', async () => {
+  const fixture = authFixture()
+  let attempts = 0, deleted = false
+  fixture.auth.deleteAttachmentFiles = async () => {
+    if (++attempts === 1) throw new Error('cleanup unavailable')
+  }
+  const api = { sessions: { delete: async request => {
+    if (deleted) return { rpcId: request.rpcId, result: { ok: false, error: { code: 'session-not-found' } } }
+    deleted = true
+    return response(request, {})
+  } } }
+  const scoped = createScopedApiProxy(api, fixture.auth)
+  const request = { rpcId: 'delete', payload: { sessionId: 'session-a' } }
+  await assert.rejects(scoped.sessions.delete(request), /cleanup unavailable/)
+  assert.ok(await fixture.store.sessionOwner('session-a'))
+  await scoped.sessions.delete(request)
+  assert.equal(attempts, 2)
+  assert.equal(await fixture.store.sessionOwner('session-a'), undefined)
+})
 
 function nodeResponse() {
   return {

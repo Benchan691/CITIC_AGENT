@@ -25,7 +25,7 @@ test('action-policy schema remains mandatory in the node half', () => {
 })
 
 test('optional feature implementations are not imported by the core browser entry', () => {
-  assert.doesNotMatch(clientSource, /CiticBrand|AdminConsole|MarkItDown|EmailDraft|SocActionPolicy/)
+  assert.doesNotMatch(clientSource, /CiticBrand|AdminConsole|DocumentAttachmentController|EmailDraft|SocActionPolicy/)
   assert.doesNotMatch(clientSource, /ui-settings|ui-commands|ui-tool|ui-conversation/)
 })
 

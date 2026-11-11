@@ -4,6 +4,10 @@ Self-contained SOC operations agent built on DeepSeek Harness. The repository
 contains the application, SOC packages, investigation skills, Python MCP
 server, and pinned harness source.
 
+PDF, Word and other documents use local `dsh-document` reading on demand.
+Attachments stay with their chat; Excel files keep their structured analysis
+tools. Document reading does not use OCR or require a model/API key.
+
 ## Repository layout
 
 - `apps/soc-agent` — application host, policy, and MCP server

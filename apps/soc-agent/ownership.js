@@ -864,6 +864,27 @@ export function createScopedApiProxy(api, auth) {
   const ownsSession = async (id, userId) => sessionBelongsToUser(auth.store, id, userId)
   const ownsFolder = async (id, userId) => (await auth.store.folderOwner(String(id))) === userId
 
+  async function cleanupAttachments(session, investigationIds) {
+    if (investigationIds.length === 0) return
+    // The user and chat IDs come from the authenticated ownership boundary.
+    const cleanup = auth.deleteAttachmentFiles ?? ((payload) => runPythonCommand({
+      module: 'unified_mcp_server.admin_cli', command: 'delete-attachment-files',
+      payload, timeoutMs: 30_000,
+      mapError: () => new Error('The chat was deleted, but its attachment cleanup failed.'),
+    }))
+    for (let start = 0; start < investigationIds.length; start += 1000) {
+      await cleanup({ session_id: session.id, investigation_ids: investigationIds.slice(start, start + 1000) })
+    }
+  }
+
+  async function workspaceChats(session, workspaceId) {
+    const chats = []
+    for (const id of await auth.store.userSessionIds(session.userId)) {
+      if ((await auth.store.sessionOwner(id))?.workspaceId === String(workspaceId)) chats.push(id)
+    }
+    return chats
+  }
+
   async function normalizeWorkspaceCreateRequest(request, session) {
     const payload = requestPayload(request)
     if (!Object.hasOwn(payload, 'path')) return { request }
@@ -998,11 +1019,21 @@ export function createScopedApiProxy(api, auth) {
     // ownership row for a session that no longer exists in persistence. The
     // caller is still scoped and authorized here, so remove only this user's
     // orphaned ownership while preserving the original not-found response.
-    if (domain === 'sessions' && method === 'delete'
+    if (session && domain === 'sessions' && method === 'delete'
       && response?.result?.ok === false
       && response?.result?.error?.code === 'session-not-found') {
-      try { await auth.store.deleteSessionOwner(request.payload.sessionId) } catch { /* preserve the Host error */ }
+      try {
+        await cleanupAttachments(session, [String(request.payload.sessionId)])
+        await auth.store.deleteSessionOwner(request.payload.sessionId)
+      } catch { /* preserve the Host error and leave ownership for a cleanup retry */ }
       auth.unbindAgentSession?.(request.payload.sessionId)
+    }
+    if (session && domain === 'workspace' && method === 'delete'
+      && response?.result?.ok === false && response?.result?.error?.code === 'workspace-not-found') {
+      try {
+        await cleanupAttachments(session, await workspaceChats(session, request.payload.workspaceId))
+        await auth.store.deleteWorkspace(request.payload.workspaceId)
+      } catch { /* preserve the Host error and leave ownership for a cleanup retry */ }
     }
     if (!session || !okResult(response)) return response
     const value = valueOf(response)
@@ -1025,7 +1056,10 @@ export function createScopedApiProxy(api, auth) {
           return deny(request, 'workspace')
         }
       }
-      if (method === 'delete') await auth.store.deleteWorkspace(request.payload.workspaceId)
+      if (method === 'delete') {
+        await cleanupAttachments(session, await workspaceChats(session, request.payload.workspaceId))
+        await auth.store.deleteWorkspace(request.payload.workspaceId)
+      }
       return response
     }
     if (domain === 'sessions') {
@@ -1067,6 +1101,7 @@ export function createScopedApiProxy(api, auth) {
       }
       if (method === 'prompt') auth.bindAgentSession(request.payload.sessionId)
       if (method === 'delete') {
+        await cleanupAttachments(session, [String(request.payload.sessionId)])
         await auth.store.deleteSessionOwner(request.payload.sessionId)
         auth.unbindAgentSession(request.payload.sessionId)
       }

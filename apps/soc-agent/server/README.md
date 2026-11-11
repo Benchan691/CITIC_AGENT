@@ -19,7 +19,7 @@ shares settings, provider clients and bounded PostgreSQL pools across requests.
 Only failures before transmission may fall back to a fresh interpreter. An
 unconfirmed operation returns `operation_outcome_unknown` and is not replayed.
 
-Configure Splunk, Zimbra, MarkItDown, and subscription-server settings in the
+Configure Splunk, Zimbra, document, and subscription-server settings in the
 ignored `.env` file. PostgreSQL stores authenticated users, sessions, and
 workspace ownership; it is not a service-configuration source. The
 `/admin` console shows service status and manages LLM provider credentials, but
@@ -108,9 +108,8 @@ permission/authentication failures have distinct errors. Folder and syntax
 errors are non-retryable until corrected; known transient faults are retryable.
 
 Zimbra supports bounded metadata/body pagination, header-only evidence,
-spreadsheet analysis for XLSX, XLS and CSV, and MarkItDown-based document
-conversion for PDF, Word, PowerPoint, images, ZIP, EPUB, JSON, XML, HTML and
-text files. Attached RFC822/EML messages are read from their text parts without
+spreadsheet analysis for XLSX, XLS and CSV, and on-demand dsh-document reading for PDF, Word, PowerPoint, EPUB,
+OpenDocument, JSON, XML, HTML and text files. Attached RFC822/EML messages are read from their text parts without
 resolving remote HTML images. Attachment hashes and verified reversible
 message moves are supported. Body-
 embedded CID/content-location images are omitted from normal attachment
@@ -151,10 +150,27 @@ successful login creates that user's `General` workspace. New chats without an
 explicit folder are created in `General`; ownership is committed before Host
 publication so they never appear under `Ungrouped`.
 
-Attachment conversion is local by default. Set `MARKITDOWN_LLM_ENABLED=true`
-with the `MARKITDOWN_LLM_*` variables when OpenAI-compatible OCR or image
-descriptions are explicitly required; `setup.sh` installs the optional
-`markitdown-llm` dependencies automatically.
+Attachment submission stores the original and returns a private `file_id`; it
+never extracts document text. `read_document(file_id, offset=1, limit=200,
+pages=None)` reads numbered text on demand. PDF reads start at page 1; use
+`pages="2-4,7"` for other pages (up to 100 selected pages). Results include
+`next_offset`, page metadata and pages without text. Output is capped at 2,000
+lines, 2,000 characters per line and 50 KiB of line text. Image-only PDFs return
+“No extractable text.” No OCR, image recognition, transcription, API key or
+external document service is used.
+
+`@jiaoqsh/dsh-document@0.1.3` is installed with the JavaScript workspace. A
+bounded Node bridge uses its exported converters; the Python service provides
+authenticated storage and MCP tools. `Documents` readiness checks the actual
+installed parser. Text and EML parsing stays local and never fetches HTML URLs.
+
+New document and spreadsheet originals survive restarts until their chat is
+deleted. File IDs are bound to the authenticated user, originating chat and
+customer scope; forks require originals to be attached again. Chat/workspace
+deletion removes associated files. Each store allows at most 20 files/100 MB
+per chat, with upload defaults of 5 files per message, 10 MB per file and
+50 MB total. Old conversation excerpts remain readable; old temporary Excel
+references retain their original expiration.
 
 ## Spreadsheet attachments
 
@@ -221,7 +237,7 @@ optional `negate`. Operators: `==`, `!=`, `>`, `<`, `>=`, `<=`, `in`, `not_in`,
 `contains`, `startswith`, `endswith`, `is_null`, `is_not_null`. Combine up to
 32 simple filters with AND/OR. Regex and nested filters are unavailable.
 
-MarkItDown continues to process other supported documents. If a spreadsheet
+Other supported documents return a private reference for read_document. If a spreadsheet
 was previously converted to Markdown, retrieve the original email attachment
 again or reattach the original upload; use its new file ID for calculations.
 Do not calculate from a truncated Markdown excerpt or page through the whole
@@ -230,9 +246,9 @@ is in MCP descriptions and attachment manifests, not `AGENTS.md`.
 
 Files are stored under `.data/spreadsheets` with private permissions and are
 scoped to the authenticated user, chat and host-provided customer context.
-Tools accept file IDs, never arbitrary paths or user identities. IDs expire
-after 24 hours; expired files are removed on the next upload in that scope.
-Metadata and original bytes survive an application restart until expiry.
+Tools accept file IDs, never arbitrary paths or user identities. New IDs and
+original bytes survive restarts and remain available until their chat is deleted.
+References created before this upgrade retain their original 24-hour expiry.
 
 Limits: 10 MB per file, 200,000 rows, 200 columns, 2 million total workbook
 cells, 32 sheets; 20 files/100 MB per chat. Results are at most 12 KB. Row

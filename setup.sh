@@ -5,7 +5,7 @@
 # Checks prerequisites (node, pnpm, uv) and every required runtime parameter
 # (PostgreSQL, admin console credentials, settings encryption key, Splunk,
 # Zimbra, and subscription server). Anything missing or invalid is re-prompted,
-# while optional MarkItDown LLM configuration is checked when enabled,
+# while document reading runs locally through dsh-document,
 # then the collected values are written to the two env files the app reads:
 #
 #   apps/soc-agent/server/.env      deployment config and Node admin credentials
@@ -456,9 +456,6 @@ SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP|Allow subscription server over plain HTT
 SUBSCRIPTION_SERVER_URL|Subscription server URL|is_http_url||||SUBSCRIPTION_SERVER_ALLOW_INSECURE_HTTP
 SUBSCRIPTION_SERVER_USER|Subscription server username|is_nonempty||||
 SUBSCRIPTION_SERVER_PASSWORD|Subscription server password|is_nonempty||secret||
-MARKITDOWN_LLM_ENABLED|Enable MarkItDown LLM/OCR conversion|is_bool_value|false|||
-MARKITDOWN_LLM_API_KEY|MarkItDown LLM API key|is_nonempty||secret|MARKITDOWN_LLM_ENABLED|
-MARKITDOWN_LLM_MODEL|MarkItDown LLM model|is_nonempty|||MARKITDOWN_LLM_ENABLED|
 FIELDS
 unset key label validator default secret enabled http
 
@@ -751,20 +748,7 @@ verify_soc_client_artifacts() {
 }
 
 ensure_python_server() {
-  local markitdown_enabled exported_markitdown
-  exported_markitdown="$(env_value MARKITDOWN_LLM_ENABLED)"
-  if [ -n "$exported_markitdown" ]; then
-    markitdown_enabled="$exported_markitdown"
-  elif [ -n "${VALUES[MARKITDOWN_LLM_ENABLED]+x}" ]; then
-    markitdown_enabled="${VALUES[MARKITDOWN_LLM_ENABLED]}"
-  else
-    markitdown_enabled="$(lookup MARKITDOWN_LLM_ENABLED)"
-  fi
-
   local -a sync_args=(sync --python 3.12)
-  case "${markitdown_enabled,,}" in
-    1|y|yes|true|on) sync_args+=(--extra markitdown-llm) ;;
-  esac
 
   echo "${B}Python MCP server environment${N}"
   echo "Syncing Python dependencies (uv ${sync_args[*]}) — this can take a few minutes…"

@@ -2,7 +2,7 @@
   "name": "dsh-soc-agent-attachments",
   "private": true,
   "version": "0.1.0",
-  "description": "Optional MarkItDown document attachment and settings feature.",
+  "description": "Optional on-demand document attachment and settings feature.",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

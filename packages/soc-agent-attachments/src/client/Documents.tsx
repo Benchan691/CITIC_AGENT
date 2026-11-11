@@ -1,17 +1,17 @@
 import { useSyncExternalStore } from 'react'
 import type { ComposerDocumentsProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { ComposerDocument } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { MarkItDownDocumentController } from './markitdownAttachments.ts'
-import css from './MarkItDownDocuments.module.css'
+import { DocumentAttachmentController } from './documentAttachments.ts'
+import css from './Documents.module.css'
 
 function statusText(document: ComposerDocument, converting: boolean): string {
-  if (document.status === 'failed') return document.error ?? 'Conversion failed'
-  if (converting || document.status === 'converting') return 'Converting…'
-  if (document.status === 'converted') return 'Ready'
+  if (document.status === 'failed') return document.error ?? 'Upload failed'
+  if (converting || document.status === 'converting') return 'Uploading…'
+  if (document.status === 'converted') return 'Attached'
   return 'Queued'
 }
 
-export function MarkItDownDocuments(props: ComposerDocumentsProps & { controller: MarkItDownDocumentController }) {
+export function Documents(props: ComposerDocumentsProps & { controller: DocumentAttachmentController }) {
   const { controller, sessionId } = props
   useSyncExternalStore(controller.subscribe, controller.getVersion, controller.getVersion)
   if (sessionId === undefined) return null
@@ -47,7 +47,7 @@ export function MarkItDownDocuments(props: ComposerDocumentsProps & { controller
   )
 }
 
-export function openMarkItDownPicker(sessionId: string): void {
+export function openDocumentPicker(sessionId: string): void {
   const input = document.getElementById(`soc-agent-file-picker-${sessionId}`)
   if (input instanceof HTMLInputElement) input.click()
 }

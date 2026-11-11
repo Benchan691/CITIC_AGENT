@@ -16,7 +16,7 @@ type AdminAuth = {
   email?: string
 }
 
-type ServiceKey = 'splunk' | 'zimbra' | 'markitdown' | 'subscription_server'
+type ServiceKey = 'splunk' | 'zimbra' | 'documents' | 'subscription_server'
 
 type ServiceStatus = {
   status?: 'ready' | 'not_configured' | 'unavailable'
@@ -561,7 +561,7 @@ function ServiceStatusPanel({ socClient }: { socClient: SocClientRuntime }) {
   const cards: Array<{ key: ServiceKey; name: string; description: string; mark: string; checkable?: boolean }> = [
     { key: 'splunk', name: 'Splunk', description: 'Security event search and investigation', mark: 'S', checkable: true },
     { key: 'zimbra', name: 'Zimbra', description: 'Mail and identity operations', mark: 'Z' },
-    { key: 'markitdown', name: 'MarkItDown', description: 'Attachment and document conversion', mark: 'M' },
+    { key: 'documents', name: 'Documents', description: 'On-demand document reading', mark: 'D' },
     { key: 'subscription_server', name: 'Subscription server', description: 'Subscription and entitlement checks', mark: '↗', checkable: true },
   ]
 

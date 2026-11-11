@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MarkItDownDocumentController } from '../src/client/markitdownAttachments.ts'
+import { DocumentAttachmentController } from '../src/client/documentAttachments.ts'
 
 test('two attachment workers preserve order and reuse successful conversions after a failure', async () => {
   const calls: string[] = []
@@ -18,7 +18,7 @@ test('two attachment workers preserve order and reuse successful conversions aft
     return { ok: true, value: { filename: payload.filename, text: payload.filename, text_truncated: payload.filename === 'a.txt' } }
   } } }
   const settings = { getSnapshot: () => ({ value: {} }) }
-  const controller = new MarkItDownDocumentController(connection as never, settings as never)
+  const controller = new DocumentAttachmentController(connection as never, settings as never)
   const session = 'session-1' as never
   const drafts = controller.create(session, ['a.txt', 'b.txt', 'c.txt'].map(name => new File(['content'], name)))
   const ids = drafts.map(draft => draft.id)
@@ -28,12 +28,12 @@ test('two attachment workers preserve order and reuse successful conversions aft
   assert.equal(calls.filter(name => name === 'a.txt').length, 1)
   assert.equal(calls.filter(name => name === 'b.txt').length, 2)
   assert.deepEqual(result.map(item => item.filename), ['a.txt', 'b.txt', 'c.txt'])
-  assert.match(result[0]!.markdown, /text was truncated/)
+  assert.equal(result[0]!.markdown, 'a.txt')
   for (const id of ids) controller.release(session, id)
   assert.equal(controller.list(session, ids).length, 0)
 })
 
-test('spreadsheet references and document excerpts reach the composer without bulk rows', async () => {
+test('only private spreadsheet and document descriptors reach the composer', async () => {
   const calls: { filename: string; data: string; investigation_id: string }[] = []
   const fileId = 'a'.repeat(64)
   const connection = { rpc: { async call(_channel: string, _method: string, payload: { filename: string; data: string; investigation_id: string }) {
@@ -42,10 +42,10 @@ test('spreadsheet references and document excerpts reach the composer without bu
       filename: payload.filename,
       text: payload.filename.endsWith('.csv')
         ? JSON.stringify({ file_id: fileId, preferred_tool: 'excel_inspect', guidance: 'Use full-sheet aggregates' })
-        : 'Document excerpt',
+        : JSON.stringify({ file_id: 'b'.repeat(64), preferred_tool: 'read_document' }),
     } }
   } } }
-  const controller = new MarkItDownDocumentController(connection as never, { getSnapshot: () => ({ value: {} }) } as never)
+  const controller = new DocumentAttachmentController(connection as never, { getSnapshot: () => ({ value: {} }) } as never)
   const session = 'session-2' as never
   const csv = 'ID,Value\n00123,2\n00124,4\n'
   const files = [new File([csv], 'events.csv', { type: 'text/csv' }), new File(['notes'], 'notes.txt')]
@@ -53,7 +53,8 @@ test('spreadsheet references and document excerpts reach the composer without bu
   const result = await controller.convert(session, drafts.map(item => item.id), new AbortController().signal)
   assert.equal(result[0]!.markdown.includes(fileId), true)
   assert.equal(result[0]!.markdown.includes('00123'), false)
-  assert.equal(result[1]!.markdown, 'Document excerpt')
+  assert.equal(JSON.parse(result[1]!.markdown).preferred_tool, 'read_document')
+  assert.equal(result[1]!.markdown.includes('notes text'), false)
   assert.equal(atob(calls.find(item => item.filename === 'events.csv')!.data), csv)
   assert.ok(calls.every(item => item.investigation_id === session))
   controller.dispose()

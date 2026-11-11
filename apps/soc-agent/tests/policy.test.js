@@ -4,8 +4,8 @@ import { ACTION_CATALOG, apply, APPROVAL_TOOLS, DOMAIN_TOOLS, READ_ONLY_TOOLS, T
 import { ACTION_TOOLS } from '../policy.js'
 
 test('interactive analyst policy exposes the exact product tool set', () => {
-  assert.equal(READ_ONLY_TOOLS.length, 35)
-  assert.equal(DOMAIN_TOOLS.size, 47)
+  assert.equal(READ_ONLY_TOOLS.length, 36)
+  assert.equal(DOMAIN_TOOLS.size, 48)
   assert.deepEqual([...APPROVAL_TOOLS].sort(), [
     'mcp__soc_agent__create_subscription',
     'mcp__soc_agent__delete_subscription',

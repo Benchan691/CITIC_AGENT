@@ -2,13 +2,13 @@ import { useState } from 'react'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { MarkItDownAttachmentSettings } from '../attachment-constants.ts'
-import css from './MarkItDownAttachmentSettings.module.css'
+import type { DocumentAttachmentSettings } from '../attachment-constants.ts'
+import css from './DocumentAttachmentSettings.module.css'
 
 interface FieldState { text: string; overridden: boolean; invalid: boolean }
 interface AttachmentSettingsState {
   available: boolean; writable: boolean; dirty: boolean; invalid: boolean; saving: boolean; failed: boolean
-  maxFiles: FieldState; maxBytesPerFile: FieldState; maxTotalBytes: FieldState; maxCharsPerFile: FieldState; maxTotalChars: FieldState
+  maxFiles: FieldState; maxBytesPerFile: FieldState; maxTotalBytes: FieldState
 }
 
 export interface AttachmentSettingsFace {
@@ -19,7 +19,7 @@ export interface AttachmentSettingsFace {
   discard(): void
 }
 
-const FIELDS = ['maxFiles', 'maxBytesPerFile', 'maxTotalBytes', 'maxCharsPerFile', 'maxTotalChars'] as const
+const FIELDS = ['maxFiles', 'maxBytesPerFile', 'maxTotalBytes'] as const
 
 export class AttachmentSettingsController {
   private readonly drafts = new Map<string, string>()
@@ -29,7 +29,7 @@ export class AttachmentSettingsController {
   private failed = false
   private readonly unsubscribe: () => void
 
-  constructor(private readonly scope: SettingsScope<MarkItDownAttachmentSettings>) {
+  constructor(private readonly scope: SettingsScope<DocumentAttachmentSettings>) {
     this.store = createSnapshotStore(this.state())
     this.unsubscribe = scope.subscribe(() => this.publish())
   }
@@ -115,26 +115,24 @@ function Chevron({ open }: { open: boolean }) {
   </svg>
 }
 
-export function MarkItDownAttachmentSettingsCard(props: CardProps) {
+export function DocumentAttachmentSettingsCard(props: CardProps) {
   const state = props.useAttachmentSettings(value => value)
   const [open, setOpen] = useState(false)
   if (!state.available) return null
   const disabled = !state.writable
   return <li className={`${css.card}${open ? ` ${css.cardOpen}` : ''}`}>
-    <button className={css.header} type="button" aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} settings: Attachment processing`} onClick={() => setOpen(value => !value)}>
+    <button className={css.header} type="button" aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} settings: Documents`} onClick={() => setOpen(value => !value)}>
       <span className={css.headText}>
-        <span className={css.name}>Attachment processing</span>
+        <span className={css.name}>Documents</span>
         <span className={css.description}>Analyse spreadsheets and read document text.</span>
       </span>
       <Chevron open={open} />
     </button>
     {open && <div className={css.body}>
-      <p>Excel and CSV files use their original data for analysis. Other documents are converted to text. Markdown limits apply to document text.</p>
-      <Field id="markitdown-max-files" label="Maximum files per message" hint="Default: 5" state={state.maxFiles} disabled={disabled} edit={value => props.edit('maxFiles', value)} reset={() => props.resetField('maxFiles')} />
-      <Field id="markitdown-max-file-bytes" label="Maximum bytes per file" hint="Default: 10 MB" state={state.maxBytesPerFile} disabled={disabled} edit={value => props.edit('maxBytesPerFile', value)} reset={() => props.resetField('maxBytesPerFile')} />
-      <Field id="markitdown-max-total-bytes" label="Maximum total upload bytes" hint="Default: 50 MB" state={state.maxTotalBytes} disabled={disabled} edit={value => props.edit('maxTotalBytes', value)} reset={() => props.resetField('maxTotalBytes')} />
-      <Field id="markitdown-max-file-chars" label="Maximum Markdown characters per file" hint="Default: 200,000" state={state.maxCharsPerFile} disabled={disabled} edit={value => props.edit('maxCharsPerFile', value)} reset={() => props.resetField('maxCharsPerFile')} />
-      <Field id="markitdown-max-total-chars" label="Maximum total Markdown characters" hint="Default: 500,000" state={state.maxTotalChars} disabled={disabled} edit={value => props.edit('maxTotalChars', value)} reset={() => props.resetField('maxTotalChars')} />
+      <p>Files stay with this chat. The agent reads document text on request and analyses original spreadsheet data.</p>
+      <Field id="documents-max-files" label="Maximum files per message" hint="Default: 5" state={state.maxFiles} disabled={disabled} edit={value => props.edit('maxFiles', value)} reset={() => props.resetField('maxFiles')} />
+      <Field id="documents-max-file-bytes" label="Maximum bytes per file" hint="Default: 10 MB" state={state.maxBytesPerFile} disabled={disabled} edit={value => props.edit('maxBytesPerFile', value)} reset={() => props.resetField('maxBytesPerFile')} />
+      <Field id="documents-max-total-bytes" label="Maximum total upload bytes" hint="Default: 50 MB" state={state.maxTotalBytes} disabled={disabled} edit={value => props.edit('maxTotalBytes', value)} reset={() => props.resetField('maxTotalBytes')} />
       <div className={css.footer}>
         {state.failed && <p className={css.failed} role="status">Could not save these limits.</p>}
         <button className={css.discard} type="button" disabled={!state.dirty || state.saving} onClick={props.discard}>Discard</button>

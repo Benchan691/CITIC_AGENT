@@ -1,7 +1,7 @@
 import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client';
 import { type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client';
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import type { MarkItDownAttachmentSettings } from '../attachment-constants.ts';
+import type { DocumentAttachmentSettings } from '../attachment-constants.ts';
 interface FieldState {
     text: string;
     overridden: boolean;
@@ -17,8 +17,6 @@ interface AttachmentSettingsState {
     maxFiles: FieldState;
     maxBytesPerFile: FieldState;
     maxTotalBytes: FieldState;
-    maxCharsPerFile: FieldState;
-    maxTotalChars: FieldState;
 }
 export interface AttachmentSettingsFace {
     hooks: {
@@ -37,7 +35,7 @@ export declare class AttachmentSettingsController {
     private saving;
     private failed;
     private readonly unsubscribe;
-    constructor(scope: SettingsScope<MarkItDownAttachmentSettings>);
+    constructor(scope: SettingsScope<DocumentAttachmentSettings>);
     dispose(): void;
     inject(): AttachmentSettingsFace;
     private save;
@@ -45,5 +43,5 @@ export declare class AttachmentSettingsController {
     private publish;
 }
 type CardProps = PropsRuntime<'settings.plugin.item'> & InjectFace<AttachmentSettingsFace>;
-export declare function MarkItDownAttachmentSettingsCard(props: CardProps): import("react").JSX.Element | null;
+export declare function DocumentAttachmentSettingsCard(props: CardProps): import("react").JSX.Element | null;
 export {};

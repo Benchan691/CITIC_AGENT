@@ -34,6 +34,7 @@ from .zimbra.mail.service import ZimbraMailService
 from .zimbra.mail.tools import register_tools as register_mail_tools
 from .zimbra.filters.service import ZimbraFilterService
 from .zimbra.filters.tools import register_tools as register_filter_tools
+from .documents import DocumentService, register_tools as register_document_tools
 from .spreadsheets.service import SpreadsheetService
 from .spreadsheets.tools import register_tools as register_spreadsheet_tools
 
@@ -71,6 +72,7 @@ class Runtime:
     account_store: AccountStore | None = None
     identity: ZimbraIdentity | None = None
     spreadsheets: SpreadsheetService = field(default_factory=SpreadsheetService)
+    documents: DocumentService = field(default_factory=DocumentService)
     owns_services: bool = True
     config_revision: str = field(init=False)
     _mail_sessions: OrderedDict = field(default_factory=OrderedDict, init=False)
@@ -95,14 +97,16 @@ class Runtime:
             settings.zimbra.explicit_key,
         )
         spreadsheets = SpreadsheetService()
+        documents = DocumentService()
         return cls(
             settings,
-            ZimbraMailService(settings.zimbra, accounts, settings.markitdown, spreadsheets=spreadsheets),
+            ZimbraMailService(settings.zimbra, accounts, spreadsheets=spreadsheets, documents=documents),
             EmailSubscriptionService(settings.email_server),
             zimbra_filters=ZimbraFilterService(settings.zimbra, accounts),
             postgres=postgres,
             account_store=accounts,
             spreadsheets=spreadsheets,
+            documents=documents,
         )
 
     async def close(self) -> None:
@@ -124,9 +128,9 @@ class Runtime:
             zimbra=ZimbraMailService(
                 self.settings.zimbra,
                 None,
-                self.settings.markitdown,
                 identity,
                 spreadsheets=self.spreadsheets,
+                documents=self.documents,
             ),
             email_subscriptions=self.email_subscriptions,
             zimbra_filters=ZimbraFilterService(
@@ -138,6 +142,7 @@ class Runtime:
             account_store=self.account_store,
             identity=identity,
             spreadsheets=self.spreadsheets,
+            documents=self.documents,
             owns_services=False,
         )
         self._mail_sessions[identity.session_id] = scoped
@@ -184,7 +189,11 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         try:
             async with operation_budget(_meta_value(ctx, "soc_deadline_ms")):
                 prepare_started = time.monotonic()
-                await fresh_runtime(ctx)
+                scoped = await fresh_runtime(ctx)
+                if service == "documents" or operation == "get_attachment_text":
+                    chat = str(_meta_value(ctx, "soc_investigation_id") or "")
+                    if not chat or not await run_blocking(scoped.postgres.owns_chat, scoped.identity.user_id, chat):
+                        raise ServiceError("attachment_invalid_request", "Choose an available chat before reading attachments.")
                 prepare_ms = (time.monotonic() - prepare_started) * 1000
                 data = action()
                 if inspect.isawaitable(data):
@@ -301,6 +310,7 @@ def create_server(settings: ServerSettings | None = None) -> FastMCP:
         execute=execute,
     )
     register_spreadsheet_tools(server, get_runtime=runtime, execute=execute)
+    register_document_tools(server, get_runtime=runtime, execute=execute)
     return server
 
 

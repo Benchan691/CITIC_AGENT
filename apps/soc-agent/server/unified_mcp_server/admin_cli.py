@@ -11,7 +11,8 @@ from collections.abc import Mapping
 from typing import Any
 
 from .config import ServerSettings
-from .attachment_converter import AttachmentConversionLimits, AttachmentConverter
+from .attachment_store import delete_chat_files
+from .documents import DocumentService, run_document_bridge
 from .auth import identity_for_session
 from .spreadsheets.service import SpreadsheetService, spreadsheet_extension
 from .email.service import EmailSubscriptionService
@@ -35,11 +36,16 @@ def _settings(_store: PostgresStore) -> ServerSettings:
 
 def _public_settings(store: PostgresStore) -> dict[str, Any]:
     settings = _settings(store)
+    try:
+        reader = asyncio.run(run_document_bridge({"check": True}))
+        documents = {"status": "ready", **reader}
+    except ServiceError:
+        documents = {"status": "unavailable", "name": "dsh-document"}
     return {
         "services": {
             "splunk": {"status": "ready" if settings.splunk.configured else "not_configured"},
             "zimbra": {"status": "ready" if settings.zimbra.configured else "not_configured"},
-            "markitdown": {"status": "ready"},
+            "documents": documents,
             "subscription_server": {"status": "ready" if settings.email_server.configured else "not_configured"},
         },
     }
@@ -78,28 +84,39 @@ def convert_attachment(store: PostgresStore, payload: Mapping[str, Any]) -> dict
     limits = raw_limits if isinstance(raw_limits, Mapping) else {}
     try:
         max_bytes = int(limits.get("max_bytes", settings.zimbra.max_attachment_bytes))
-        max_chars = int(limits.get("max_chars", settings.zimbra.max_attachment_text_chars))
     except (TypeError, ValueError) as exc:
         raise RuntimeError("Attachment conversion limits are invalid.") from exc
     filename = str(payload.get("filename", ""))
     content_type = str(payload.get("content_type", ""))
+    identity = identity_for_session(store, str(payload.get("session_id", "")))
+    if identity is None:
+        raise ServiceError("session_expired", "Log in again before attaching a file.")
+    investigation_id = str(payload.get("investigation_id", ""))
+    if not investigation_id or not store.owns_chat(identity.user_id, investigation_id):
+        raise ServiceError("attachment_invalid_request", "Choose an available chat before attaching a file.")
     if spreadsheet_extension(filename, content_type):
-        identity = identity_for_session(store, str(payload.get("session_id", "")))
-        if identity is None:
-            raise ServiceError("session_expired", "Log in again before attaching a spreadsheet.")
-        investigation_id = str(payload.get("investigation_id", ""))
-        if not investigation_id:
-            raise ServiceError("attachment_invalid_request", "Choose a chat before attaching a spreadsheet.")
         return SpreadsheetService().put(
             data, filename, content_type, user_id=identity.user_id,
             investigation_id=investigation_id, max_bytes=max_bytes,
         )
-    return AttachmentConverter(settings.markitdown).convert(
-        data,
-        filename,
-        content_type,
-        AttachmentConversionLimits(max_bytes=max_bytes, max_chars=max_chars),
+    return DocumentService().put(
+        data, filename, content_type, user_id=identity.user_id,
+        investigation_id=investigation_id, max_bytes=max_bytes,
     )
+
+
+def delete_attachments(store: PostgresStore, payload: Mapping[str, Any]) -> dict:
+    identity = identity_for_session(store, str(payload.get("session_id", "")))
+    if identity is None:
+        raise ServiceError("session_expired", "Log in again before deleting attachments.")
+    chats = payload.get("investigation_ids")
+    if not isinstance(chats, list) or len(chats) > 1000 or any(
+        not isinstance(chat, str) or not chat or not store.owns_chat(identity.user_id, chat) for chat in chats
+    ):
+        raise ServiceError("attachment_invalid_request", "These chat attachments are unavailable.")
+    for chat in chats:
+        delete_chat_files(identity.user_id, chat)
+    return {"deleted": True}
 
 
 def _safe_error_details(error: ServiceError) -> dict[str, Any]:
@@ -143,6 +160,8 @@ def main() -> None:
             result = _public_settings(store)
         elif command == "convert-attachment":
             result = convert_attachment(store, payload)
+        elif command == "delete-attachment-files":
+            result = delete_attachments(store, payload)
         elif command == "test-subscription-server":
             result = asyncio.run(test_subscription_server(store))
         else:

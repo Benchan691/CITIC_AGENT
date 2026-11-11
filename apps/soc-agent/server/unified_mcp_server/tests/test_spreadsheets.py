@@ -124,18 +124,17 @@ def test_file_ids_do_not_cross_user_chat_or_customer(service, scope):
         operation_context.reset(token)
 
 
-def test_refs_survive_restart_but_expire_and_cleanup_on_next_upload(service, monkeypatch):
+def test_refs_survive_restart_and_remain_with_chat(service, monkeypatch):
     now = 10_000.0
     monkeypatch.setattr(module.time, "time", lambda: now)
     manifest = store(service, [["A"], ["1"]])
     restarted = SpreadsheetService(service.root)
     assert analyse(restarted, manifest, "inspect")["sheet_count"] == 1
     now += module.FILE_TTL + 1
-    with pytest.raises(ServiceError) as error:
-        analyse(restarted, manifest, "inspect")
-    assert error.value.code == "spreadsheet_expired"
-    store(restarted, [["A"], ["2"]])
-    assert not list(service.root.rglob(manifest["file_id"] + ".*"))
+    assert analyse(restarted, manifest, "inspect")["sheet_count"] == 1
+    assert manifest["retention"] == "chat"
+    assert list(service.root.rglob(manifest["file_id"] + ".json"))
+
 
 
 @pytest.mark.parametrize("extension", [".csv", ".xlsx"])
@@ -305,31 +304,32 @@ def test_composer_routing_uses_original_files_and_authenticated_identity(service
     monkeypatch.setattr(admin, "SpreadsheetService", lambda: service)
     identity = ZimbraIdentity("user-a", "analyst@example.test", "token", "app-session")
     monkeypatch.setattr(admin, "identity_for_session", lambda store, session: identity if session == "app-session" else None)
-    converted = []
-    monkeypatch.setattr(admin, "AttachmentConverter", lambda settings: SimpleNamespace(
-        convert=lambda *args: converted.append(args) or {"text": "document excerpt"}))
+    from unified_mcp_server.documents import DocumentService
+    monkeypatch.setattr(admin, "DocumentService", lambda: DocumentService(service.root / "documents"))
+    owned = SimpleNamespace(owns_chat=lambda user, chat: user == "user-a" and chat == "chat-a")
     payload = dict(filename="events.csv", content_type="text/csv", session_id="app-session",
                    investigation_id="chat-a", data=base64.b64encode(b"Value\n2\n4\n").decode())
-    result = admin.convert_attachment(None, payload)
-    assert result["preferred_tool"] == "excel_inspect" and converted == []
+    result = admin.convert_attachment(owned, payload)
+    assert result["preferred_tool"] == "excel_inspect"
     assert analyse(service, result, "aggregate", sheet_name="CSV", header_row=0,
                    operation="sum", target_column="Value")["value"] == 6
-    document = admin.convert_attachment(None, {**payload, "filename": "notes.txt", "content_type": "text/plain"})
-    assert document["text"] == "document excerpt" and len(converted) == 1
+    document = admin.convert_attachment(owned, {**payload, "filename": "notes.txt", "content_type": "text/plain"})
+    assert document["preferred_tool"] == "read_document"
+    assert "Value" not in document["text"]
     with pytest.raises(ServiceError) as error:
-        admin.convert_attachment(None, {**payload, "session_id": "forged"})
+        admin.convert_attachment(owned, {**payload, "session_id": "forged"})
     assert error.value.code == "session_expired"
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("filename", ["events.csv", ""])
-async def test_zimbra_spreadsheets_bypass_markitdown(service, monkeypatch, filename):
+async def test_zimbra_spreadsheets_use_original_data(service, monkeypatch, filename):
     identity = ZimbraIdentity("user-a", "analyst@example.test", "token", "app-session")
     mail_service = mail.ZimbraMailService(ZimbraSettings(host="mail.example.test", verify_ssl=True, timeout=60), identity=identity, spreadsheets=service)
     monkeypatch.setattr(mail, "zimbra_get_message", lambda *args, **kwargs: {
         "attachments": [{"part": "2.3", "filename": filename, "content_type": "text/csv", "size": 10}]})
     monkeypatch.setattr(mail, "download_attachment", lambda *args: b"Value\n2\n4\n")
-    monkeypatch.setattr(mail_service._attachment_converter, "convert", lambda *args: pytest.fail("Spreadsheet entered MarkItDown"))
+    monkeypatch.setattr(mail_service._documents, "put", lambda *args, **kwargs: pytest.fail("Spreadsheet entered document reader"))
     result = await mail_service.get_attachment_text("42", "2.3")
     assert result["message_id"] == "42" and result["part"] == "2.3"
     assert result["preferred_tool"] == "excel_inspect"

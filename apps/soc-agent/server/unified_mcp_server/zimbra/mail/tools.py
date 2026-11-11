@@ -93,7 +93,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
 
         Body-embedded image parts such as inline CID/logo images are omitted
         from attachments and reported only by a bounded skipped-image count.
-        Review each listed attachment separately with
+        When the task requires attachments, stage the relevant parts with
         ``zimbra_get_attachment_text``; a skipped result is non-fatal and
         should not stop review of the remaining attachments.
         """
@@ -106,8 +106,10 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
 
     @server.tool(annotations={"readOnlyHint": True})
     async def zimbra_get_attachment_text(ctx: Context, message_id: str, part: str, max_chars: int = 20_000) -> dict[str, Any]:
-        """Read one bounded attachment. XLSX/XLS/CSV return a private file_id for
-        excel_inspect and analysis tools; other documents use MarkItDown.
+        """Stage one selected attachment. XLSX/XLS/CSV return a private file_id for
+        excel_inspect and analysis tools; other documents return a private file_id for read_document.
+        Staging stores original bytes without extracting document text.
+        max_chars is retained for older callers; use read_document pagination.
         Verify zero-based header_row from excel_inspect.raw_preview; use
         @A/@B refs for blank/repeated labels. Pass header_row to analysis and
         retrieve only relevant evidence rows. Use the original file for
@@ -117,7 +119,7 @@ def register_tools(server, *, get_runtime, fresh_runtime, execute, success) -> N
         each normal attachment independently; if one file returns
         ``skipped: true``, continue with the message body and the other parts.
 
-        For conversion-only failures such as unsupported or unavailable OCR,
+        For attachment-only failures such as an unsupported format,
         return ``skipped: true`` with a safe reason code so the caller can
         continue with the message body and other attachments. Authentication,
         download, invalid-part, and size-limit failures remain errors.
