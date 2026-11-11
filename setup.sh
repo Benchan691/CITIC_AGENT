@@ -25,6 +25,7 @@
 #                         interactively
 #   ./setup.sh --check    report only; exits 1 when something is missing
 #   ./setup.sh --plugins  non-interactive: install, build, repair, wire profile
+#                         and migrate retired document-reader configuration
 
 set -euo pipefail
 
@@ -105,6 +106,13 @@ select_branch() {
   done
 }
 
+fast_forward_checkout() {
+  local repo_dir="$1"
+  if git -C "$repo_dir" pull --ff-only; then return 0; fi
+  bad "could not fast-forward $repo_dir — setup stopped; resolve the Git error and retry"
+  return 1
+}
+
 # Standalone bootstrap: run this script from anywhere that is not already a
 # CITIC_AGENT checkout and it takes responsibility for the whole setup — the
 # user picks the install path, the repository is cloned (or an existing
@@ -162,9 +170,7 @@ if [ ! -d "$SCRIPT_DIR/vendor/deepseek-harness" ]; then
   if [ -d "$target_dir/.git" ]; then
     if ! ensure_branch "$target_dir" "$REPO_BRANCH"; then exit 1; fi
     warn "reusing existing checkout at $target_dir on '$REPO_BRANCH' — fast-forwarding it"
-    if ! git -C "$target_dir" pull --ff-only; then
-      warn "could not fast-forward the existing checkout — continuing with its current state"
-    fi
+    fast_forward_checkout "$target_dir" || exit 1
   else
     echo "Cloning branch '$REPO_BRANCH' from $repo_url into $target_dir …"
     if ! mkdir -p -- "$(dirname -- "$target_dir")"; then
@@ -693,6 +699,49 @@ write_files() {
   done
 }
 
+RETIRED_DOCUMENT_ENV_PATTERN='^[[:space:]]*(export[[:space:]]+)?(MARKITDOWN_[[:alnum:]_]+|ZIMBRA_MAX_ATTACHMENT_TEXT_CHARS)[[:space:]]*='
+
+retired_document_environment_keys() { # Prints names only, never old credentials.
+  local file="$1" line
+  [ -f "$file" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [[ "$line" =~ $RETIRED_DOCUMENT_ENV_PATTERN ]]; then
+      printf '%s\n' "${BASH_REMATCH[2]}"
+    fi
+  done < "$file"
+}
+
+verify_document_environment() {
+  local file keys failed=0
+  for file in "$SERVER_ENV" "$HARNESS_ENV"; do
+    keys="$(retired_document_environment_keys "$file")"
+    if [ -n "$keys" ]; then
+      bad "retired document settings remain in $file: ${keys//$'\n'/, } — run: ./setup.sh --plugins"
+      failed=1
+    fi
+  done
+  [ "$failed" = 0 ] && ok "document environment uses the local reader"
+  return "$failed"
+}
+
+migrate_document_environment() {
+  local file keys line tmp
+  for file in "$SERVER_ENV" "$HARNESS_ENV"; do
+    keys="$(retired_document_environment_keys "$file")"
+    [ -n "$keys" ] || continue
+    tmp="$(mktemp "${file}.XXXXXX")"
+    TMPFILES="$TMPFILES $tmp"
+    chmod 600 "$tmp"
+    while IFS= read -r line || [ -n "$line" ]; do
+      if [[ "$line" =~ $RETIRED_DOCUMENT_ENV_PATTERN ]]; then continue; fi
+      printf '%s\n' "$line"
+    done < "$file" > "$tmp"
+    mv "$tmp" "$file"
+    TMPFILES="${TMPFILES// $tmp/}"
+    info "removed retired document settings from $file"
+  done
+}
+
 # ------------------------------------------------- harness build & wiring ---
 #
 # Three things must hold before `pnpm dsh web` boots the full SOC product:
@@ -748,7 +797,7 @@ verify_soc_client_artifacts() {
 }
 
 ensure_python_server() {
-  local -a sync_args=(sync --python 3.12)
+  local -a sync_args=(sync --locked --python 3.12)
 
   echo "${B}Python MCP server environment${N}"
   echo "Syncing Python dependencies (uv ${sync_args[*]}) — this can take a few minutes…"
@@ -757,6 +806,53 @@ ensure_python_server() {
   else
     bad "uv sync failed — run: cd apps/soc-agent/server && uv ${sync_args[*]}"
     PREREQ_WARNINGS+=("Python MCP environment")
+    return 1
+  fi
+}
+
+# The reader is a pinned SOC dependency, loaded through the authenticated
+# attachment bridge. Check from that package's anchor on every device.
+document_reader_check() { # $1 = dependencies (before build) or full (after build)
+  node - "$REPO_ROOT/apps/soc-agent/package.json" "$REPO_ROOT/apps/soc-agent/document-reader.js" "${1:-full}" <<'NODE'
+const fs = require('node:fs');
+const { createRequire } = require('node:module');
+const { dirname, join } = require('node:path');
+const { spawnSync } = require('node:child_process');
+try {
+  const [manifest, bridge, mode] = process.argv.slice(2);
+  const expected = JSON.parse(fs.readFileSync(manifest, 'utf8')).dependencies?.['@jiaoqsh/dsh-document'];
+  const localRequire = createRequire(manifest);
+  const installed = localRequire('@jiaoqsh/dsh-document/package.json').version;
+  if (!expected || installed !== expected) throw new Error();
+  const entry = localRequire.resolve('@jiaoqsh/dsh-document');
+  fs.accessSync(bridge);
+  fs.accessSync(join(dirname(entry), 'pdf-worker.js'));
+  fs.accessSync(createRequire(entry).resolve('@firecrawl/pdf-inspector-wasm/pdf_inspector_wasm_bg.wasm'));
+  if (mode !== 'dependencies') {
+    const env = Object.fromEntries(['PATH', 'SystemRoot', 'LANG', 'LC_ALL']
+      .filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]]));
+    const child = spawnSync(process.execPath, [bridge], {
+      input: '{"check":true}', encoding: 'utf8', timeout: 15000, maxBuffer: 65536, env,
+    });
+    if (child.error || child.status !== 0) throw new Error();
+    const result = JSON.parse(child.stdout);
+    if (!result.ok || result.value?.available !== true || result.value?.name !== 'dsh-document'
+      || result.value?.version !== expected) throw new Error();
+  }
+  console.log(`dsh-document@${expected}`);
+} catch {
+  console.error('The pinned local document reader is missing or unavailable.');
+  process.exitCode = 1;
+}
+NODE
+}
+
+verify_document_reader() {
+  local reader
+  if reader="$(document_reader_check full 2>/dev/null)"; then
+    ok "document reader ready: $reader (local, on demand)"
+  else
+    bad "document reader unavailable — run: ./setup.sh --plugins --rebuild"
     return 1
   fi
 }
@@ -804,16 +900,26 @@ ensure_harness_ready() {
   echo "${B}Harness build${N}"
   mkdir -p "$BUILD_STATE_DIR"
 
-  local install_fingerprint install_recorded
+  local install_fingerprint install_recorded use_cached_install=0
+  local -a install_args=(install --frozen-lockfile)
   install_fingerprint="$(harness_install_fingerprint)"
   install_recorded="$(cat "$HARNESS_INSTALL_MARKER" 2>/dev/null || true)"
   if [ "$FORCE_REBUILD" != "1" ] && [ -n "$install_recorded" ] \
     && [ "$install_recorded" = "$install_fingerprint" ] \
     && [ -d "$HARNESS_DIR/node_modules" ]; then
+    if document_reader_check dependencies >/dev/null 2>&1; then
+      use_cached_install=1
+    else
+      warn "cached document reader needs repair — refreshing locked dependencies"
+      install_args+=(--force)
+    fi
+  fi
+  if [ "$use_cached_install" = 1 ]; then
     info "dependency graph unchanged since the last install — skipping pnpm install"
   else
+    if [ "$FORCE_REBUILD" = 1 ]; then install_args+=(--force); fi
     echo "Installing/verifying harness dependencies — this can take a few minutes…"
-    if (cd "$HARNESS_DIR" && pnpm install --frozen-lockfile); then
+    if (cd "$HARNESS_DIR" && pnpm "${install_args[@]}"); then
       ok "harness dependencies ready"
       printf '%s' "$install_fingerprint" > "$HARNESS_INSTALL_MARKER"
     else
@@ -1356,6 +1462,7 @@ run_check_mode() {
   echo "${B}Parameters${N} ${D}(environment > apps/soc-agent/server/.env > vendor/deepseek-harness/.env > .env.example)${N}"
 
   if check_parameters; then :; else fails=$((fails+$?)); fi
+  if verify_document_environment; then :; else fails=$((fails+1)); fi
 
   echo
   echo "${B}Harness build & profile${N}"
@@ -1415,6 +1522,7 @@ run_check_mode() {
   else
     warn "harness dependencies not installed — build/profile not auditable yet (run: ./setup.sh --plugins)"
   fi
+  if verify_document_reader; then :; else fails=$((fails+1)); fi
 
   echo
   if [ "$fails" -gt 0 ]; then
@@ -1451,8 +1559,10 @@ case "${1:-}" in
   --plugins)
     echo "${B}SOC Agent setup doctor — install, build, repair, wire${N}"
     run_prereq_checks
+    migrate_document_environment
     ensure_python_server
     ensure_harness_ready
+    verify_document_reader
     ensure_external_plugins
     ensure_soc_bundle
     exit 0
@@ -1462,8 +1572,10 @@ case "${1:-}" in
     run_prereq_checks
     collect_parameters
     write_files
+    migrate_document_environment
     ensure_python_server
     ensure_harness_ready
+    verify_document_reader
     ensure_external_plugins
     ensure_soc_bundle
     echo

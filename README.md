@@ -35,18 +35,24 @@ discarded.
 
 ## Update from GitHub
 
-Keep the checkout clean, then run:
+Use the same branch on each device. Keep the checkout clean, then run:
 
 ```bash
-./update.sh
+git pull --ff-only &&
+./setup.sh --plugins &&
+./setup.sh --check
 ```
 
-The update script fast-forwards the current branch from its configured
-upstream and runs `setup.sh --plugins` to refresh dependencies, builds, and
-profile wiring. It never stashes or discards local changes. If the web app is
-already running, restart it manually after the update. It follows whichever
-branch is currently checked out. To change branches, run `./setup.sh` and make
-the selection when prompted before running the update.
+Setup installs the checked-in dependency versions, verifies the pinned local
+document reader, repairs stale reader dependencies, and removes retired
+MarkItDown/OCR environment entries on both fresh and existing installations.
+Existing connection credentials and saved upload preferences are preserved.
+Restart the web app after an update.
+
+If Git cannot fast-forward, compare the branches and preserve local work before
+aligning the checkout. Bootstrap setup stops on a failed pull so it cannot
+report an older checkout as updated. To change branches, run `./setup.sh` and
+make the selection when prompted before applying the setup.
 
 ## Official Splunk MCP (read-only)
 
